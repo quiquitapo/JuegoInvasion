@@ -94,6 +94,11 @@
   .dexstats .hpv { color:#ff9d3b; }
   .dexstats .dmv { color:#ffe066; }
   .dexstats .cntv { color:#8fd7ff; font-weight:900; }
+  .ostbtn { font-family:inherit; font-size:0.42rem; letter-spacing:1px; cursor:pointer;
+            background:rgba(30,16,44,0.9); color:#e0c6ff; border:1px solid #6b4a9c;
+            border-radius:5px; padding:3px 8px; margin-left:2px; }
+  .ostbtn:hover { border-color:#c9a6ff; color:#fff; }
+  .ostbtn.on { background:#6b4a9c; color:#fff; }
 
   /* ---- Keybinds ---- */
   .bindrow { display:flex; justify-content:space-between; align-items:center; gap:16px; padding:6px 0;
@@ -352,6 +357,28 @@
   .joy-knob { position:absolute; width:46px; height:46px; border-radius:50%;
               background:rgba(123,255,160,0.55); border:2px solid rgba(180,255,200,0.8);
               left:27px; top:27px; pointer-events:none; }
+  #bootlogowrap { position:relative; width:min(230px,52vw); margin:0 auto 18px; }
+  #bootlogowrap img { width:100%; display:block; image-rendering:pixelated; }
+  #bootlogo  { filter:grayscale(1) brightness(0.62); }
+  #bootlogoc { position:absolute; inset:0; clip-path:inset(0 100% 0 0); transition:clip-path .22s ease; }
+  #bootbar { height:10px; border:2px solid #2f4a38; border-radius:7px;
+             background:rgba(6,12,8,0.8); overflow:hidden; }
+  #bootfill { height:100%; width:0%; border-radius:5px;
+              background:linear-gradient(90deg,#2f7d4f,#7bffa0); transition:width .2s ease; }
+  #boottext { margin-top:10px; font-size:0.5rem; letter-spacing:1.5px; color:#9fb3a8; }
+  /* En horizontal hay menos alto: los mandos suben y encogen un poco */
+  @media (orientation: landscape) and (max-height: 520px){
+    .actbtn { width:74px; height:74px; font-size:0.44rem; }
+    #actionBtns { right:12px; bottom:calc(14px + env(safe-area-inset-bottom,0px)); gap:9px; }
+    .joy-base { transform:scale(0.86); }
+    #p2Buttons { right:10px; bottom:4px; gap:8px; }
+    .p2btn { height:40px; min-width:46px; font-size:0.44rem; }
+    .p2btn.wide { min-width:84px; }
+  }
+  /* En vertical se aprovecha el alto disponible */
+  @media (orientation: portrait){
+    #actionBtns { bottom:calc(126px + env(safe-area-inset-bottom,0px)); }
+  }
   #actionBtns { position:absolute; right:16px; bottom:calc(110px + env(safe-area-inset-bottom,0px));
                 display:none; flex-direction:column; gap:12px; z-index:7; }
   .actbtn { width:92px; height:92px; border-radius:50%; border:2px solid rgba(255,255,255,0.4);
@@ -363,6 +390,27 @@
   .actlabel { font-size:0.66rem; }
   .acthint { font-size:0.44rem; opacity:0.8; margin-top:3px; letter-spacing:0; font-weight:400; }
   /* verde cuando tienes las manos libres, naranja cuando sostienes algo */
+  #btnPunch { background:radial-gradient(circle at 35% 30%, #ffd257, #a06a10); display:none; }
+  #btnPunch.charging { box-shadow:0 0 0 5px rgba(255,120,60,0.6); }
+  body.touch-ui #actionBtns.playing.vil #btnPunch { display:flex; }
+  /* Mando táctil del Jugador 2 */
+  #p2touch { display:none; position:absolute; left:0; right:0;
+             bottom:calc(12px + env(safe-area-inset-bottom,0px)); z-index:7;
+             pointer-events:none; }
+  body.touch-ui #p2touch.playing { display:block; }
+  .p2joy { border-color:rgba(120,180,255,0.75) !important; pointer-events:auto; }
+  .p2joy .joy-knob { background:radial-gradient(circle at 35% 30%, #8fd0ff, #1f5f9e) !important; }
+  #p2Buttons { position:absolute; right:14px; bottom:6px; display:flex; gap:10px;
+               align-items:center; pointer-events:auto; }
+  .p2btn { min-width:52px; height:46px; padding:0 10px; border-radius:10px;
+           border:2px solid rgba(120,180,255,0.75); background:rgba(12,26,44,0.85);
+           color:#cfe6ff; font-family:inherit; font-size:0.5rem; letter-spacing:1px;
+           display:flex; align-items:center; justify-content:center;
+           -webkit-user-select:none; user-select:none; }
+  .p2btn.wide { min-width:96px; }
+  .tipmovil { display:none; color:#ffd257; }
+  body.touch-ui .tipmovil { display:block; margin-bottom:5px; }
+  .p2btn:active { transform:scale(0.94); border-color:#fff; }
   #btnAction { background:radial-gradient(circle at 35% 30%, #4fe07f, #14742f); }
   #btnAction.holding { background:radial-gradient(circle at 35% 30%, #ff8a5b, #b8330f); }
   #btnAction.pressed { transform:scale(0.92); }
@@ -381,7 +429,7 @@
     <div class="hp-wrap">
       <div class="hp-label"><span>INTEGRIDAD</span><b id="formname">CRÍA</b></div>
       <div class="hp-bar-bg"><div id="hpfill" class="hp-bar-fill" style="width:100%"></div></div>
-      <div class="evo-bar-bg"><div id="evofill" class="evo-bar-fill" style="width:0%"></div></div>
+      <div class="evo-bar-bg" id="evowrap"><div id="evofill" class="evo-bar-fill" style="width:0%"></div></div>
       <div class="evo-bar-bg" id="stamwrap" style="display:none">
         <div id="stamfill" class="hp-bar-fill" style="width:100%;background:linear-gradient(90deg,#3aa7ff,#9fd6ff)"></div>
       </div>
@@ -422,9 +470,35 @@
       <span class="actlabel" id="actlabel">AGARRAR</span>
       <span class="acthint" id="acthint">toca</span>
     </div>
+    <div class="actbtn" id="btnPunch">
+      <span class="actlabel">GOLPE</span>
+      <span class="acthint">mantén: cargado</span>
+    </div>
   </div>
 
-  <div id="menu" class="overlay">
+  <!-- Mando del Jugador 2 en móvil (modo VS) -->
+  <div id="p2touch">
+    <div id="p2JoyBase" class="joy-base p2joy"><div class="joy-knob" id="p2JoyKnob"></div></div>
+    <div id="p2Buttons">
+      <div class="p2btn" id="p2Prev">◀</div>
+      <div class="p2btn wide" id="p2Place">DESPLEGAR</div>
+      <div class="p2btn" id="p2Next">▶</div>
+    </div>
+  </div>
+
+  <div id="booting" class="overlay" style="align-items:center; justify-content:center">
+    <div style="text-align:center; width:min(360px, 78vw)">
+      <!-- El logo arranca en blanco y negro y se va tiñendo según avanza la carga -->
+      <div id="bootlogowrap">
+        <img id="bootlogo" alt="">
+        <img id="bootlogoc" alt="">
+      </div>
+      <div id="bootbar"><div id="bootfill"></div></div>
+      <div id="boottext">INICIANDO…</div>
+    </div>
+  </div>
+
+  <div id="menu" class="overlay hidden">
     <img id="gamelogo" class="gamelogo" alt="Invasión">
     <div class="subtitle">La ciudad es tuya. Devórala.</div>
     <div class="panel">
@@ -488,7 +562,7 @@
           El <b>Jugador 2</b> comanda al ejército: gana <b>materiales al dañar al alien</b> y los gasta en
           desplegar unidades donde quiera, como plantar semillas. Si acaba con el alien antes de que
           se agote el tiempo, gana él.<br>
-          <span class="moderec">Recomendado: el <b>alien</b> juega con <b>WASD + ratón</b> y el
+          <span class="moderec"><b class="tipmovil">En móvil funciona, pero este modo se disfruta mucho más en ordenador.</b>Recomendado: el <b>alien</b> juega con <b>WASD + ratón</b> y el
           <b>Jugador 2</b> con las <b>flechas</b> del teclado, colocando unidades con <b>0</b> o <b>Insert</b>
           y cambiando de unidad con <b>Re Pág / Av Pág</b>. Puedes reasignar las teclas de
           <b>ambos jugadores</b> en <b>Controles</b> antes de empezar.</span>
@@ -759,7 +833,9 @@ resize();
 
 // ================= UTIL =================
 function rand(a,b){ return a + Math.random()*(b-a); }
-function dist(x1,y1,x2,y2){ return Math.hypot(x2-x1, y2-y1); }
+// Math.hypot protege contra desbordes que aquí no pueden darse (coordenadas
+// de pantalla), y es ~3,7x más lenta. Con miles de llamadas por fotograma, importa.
+function dist(x1,y1,x2,y2){ const dx=x2-x1, dy=y2-y1; return Math.sqrt(dx*dx+dy*dy); }
 function clamp(v,a,b){ return Math.max(a, Math.min(b,v)); }
 function lerp(a,b,t){ return a + (b-a)*t; }
 function mulberry32(a){
@@ -893,7 +969,7 @@ const roads = [], buildings = [], treeSpots = [], lampSpots = [], trashSpots = [
 // circle vs rect: returns push-out normal + penetration, or null
 function circleRect(px,py,r,b){
   const cx = clamp(px, b.x, b.x+b.w), cy = clamp(py, b.y, b.y+b.h);
-  const dx = px-cx, dy = py-cy, d = Math.hypot(dx,dy);
+  const dx = px-cx, dy = py-cy, d = Math.sqrt(dx*dx+dy*dy);
   if (d >= r) return null;
   if (d > 0.0001) return { nx:dx/d, ny:dy/d, pen:r-d };
   const l = px-b.x, rr = b.x+b.w-px, t = py-b.y, bo = b.y+b.h-py;
@@ -958,7 +1034,9 @@ const FORMS = [
 const EVOLVE_KILLS = 14;
 let form = 0, drawR = FORMS[0].r;
 function F(){ return FORMS[form]; }
-function maxHp(){ return F().hp; }
+// El viltrumita no evoluciona, así que parte con más aguante.
+const VIL_HP = 230;
+function maxHp(){ return isVil() ? VIL_HP : F().hp; }
 
 // ================= STATE =================
 let player = { x: WORLD_W/2, y: WORLD_H/2, vx:0, vy:0, tentaclePhase:0 };
@@ -972,6 +1050,7 @@ function finalWave(){ return form >= 1 && (gameTime > 140 || score >= 1500); }
 function resetGame(){
   player = { x: WORLD_W/2, y: WORLD_H/2, vx:0, vy:0, tentaclePhase:0 };
   civilians=[]; enemies=[]; cars=[]; trees=[]; planters=[]; trash=[]; benches=[]; bullets=[]; particles=[]; booms=[]; heldObject=null;
+  sonicRings.length = 0; bossTrack = null;
   planters = [];
   lamps = lampSpots.map((l,i)=>({ si:i, kind:'lamp', x:l.x, y:l.y, w:26, h:58, hp:30, maxhp:30,
                               held:false, thrown:false, dead:false, rot:0, vx:0, vy:0, uprooted:false }));
@@ -1323,7 +1402,7 @@ let bossAlive = false;
 
 function inCone(x, y, ox, oy, ang, len, spread){
   const dx = x - ox, dy = y - oy;
-  const d = Math.hypot(dx, dy);
+  const d = Math.sqrt(dx*dx + dy*dy);
   if (d > len || d < 1) return d <= len;
   let da = Math.atan2(dy, dx) - ang;
   while (da >  Math.PI) da -= Math.PI*2;
@@ -1554,7 +1633,8 @@ function damageEnemy(e, dmg, fx, fy){
   const rw = REWARD[k] || REWARD.civ;
   score += rw.pts; kills++;
   p2Refund(e.type);
-  hp = clamp(hp + rw.heal, 0, maxHp());
+  // El viltrumita no evoluciona, así que compensa recuperando algo más.
+  hp = clamp(hp + Math.round(rw.heal * (isVil() ? 1.45 : 1)), 0, maxHp());
   addParticles(e.x, e.y, '#ffd27b', 16, 150);
   sfx('kill');
   if (k === 'flametank' || k === 'omni'){ unlockAch('esotodo'); explode(e.x, e.y, 190, 70, true); }
@@ -1566,6 +1646,9 @@ function damageEnemy(e, dmg, fx, fy){
 function checkEvolve(){
   if (form === 0 && kills >= EVOLVE_KILLS){
     form = 1;
+    // El viltrumita cruza el mismo umbral (para que lleguen blindados y se
+    // abra la cámara), pero sin anuncio ni fanfarria: él no se transforma.
+    if (isVil()) return;
     hp = maxHp();
     sfx('evolve');
     toast('EVOLUCIÓN: COLOSO');
@@ -1824,6 +1907,7 @@ function skin(){ return skinById(activeSkin); }
 // fija (sin arrays ni objetos por fotograma), así que no cuesta nada.
 const COSMIC_N = 16;
 function drawCosmos(cx, cy, r, seed){
+  if (r < 2) return;                     // demasiado pequeño para notarse
   seed = seed || 0;
   const t = gameTime * 0.35;
   ctx.save();
@@ -2047,6 +2131,18 @@ function noise(dur, vol, freq, q){
 }
 
 const SFX = {
+  // Barrera del sonido: chasquido seco y grave.
+  // Barrera del sonido: latigazo agudo, cuerpo grave y cola de aire.
+  sonicboom: ()=> {
+    noise(0.16, 0.05, 7000, 1.4);          // chasquido inicial, muy corto
+    noise(0.42, 0.30, 1100, 1.5);          // cuerpo del estallido
+    noise(0.22, 0.55, 320,  1.2);          // cola grave que se aleja
+    tone(320, 0.16, 'sawtooth', 0.22, 60); // barrido descendente
+    tone(120, 0.42, 'sine',     0.26, 32);
+    tone(64,  0.60, 'sine',     0.20, 30); // subgrave que da el golpe en el pecho
+  },
+  dash:      ()=> { noise(0.16, 0.18, 2200, 0.9); tone(420,0.12,'sine',0.10,700); },
+  crack:     ()=> { noise(0.22, 0.22, 1600, 1); tone(150,0.18,'square',0.14,60); },
   grab:   ()=> tone(220, 0.10, 'square', 0.16, 420),
   throw:  ()=> tone(520, 0.14, 'sawtooth', 0.16, 130),
   hit:    ()=> noise(0.09, 0.22, 1400, 1),
@@ -2065,7 +2161,8 @@ const SFX = {
 };
 // Cortafuegos: un mismo efecto no puede repetirse más rápido que su cooldown,
 // y limitamos las voces simultáneas para que nunca se acumule un zumbido.
-const SFX_GAP = { shoot:0.09, hit:0.05, hurt:0.12, kill:0.06, boom:0.07, bigboom:0.12,
+const SFX_GAP = { sonicboom:0.30, dash:0.10, crack:0.20,
+                  shoot:0.09, hit:0.05, hurt:0.12, kill:0.06, boom:0.07, bigboom:0.12,
                   demolish:0.15, grab:0.06, throw:0.06, ui:0.05, coin:0.10 };
 const sfxLast = {};
 let sfxVoices = 0;
@@ -2086,6 +2183,21 @@ function voiceStart(dur){
 }
 
 // --- música: bajo + arpegio en bucle, cambia de escala según la fase del día ---
+// Temas de los mini jefes: escalas tensas y propias de cada uno.
+// flametank: menor armónica con quinta disminuida, muy marcial.
+// omni: tonos enteros, inquietante y mecánico.
+const BOSS_TRACKS = {
+  flametank: { scale:[110.00,130.81,146.83,155.56,164.81,196.00,207.65,261.63],
+               tempo:180, name:'MARCHA DE CENIZA', style:'march' },
+  // Omnidroide: octatónica (tono-semitono). Suena mecánica y sin centro tonal,
+  // como algo que orbita sin rumbo. Lleva un bajo que se desliza y un pulso doble.
+  omni:      { scale:[110.00,123.47,130.81,146.83,155.56,174.61,185.00,207.65],
+               bass:[55.00,58.27,55.00,49.00], tempo:132, name:'ÓRBITA MUERTA',
+               style:'omni' }
+};
+let bossTrack = null;              // el que suena ahora, si hay jefe en pie
+let previewTrack = null, previewT = 0;
+
 const MUSIC_SCALES = {
   manana:   [220,262,294,330,392],
   dia:      [262,294,330,392,440],
@@ -2094,8 +2206,9 @@ const MUSIC_SCALES = {
 };
 function musicStep(){
   if (!audio.ctx || !audio.musOn) return;
+  const bt = previewTrack || bossTrack;
   const key = (typeof phase === 'function') ? phase().id : 'dia';
-  const sc = MUSIC_SCALES[key] || MUSIC_SCALES.dia;
+  const sc = bt ? bt.scale : (MUSIC_SCALES[key] || MUSIC_SCALES.dia);
   const t0 = audio.ctx.currentTime;
   const mk = (freq, dur, type, vol)=>{
     const o = audio.ctx.createOscillator(), g = audio.ctx.createGain();
@@ -2109,15 +2222,84 @@ function musicStep(){
   };
   if (audio.ctx.state !== 'running') return;
   const s = audio.step++;
+  if (bt && bt.style === 'omni'){
+    // ÓRBITA MUERTA: bajo que se desliza entre cuatro notas, arpegio metálico
+    // en compás de 3 sobre un pulso de 4 (se desfasan y crean tensión),
+    // campanadas agudas y un latido grave cada dos compases.
+    const bass = bt.bass;
+    if (s % 4 === 0) mk(bass[(s/4) % bass.length], 0.62, 'sawtooth', 0.24);
+    if (s % 4 === 2) mk(bass[(s/4|0) % bass.length]*1.5, 0.22, 'triangle', 0.13);
+    mk(sc[(s*3) % sc.length], 0.13, 'square', 0.060);              // ostinato de 3
+    if (s % 6 === 5) mk(sc[(s*5) % sc.length]*2, 0.28, 'sine', 0.075);   // campana
+    if (s % 8 === 0) mk(sc[0]/2, 0.9, 'sine', 0.20);               // latido grave
+    if (s % 16 === 14) mk(sc[7]*3, 0.36, 'triangle', 0.055);       // brillo lejano
+    if (s % 4 === 0) noise(0.05, 0.09, 2600);                      // chasquido metálico
+    if (s % 8 === 4) noise(0.10, 0.16, 520);                       // golpe sordo
+    return;
+  }
+  if (bt){
+    // MARCHA DE CENIZA: bajo insistente, ostinato rápido y golpes graves.
+    if (s % 2 === 0) mk(sc[0]/2, 0.34, 'sawtooth', 0.26);
+    if (s % 8 === 0) mk(sc[0]/4, 0.6, 'triangle', 0.30);
+    mk(sc[(s*3) % sc.length], 0.16, 'square', 0.075);
+    if (s % 4 === 2) mk(sc[(s*5) % sc.length]*2, 0.12, 'square', 0.05);
+    if (s % 16 === 12) mk(sc[7]*2, 0.5, 'sine', 0.09);
+    if (s % 4 === 0) noise(0.06, 0.10, 1400);                     // percusión seca
+    return;
+  }
   if (s % 4 === 0) mk(sc[0]/2, 0.5, 'triangle', 0.20);          // bajo
   mk(sc[s % sc.length], 0.24, 'square', 0.065);                  // arpegio
   if (s % 8 === 6) mk(sc[4], 0.3, 'sine', 0.08);
+}
+
+// Cambia el tempo del bucle según haya jefe o no.
+function retuneMusic(){
+  if (!audio.musicTimer) return;
+  const bt = previewTrack || bossTrack;
+  clearInterval(audio.musicTimer);
+  audio.musicTimer = setInterval(musicStep, bt ? bt.tempo : 260);
+}
+
+// Suena el tema del jefe mientras siga en pie. Se revisa 3 veces por segundo:
+// recorrer la lista de enemigos en cada fotograma no aportaba nada.
+let bossMusicT = 0;
+function updateBossMusic(dt){
+  bossMusicT -= (dt || 0.016);
+  if (bossMusicT > 0) return;
+  bossMusicT = 0.33;
+  let cual = null;
+  for (const e of enemies){
+    if (e.dead) continue;
+    if (e.type === 'flametank'){ cual = 'flametank'; break; }
+    if (e.type === 'omni'){ cual = 'omni'; break; }
+  }
+  const nuevo = cual ? BOSS_TRACKS[cual] : null;
+  if (nuevo !== bossTrack){ bossTrack = nuevo; retuneMusic(); }
+}
+
+// Vista previa desde el registro.
+function playBossPreview(id){
+  const t = BOSS_TRACKS[id];
+  if (!t) return;
+  initAudio();
+  if (previewTrack === t){ stopBossPreview(); return; }        // segundo toque: parar
+  previewTrack = t; previewT = 14;                                          // 14 s de muestra
+  if (!audio.musicTimer) startMusic();
+  retuneMusic();
+}
+function stopBossPreview(){
+  if (!previewTrack) return;
+  previewTrack = null; previewT = 0;
+  // Fuera de la partida no debe sonar NADA: la muestra encendió el bucle,
+  // así que hay que apagarlo del todo en vez de volver al tema ambiente.
+  if (!running) stopMusic();
+  else retuneMusic();
 }
 function startMusic(){
   initAudio();
   if (!audio.ctx) return;
   if (audio.musicTimer){ clearInterval(audio.musicTimer); audio.musicTimer = null; }
-  audio.musicTimer = setInterval(musicStep, 260);
+  audio.musicTimer = setInterval(musicStep, (previewTrack||bossTrack) ? (previewTrack||bossTrack).tempo : 260);
 }
 function stopMusic(){
   if (audio.musicTimer){ clearInterval(audio.musicTimer); audio.musicTimer = null; }
@@ -2248,9 +2430,18 @@ function renderDex(){
         <div class="dexname">${b.name}</div>
         <div class="dexdesc">${b.desc}</div>
         <div class="dexstats"><span class="hpv">HP ${b.hp}</span><span class="dmv">DAÑO ${b.dmg}</span>
+          ${BOSS_TRACKS[b.id] && n > 0 ? `<button type="button" class="ostbtn" data-ost="${b.id}">\u{266A} ${esc(BOSS_TRACKS[b.id].name)}</button>` : ''}
           <span class="cntv">${b.verb || 'ELIMINADOS'}: ${n}</span></div>
       </div></div>`;
   }).join('');
+  el.querySelectorAll('[data-ost]').forEach(node=>{
+    node.addEventListener('click', (ev)=>{
+      ev.stopPropagation();
+      playBossPreview(node.dataset.ost);
+      sfx('ui');
+      renderDex();
+    });
+  });
   el.querySelectorAll('[data-state]').forEach(node=>{
     node.addEventListener('click', ()=>{
       const id = node.dataset.state;
@@ -2944,13 +3135,18 @@ function p2Cycle(dir){
 function updateVS(dt){
   if (gameMode !== 'vs') return;
   // cursor del jugador 2
-  let dx=0, dy=0;
-  if (p2Pressed('p2Up'))    dy-=1;
-  if (p2Pressed('p2Down'))  dy+=1;
-  if (p2Pressed('p2Left'))  dx-=1;
-  if (p2Pressed('p2Right')) dx+=1;
-  const len = Math.hypot(dx,dy) || 1;
-  const spd = 430;
+  let dx=0, dy=0, mag=1;
+  if (p2Joy.active){                       // mando táctil del Jugador 2
+    dx = p2Joy.dx; dy = p2Joy.dy;
+    mag = clamp(Math.sqrt(dx*dx+dy*dy), 0, 1);
+  } else {
+    if (p2Pressed('p2Up'))    dy-=1;
+    if (p2Pressed('p2Down'))  dy+=1;
+    if (p2Pressed('p2Left'))  dx-=1;
+    if (p2Pressed('p2Right')) dx+=1;
+  }
+  const len = Math.sqrt(dx*dx+dy*dy) || 1;
+  const spd = 430 * mag;
   p2.x = clamp(p2.x + (dx/len)*spd*dt, 40, WORLD_W-40);
   p2.y = clamp(p2.y + (dy/len)*spd*dt, 40, WORLD_H-40);
 
@@ -3019,8 +3215,7 @@ window.addEventListener('keydown', e=>{
         vil.flying = true; vil.flyDir = dir;
         const v = DIRV[dir];
         vil.fx = v[0]; vil.fy = v[1];
-        sfx('dash');
-        addParticles(player.x, player.y, '#9fd6ff', 14, 180);
+        sonicBoom(player.x, player.y, Math.atan2(vil.fy, vil.fx));
       }
       vil.tapKey = dir; vil.tapT = ahora;
     }
@@ -3191,6 +3386,37 @@ async function loadHero(){
 function saveHero(){ storeSet('invasion_hero', hero); }
 
 // Estado propio del viltrumita
+// Ondas del estallido sónico al romper la barrera del sonido.
+const sonicRings = [];
+function sonicBoom(x, y, ang){
+  for (let i = 0; i < 3; i++){
+    sonicRings.push({ x, y, ang, r: 6 + i*10, life: 0.55 - i*0.07, max: 0.55 });
+  }
+  shake(9, 0.22);
+  sfx('sonicboom');
+  addParticles(x, y, '#dff0ff', 16, 240);
+}
+function updateSonic(dt){
+  for (let i = sonicRings.length - 1; i >= 0; i--){
+    const r = sonicRings[i];
+    r.life -= dt; r.r += 760*dt;
+    if (r.life <= 0) sonicRings.splice(i, 1);
+  }
+}
+function drawSonic(){
+  for (const r of sonicRings){
+    const s2 = S(r.x, r.y);
+    const a = clamp(r.life / r.max, 0, 1);
+    ctx.globalAlpha = a * 0.75;
+    ctx.strokeStyle = '#dff0ff';
+    ctx.lineWidth = 2 + a*3;
+    ctx.beginPath();
+    ctx.ellipse(s2.x, s2.y, r.r*0.55, r.r, r.ang, -Math.PI*0.62, Math.PI*0.62);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+}
+
 const vil = { stam:100, maxStam:100, flying:false, flyDir:'', fx:0, fy:0,
               punchCd:0, punchT:0, tapKey:'', tapT:0, capa:0,
               holdT:0, holding:false, charge:0 };
@@ -3298,6 +3524,75 @@ function bindActionBtn(){
 }
 bindActionBtn();
 
+// Botón de golpe del viltrumita: toque = puñetazo, mantenido = golpe cargado.
+function bindPunchBtn(){
+  const b = document.getElementById('btnPunch');
+  if (!b) return;
+  const abajo = (e)=>{ if(e){e.preventDefault(); e.stopPropagation();}
+    if (!isVil()) return;
+    vil.holding = true; vil.charge = 0.0001;
+    b.classList.add('charging');
+  };
+  const arriba = (e)=>{ if(e){e.preventDefault(); e.stopPropagation();}
+    if (!isVil() || !vil.holding) return;
+    vil.holding = false;
+    b.classList.remove('charging');
+    vilRelease();
+  };
+  b.addEventListener('touchstart', abajo, {passive:false});
+  b.addEventListener('touchend',   arriba, {passive:false});
+  b.addEventListener('touchcancel',()=>{ vil.holding=false; vil.charge=0; b.classList.remove('charging'); }, {passive:true});
+  b.addEventListener('mousedown',  abajo);
+  b.addEventListener('mouseup',    arriba);
+  b.addEventListener('mouseleave', ()=>{ if(vil.holding){ vil.holding=false; vil.charge=0; b.classList.remove('charging'); } });
+}
+bindPunchBtn();
+
+// ---- Mando táctil del Jugador 2 (modo VS) ----
+const p2Joy = { active:false, id:null, baseX:0, baseY:0, dx:0, dy:0 };
+function bindP2Touch(){
+  const base = document.getElementById('p2JoyBase');
+  const kn   = document.getElementById('p2JoyKnob');
+  const wrap = document.getElementById('p2touch');
+  if (!base || !wrap) return;
+  // El joystick vive en la mitad izquierda de la zona inferior
+  base.style.display = 'block';
+  base.style.left = '20px';
+  base.style.bottom = '6px';
+  base.style.top = 'auto';
+  base.style.position = 'absolute';
+
+  const r = ()=> base.getBoundingClientRect();
+  const mover = (t)=>{
+    const b = r();
+    let dx = (t.clientX - (b.left + b.width/2)) / (b.width/2);
+    let dy = (t.clientY - (b.top  + b.height/2)) / (b.height/2);
+    const m = Math.sqrt(dx*dx+dy*dy); if (m > 1){ dx/=m; dy/=m; }
+    p2Joy.dx = dx; p2Joy.dy = dy;
+    if (kn){ kn.style.left = (27 + dx*JOY_R*0.55) + 'px'; kn.style.top = (27 + dy*JOY_R*0.55) + 'px'; }
+  };
+  base.addEventListener('touchstart', e=>{ e.preventDefault(); e.stopPropagation();
+    const t = e.changedTouches[0]; p2Joy.active = true; p2Joy.id = t.identifier; mover(t); }, {passive:false});
+  base.addEventListener('touchmove', e=>{ e.preventDefault(); e.stopPropagation();
+    for (const t of e.changedTouches) if (t.identifier === p2Joy.id) mover(t); }, {passive:false});
+  const soltar = (e)=>{ if(e){e.preventDefault(); e.stopPropagation();}
+    p2Joy.active=false; p2Joy.id=null; p2Joy.dx=0; p2Joy.dy=0;
+    if (kn){ kn.style.left='27px'; kn.style.top='27px'; } };
+  base.addEventListener('touchend', soltar, {passive:false});
+  base.addEventListener('touchcancel', soltar, {passive:false});
+
+  const tocar = (id, fn)=>{
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('touchstart', e=>{ e.preventDefault(); e.stopPropagation(); fn(); }, {passive:false});
+    el.addEventListener('mousedown',  e=>{ e.preventDefault(); e.stopPropagation(); fn(); });
+  };
+  tocar('p2Prev',  ()=> p2Cycle(-1));
+  tocar('p2Next',  ()=> p2Cycle(1));
+  tocar('p2Place', ()=> p2Place());
+}
+bindP2Touch();
+
 // mantiene la etiqueta acorde a lo que lleves en el tentáculo
 let actSig = '';
 function refreshActionBtn(){
@@ -3309,7 +3604,8 @@ function refreshActionBtn(){
   const hint = document.getElementById('acthint');
   const btn = document.getElementById('btnAction');
   if (lab)  lab.textContent  = holding ? 'LANZAR' : 'AGARRAR';
-  if (hint) hint.textContent = holding ? 'mantén: golpear' : 'toca';
+  if (hint) hint.textContent = isVil() ? (holding ? 'toca' : 'toca')
+                                       : (holding ? 'mantén: golpear' : 'toca');
   if (btn)  btn.classList.toggle('holding', holding);
 }
 
@@ -3320,7 +3616,7 @@ function aimVector(){
     return { dx:aimJoy.dx/m, dy:aimJoy.dy/m, mag:clamp(m,0,1) };
   }
   const wx = mouse.x / ZOOM + camX, wy = mouse.y / ZOOM + camY;
-  const dx = wx - player.x, dy = wy - player.y, d = Math.hypot(dx,dy) || 1;
+  const dx = wx - player.x, dy = wy - player.y, d = Math.sqrt(dx*dx+dy*dy) || 1;
   return { dx:dx/d, dy:dy/d, mag: clamp(d / F().reach, 0, 1) };
 }
 function tentacleTip(){
@@ -3492,6 +3788,13 @@ function isScenery(o){ return !!SCENERY[o.kind]; }
 
 // Unidades que no se revientan de una pasada: hay que insistir.
 const BLINDADOS = { tank:1, siege:1, gunship:1, heli:1, flametank:1, omni:1 };
+// Mini jefes: el viltrumita les hace más daño con lo que les arroja.
+const JEFES = { flametank:1, omni:1 };
+const VIL_BOSS_MULT = 1.40;
+function throwDmgOn(o, tgt){
+  const base = o.throwDmg;
+  return (isVil() && tgt && JEFES[tgt.type]) ? base * VIL_BOSS_MULT : base;
+}
 function esBlindado(t){ return !!BLINDADOS[t.type]; }
 
 // Lo que usas como arma se va rompiendo, y se le ve la barra bajar:
@@ -3590,7 +3893,7 @@ function updateRam(dt){
   // velocidad del objeto = velocidad del tentáculo (seguimos al jugador)
   const rx = (o.x - (o.px != null ? o.px : o.x)) / Math.max(dt, 0.0001);
   const ry = (o.y - (o.py != null ? o.py : o.y)) / Math.max(dt, 0.0001);
-  const spd = Math.hypot(rx, ry);
+  const spd = Math.sqrt(rx*rx + ry*ry);
   o.px = o.x; o.py = o.y;
   if (spd < 90 || ramCd > 0) return;      // hay que moverlo con intención
 
@@ -3683,7 +3986,7 @@ function updatePlayer(dt){
     if (pressed('left'))  dx-=1;
     if (pressed('right')) dx+=1;
   }
-  const len = Math.hypot(dx,dy) || 1;
+  const len = Math.sqrt(dx*dx+dy*dy) || 1;
   player.vx = lerp(player.vx, (dx/len)*F().speed*mag, 0.18);
   player.vy = lerp(player.vy, (dy/len)*F().speed*mag, 0.18);
   player.x = clamp(player.x + player.vx*dt, 30, WORLD_W-30);
@@ -3745,15 +4048,15 @@ function updateViltrum(dt){
     vil.stam -= VIL_STAM_USE*dt;
     // se puede curvar un poco el rumbo mientras vuela
     if (dx || dy){
-      const l = Math.hypot(dx,dy)||1;
+      const l = Math.sqrt(dx*dx+dy*dy)||1;
       vil.fx = lerp(vil.fx, dx/l, 0.07); vil.fy = lerp(vil.fy, dy/l, 0.07);
-      const n = Math.hypot(vil.fx,vil.fy)||1; vil.fx/=n; vil.fy/=n;
+      const n = Math.sqrt(vil.fx*vil.fx+vil.fy*vil.fy)||1; vil.fx/=n; vil.fy/=n;
     }
     player.vx = vil.fx*VIL_FLY; player.vy = vil.fy*VIL_FLY;
     if (Math.random() < 0.6) addParticles(player.x, player.y, '#9fd6ff', 2, 120);
     if (vil.stam <= 0){ vil.stam = 0; vil.flying = false; }
   } else {
-    const len = Math.hypot(dx,dy) || 1;
+    const len = Math.sqrt(dx*dx+dy*dy) || 1;
     player.vx = lerp(player.vx, (dx/len)*VIL_SPEED*mag, 0.18);
     player.vy = lerp(player.vy, (dy/len)*VIL_SPEED*mag, 0.18);
     vil.stam = Math.min(vil.maxStam, vil.stam + VIL_STAM_REG*dt);
@@ -3815,14 +4118,22 @@ function drawViltrum(){
     ctx.fillRect(-7, 10, 6, 16+sep); ctx.fillRect(2, 10, 6, 16-sep);
     ctx.fillStyle = OSCURO; ctx.fillRect(-8, 25+sep, 8, 4); ctx.fillRect(1, 25-sep, 8, 4);
   }
-  // torso
-  ctx.fillStyle = TRAJE; ctx.fillRect(-9, -12, 18, 23);
-  if (SK.cosmic) drawCosmos(0, -1, 13, 1.3);          // el traje es un trozo de cielo
-  ctx.fillStyle = SOMBRA; ctx.fillRect(-9, 5, 18, 5);
+  // torso: vertical de pie, TUMBADO en horizontal durante el vuelo sónico
+  ctx.fillStyle = TRAJE;
+  if (vol){
+    ctx.fillRect(-12, -9, 26, 18);
+    if (SK.cosmic) drawCosmos(1, 0, 14, 1.3);
+    ctx.fillStyle = SOMBRA; ctx.fillRect(-12, -9, 5, 18);   // cintura hacia atrás
+  } else {
+    ctx.fillRect(-9, -12, 18, 23);
+    if (SK.cosmic) drawCosmos(0, -1, 13, 1.3);        // el traje es un trozo de cielo
+    ctx.fillStyle = SOMBRA; ctx.fillRect(-9, 5, 18, 5);
+  }
   // círculo del pecho, con el color de la punta del tentáculo
-  ctx.fillStyle = CIRC;   ctx.beginPath(); ctx.arc(0,-4,5.6,0,Math.PI*2); ctx.fill();
-  ctx.fillStyle = TRAJE;  ctx.beginPath(); ctx.arc(0,-4,3.0,0,Math.PI*2); ctx.fill();
-  if (SK.cosmic) drawCosmos(0, -4, 3.0, 2.7);         // galaxia en el pecho
+  const ccx = vol ? 3 : 0, ccy = vol ? 0 : -4;
+  ctx.fillStyle = CIRC;   ctx.beginPath(); ctx.arc(ccx,ccy,5.6,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle = TRAJE;  ctx.beginPath(); ctx.arc(ccx,ccy,3.0,0,Math.PI*2); ctx.fill();
+  if (SK.cosmic) drawCosmos(ccx, ccy, 3.0, 2.7);      // galaxia en el pecho
   ctx.fillStyle = OSCURO; ctx.beginPath(); ctx.arc(0,-4,1.4,0,Math.PI*2); ctx.fill();
   // brazos
   const cargando = vil.charge > 0;
@@ -3831,19 +4142,40 @@ function drawViltrum(){
   else if (vol){ ctx.fillRect(6, -14, 21, 6); ctx.fillRect(6, -4, 19, 6); }
   else if (vil.punchT > 0){ ctx.fillRect(8, -8, 23, 7); }
   else { ctx.fillRect(-13, -10, 5, 15); ctx.fillRect(9, -10, 5, 15); }
-  ctx.fillStyle = PIEL;
-  if (cargando){ ctx.fillRect(-6,-20,10,7); }
-  else if (vol){ ctx.fillRect(26,-15,6,7); ctx.fillRect(24,-5,6,7); }
-  else if (vil.punchT > 0){ ctx.fillRect(30,-9,7,8); }
-  else { ctx.fillRect(-14,4,6,6); ctx.fillRect(9,4,6,6); }
-  // cabeza con pelo, sin casco
-  ctx.fillStyle = PIEL; ctx.beginPath(); ctx.arc(1,-19,8.4,0,Math.PI*2); ctx.fill();
-  ctx.fillStyle = PELO;
-  ctx.beginPath();
-  ctx.arc(1,-21,8.6, Math.PI*1.02, Math.PI*2.05);   // melena corta
-  ctx.lineTo(9,-19); ctx.lineTo(-7,-19); ctx.closePath(); ctx.fill();
-  ctx.fillRect(-8,-22,4,6);
-  ctx.fillStyle = OJO; ctx.fillRect(3,-20,4,2.6);
+  // Manos: con la armadura cósmica van enguantadas en cielo estrellado.
+  const manos = [];
+  if (cargando){ manos.push([-6,-20,10,7]); }
+  else if (vol){ manos.push([26,-15,6,7], [24,-5,6,7]); }
+  else if (vil.punchT > 0){ manos.push([30,-9,7,8]); }
+  else { manos.push([-14,4,6,6], [9,4,6,6]); }
+  for (const m of manos){
+    ctx.fillStyle = SK.cosmic ? OSCURO : PIEL;
+    ctx.fillRect(m[0], m[1], m[2], m[3]);
+    if (SK.cosmic){
+      drawCosmos(m[0]+m[2]/2, m[1]+m[3]/2, Math.max(m[2],m[3])*0.6, 5.3 + m[0]*0.01);
+      ctx.strokeStyle = CIRC; ctx.lineWidth = 0.8;
+      ctx.strokeRect(m[0]+0.4, m[1]+0.4, m[2]-0.8, m[3]-0.8);
+    }
+  }
+  // cabeza: encima del torso a pie, por delante en horizontal al volar
+  const hx = vol ? 20 : 1, hy = vol ? -1 : -19;
+  ctx.fillStyle = PIEL; ctx.beginPath(); ctx.arc(hx,hy,8.4,0,Math.PI*2); ctx.fill();
+  if (SK.cosmic){
+    // La armadura cósmica también le cubre el rostro: solo brilla la mirada.
+    ctx.fillStyle = OSCURO; ctx.beginPath(); ctx.arc(hx,hy,8.4,0,Math.PI*2); ctx.fill();
+    drawCosmos(hx, hy, 8.4, 4.1);
+    ctx.strokeStyle = CIRC; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.arc(hx,hy,8.4,0,Math.PI*2); ctx.stroke();
+    ctx.fillStyle = '#eaf3ff';
+    ctx.fillRect(hx+1, hy-2.6, 5, 2.2);
+  } else {
+    ctx.fillStyle = PELO;
+    ctx.beginPath();
+    ctx.arc(hx,hy-2,8.6, Math.PI*1.02, Math.PI*2.05);
+    ctx.lineTo(hx+8,hy); ctx.lineTo(hx-8,hy); ctx.closePath(); ctx.fill();
+    ctx.fillRect(hx-9,hy-3,4,6);
+    ctx.fillStyle = OJO; ctx.fillRect(hx+2,hy-1,4,2.6);
+  }
   ctx.restore();
 
   // aura del golpe cargado
@@ -3897,7 +4229,9 @@ function vilSmash(dt){
       if (dist(t.x,t.y,px2,py2) >= 44) continue;
       // Los blindados y los mini jefes resisten: reciben daño por segundo,
       // así que hacen falta varias pasadas para tumbarlos.
-      if (esBlindado(t)) damageEnemy(t, 150*dt, t.x, t.y);
+      // Tanques, helicópteros, artillados, asedio y jefes: el impacto sónico
+      // los abre bastante mejor, aunque los jefes siguen exigiendo insistencia.
+      if (esBlindado(t)) damageEnemy(t, 420*dt, t.x, t.y);
       else damageEnemy(t, 999, t.x, t.y);
     }
   }
@@ -3977,7 +4311,9 @@ function updateCars(dt){
     if (isWreck(c)){
       c.vx = 0; c.vy = 0;
       // Chatarra abandonada en plena calzada: echa humo y acaba estallando.
-      if (!c.held && !c.thrown && sobreCarretera(c.x, c.y)){
+      // La comprobación de asfalto se cachea: el vehículo ya no se mueve.
+      if (c.onRoad === undefined) c.onRoad = sobreCarretera(c.x, c.y);
+      if (!c.held && !c.thrown && c.onRoad){
         c.fuse = (c.fuse || 0) + dt;
         if (Math.random() < 0.10){                    // muy poco humo: nada de lag
           particles.push({ x:c.x + rand(-8,8), y:c.y - 10, vx:rand(-6,6), vy:rand(-26,-14),
@@ -3988,7 +4324,7 @@ function updateCars(dt){
           const bl = blastOf(c);
           explode(c.x, c.y, bl.r, bl.dmg, bl.big, true);   // alcanza también al jugador
         }
-      } else c.fuse = 0;                               // agarrado o fuera de la calzada
+      } else { c.fuse = 0; if (c.held || c.thrown) c.onRoad = undefined; }
       continue;
     }
     // Al ver de cerca al alien, el conductor da media vuelta y huye.
@@ -4128,7 +4464,7 @@ function updateThrown(dt){
         // Aturden los cuerpos lanzados y TODO el mobiliario urbano:
         // árbol, farola, banca y basurero. Cualquier trastazo derriba a un infante.
         const stunAmmo = (o.kind === 'civ' || o.person || isScenery(o));
-        damageEnemy(tgt, o.throwDmg, impact.x, impact.y);
+        damageEnemy(tgt, throwDmgOn(o, tgt), impact.x, impact.y);
         if (tgt.dead) unlockAch('provis');
         // deja aturdido 1s a la infantería que sobreviva al impacto
         else if (stunAmmo && tgt.person){
@@ -4331,7 +4667,7 @@ function updateBullets(dt){
         while (d >  Math.PI) d -= Math.PI*2;
         while (d < -Math.PI) d += Math.PI*2;
         cur += clamp(d, -b.turn*dt, b.turn*dt);
-        const sp = Math.min(Math.hypot(b.vx,b.vy) + 260*dt, b.maxSpd);
+        const sp = Math.min(Math.sqrt(b.vx*b.vx+b.vy*b.vy) + 260*dt, b.maxSpd);
         b.vx = Math.cos(cur)*sp; b.vy = Math.sin(cur)*sp;
       }
       b.rot = Math.atan2(b.vy, b.vx);
@@ -4430,6 +4766,8 @@ function makeProp(kind, p){
 }
 
 function regenPool(kind, spots, arr){
+  // Si no falta ninguno, no hay nada que recorrer (el caso más habitual).
+  if (arr.length >= spots.length) return;
   const vivos = new Set();
   for (const o of arr) if (!o.dead && o.si !== undefined) vivos.add(o.si);
   const seen = regenSeen[kind];
@@ -4474,6 +4812,7 @@ function updateSpawns(dt){
   updateCycle();
   achProgress();
   updateRegen(dt);
+  updateBossMusic(dt);
   if (gameMode === 'vs'){
     // en el duelo solo el Jugador 2 despliega tropas; el resto de la ciudad sigue viva
     spawnTimers.civ -= dt;
@@ -5112,7 +5451,7 @@ function draw(){
     }
   }
 
-  drawBullets(); drawFX(); drawP2Cursor();
+  drawBullets(); drawSonic(); drawFX(); drawP2Cursor();
   ctx.restore();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   drawLighting();                                  // en píxeles del lienzo
@@ -5178,7 +5517,7 @@ lastT = performance.now();
 function loop(t){
   const dt = Math.min((t-lastT)/1000, 0.05); lastT = t;
   if (running){
-    updateZoom(dt);
+    updateZoom(dt); updateSonic(dt);
     updatePlayer(dt); updateCivilians(dt); updateCars(dt); updateTrees(dt); updateRam(dt); updateThrown(dt);
     updateVS(dt);
     updateEnemies(dt); updateBullets(dt); updateFX(dt); updateSpawns(dt);
@@ -5189,11 +5528,15 @@ function loop(t){
 
     document.getElementById('hpfill').style.width  = (hp/maxHp()*100)+'%';
     document.getElementById('evofill').style.width = (form>=1 ? 100 : clamp(kills/EVOLVE_KILLS,0,1)*100)+'%';
+    const ew = document.getElementById('evowrap');
+    if (ew) ew.style.display = '';
     const sw = document.getElementById('stamwrap');
     if (isVil()){
       document.getElementById('formname').textContent = 'VILTRUMITA';
       if (sw){ sw.style.display=''; document.getElementById('stamfill').style.width=(vil.stam/vil.maxStam*100).toFixed(1)+'%'; }
       document.getElementById('evofill').style.width = '0%';
+      const ew = document.getElementById('evowrap');
+      if (ew) ew.style.display = 'none';        // sin barra de evolución
     } else {
       document.getElementById('formname').textContent = F().name;
       if (sw) sw.style.display = 'none';
@@ -5230,6 +5573,7 @@ requestAnimationFrame(loop);
 // ================= FLOW =================
 function startGame(mode){
   resumeAudio();
+  stopBossPreview();                    // la muestra del registro no invade la partida
   stopModeAnims();
   flushPendingScore();
   gameMode = (mode === 'vs') ? 'vs' : 'invasion';
@@ -5241,7 +5585,11 @@ function startGame(mode){
   document.getElementById('gameover').classList.add('hidden');
   document.getElementById('hud').classList.remove('hidden');
   document.getElementById('bottomhud').classList.remove('hidden');
-  document.getElementById('actionBtns').classList.add('playing');
+  const ab = document.getElementById('actionBtns');
+  ab.classList.add('playing');
+  ab.classList.toggle('vil', isVil());          // el botón de golpe solo con el viltrumita
+  const p2t = document.getElementById('p2touch');
+  if (p2t) p2t.classList.toggle('playing', gameMode === 'vs');
   actSig = ''; refreshActionBtn();
   const vs = gameMode === 'vs';
   document.getElementById('hud').classList.toggle('vsmode', vs);
@@ -5268,6 +5616,8 @@ async function endGame(){
   document.getElementById('hud').classList.add('hidden');
   document.getElementById('bottomhud').classList.add('hidden');
   document.getElementById('actionBtns').classList.remove('playing');
+  const p2t2 = document.getElementById('p2touch');
+  if (p2t2) p2t2.classList.remove('playing');
   const q = sel => { try { return document.querySelector ? document.querySelector(sel) : null; } catch(e){ return null; } };
   const gt = q('#gameover .title');
   const gs = q('#gameover .subtitle');
@@ -5560,7 +5910,10 @@ document.getElementById('btnAchBack').addEventListener('click', ()=>{
 document.getElementById('btnRegistro').addEventListener('click', ()=>{
   renderDex(); hide('menu'); show('registro');
 });
-document.getElementById('btnDexBack').addEventListener('click', ()=>{ hide('registro'); show('menu'); });
+document.getElementById('btnDexBack').addEventListener('click', ()=>{
+  stopBossPreview();                    // que no siga sonando en el menú
+  hide('registro'); show('menu');
+});
 
 document.getElementById('btnControles').addEventListener('click', ()=>{
   resumeAudio(); sfx('ui');
@@ -5607,7 +5960,8 @@ function refreshModeText(){
     v.innerHTML = 'Dos jugadores en el mismo teclado. El <b>viltrumita</b> debe aguantar 2:30 mientras '+
       'el <b>Jugador 2</b> gasta materiales desplegando tropas donde quiera. Volar rápido gasta estamina: '+
       'elige bien cuándo cruzar el mapa.<br>'+
-      '<span class="moderec">J1: <b>WASD</b> + ratón · J2: <b>flechas</b> para mover la mira, '+
+      '<span class="moderec"><b class="tipmovil">En móvil funciona, pero este modo se disfruta mucho más en ordenador.</b>'+
+      'J1: <b>WASD</b> + ratón · J2: <b>flechas</b> para mover la mira, '+
       '<b>0</b> para desplegar y <b>AvPág/RePág</b> para cambiar de unidad.</span>';
   } else {
     d.innerHTML = descInvOrig; v.innerHTML = descVsOrig;
@@ -5685,16 +6039,48 @@ document.getElementById('btnMenu').addEventListener('click', async ()=>{
   document.getElementById('menu').classList.remove('hidden');
 });
 
+// Arranque con barra de progreso: el menú no aparece hasta que TODO está
+// leído (puntajes, monedas, registro, logros, controles y preferencias).
 (async ()=>{
-  await SaveIO.init();
-  await loadDex(); await loadAch(); await loadBinds(); await loadBindsP2(); await loadShop(); await loadAudioPrefs();
-  checkCollector();
-  if (coins > 1500) unlockAch('millonario');
-  await loadTouchPref(); await loadMenuAnim(); await loadHpBars(); await loadHero();
-  sanitizeBinds(); renderBinds(); renderBindsP2();
-  refreshCoinLabels(); refreshAudioUI(); refreshTouchUI(); refreshAnimUI(); refreshHpUI();
-  refreshHeroUI(); refreshVilHelp(); refreshLogos(); refreshBtnFx();
-  refreshSaveMode(); await renderScoreList();
+  const fill = document.getElementById('bootfill');
+  const txt  = document.getElementById('boottext');
+  const lg   = document.getElementById('bootlogo');
+  const lgc  = document.getElementById('bootlogoc');
+  if (lg && UI_ART.logo){ lg.src = UI_ART.logo; lgc.src = UI_ART.logo; }
+  const pinta = (p)=>{
+    if (fill) fill.style.width = Math.round(p*100) + '%';
+    // el color va ganando terreno de izquierda a derecha
+    if (lgc) lgc.style.clipPath = 'inset(0 ' + Math.round((1-p)*100) + '% 0 0)';
+  };
+  const pasos = [
+    ['Abriendo el guardado',      async ()=>{ await SaveIO.init(); }],
+    ['Cargando registro',         async ()=>{ await loadDex(); }],
+    ['Cargando logros',           async ()=>{ await loadAch(); }],
+    ['Cargando controles',        async ()=>{ await loadBinds(); await loadBindsP2(); }],
+    ['Cargando monedas y tienda', async ()=>{ await loadShop(); }],
+    ['Cargando preferencias',     async ()=>{ await loadAudioPrefs(); await loadTouchPref();
+                                              await loadMenuAnim(); await loadHpBars(); await loadHero(); }],
+    ['Preparando la ciudad',      async ()=>{
+        checkCollector();
+        if (coins > 1500) unlockAch('millonario');
+        sanitizeBinds(); renderBinds(); renderBindsP2();
+        refreshCoinLabels(); refreshAudioUI(); refreshTouchUI(); refreshAnimUI(); refreshHpUI();
+        refreshHeroUI(); refreshVilHelp(); refreshLogos(); refreshBtnFx(); refreshSaveMode();
+      }],
+    ['Cargando puntajes',         async ()=>{ await renderScoreList(); }]
+  ];
+  for (let i = 0; i < pasos.length; i++){
+    const paso = pasos[i];
+    if (txt) txt.textContent = paso[0].toUpperCase() + '…';
+    try { await paso[1](); } catch(e){ console.warn('arranque:', paso[0], e); }
+    pinta((i+1)/pasos.length);
+    await new Promise(r => setTimeout(r, 55));       // deja que la barra se pinte
+  }
+  if (txt) txt.textContent = 'LISTO';
+  await new Promise(r => setTimeout(r, 140));
+  const boot = document.getElementById('booting');
+  if (boot) boot.classList.add('hidden');
+  document.getElementById('menu').classList.remove('hidden');
 })();
 applyUIArt();
 // al cambiar de pestaña se corta el audio para que no quede un tono colgado
