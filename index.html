@@ -3212,7 +3212,7 @@ window.addEventListener('keydown', e=>{
     if (dir){
       const ahora = performance.now()/1000;
       if (vil.tapKey === dir && ahora - vil.tapT < VIL_DBL_TAP && vil.stam > 6){
-        vil.flying = true; vil.flyDir = dir;
+        vil.flying = true; vil.flyDir = dir; vil.joyFly = false;
         const v = DIRV[dir];
         vil.fx = v[0]; vil.fy = v[1];
         sonicBoom(player.x, player.y, Math.atan2(vil.fy, vil.fx));
@@ -3419,7 +3419,7 @@ function drawSonic(){
 
 const vil = { stam:100, maxStam:100, flying:false, flyDir:'', fx:0, fy:0,
               punchCd:0, punchT:0, tapKey:'', tapT:0, capa:0,
-              holdT:0, holding:false, charge:0 };
+              holdT:0, holding:false, charge:0, joyFly:false };
 const VIL_CHARGE_MAX = 1.4;     // segundos hasta el golpe cargado completo
 const VIL_CHARGE_DMG = 210;     // daño del golpe cargado al máximo
 const VIL_SPEED   = 210;    // a pie
@@ -3429,6 +3429,8 @@ const VIL_STAM_REG= 18;     // recuperación por segundo en tierra
 const VIL_PUNCH_CD= 0.28;
 const VIL_PUNCH_DM= 55;
 const VIL_DBL_TAP = 0.28;   // ventana para el doble toque
+const VIL_JOY_ON  = 0.94;   // joystick al tope: arranca el vuelo sónico
+const VIL_JOY_OFF = 0.72;   // por debajo de esto, se corta
 
 // ================= BARRAS DE VIDA DE LOS ENEMIGOS =================
 let showHpBars = true;
@@ -3624,7 +3626,10 @@ function tentacleTip(){
   // Todas las listas colocan lo agarrado en este punto, así que aquí se corrige.
   if (isVil()){
     const p = vilHoldPoint();
-    return { x:p.x, y:p.y, angle:Math.atan2(p.y-player.y, p.x-player.x), reach:VIL_ARM };
+    // El ángulo sale de la puntería, no del punto: el objeto se sujeta 4px más
+    // arriba y eso desviaba el lanzamiento unos grados.
+    const av = aimVector();
+    return { x:p.x, y:p.y, angle:Math.atan2(av.dy, av.dx), reach:VIL_ARM };
   }
   const av = aimVector(), rd = av.mag * F().reach, ang = Math.atan2(av.dy, av.dx);
   return { x: player.x + Math.cos(ang)*rd, y: player.y + Math.sin(ang)*rd, angle:ang, reach:rd };
@@ -4042,7 +4047,23 @@ function updateViltrum(dt){
     if (pressed('right')) dx+=1;
   }
 
-  // El vuelo solo se mantiene mientras siga pulsada esa dirección.
+  // En móvil: llevar el joystick al tope enciende el vuelo sónico, y se
+  // mantiene mientras no lo sueltes. Con umbrales distintos para entrar y
+  // salir, así no parpadea al vibrar el dedo.
+  if (moveJoy.active){
+    const m = Math.sqrt(moveJoy.dx*moveJoy.dx + moveJoy.dy*moveJoy.dy);
+    if (!vil.flying && m >= VIL_JOY_ON && vil.stam > 6){
+      vil.flying = true; vil.flyDir = '';        // lo gobierna el joystick
+      vil.joyFly = true;
+      vil.fx = moveJoy.dx/m; vil.fy = moveJoy.dy/m;
+      sonicBoom(player.x, player.y, Math.atan2(vil.fy, vil.fx));
+    } else if (vil.flying && vil.joyFly && m < VIL_JOY_OFF){
+      vil.flying = false; vil.joyFly = false;
+    }
+  } else if (vil.joyFly){                        // dedo levantado: se acaba el vuelo
+    vil.flying = false; vil.joyFly = false;
+  }
+  // Con teclado, el vuelo se mantiene mientras siga pulsada esa dirección.
   if (vil.flying && vil.flyDir && !pressed(vil.flyDir)) vil.flying = false;
   if (vil.flying){
     vil.stam -= VIL_STAM_USE*dt;
@@ -4205,9 +4226,9 @@ function drawViltrum(){
 const VIL_ARM = 30;
 function vilHoldPoint(){
   if (vil.flying) return { x: player.x + vil.fx*46, y: player.y + vil.fy*46 };
-  const wx = mouse.x/ZOOM + camX, wy = mouse.y/ZOOM + camY;
-  const a = Math.atan2(wy - player.y, wx - player.x);
-  return { x: player.x + Math.cos(a)*VIL_ARM, y: player.y - 4 + Math.sin(a)*VIL_ARM };
+  // aimVector ya resuelve joystick de puntería o ratón, según cómo se juegue
+  const av = aimVector();
+  return { x: player.x + av.dx*VIL_ARM, y: player.y - 4 + av.dy*VIL_ARM };
 }
 
 // Embestida en vuelo: derriba edificios y machaca lo que lleva por delante.
