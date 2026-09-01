@@ -7,7 +7,9 @@
 <style>
   * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
   html,body { width:100%; height:100%; overflow:hidden; background:#05070a; font-family:'Courier New', monospace; overscroll-behavior:none; }
+  /* 100vh incluye la barra del navegador móvil; dvh es el alto realmente visible */
   #wrap { position:relative; width:100vw; height:100vh; touch-action:none; }
+  @supports (height: 100dvh){ #wrap { height:100dvh; } html,body { height:100dvh; } }
   canvas { display:block; background:#0a0e14; cursor:crosshair; touch-action:none; }
 
   .overlay {
@@ -351,10 +353,11 @@
            color:#7bffa0; font-size:clamp(1.2rem,4vw,2.2rem); font-weight:900; letter-spacing:4px;
            text-shadow:0 0 18px #23ff6b, 2px 2px 0 #052b12; opacity:0; transition:opacity .4s ease; text-align:center; }
 
-  .joy-base { position:absolute; width:100px; height:100px; border-radius:50%;
+  :root { --joy:100px; --knob:46px; --act:92px; --uifs:0.5rem; }
+  .joy-base { position:absolute; width:var(--joy); height:var(--joy); border-radius:50%;
               border:2px solid rgba(123,255,160,0.5); background:rgba(20,40,28,0.25);
               display:none; z-index:6; pointer-events:none; }
-  .joy-knob { position:absolute; width:46px; height:46px; border-radius:50%;
+  .joy-knob { position:absolute; width:var(--knob); height:var(--knob); border-radius:50%;
               background:rgba(123,255,160,0.55); border:2px solid rgba(180,255,200,0.8);
               left:27px; top:27px; pointer-events:none; }
   #bootlogowrap { position:relative; width:min(230px,52vw); margin:0 auto 18px; }
@@ -367,21 +370,19 @@
               background:linear-gradient(90deg,#2f7d4f,#7bffa0); transition:width .2s ease; }
   #boottext { margin-top:10px; font-size:0.5rem; letter-spacing:1.5px; color:#9fb3a8; }
   /* En horizontal hay menos alto: los mandos suben y encogen un poco */
-  @media (orientation: landscape) and (max-height: 520px){
-    .actbtn { width:74px; height:74px; font-size:0.44rem; }
-    #actionBtns { right:12px; bottom:calc(14px + env(safe-area-inset-bottom,0px)); gap:9px; }
-    .joy-base { transform:scale(0.86); }
-    #p2Buttons { right:10px; bottom:4px; gap:8px; }
-    .p2btn { height:40px; min-width:46px; font-size:0.44rem; }
-    .p2btn.wide { min-width:84px; }
+  /* En apaisado los mandos se pegan abajo; en vertical suben sobre el pulgar */
+  @media (orientation: landscape){
+    #actionBtns { right:calc(12px + env(safe-area-inset-right,0px));
+                  bottom:calc(12px + env(safe-area-inset-bottom,0px)); gap:9px; }
+    #p2Buttons { right:calc(10px + env(safe-area-inset-right,0px)); bottom:4px; gap:8px; }
   }
-  /* En vertical se aprovecha el alto disponible */
   @media (orientation: portrait){
-    #actionBtns { bottom:calc(126px + env(safe-area-inset-bottom,0px)); }
+    #actionBtns { bottom:calc(122px + env(safe-area-inset-bottom,0px)); }
   }
+  .p2btn { font-size:var(--uifs); }
   #actionBtns { position:absolute; right:16px; bottom:calc(110px + env(safe-area-inset-bottom,0px));
                 display:none; flex-direction:column; gap:12px; z-index:7; }
-  .actbtn { width:92px; height:92px; border-radius:50%; border:2px solid rgba(255,255,255,0.4);
+  .actbtn { width:var(--act); height:var(--act); border-radius:50%; border:2px solid rgba(255,255,255,0.4);
             color:#fff; font-family:inherit; font-weight:900; letter-spacing:0.5px;
             display:flex; flex-direction:column; align-items:center; justify-content:center;
             text-align:center; -webkit-user-select:none; user-select:none; opacity:0.9;
@@ -827,8 +828,21 @@ function resize(){
   CW = window.innerWidth; CH = window.innerHeight;
   canvas.width = CW; canvas.height = CH;
   VW = CW / ZOOM; VH = CH / ZOOM;
+  // layoutUI se declara más abajo: en el primer resize aún no existe.
+  try { if (typeof layoutUI === 'function') layoutUI(); } catch(e){}
 }
 window.addEventListener('resize', resize);
+// Al girar el móvil, el navegador a veces informa del tamaño antiguo:
+// se vuelve a medir un par de veces tras el giro.
+window.addEventListener('orientationchange', ()=>{
+  resize();
+  setTimeout(resize, 120);
+  setTimeout(resize, 420);
+});
+// Barra de direcciones que aparece y desaparece al desplazarse
+if (window.visualViewport){
+  window.visualViewport.addEventListener('resize', resize);
+}
 resize();
 
 // ================= UTIL =================
@@ -3280,12 +3294,29 @@ canvas.addEventListener('contextmenu', e=> e.preventDefault());
 
 const moveJoy = { active:false, id:null, baseX:0, baseY:0, dx:0, dy:0 };
 const aimJoy  = { active:false, id:null, baseX:0, baseY:0, dx:0, dy:0 };
-const JOY_R = 50;
+// Los mandos se escalan con el tamaño real de la ventana (y por tanto con el
+// zoom del navegador). CSS y lógica leen SIEMPRE los mismos números.
+let JOY_SIZE = 100, KNOB_SIZE = 46, ACT_SIZE = 92, JOY_R = 50, KNOB_OFF = 27;
+function layoutUI(){
+  const vmin = Math.max(240, Math.min(CW, CH));
+  const apais = CW > CH;
+  // en apaisado hay poco alto: los mandos encogen un poco para no comerse la vista
+  JOY_SIZE  = Math.round(clamp(vmin * (apais ? 0.20 : 0.24), 74, 122));
+  KNOB_SIZE = Math.round(JOY_SIZE * 0.46);
+  ACT_SIZE  = Math.round(clamp(vmin * (apais ? 0.17 : 0.21), 62, 98));
+  JOY_R     = JOY_SIZE / 2;
+  KNOB_OFF  = (JOY_SIZE - KNOB_SIZE) / 2;
+  const r = document.documentElement.style;
+  r.setProperty('--joy',  JOY_SIZE  + 'px');
+  r.setProperty('--knob', KNOB_SIZE + 'px');
+  r.setProperty('--act',  ACT_SIZE  + 'px');
+  r.setProperty('--uifs', (ACT_SIZE < 76 ? 0.42 : 0.5) + 'rem');
+}
 const mjBase = document.getElementById('moveJoyBase'), mjKnob = document.getElementById('moveJoyKnob');
 const ajBase = document.getElementById('aimJoyBase'),  ajKnob = document.getElementById('aimJoyKnob');
-function showJoy(el,x,y){ el.style.left=(x-50)+'px'; el.style.top=(y-50)+'px'; el.style.display='block'; }
-function hideJoy(el,k){ el.style.display='none'; k.style.left='27px'; k.style.top='27px'; }
-function knob(k,dx,dy){ k.style.left=(27+dx*JOY_R*0.55)+'px'; k.style.top=(27+dy*JOY_R*0.55)+'px'; }
+function showJoy(el,x,y){ el.style.left=(x-JOY_R)+'px'; el.style.top=(y-JOY_R)+'px'; el.style.display='block'; }
+function hideJoy(el,k){ el.style.display='none'; k.style.left=KNOB_OFF+'px'; k.style.top=KNOB_OFF+'px'; }
+function knob(k,dx,dy){ k.style.left=(KNOB_OFF+dx*JOY_R*0.55)+'px'; k.style.top=(KNOB_OFF+dy*JOY_R*0.55)+'px'; }
 
 canvas.addEventListener('touchstart', e=>{
   const r = canvas.getBoundingClientRect();
@@ -3571,7 +3602,7 @@ function bindP2Touch(){
     let dy = (t.clientY - (b.top  + b.height/2)) / (b.height/2);
     const m = Math.sqrt(dx*dx+dy*dy); if (m > 1){ dx/=m; dy/=m; }
     p2Joy.dx = dx; p2Joy.dy = dy;
-    if (kn){ kn.style.left = (27 + dx*JOY_R*0.55) + 'px'; kn.style.top = (27 + dy*JOY_R*0.55) + 'px'; }
+    if (kn){ kn.style.left = (KNOB_OFF + dx*JOY_R*0.55) + 'px'; kn.style.top = (KNOB_OFF + dy*JOY_R*0.55) + 'px'; }
   };
   base.addEventListener('touchstart', e=>{ e.preventDefault(); e.stopPropagation();
     const t = e.changedTouches[0]; p2Joy.active = true; p2Joy.id = t.identifier; mover(t); }, {passive:false});
@@ -3579,7 +3610,7 @@ function bindP2Touch(){
     for (const t of e.changedTouches) if (t.identifier === p2Joy.id) mover(t); }, {passive:false});
   const soltar = (e)=>{ if(e){e.preventDefault(); e.stopPropagation();}
     p2Joy.active=false; p2Joy.id=null; p2Joy.dx=0; p2Joy.dy=0;
-    if (kn){ kn.style.left='27px'; kn.style.top='27px'; } };
+    if (kn){ kn.style.left=KNOB_OFF+'px'; kn.style.top=KNOB_OFF+'px'; } };
   base.addEventListener('touchend', soltar, {passive:false});
   base.addEventListener('touchcancel', soltar, {passive:false});
 
