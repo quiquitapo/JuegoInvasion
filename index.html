@@ -2634,6 +2634,22 @@ function saveAudioPrefs(){
   storeSet('invasion_audio', JSON.stringify({
     sfxOn:audio.sfxOn, musOn:audio.musOn, sfxVol:audio.sfxVol, musVol:audio.musVol }));
 }
+// Corta la muestra de música del ajuste de volumen cuando dejas de moverla.
+let musPreview = false, musPreviewT = null;
+function programaCorteMusica(){
+  if (typeof running !== 'undefined' && running) return;   // en partida no se toca
+  clearTimeout(musPreviewT);
+  musPreviewT = setTimeout(()=>{ pararMuestraMusica(); }, 1600);
+}
+function pararMuestraMusica(){
+  clearTimeout(musPreviewT); musPreviewT = null;
+  if (!musPreview) return;
+  musPreview = false;
+  if (typeof running !== 'undefined' && running) return;
+  if (typeof previewTrack !== 'undefined' && previewTrack) return;  // el registro manda
+  stopMusic();
+}
+
 function applyAudioVolumes(){
   if (!audio.ctx) return;
   audio.sfxGain.gain.value = audio.sfxOn ? audio.sfxVol : 0;
@@ -6442,6 +6458,7 @@ requestAnimationFrame(loop);
 // ================= FLOW =================
 function startGame(mode){
   resumeAudio();
+  musPreview = false; clearTimeout(musPreviewT); musPreviewT = null;
   stopBossPreview();                    // la muestra del registro no invade la partida
   stopModeAnims();
   flushPendingScore();
@@ -6960,7 +6977,10 @@ document.getElementById('volMus').addEventListener('input', e=>{
   audio.musVol = (+e.target.value)/100;
   if (audio.musVol > 0) audio.musOn = true;
   applyAudioVolumes(); saveAudioPrefs(); refreshAudioUI();
-  if (audio.musOn && !audio.musicTimer) startMusic();
+  // Se deja oír la música mientras ajustas, pero solo como muestra: si no hay
+  // partida en marcha, se apaga sola un momento después de soltar la barra.
+  if (audio.musOn && !audio.musicTimer){ startMusic(); musPreview = true; }
+  programaCorteMusica();
 });
 
 document.getElementById('btnLogros').addEventListener('click', ()=>{
@@ -6985,6 +7005,7 @@ document.getElementById('btnControles').addEventListener('click', ()=>{
   hide('menu'); show('controles');
 });
 document.getElementById('btnCtrlBack').addEventListener('click', ()=>{
+  pararMuestraMusica();               // que no se quede sonando en el menú
   listeningFor = null; hide('controles'); show('menu');
 });
 document.getElementById('btnResetBindsP2').addEventListener('click', ()=>{
