@@ -1270,7 +1270,7 @@ function finalWave(){ return form >= 1 && (gameTime > 140 || score >= 1500); }
 function resetGame(){
   player = { x: WORLD_W/2, y: WORLD_H/2, vx:0, vy:0, tentaclePhase:0 };
   civilians=[]; enemies=[]; cars=[]; trees=[]; planters=[]; trash=[]; benches=[]; bullets=[]; particles=[]; booms=[]; heldObject=null;
-  sonicRings.length = 0; bossTrack = null;
+  sonicRings.length = 0; windRings.length = 0; bossTrack = null;
   planters = [];
   lamps = lampSpots.map((l,i)=>({ si:i, kind:'lamp', x:l.x, y:l.y, w:26, h:58, hp:30, maxhp:30,
                               held:false, thrown:false, dead:false, rot:0, vx:0, vy:0, uprooted:false }));
@@ -1294,6 +1294,13 @@ function resetGame(){
   for (const k in regenSeen) regenSeen[k] = {};
   // spawn player on a road intersection so it isn't stuck inside a building
   player.x = 420*4; player.y = 420*3;
+  // El viltrumita no aparece sin más: entra volando y aterriza en su sitio.
+  if (typeof isVil === 'function' && isVil()){
+    vil.intro = 1; vil.introY = player.y;
+    player.y -= VIL_INTRO_ALTO;
+    vil.flying = true; vil.fx = 0; vil.fy = 1;
+    vil.charge = 0; vil.holding = false;
+  } else if (typeof vil === 'object'){ vil.intro = 0; }
   for (let i=0;i<10;i++) spawnCar();
   for (let i=0;i<8;i++) spawnCivilian();
 }
@@ -4102,6 +4109,131 @@ async function loadHero(){
 function saveHero(){ storeSet('invasion_hero', hero); }
 
 // Estado propio del viltrumita
+// ---- Onda de viento del golpe a plena carga ----
+// Empuja y daña a todo lo que rodea al viltrumita, con más fuerza en la
+// dirección del puñetazo. Se dibuja como dos anillos que se abren.
+const windRings = [];
+function ondaDeViento(ang){
+  windRings.push({ x:player.x, y:player.y, ang, r:18, life:0.5, max:0.5 });
+  windRings.push({ x:player.x, y:player.y, ang, r:4,  life:0.62, max:0.62 });
+  shake(14, 0.3);
+  addParticles(player.x, player.y, '#dfe9f5', 22, 300);
+  for (const pool of [civilians, enemies]){
+    for (const t of pool){
+      if (t.dead || t.held) continue;
+      const d = dist(t.x, t.y, player.x, player.y);
+      if (d > VIL_ONDA_R) continue;
+      // de frente golpea entero; por la espalda, bastante menos
+      let da = Math.atan2(t.y-player.y, t.x-player.x) - ang;
+      while (da >  Math.PI) da -= Math.PI*2;
+      while (da < -Math.PI) da += Math.PI*2;
+      const frente = 0.45 + 0.55 * Math.max(0, Math.cos(da));
+      const cerca  = 1 - d/VIL_ONDA_R;
+      damageEnemy(t, VIL_ONDA_DMG * frente * (0.5 + cerca*0.5), t.x, t.y);
+      if (!t.dead && t.person){                       // sale despedido
+        const a2 = Math.atan2(t.y-player.y, t.x-player.x);
+        t.stunT = Math.max(t.stunT||0, 1.1);
+        t.stunVx = Math.cos(a2)*260*frente;
+        t.stunVy = Math.sin(a2)*260*frente;
+      }
+    }
+  }
+  for (const c of cars){
+    if (c.dead || c.held) continue;
+    const d = dist(c.x, c.y, player.x, player.y);
+    if (d > VIL_ONDA_R) continue;
+    c.hp -= VIL_ONDA_DMG * 0.7;
+    if (c.hp <= 0){ c.dead = true; discoverObj(c); const bl = blastOf(c); explode(c.x,c.y,bl.r,bl.dmg,bl.big); }
+  }
+  for (const pool of [trees, lamps, trash, benches]){
+    for (const o of pool){
+      if (o.dead || o.held || o.thrown) continue;
+      if (dist(o.x, o.y, player.x, player.y) > VIL_ONDA_R*0.8) continue;
+      o.dead = true; discoverObj(o); propScore(o);
+      addParticles(o.x, o.y, '#9aa6ad', 6, 140);
+    }
+  }
+}
+// Ráfaga del golpe dirigido: solo hacia donde apunta, pero llega más lejos.
+function rafagaViento(ang){
+  windRings.push({ x:player.x, y:player.y, ang, r:22, life:0.46, max:0.46, dir:true });
+  windRings.push({ x:player.x, y:player.y, ang, r:6,  life:0.58, max:0.58, dir:true });
+  shake(10, 0.22);
+  for (let i=0;i<14;i++){
+    const a = ang + rand(-VIL_RAFAGA_SP, VIL_RAFAGA_SP);
+    addParticles(player.x + Math.cos(a)*40, player.y + Math.sin(a)*40, '#dfe9f5', 1, 320);
+  }
+  const enAbanico = (x, y)=>{
+    const d = dist(x, y, player.x, player.y);
+    if (d > VIL_RAFAGA_R) return 0;
+    let da = Math.atan2(y-player.y, x-player.x) - ang;
+    while (da >  Math.PI) da -= Math.PI*2;
+    while (da < -Math.PI) da += Math.PI*2;
+    if (Math.abs(da) > VIL_RAFAGA_SP) return 0;
+    const centro = 1 - Math.abs(da)/VIL_RAFAGA_SP;       // más fuerte en el eje
+    return (0.55 + centro*0.45) * (0.5 + (1 - d/VIL_RAFAGA_R)*0.5);
+  };
+  for (const pool of [civilians, enemies]){
+    for (const t of pool){
+      if (t.dead || t.held) continue;
+      const f = enAbanico(t.x, t.y);
+      if (!f) continue;
+      damageEnemy(t, VIL_RAFAGA_DMG * f, t.x, t.y);
+      if (!t.dead && t.person){
+        t.stunT = Math.max(t.stunT||0, 1.0);
+        t.stunVx = Math.cos(ang)*320*f;
+        t.stunVy = Math.sin(ang)*320*f;
+      }
+    }
+  }
+  for (const c of cars){
+    if (c.dead || c.held) continue;
+    const f = enAbanico(c.x, c.y);
+    if (!f) continue;
+    c.hp -= VIL_RAFAGA_DMG * f * 0.8;
+    if (c.hp <= 0){ c.dead = true; discoverObj(c); const bl = blastOf(c); explode(c.x,c.y,bl.r,bl.dmg,bl.big); }
+  }
+  for (const pool of [trees, lamps, trash, benches]){
+    for (const o of pool){
+      if (o.dead || o.held || o.thrown) continue;
+      if (!enAbanico(o.x, o.y)) continue;
+      o.dead = true; discoverObj(o); propScore(o);
+      addParticles(o.x, o.y, '#9aa6ad', 5, 150);
+    }
+  }
+}
+
+function updateWind(dt){
+  for (let i = windRings.length - 1; i >= 0; i--){
+    const w = windRings[i];
+    w.life -= dt; w.r += 620*dt;
+    if (w.life <= 0) windRings.splice(i, 1);
+  }
+}
+function drawWind(){
+  for (const w of windRings){
+    const s2 = S(w.x, w.y);
+    const a = clamp(w.life / w.max, 0, 1);
+    ctx.globalAlpha = a * 0.55;
+    ctx.strokeStyle = '#e6f0ff';
+    ctx.lineWidth = 2 + a*5;
+    ctx.beginPath();
+    if (w.dir) ctx.arc(s2.x, s2.y, w.r, w.ang - VIL_RAFAGA_SP, w.ang + VIL_RAFAGA_SP);
+    else       ctx.ellipse(s2.x, s2.y, w.r, w.r*0.72, 0, 0, Math.PI*2);
+    ctx.stroke();
+    // ráfagas en la dirección del golpe
+    ctx.lineWidth = 2; ctx.globalAlpha = a * 0.4;
+    for (let i=0;i<3;i++){
+      const ang = w.ang + (i-1)*0.42;
+      ctx.beginPath();
+      ctx.moveTo(s2.x + Math.cos(ang)*w.r*0.72, s2.y + Math.sin(ang)*w.r*0.52);
+      ctx.lineTo(s2.x + Math.cos(ang)*w.r*1.05, s2.y + Math.sin(ang)*w.r*0.76);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  }
+}
+
 // Ondas del estallido sónico al romper la barrera del sonido.
 const sonicRings = [];
 function sonicBoom(x, y, ang){
@@ -4135,9 +4267,23 @@ function drawSonic(){
 
 const vil = { stam:100, maxStam:100, flying:false, flyDir:'', fx:0, fy:0,
               punchCd:0, punchT:0, tapKey:'', tapT:0, capa:0,
-              holdT:0, holding:false, charge:0, joyFly:false };
-const VIL_CHARGE_MAX = 1.4;     // segundos hasta el golpe cargado completo
-const VIL_CHARGE_DMG = 210;     // daño del golpe cargado al máximo
+              holdT:0, holding:false, charge:0, joyFly:false,
+              intro:0, introY:0 };
+const VIL_INTRO_ALTO = 620;     // desde qué altura entra en escena
+const VIL_INTRO_VEL  = 1150;    // a qué velocidad baja
+const VIL_CHARGE_MAX = 2.0;     // aura AZUL: golpe dirigido con ráfaga
+const VIL_CLAP_T     = 3.2;     // aura BLANCA: aplauso con onda en todas direcciones
+const VIL_CLAP_DMG   = 520;     // el aplauso pega aún más de cerca
+const VIL_RAFAGA_R   = 300;     // alcance de la ráfaga dirigida
+const VIL_RAFAGA_SP  = 0.62;    // medio ángulo del abanico de la ráfaga
+const VIL_RAFAGA_DMG = 110;
+const VIL_CHARGE_DMG = 210;     // daño del golpe cargado normal
+// Al completar la carga, el golpe pasa a otra categoría: pega mucho más
+// lejos y suelta una onda de viento a su alrededor.
+const VIL_SUPER_DMG   = 420;
+const VIL_SUPER_REACH = 168;
+const VIL_ONDA_R      = 210;    // alcance de la onda de viento
+const VIL_ONDA_DMG    = 95;
 const VIL_SPEED   = 210;    // a pie
 const VIL_FLY     = 620;    // en vuelo sónico
 const VIL_STAM_USE= 26;     // estamina por segundo volando
@@ -4821,12 +4967,16 @@ function updatePlayer(dt){
 function vilRelease(){
   const c = vil.charge;
   vil.charge = 0;
-  if (c >= 0.45) vilPunch(Math.min(1, c / VIL_CHARGE_MAX));
-  else vilPunch(0);
+  // Tres niveles: toque, carga azul (dirigida) y carga blanca (aplauso).
+  if (c >= VIL_CLAP_T)          vilPunch(1, 'clap');
+  else if (c >= VIL_CHARGE_MAX) vilPunch(1, 'dir');
+  else if (c >= 0.45)           vilPunch(Math.min(1, c / VIL_CHARGE_MAX), null);
+  else                          vilPunch(0, null);
 }
 
 // Clic derecho: agarra lo que tenga al alcance del brazo, o lanza lo que lleve.
 function vilRightClick(){
+  if (vil.intro) return;
   if (heldObject){ onThrow(); return; }
   vilGrab();
 }
@@ -4834,6 +4984,7 @@ function vilRightClick(){
 // Con las manos libres golpea; si hay algo cerca lo agarra; si ya lleva
 // algo, el clic izquierdo lo suelta de un puñetazo.
 function vilGrab(){
+  if (vil.intro) return;
   const p = vilHoldPoint();
   if (heldObject) return;                       // ya lleva algo
   const g = grabbablesNear(p, 34);   // brazos, no tentáculos
@@ -4848,6 +4999,28 @@ function vilGrab(){
 
 // ---- Viltrumita: vuelo sónico, puñetazos y agarre ----
 function updateViltrum(dt){
+  // Entrada en escena: baja en picado y al tocar tierra empieza la partida.
+  if (vil.intro){
+    vil.capa += dt;
+    player.vx = 0; player.vy = VIL_INTRO_VEL;
+    player.y = Math.min(vil.introY, player.y + VIL_INTRO_VEL*dt);
+    vil.fx = 0; vil.fy = 1; vil.flying = true;
+    if (Math.random() < 0.8) addParticles(player.x, player.y - 20, '#9fd6ff', 2, 200);
+    if (player.y >= vil.introY - 0.5){
+      player.y = vil.introY;
+      vil.intro = 0; vil.flying = false; vil.joyFly = false; player.vy = 0;
+      sonicBoom(player.x, player.y, 0);
+      shake(18, 0.45);
+      addParticles(player.x, player.y, '#cfd6dd', 26, 260);
+      for (const pool of [civilians, enemies]){          // aparta lo que pille debajo
+        for (const t of pool){
+          if (t.dead || t.held) continue;
+          if (dist(t.x, t.y, player.x, player.y) < 120) damageEnemy(t, 60, t.x, t.y);
+        }
+      }
+    }
+    return;
+  }
   vil.punchCd -= dt; vil.punchT -= dt; vil.capa += dt;
   // Mantener el clic izquierdo carga el puñetazo; funciona también volando.
   if (vil.holding) vil.charge = Math.min(VIL_CHARGE_MAX, vil.charge + dt);
@@ -5025,10 +5198,26 @@ function drawViltrum(){
 
   // aura del golpe cargado
   if (vil.charge > 0){
-    const r = 26 + vil.charge*22;
-    ctx.globalAlpha = 0.25 + Math.min(vil.charge,1)*0.35;
-    ctx.strokeStyle = CIRC; ctx.lineWidth = 3;
+    const azul  = vil.charge >= VIL_CHARGE_MAX;   // golpe dirigido listo
+    const clap  = vil.charge >= VIL_CLAP_T;       // aplauso listo
+    const r = 26 + Math.min(vil.charge, VIL_CLAP_T)*15;
+    ctx.globalAlpha = 0.25 + Math.min(vil.charge/VIL_CLAP_T,1)*0.35;
+    ctx.strokeStyle = clap ? '#e6f0ff' : azul ? '#3aa7ff' : CIRC;
+    ctx.lineWidth = clap ? 4 : azul ? 3.5 : 3;
     ctx.beginPath(); ctx.arc(s.x, s.y, r, 0, Math.PI*2); ctx.stroke();
+    if (azul){
+      ctx.globalAlpha = 0.30 + Math.sin(gameTime*18)*0.22;
+      ctx.beginPath(); ctx.arc(s.x, s.y, r+7, 0, Math.PI*2); ctx.stroke();
+      // con la carga azul se marca hacia dónde saldrá la ráfaga
+      if (!clap){
+        const ang2 = vil.flying ? Math.atan2(vil.fy, vil.fx) : (f2 => f2)(player.facing>0?0:Math.PI);
+        ctx.globalAlpha = 0.22;
+        ctx.beginPath();
+        ctx.moveTo(s.x, s.y);
+        ctx.arc(s.x, s.y, r+26, ang2 - VIL_RAFAGA_SP, ang2 + VIL_RAFAGA_SP);
+        ctx.closePath(); ctx.fillStyle = '#3aa7ff'; ctx.fill();
+      }
+    }
     ctx.globalAlpha = 1;
   }
   // estela sónica
@@ -5090,13 +5279,19 @@ function vilSmash(dt){
 }
 
 // Puñetazo: golpe corto por delante.
-function vilPunch(carga){
+function vilPunch(carga, modo){
   carga = carga || 0;
-  if (vil.punchCd > 0) return;
-  const dmg = VIL_PUNCH_DM + (VIL_CHARGE_DMG - VIL_PUNCH_DM) * carga;
-  const alcance = 46 + 30*carga;
-  vil.punchCd = VIL_PUNCH_CD + 0.25*carga;
-  vil.punchT = 0.16 + 0.1*carga;
+  if (vil.intro || vil.punchCd > 0) return;
+  const dir  = modo === 'dir';
+  const clap = modo === 'clap';
+  const lleno = dir || clap;
+  const dmg = clap ? VIL_CLAP_DMG
+            : dir  ? VIL_SUPER_DMG
+                   : VIL_PUNCH_DM + (VIL_CHARGE_DMG - VIL_PUNCH_DM) * carga;
+  // el golpe dirigido llega algo más lejos por delante que el aplauso
+  const alcance = dir ? VIL_SUPER_REACH + 34 : clap ? VIL_SUPER_REACH : 46 + 30*carga;
+  vil.punchCd = VIL_PUNCH_CD + (lleno ? 0.55 : 0.25*carga);
+  vil.punchT = 0.16 + (lleno ? 0.22 : 0.1*carga);
   // volando golpea hacia el rumbo; a pie, hacia donde mira
   const ang = vil.flying ? Math.atan2(vil.fy, vil.fx) : (player.facing>0 ? 0 : Math.PI);
   const px2 = player.x + Math.cos(ang)*40, py2 = player.y - 4 + Math.sin(ang)*40;
@@ -5122,8 +5317,10 @@ function vilPunch(carga){
   }
   addParticles(px2, py2, carga>0.4 ? skin().tip : (dio ? '#ffd257' : '#8899aa'),
                dio ? 10+Math.round(18*carga) : 4, 120+120*carga);
-  sfx(carga>0.4 ? 'boom' : dio ? 'hit' : 'whoosh');
+  sfx(lleno ? 'bigboom' : carga>0.4 ? 'boom' : dio ? 'hit' : 'whoosh');
   if (dio || carga>0.4) shake(4 + 10*carga, 0.08 + 0.12*carga);
+  if (clap) ondaDeViento(ang);          // aplauso: onda en todas las direcciones
+  else if (dir) rafagaViento(ang);      // dirigida: solo hacia donde apunta
 }
 
 function updateCivilians(dt){
@@ -6446,7 +6643,7 @@ function draw(){
     }
   }
 
-  drawBullets(); drawSonic(); drawFX(); drawP2Cursor();
+  drawBullets(); drawSonic(); drawWind(); drawFX(); drawP2Cursor();
   ctx.restore();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   drawLighting();                                  // en píxeles del lienzo
@@ -6512,11 +6709,16 @@ lastT = performance.now();
 function loop(t){
   const dt = Math.min((t-lastT)/1000, 0.05); lastT = t;
   if (running){
-    updateZoom(dt); updateSonic(dt); updateFocos(dt);
+    updateZoom(dt); updateSonic(dt); updateFocos(dt); updateWind(dt);
+    // Mientras cae en la entrada nada puede tocarle: se anota la vida antes
+    // y se restaura después, en vez de parchear las cinco vías de daño.
+    const vidaIntro = (isVil() && vil.intro) ? hp : -1;
     updatePlayer(dt); updateCivilians(dt); updateCars(dt); updateTrees(dt); updateRam(dt); updateThrown(dt);
     updateVS(dt);
     updateEnemies(dt); updateBullets(dt); updateFX(dt); updateSpawns(dt);
     if (shakeTime>0){ shakeTime-=dt; if (shakeTime<=0) shakeMag=0; }
+
+    if (vidaIntro >= 0) hp = vidaIntro;      // intocable mientras aterriza
 
     camX = clamp(player.x-VW/2, 0, Math.max(0,WORLD_W-VW));
     camY = clamp(player.y-VH/2, 0, Math.max(0,WORLD_H-VH));
