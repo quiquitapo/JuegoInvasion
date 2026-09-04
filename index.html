@@ -158,6 +158,49 @@
   #achtoast .achtxt span { color:#fff3d0; font-size:0.82rem; font-weight:900; letter-spacing:1px; }
 
   .customcard { width:min(560px,94vw); margin-bottom:8px; }
+  /* Dos columnas: colores a la izquierda, paneles especiales a la derecha */
+  .shopcols { display:flex; gap:14px; align-items:flex-start; justify-content:center;
+              width:min(940px,96vw); flex-wrap:wrap; }
+  .shopcol { flex:1 1 300px; min-width:0; display:flex; flex-direction:column; gap:14px; }
+  .normwrap { padding:12px 10px 10px; border:2px solid #2f7d4f; border-radius:12px;
+              background:rgba(12,26,17,0.55); }
+  .normtitle { margin:0; font-size:0.72rem; letter-spacing:2px; color:#9fe8b8; text-align:center; }
+  .normsub { font-size:0.46rem; letter-spacing:1.5px; color:#6fa382; text-align:center; margin:3px 0 10px; }
+  .uniqwrap { padding:12px 10px 10px; border:2px solid #6b4a9c; border-radius:12px;
+              background:rgba(24,14,38,0.55); }
+  /* Las tarjetas no deben desbordar su caja */
+  .shopcols .shoplist { width:100%; margin:0; }
+  .shopcols .skincard { flex-wrap:wrap; row-gap:6px; padding:8px 10px; min-width:0; }
+  .shopcols .skinname { flex:1 1 90px; min-width:0; overflow-wrap:anywhere; font-size:0.66rem; }
+  .shopcols .skinbtn { padding:6px 10px; font-size:0.6rem; flex:0 0 auto; }
+  .shopcols .swatch { width:28px; height:28px; flex:0 0 28px; }
+  .ostwrap { width:min(560px,94vw); margin:4px 0 12px; padding:12px 10px 10px;
+             border:2px solid #2a5c78; border-radius:12px; background:rgba(10,24,34,0.6); }
+  .ostcard { display:flex; align-items:center; gap:12px; padding:10px 12px;
+             background:rgba(6,16,24,0.6); border:1px solid #2a4a5c; border-radius:8px; }
+  .ostico { width:52px; height:52px; flex:0 0 52px; border-radius:10px; cursor:pointer;
+            border:2px solid #2a4a5c; background:rgba(20,44,60,0.9); color:#8fd7ff;
+            display:flex; align-items:center; justify-content:center; font-size:1.3rem; }
+  .ostico:hover { border-color:#8fd7ff; }
+  .ostico.locked { color:#44606f; border-color:#243642; }
+  .ostinfo { flex:1; min-width:0; text-align:left; }
+  .ostname { color:#cfe8f7; font-size:0.66rem; letter-spacing:1px; }
+  .ostdesc { color:#7fa0b3; font-size:0.44rem; letter-spacing:0.5px; line-height:1.7; margin-top:4px;
+             overflow-wrap:anywhere; }
+  .ostplay { padding:8px 12px; border-radius:6px; font-family:inherit; font-size:0.56rem;
+             letter-spacing:1px; cursor:pointer; border:1px solid #3aa7ff;
+             background:rgba(20,50,80,0.9); color:#cfe8ff; flex:0 0 auto; }
+  .ostplay.on { background:#3aa7ff; color:#06121c; }
+  .ostplay[disabled] { opacity:0.4; cursor:default; }
+  .imglock { display:none; margin-top:7px; font-size:0.44rem; letter-spacing:1px; color:#c9a6ff; }
+  .imglock.on { display:block; }
+  .uniqtitle { margin:0; font-size:0.72rem; letter-spacing:2px; color:#d9b8ff; text-align:center; }
+  .uniqsub { font-size:0.46rem; letter-spacing:1.5px; color:#9b86c4; text-align:center; margin:3px 0 10px; }
+  .skincard.uniq { border-color:#6b4a9c; }
+  #imgEdCanvas { border:2px solid #2f4a38; border-radius:10px; touch-action:none;
+                 background:repeating-conic-gradient(#121a14 0 25%, #0b120d 0 50%) 0/20px 20px;
+                 cursor:grab; }
+  #imgEdCanvas.drag { cursor:grabbing; }
   .customsub { color:#8fbfa2; font-size:0.56rem; letter-spacing:0; font-weight:400; }
   .customedit { display:flex; gap:14px; flex-wrap:wrap; justify-content:center;
                 margin-top:7px; padding:9px 12px; border:1px dashed #1f5c37; border-radius:5px; }
@@ -542,6 +585,41 @@
     </div>
   </div>
 
+  <!-- Editor de skin con imagen propia -->
+  <div id="imgeditor" class="overlay hidden">
+    <h1 class="title" style="font-size:clamp(1rem,4vw,1.6rem)">AJUSTAR TU SKIN</h1>
+    <div id="imgEdPick" class="uiedbar">
+      <button type="button" class="togglebtn" id="imgEdNueva">NUEVA IMAGEN</button>
+      <button type="button" class="togglebtn" id="imgEdGuardadas">SKINS GUARDADAS</button>
+      <button type="button" class="togglebtn" id="imgEdSalir1">VOLVER</button>
+    </div>
+    <div id="imgEdSaved" class="shoplist hidden" style="width:min(520px,92vw)"></div>
+    <div id="imgEdPane" class="hidden">
+      <canvas id="imgEdCanvas" width="300" height="300"></canvas>
+      <div class="uiedbar">
+        <button type="button" class="togglebtn" id="imgEdMenos">− TAMAÑO</button>
+        <button type="button" class="togglebtn" id="imgEdMas">+ TAMAÑO</button>
+        <button type="button" class="togglebtn" id="imgEdCentrar">CENTRAR</button>
+      </div>
+      <div class="uiedbar">
+        <button type="button" class="togglebtn" id="imgEdHero">VER: CRÍA</button>
+        <input id="imgEdNombre" maxlength="18" placeholder="Nombre de la skin"
+               style="font-family:inherit; font-size:0.5rem; padding:7px 9px; border-radius:7px;
+                      border:2px solid #2f4a38; background:rgba(6,12,8,0.9); color:#cfe8d8; width:150px">
+      </div>
+      <div class="uiedbar">
+        <button type="button" class="togglebtn" id="imgEdSave">GUARDAR SKIN</button>
+        <button type="button" class="togglebtn" id="imgEdSalir2">VOLVER</button>
+      </div>
+      <div style="font-size:0.44rem; color:#9fb3a8; letter-spacing:1px; text-align:center;
+                  max-width:460px; line-height:1.8; margin-top:6px">
+        Arrastra la imagen para moverla. Lo que quede <b>dentro de la silueta</b> es lo que
+        se verá en el personaje; lo de fuera aparece atenuado como referencia.
+      </div>
+    </div>
+    <input type="file" id="imgEdFile" accept="image/*" style="display:none">
+  </div>
+
   <div id="booting" class="overlay" style="align-items:center; justify-content:center">
     <div style="text-align:center; width:min(360px, 78vw)">
       <!-- El logo arranca en blanco y negro y se va tiñendo según avanza la carga -->
@@ -654,7 +732,31 @@
     <div class="coinbar big">MONEDAS: <b id="coincount">0</b> ⬤</div>
     <div id="shopmsg" class="shopmsg"></div>
     <div id="customcard" class="customcard"></div>
-    <div id="shoplist" class="shoplist"></div>
+    <div class="shopcols">
+      <div class="shopcol">
+        <div class="normwrap">
+          <h3 class="normtitle">COLORES</h3>
+          <div class="normsub">Tu masa, a tu gusto</div>
+          <div id="shoplist" class="shoplist"></div>
+        </div>
+      </div>
+      <div class="shopcol">
+    <div class="uniqwrap" id="imgwrap">
+      <h3 class="uniqtitle">SKINS CON IMAGEN</h3>
+      <div class="uniqsub">Tu propia imagen sobre el personaje</div>
+      <div id="imgskinlist" class="shoplist"></div>
+      <div style="text-align:center; margin-top:8px">
+        <button type="button" class="togglebtn" id="btnElegirImg">ELEGIR IMAGEN…</button>
+        <div id="imgLock" class="imglock">Necesitas <b>CREAR COLOR PROPIO</b> para usarlas</div>
+      </div>
+    </div>
+    <div class="uniqwrap">
+      <h3 class="uniqtitle">SKINS ÚNICAS</h3>
+      <div class="uniqsub">Más que solo colores</div>
+      <div id="uniqlist" class="shoplist"></div>
+    </div>
+      </div>
+    </div>
     <button class="small" id="btnShopBack">Volver</button>
   </div>
 
@@ -662,6 +764,11 @@
   <div id="registro" class="overlay hidden">
     <h1 class="title" style="font-size:clamp(1.5rem,5vw,2.8rem)">REGISTRO</h1>
     <div class="subtitle">Solo se revela lo que has derrotado</div>
+    <div id="ostwrap" class="ostwrap">
+      <h3 class="uniqtitle" style="color:#8fd7ff">BANDA SONORA</h3>
+      <div class="uniqsub" style="color:#6f95ac">Se desbloquea jugando a cada hora del día</div>
+      <div id="ostcard" class="ostcard"></div>
+    </div>
     <div id="dexlist" class="dexlist"></div>
     <button class="small" id="btnDexBack">Volver</button>
   </div>
@@ -1490,7 +1597,7 @@ function drawOmniBeam(e){
 // ================= MINI JEFE: TANQUE DE FUEGO =================
 // Aparece a los 15.000 puntos y detiene la llegada del resto del ejército.
 // Ciclo: 3 s calculando (el cono te sigue) -> 1 s fijo -> llamarada.
-const BOSS_SCORE   = 10000;   // a partir de aquí puede aparecer en cualquier momento
+const BOSS_SCORE   = 6850;    // a partir de aquí puede aparecer en cualquier momento
 const BOSS_CHANCE  = 0.05;    // probabilidad por segundo mientras está activa
 const BOSS_REST    = 45;      // segundos de tregua tras derrotarlo
 const FLAME_AIM    = 3.0;    // segundos calculando
@@ -1997,13 +2104,98 @@ const SKINS = [
   { id:'coral',    name:'CORAL',          cost:260, c:['#ffb3c8','#d63f6b','#4a0f22'], limb:'#a32b4d', tip:'#e05a80' },
   { id:'espectro', name:'ESPECTRO',       cost:340, c:['#e8fff5','#7fbfa8','#2a4a3d'], limb:'#5c8a7a', tip:'#b6ffe0' },
   { id:'cosmica',  name:'ARMADURA CÓSMICA', cost:520, c:['#1a1626','#0d0a16','#05040b'],
-    limb:'#120e1e', tip:'#cfe0ff', cosmic:true }
+    limb:'#120e1e', tip:'#cfe0ff', cosmic:true },
+  // Estética urbana original: dorado, cadena y monograma inventado.
+  { id:'drip',     name:'DRIP AURA',      cost:67,  c:['#2a2318','#171208','#0a0803'],
+    limb:'#1d1810', tip:'#ffd85e', drip:true },
+  // Colores y emblema de la bandera de Israel.
+  { id:'israel',   name:'ISRAEL',  cost:180, c:['#f4f8ff','#8fb8e8','#2c5aa8'],
+    limb:'#4a7ec0', tip:'#0f3d91', flagIL:true }
 ];
 function skinById(id){
   if (id === 'custom') return customSkin;
   return SKINS.find(k=>k.id===id) || SKINS[0];
 }
-function skin(){ return skinById(activeSkin); }
+function skin(){
+  const im = imgSkinActiva();
+  if (im){
+    // Colores derivados para tentáculos y detalles; el cuerpo lleva la imagen.
+    return { id:activeSkin, name:im.name, cost:0,
+             c:[ im.c0||'#8a8f96', im.c1||'#5d626a', im.c2||'#2c3036' ],
+             limb: im.c1||'#5d626a', tip: im.c0||'#8a8f96', imgRef: im };
+  }
+  return skinById(activeSkin);
+}
+
+// Estética DRIP AURA: monograma dorado y cadena. Todo por fórmula, sin
+// texturas ni objetos por fotograma.
+function drawDrip(cx, cy, r, seed){
+  seed = seed || 0;
+  if (r < 3) return;
+  const t = gameTime * 0.5;
+  ctx.save();
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.clip();
+  // monograma en rejilla diagonal
+  // Rejilla recortada al círculo y trazada de una sola vez: antes eran 49
+  // rombos con su propio trazo y costaba más que ningún otro efecto.
+  const paso = Math.max(9, r*0.44);
+  const n = Math.min(2, Math.ceil(r/paso));
+  const q = r*0.14;
+  ctx.strokeStyle = 'rgba(255,216,94,0.55)';
+  ctx.lineWidth = Math.max(1, r*0.035);
+  ctx.beginPath();
+  for (let i = -n; i <= n; i++){
+    for (let j = -n; j <= n; j++){
+      const x = cx + i*paso + ((j & 1) ? paso*0.5 : 0);
+      const y = cy + j*paso;
+      const dx = x-cx, dy = y-cy;
+      if (dx*dx + dy*dy > r*r) continue;            // fuera del cuerpo
+      ctx.moveTo(x, y-q); ctx.lineTo(x+q, y);
+      ctx.lineTo(x, y+q); ctx.lineTo(x-q, y);
+      ctx.closePath();
+    }
+  }
+  ctx.stroke();
+  // brillo que recorre el cuerpo
+  const bx = cx + Math.cos(t)*r*0.55, by = cy + Math.sin(t*0.8)*r*0.4;
+  ctx.globalAlpha = 0.30;
+  ctx.fillStyle = '#fff3c4';
+  ctx.beginPath(); ctx.ellipse(bx, by, r*0.42, r*0.16, t, 0, Math.PI*2); ctx.fill();
+  ctx.globalAlpha = 1;
+  ctx.restore();
+  // cadena de oro
+  ctx.strokeStyle = '#ffd85e'; ctx.lineWidth = Math.max(1.4, r*0.09);
+  ctx.beginPath(); ctx.arc(cx, cy + r*0.12, r*0.62, Math.PI*0.18, Math.PI*0.82); ctx.stroke();
+  ctx.fillStyle = '#fff0a8';
+  ctx.beginPath(); ctx.arc(cx, cy + r*0.74, Math.max(1.6, r*0.11), 0, Math.PI*2); ctx.fill();
+}
+
+// Bandera de Israel: dos franjas azules y la estrella de seis puntas.
+function drawFlagIL(cx, cy, r, seed){
+  if (r < 3) return;
+  ctx.save();
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.clip();
+  ctx.fillStyle = '#f4f8ff';
+  ctx.fillRect(cx-r, cy-r, r*2, r*2);
+  ctx.fillStyle = '#0f3d91';
+  const gr = r*0.20, sep = r*0.62;
+  ctx.fillRect(cx-r, cy-sep-gr/2, r*2, gr);
+  ctx.fillRect(cx-r, cy+sep-gr/2, r*2, gr);
+  // estrella de seis puntas: dos triángulos
+  ctx.strokeStyle = '#0f3d91';
+  ctx.lineWidth = Math.max(1.2, r*0.10);
+  const R = r*0.44;
+  for (const giro of [0, Math.PI]){
+    ctx.beginPath();
+    for (let i = 0; i < 3; i++){
+      const a = giro - Math.PI/2 + i*(Math.PI*2/3);
+      const px2 = cx + Math.cos(a)*R, py2 = cy + Math.sin(a)*R;
+      if (i === 0) ctx.moveTo(px2, py2); else ctx.lineTo(px2, py2);
+    }
+    ctx.closePath(); ctx.stroke();
+  }
+  ctx.restore();
+}
 
 // Manto estrellado de la ARMADURA CÓSMICA. Todo se calcula con una fórmula
 // fija (sin arrays ni objetos por fotograma), así que no cuesta nada.
@@ -2062,19 +2254,82 @@ function saveShop(){
 }
 function coinsFor(sc, demo){ return Math.floor(sc/50) + demo*2; }
 
+const SKIN_UNICA = { drip:1, israel:1, cosmica:1 };
+
+// ---- Skins hechas con una imagen propia ----
+// Se guarda la imagen ya reducida (240px de lado, JPEG) más el encuadre
+// elegido en el editor, para que ocupe poco en el guardado.
+const IMG_SKIN_MAX = 240;
+let imgSkins = [];                 // [{id,name,data,ox,oy,scale}]
+const imgCache = {};               // id -> Image ya cargada
+
+async function loadImgSkins(){
+  const v = await storeGet('invasion_imgskins');
+  try {
+    const p = v ? JSON.parse(v) : null;
+    imgSkins = Array.isArray(p) ? p.filter(x => x && x.id && x.data) : [];
+  } catch(e){ imgSkins = []; }
+}
+function saveImgSkins(){ storeSet('invasion_imgskins', JSON.stringify(imgSkins)); }
+function imgSkinById(id){ return imgSkins.find(x => x.id === id) || null; }
+function imgSkinActiva(){
+  return (typeof activeSkin === 'string' && activeSkin.startsWith('img:'))
+    ? imgSkinById(activeSkin.slice(4)) : null;
+}
+// La imagen se carga una vez y se reutiliza.
+function imgDe(sk){
+  if (!sk) return null;
+  let im = imgCache[sk.id];
+  if (!im){
+    im = new Image();
+    im.src = sk.data;
+    imgCache[sk.id] = im;
+  }
+  return (im.complete && im.naturalWidth) ? im : null;
+}
+// Pinta la imagen encuadrada dentro de la zona ya recortada.
+function pintaImgSkin(sk, cx, cy, r){
+  const im = imgDe(sk);
+  if (!im) return false;
+  const lado = r * 2 * (sk.scale || 1);
+  ctx.drawImage(im, cx - lado/2 + (sk.ox||0)*r, cy - lado/2 + (sk.oy||0)*r, lado, lado);
+  return true;
+}
 function renderShop(){
   document.getElementById('coincount').textContent = coins;
-  const el = document.getElementById('shoplist');
-  el.innerHTML = SKINS.map(k=>{
+  // Las que cambian algo más que el color van a su propio panel.
+  const tarjeta = (k, uniq)=>{
     const owned = ownedSkins.includes(k.id);
     const active = activeSkin === k.id;
     const btn = active ? `<span class="skinbtn on">EN USO</span>`
       : owned ? `<button class="skinbtn own" data-use="${k.id}">USAR</button>`
       : `<button class="skinbtn buy${coins>=k.cost?'':' poor'}" data-buy="${k.id}">${k.cost} ⬤</button>`;
-    return `<div class="skincard${active?' active':''}">
+    return `<div class="skincard${active?' active':''}${uniq?' uniq':''}">
       <span class="swatch" style="background:radial-gradient(circle at 34% 30%, ${k.c[0]}, ${k.c[1]} 60%, ${k.c[2]})"></span>
       <span class="skinname">${k.name}</span>${btn}</div>`;
-  }).join('');
+  };
+  const lk = document.getElementById('imgLock');
+  if (lk) lk.classList.toggle('on', !customBought);
+  const li = document.getElementById('imgskinlist');
+  if (li){
+    li.innerHTML = imgSkins.length
+      ? imgSkins.map(sk=>{
+          const act = activeSkin === 'img:'+sk.id;
+          return `<div class="skincard${act?' active':''} uniq">
+            <span class="swatch" style="background-image:url(${sk.data}); background-size:cover"></span>
+            <span class="skinname">${esc(sk.name)}</span>
+            ${act ? '<span class="skinbtn on">EN USO</span>'
+                  : `<button class="skinbtn own" data-imgset="${sk.id}">USAR</button>`}</div>`;
+        }).join('')
+      : '<div class="skincard uniq"><span class="skinname">Aún no tienes ninguna</span></div>';
+    li.querySelectorAll('[data-imgset]').forEach(b=>b.addEventListener('click', ()=>{
+      activeSkin = 'img:'+b.dataset.imgset; saveShop(); sfx('ui'); renderShop();
+    }));
+  }
+  const uq = document.getElementById('uniqlist');
+  if (uq) uq.innerHTML = SKINS.filter(k=>SKIN_UNICA[k.id]).map(k=>tarjeta(k,true)).join('');
+  const el = document.getElementById('shoplist');
+  el.innerHTML = SKINS.filter(k=>!SKIN_UNICA[k.id]).map(k=>tarjeta(k,false)).join('');
   // tarjeta especial: crear tu propio color
   const cust = document.getElementById('customcard');
   if (cust){
@@ -2121,7 +2376,9 @@ function renderShop(){
     }
   }
 
-  el.querySelectorAll('[data-buy]').forEach(b=>b.addEventListener('click', ()=>{
+  const paneles = [el, uq].filter(Boolean);
+  for (const p of paneles){
+  p.querySelectorAll('[data-buy]').forEach(b=>b.addEventListener('click', ()=>{
     const k = skinById(b.dataset.buy);
     if (coins < k.cost){ sfx('deny'); toastShop('Monedas insuficientes'); return; }
     coins -= k.cost; ownedSkins.push(k.id); activeSkin = k.id;
@@ -2129,10 +2386,225 @@ function renderShop(){
     checkCollector();
   if (coins > 1500) unlockAch('millonario'); renderShop();
   }));
-  el.querySelectorAll('[data-use]').forEach(b=>b.addEventListener('click', ()=>{
+  p.querySelectorAll('[data-use]').forEach(b=>b.addEventListener('click', ()=>{
     activeSkin = b.dataset.use; saveShop(); sfx('ui'); renderShop();
   }));
+  }
 }
+
+// ================= EDITOR DE SKIN CON IMAGEN =================
+const imgEd = { img:null, ox:0, oy:0, scale:1, editando:null, hero:'alien', arrastra:false };
+
+function imgEdAbrir(){
+  imgEd.editando = null;
+  mostrarPane(false);
+  const g = document.getElementById('imgEdSaved');
+  if (g) g.classList.add('hidden');
+  hide('tienda'); show('imgeditor');
+}
+function mostrarPane(v){
+  const p = document.getElementById('imgEdPane');
+  if (p) p.classList.toggle('hidden', !v);
+}
+
+// Reduce la imagen antes de guardarla: 240px de lado y JPEG.
+function reducirImagen(src, cb){
+  const im = new Image();
+  im.onload = ()=>{
+    try {
+      const c = document.createElement('canvas');
+      const lado = IMG_SKIN_MAX;
+      c.width = lado; c.height = lado;
+      const g = c.getContext('2d');
+      const esc = Math.max(lado/im.naturalWidth, lado/im.naturalHeight);
+      const w = im.naturalWidth*esc, h = im.naturalHeight*esc;
+      g.drawImage(im, (lado-w)/2, (lado-h)/2, w, h);
+      cb(c.toDataURL('image/jpeg', 0.72), c);
+    } catch(e){ cb(src, null); }
+  };
+  im.onerror = ()=> cb(null, null);
+  im.src = src;
+}
+
+// Color medio, para teñir tentáculos y detalles.
+function tonosDe(canvas){
+  try {
+    const g = canvas.getContext('2d');
+    const d = g.getImageData(0,0,canvas.width,canvas.height).data;
+    let r=0,gg=0,b=0,n=0;
+    for (let i=0;i<d.length;i+=4*37){ r+=d[i]; gg+=d[i+1]; b+=d[i+2]; n++; }
+    r=Math.round(r/n); gg=Math.round(gg/n); b=Math.round(b/n);
+    const mez=(f)=>`rgb(${Math.round(r*f)},${Math.round(gg*f)},${Math.round(b*f)})`;
+    return { c0: mez(1.25), c1: mez(0.85), c2: mez(0.5) };
+  } catch(e){ return { c0:'#8a8f96', c1:'#5d626a', c2:'#2c3036' }; }
+}
+
+function imgEdCargarArchivo(file){
+  if (!file) return;
+  const fr = new FileReader();
+  fr.onload = ()=>{
+    reducirImagen(fr.result, (data, canvas)=>{
+      if (!data){ toastShop('No se pudo leer la imagen'); return; }
+      const tn = canvas ? tonosDe(canvas) : {};
+      imgEd.editando = { id:'s'+Date.now(), name:'', data, ox:0, oy:0, scale:1,
+                         c0:tn.c0, c1:tn.c1, c2:tn.c2 };
+      imgEd.ox=0; imgEd.oy=0; imgEd.scale=1;
+      imgEd.img = new Image();
+      imgEd.img.onload = imgEdPinta;
+      imgEd.img.src = data;
+      const nb = document.getElementById('imgEdNombre');
+      if (nb) nb.value = '';
+      const g = document.getElementById('imgEdSaved');
+      if (g) g.classList.add('hidden');
+      mostrarPane(true);
+      imgEdPinta();
+    });
+  };
+  fr.readAsDataURL(file);
+}
+
+// Vista previa: silueta del personaje, imagen tenue fuera y nítida dentro.
+function imgEdPinta(){
+  const c = document.getElementById('imgEdCanvas');
+  if (!c || !c.getContext) return;
+  const g = c.getContext('2d');
+  const W = c.width, H = c.height, cx = W/2, cy = H/2;
+  g.clearRect(0,0,W,H);
+  const im = imgEd.img;
+  const R = W*0.30;
+  const lado = R*2*imgEd.scale;
+  const dx = cx - lado/2 + imgEd.ox*R, dy = cy - lado/2 + imgEd.oy*R;
+  if (im && im.complete && im.naturalWidth){
+    g.globalAlpha = 0.22;                       // referencia de lo que queda fuera
+    g.drawImage(im, dx, dy, lado, lado);
+    g.globalAlpha = 1;
+  }
+  // silueta
+  g.save();
+  g.beginPath();
+  if (imgEd.hero === 'alien'){
+    g.arc(cx, cy, R, 0, Math.PI*2);
+    for (let i=0;i<6;i++){                       // tentáculos
+      const a = (i/6)*Math.PI*2;
+      const bx = cx + Math.cos(a)*R*0.9, by = cy + Math.sin(a)*R*0.9;
+      g.moveTo(bx, by);
+      g.arc(cx + Math.cos(a)*R*1.35, cy + Math.sin(a)*R*1.35, R*0.26, 0, Math.PI*2);
+    }
+  } else {
+    g.rect(cx-R*0.62, cy-R*0.75, R*1.24, R*1.6);   // torso
+    g.rect(cx-R*0.30, cy-R*1.30, R*0.60, R*0.55);  // cabeza
+  }
+  g.clip();
+  if (im && im.complete && im.naturalWidth) g.drawImage(im, dx, dy, lado, lado);
+  else { g.fillStyle = '#2f7d4f'; g.fillRect(0,0,W,H); }
+  g.restore();
+  // contorno de la silueta
+  g.strokeStyle = '#7bffa0'; g.lineWidth = 2;
+  g.beginPath();
+  if (imgEd.hero === 'alien') g.arc(cx, cy, R, 0, Math.PI*2);
+  else { g.rect(cx-R*0.62, cy-R*0.75, R*1.24, R*1.6); g.rect(cx-R*0.30, cy-R*1.30, R*0.60, R*0.55); }
+  g.stroke();
+}
+
+function imgEdGuardar(){
+  const e = imgEd.editando;
+  if (!e){ toastShop('Primero elige una imagen'); return; }
+  const nb = document.getElementById('imgEdNombre');
+  const nombre = (nb && nb.value.trim()) || ('SKIN ' + (imgSkins.length+1));
+  e.name = nombre.toUpperCase().slice(0,18);
+  e.ox = imgEd.ox; e.oy = imgEd.oy; e.scale = imgEd.scale;
+  const ya = imgSkins.findIndex(x=>x.id===e.id);
+  if (ya >= 0) imgSkins[ya] = e; else imgSkins.push(e);
+  saveImgSkins();
+  activeSkin = 'img:' + e.id;
+  saveShop();
+  sfx('buy'); toastShop('Skin "' + e.name + '" guardada');
+  hide('imgeditor'); show('tienda'); renderShop();
+}
+
+function imgEdListaGuardadas(){
+  const g = document.getElementById('imgEdSaved');
+  if (!g) return;
+  g.classList.remove('hidden');
+  mostrarPane(false);
+  g.innerHTML = imgSkins.length
+    ? imgSkins.map(sk=>`<div class="skincard">
+        <span class="swatch" style="background-image:url(${sk.data}); background-size:cover"></span>
+        <span class="skinname">${esc(sk.name)}</span>
+        <button class="skinbtn own" data-imguse="${sk.id}">USAR</button>
+        <button class="skinbtn buy" data-imgedit="${sk.id}">EDITAR</button>
+        <button class="skinbtn buy" data-imgdel="${sk.id}">✕</button></div>`).join('')
+    : '<div class="skincard"><span class="skinname">Todavía no has guardado ninguna</span></div>';
+  g.querySelectorAll('[data-imguse]').forEach(b=>b.addEventListener('click', ()=>{
+    activeSkin = 'img:'+b.dataset.imguse; saveShop(); sfx('ui');
+    hide('imgeditor'); show('tienda'); renderShop();
+  }));
+  g.querySelectorAll('[data-imgedit]').forEach(b=>b.addEventListener('click', ()=>{
+    const sk = imgSkinById(b.dataset.imgedit);
+    if (!sk) return;
+    imgEd.editando = sk; imgEd.ox = sk.ox||0; imgEd.oy = sk.oy||0; imgEd.scale = sk.scale||1;
+    imgEd.img = new Image(); imgEd.img.onload = imgEdPinta; imgEd.img.src = sk.data;
+    const nb = document.getElementById('imgEdNombre'); if (nb) nb.value = sk.name;
+    g.classList.add('hidden'); mostrarPane(true); imgEdPinta(); sfx('ui');
+  }));
+  g.querySelectorAll('[data-imgdel]').forEach(b=>b.addEventListener('click', ()=>{
+    const id = b.dataset.imgdel;
+    imgSkins = imgSkins.filter(x=>x.id!==id);
+    delete imgCache[id];
+    if (activeSkin === 'img:'+id) activeSkin = ownedSkins[0] || 'verde';
+    saveImgSkins(); saveShop(); sfx('ui'); imgEdListaGuardadas(); renderShop();
+  }));
+}
+
+// ---- Botones del editor de imagen ----
+(function cablearImgEditor(){
+  const on = (id, ev, fn)=>{ const e = document.getElementById(id); if (e) e.addEventListener(ev, fn); };
+  on('btnElegirImg','click', ()=>{
+    if (!customBought){                     // va con el desbloqueo del color propio
+      sfx('deny'); toastShop('Primero desbloquea CREAR COLOR PROPIO');
+      return;
+    }
+    imgEdAbrir(); sfx('ui');
+  });
+  on('imgEdNueva','click', ()=>{ const f = document.getElementById('imgEdFile'); if (f) f.click(); sfx('ui'); });
+  on('imgEdGuardadas','click', ()=>{ imgEdListaGuardadas(); sfx('ui'); });
+  on('imgEdFile','change', (e)=>{ imgEdCargarArchivo(e.target.files && e.target.files[0]); e.target.value=''; });
+  on('imgEdMas','click', ()=>{ imgEd.scale = clamp(imgEd.scale*1.12, 0.3, 4); imgEdPinta(); sfx('ui'); });
+  on('imgEdMenos','click', ()=>{ imgEd.scale = clamp(imgEd.scale/1.12, 0.3, 4); imgEdPinta(); sfx('ui'); });
+  on('imgEdCentrar','click', ()=>{ imgEd.ox=0; imgEd.oy=0; imgEd.scale=1; imgEdPinta(); sfx('ui'); });
+  on('imgEdHero','click', ()=>{
+    imgEd.hero = (imgEd.hero==='alien') ? 'viltrum' : 'alien';
+    const b = document.getElementById('imgEdHero');
+    if (b) b.textContent = 'VER: ' + (imgEd.hero==='alien' ? 'CRÍA' : 'VILTRUMITA');
+    imgEdPinta(); sfx('ui');
+  });
+  on('imgEdSave','click', imgEdGuardar);
+  on('imgEdSalir1','click', ()=>{ hide('imgeditor'); show('tienda'); sfx('ui'); });
+  on('imgEdSalir2','click', ()=>{ hide('imgeditor'); show('tienda'); sfx('ui'); });
+
+  // arrastrar la imagen dentro de la vista previa
+  const c = document.getElementById('imgEdCanvas');
+  if (!c) return;
+  let px0=0, py0=0, ox0=0, oy0=0;
+  const pt = (e)=> e.touches ? e.touches[0] : e;
+  const abajo = (e)=>{ e.preventDefault(); const p=pt(e);
+    imgEd.arrastra=true; px0=p.clientX; py0=p.clientY; ox0=imgEd.ox; oy0=imgEd.oy;
+    c.classList.add('drag'); };
+  const mover = (e)=>{ if(!imgEd.arrastra) return; e.preventDefault();
+    const p=pt(e), r=c.getBoundingClientRect();
+    const R = (c.width*0.30) * (r.width / c.width || 1);
+    imgEd.ox = clamp(ox0 + (p.clientX-px0)/R, -3, 3);
+    imgEd.oy = clamp(oy0 + (p.clientY-py0)/R, -3, 3);
+    imgEdPinta(); };
+  const arriba = ()=>{ imgEd.arrastra=false; c.classList.remove('drag'); };
+  c.addEventListener('mousedown', abajo);
+  c.addEventListener('touchstart', abajo, {passive:false});
+  window.addEventListener('mousemove', mover);
+  window.addEventListener('touchmove', mover, {passive:false});
+  window.addEventListener('mouseup', arriba);
+  window.addEventListener('touchend', arriba);
+})();
+
 function toastShop(msg){
   const t = document.getElementById('shopmsg');
   t.textContent = msg; t.style.opacity = '1';
@@ -2198,6 +2670,9 @@ function resumeAudio(){
 // --- ladrillo básico: un tono con envolvente ---
 function tone(freq, dur, type, vol, slideTo){
   if (!audio.ctx || !audio.sfxOn) return;
+  // Red de seguridad: una frecuencia inválida rompía el nodo de audio.
+  if (!isFinite(freq) || freq <= 0) return;
+  if (slideTo != null && (!isFinite(slideTo) || slideTo <= 0)) slideTo = null;
   const t0 = audio.ctx.currentTime;
   const osc = audio.ctx.createOscillator();
   const g   = audio.ctx.createGain();
@@ -2313,6 +2788,8 @@ function musicStep(){
   const sc = bt ? bt.scale : (MUSIC_SCALES[key] || MUSIC_SCALES.dia);
   const t0 = audio.ctx.currentTime;
   const mk = (freq, dur, type, vol)=>{
+    // Una nota fuera de la escala daba NaN y rompía el nodo de audio.
+    if (!isFinite(freq) || freq <= 0) return;
     const o = audio.ctx.createOscillator(), g = audio.ctx.createGain();
     o.type = type; o.frequency.value = freq;
     g.gain.setValueAtTime(0.0001, t0);
@@ -2324,6 +2801,14 @@ function musicStep(){
   };
   if (audio.ctx.state !== 'running') return;
   const s = audio.step++;
+  // Los temas ambientales (también en la vista previa del registro) suenan
+  // exactamente igual que en partida: mismo arreglo y mismo tempo.
+  if (bt && bt.style === 'amb'){
+    if (s % 4 === 0) mk(sc[0]/2, 0.5, 'triangle', 0.20);
+    mk(sc[s % sc.length], 0.24, 'square', 0.065);
+    if (s % 8 === 6) mk(sc[4], 0.3, 'sine', 0.08);
+    return;
+  }
   if (bt && bt.style === 'omni'){
     // ÓRBITA MUERTA: bajo que se desliza entre cuatro notas, arpegio metálico
     // en compás de 3 sobre un pulso de 4 (se desfasan y crean tensión),
@@ -2451,7 +2936,7 @@ const BESTIARY = [
     hint:'Domina la ciudad. Demuele uno para registrarlo.',
     desc:'Pasa por tres etapas: intacto, agrietado y escombros transitables. Solo el COLOSO puede derribarlos, y cada demolición da puntos y algo de vida.' },
   { id:'flametank', name:'TANQUE DE FUEGO', hp:900, dmg:'46/s dentro del fuego', sprite:'flametank',
-    desc:'Mini jefe que puede presentarse en cualquier momento pasados los 10.000 puntos, y detiene la llegada de refuerzos mientras vive. Vale tanto como diez tanques. Tras derrotarlo la ciudad respira un rato antes de que vuelva a acecharte. Calcula tu posición durante 3 segundos con el cono siguiéndote, lo fija 1 segundo y suelta la llamarada. El fuego quema por igual a sus propias tropas. Si te pegas a él, la llamarada corta te alcanza siempre: esquiva de lejos y bombardéalo con objetos.' },
+    desc:'Mini jefe que puede presentarse en cualquier momento pasados los 6.850 puntos, y detiene la llegada de refuerzos mientras vive. Vale tanto como diez tanques. Tras derrotarlo la ciudad respira un rato antes de que vuelva a acecharte. Calcula tu posición durante 3 segundos con el cono siguiéndote, lo fija 1 segundo y suelta la llamarada. El fuego quema por igual a sus propias tropas. Si te pegas a él, la llamarada corta te alcanza siempre: esquiva de lejos y bombardéalo con objetos.' },
   { id:'plane', name:'CAZA', hp:90, dmg:'28 por misil (recto)', sprite:'plane',
     desc:'Vuela tan rápido como un taxi a toda marcha: se te viene encima, te sobrevuela y sigue de largo sin frenar. Al alejarse da media vuelta y suelta un misil recto, sin guiado, que puedes esquivar o bloquear. Es frágil y agarrable si aciertas el instante en que pasa.' },
   { id:'omni', name:'OMNIDROIDE', hp:820, dmg:'52/s el rayo', sprite:null,
@@ -2500,6 +2985,50 @@ function discover(id){
   storeSet('invasion_dex', JSON.stringify(dex));
 }
 function achPopupNew(id){}                  // gancho reservado
+// ================= BANDA SONORA EN EL REGISTRO =================
+const OST_TEMAS = [
+  { id:'manana',    icon:'\u{1F304}', name:'DESPERTAR',
+    desc:'El tema de la mañana. Escala mayor y ritmo tranquilo: la ciudad todavía no sabe lo que le espera.' },
+  { id:'dia',       icon:'\u{2600}\u{FE0F}', name:'PLENA LUZ',
+    desc:'El tema del mediodía. El más luminoso y movido, con el arpegio más alto de los cuatro.' },
+  { id:'atardecer', icon:'\u{1F305}', name:'ÚLTIMA HORA',
+    desc:'El tema del atardecer. Baja de tono y se vuelve melancólico, justo cuando llegan los blindados.' },
+  { id:'noche',     icon:'\u{1F319}', name:'HORA MUERTA',
+    desc:'El tema nocturno. El más grave y espaciado; con las farolas encendidas y la ciudad a oscuras.' }
+];
+let ostSel = 0;
+
+function ostDesbloqueado(t){ return !!musicDex[t.id]; }
+function renderOST(){
+  const c = document.getElementById('ostcard');
+  if (!c) return;
+  const t = OST_TEMAS[ostSel % OST_TEMAS.length];
+  const on = ostDesbloqueado(t);
+  const sonando = previewTrack && previewTrack.ostId === t.id;
+  c.innerHTML =
+    `<div class="ostico${on?'':' locked'}" id="ostIco" title="Toca para cambiar de tema">${on ? t.icon : '\u{1F512}'}</div>
+     <div class="ostinfo">
+       <div class="ostname">${on ? esc(t.name) : 'TEMA POR DESCUBRIR'}</div>
+       <div class="ostdesc">${on ? esc(t.desc) : 'Juega una partida a esta hora del día para desbloquearlo. Toca el icono para ver otro tema.'}</div>
+     </div>
+     <button type="button" class="ostplay${sonando?' on':''}" id="ostPlay"${on?'':' disabled'}>${sonando ? '\u{25A0} PARAR' : '\u{25B6} OÍR'}</button>`;
+  const ico = document.getElementById('ostIco');
+  if (ico) ico.addEventListener('click', ()=>{ ostSel = (ostSel+1) % OST_TEMAS.length; sfx('ui'); renderOST(); });
+  const pl = document.getElementById('ostPlay');
+  if (pl && on) pl.addEventListener('click', ()=>{ ostToggle(t); sfx('ui'); renderOST(); });
+}
+
+// Reproduce el tema ambiente elegido usando el mismo bucle de la música.
+function ostToggle(t){
+  initAudio();
+  if (previewTrack && previewTrack.ostId === t.id){ stopBossPreview(); return; }
+  const sc = MUSIC_SCALES[t.id] || MUSIC_SCALES.dia;
+  previewTrack = { scale: sc, tempo: 260, name: t.name, ostId: t.id, style:'amb' };
+  previewT = 20;
+  if (!audio.musicTimer) startMusic();
+  retuneMusic();
+}
+
 function renderDex(){
   const el = document.getElementById('dexlist');
   el.innerHTML = BESTIARY.map(b=>{
@@ -2537,6 +3066,7 @@ function renderDex(){
           <span class="cntv">${b.verb || 'ELIMINADOS'}: ${n}</span></div>
       </div></div>`;
   }).join('');
+  renderOST();
   el.querySelectorAll('[data-ost]').forEach(node=>{
     node.addEventListener('click', (ev)=>{
       ev.stopPropagation();
@@ -4390,10 +4920,18 @@ function drawViltrum(){
   if (vol){
     ctx.fillRect(-12, -9, 26, 18);
     if (SK.cosmic) drawCosmos(1, 0, 14, 1.3);
+    if (SK.drip)   drawDrip(1, 0, 13, 1.3);
+    if (SK.flagIL) drawFlagIL(1, 0, 13, 1.3);
+    if (SK.imgRef){ ctx.save(); ctx.beginPath(); ctx.rect(-12,-9,26,18); ctx.clip();
+                    pintaImgSkin(SK.imgRef, 1, 0, 14); ctx.restore(); }
     ctx.fillStyle = SOMBRA; ctx.fillRect(-12, -9, 5, 18);   // cintura hacia atrás
   } else {
     ctx.fillRect(-9, -12, 18, 23);
     if (SK.cosmic) drawCosmos(0, -1, 13, 1.3);        // el traje es un trozo de cielo
+    if (SK.drip)   drawDrip(0, -1, 12, 1.3);
+    if (SK.flagIL) drawFlagIL(0, -1, 12, 1.3);
+    if (SK.imgRef){ ctx.save(); ctx.beginPath(); ctx.rect(-9,-12,18,23); ctx.clip();
+                    pintaImgSkin(SK.imgRef, 0, -1, 13); ctx.restore(); }
     ctx.fillStyle = SOMBRA; ctx.fillRect(-9, 5, 18, 5);
   }
   // círculo del pecho, con el color de la punta del tentáculo
@@ -4401,6 +4939,8 @@ function drawViltrum(){
   ctx.fillStyle = CIRC;   ctx.beginPath(); ctx.arc(ccx,ccy,5.6,0,Math.PI*2); ctx.fill();
   ctx.fillStyle = TRAJE;  ctx.beginPath(); ctx.arc(ccx,ccy,3.0,0,Math.PI*2); ctx.fill();
   if (SK.cosmic) drawCosmos(ccx, ccy, 3.0, 2.7);      // galaxia en el pecho
+  if (SK.drip)   drawDrip(ccx, ccy, 3.4, 2.7);
+  if (SK.flagIL) drawFlagIL(ccx, ccy, 3.4, 2.7);
   ctx.fillStyle = OSCURO; ctx.beginPath(); ctx.arc(0,-4,1.4,0,Math.PI*2); ctx.fill();
   // brazos
   const cargando = vil.charge > 0;
@@ -5173,6 +5713,19 @@ function updateSpawns(dt){
 // ================= CICLO DÍA / NOCHE =================
 // Cada fase dura PHASE_LEN segundos; el reloj del HUD indica cuánto falta para la siguiente.
 const PHASE_LEN = 45;
+// ---- Temas desbloqueados por haber jugado a esa hora ----
+let musicDex = {};
+async function loadMusicDex(){
+  const v = await storeGet('invasion_musicdex');
+  try { musicDex = v ? (JSON.parse(v) || {}) : {}; } catch(e){ musicDex = {}; }
+}
+function saveMusicDex(){ storeSet('invasion_musicdex', JSON.stringify(musicDex)); }
+function discoverMusic(id){
+  if (!id || musicDex[id]) return;
+  musicDex[id] = Date.now();
+  saveMusicDex();
+}
+
 const PHASES = [
   { id:'manana',   name:'MAÑANA',    icon:'\u{1F304}', sky:['#f6c98a','#dbe4d8','#e8ead9'], tint:'rgba(255,190,120,0.10)', dark:0.00 },
   { id:'dia',      name:'DÍA',       icon:'\u{2600}\u{FE0F}',  sky:['#8fb8d6','#c7d9e0','#dfe6e2'], tint:null,                    dark:0.00 },
@@ -5185,6 +5738,7 @@ function isNight(){ return phase().id === 'noche'; }
 function phaseTimeLeft(){ return PHASE_LEN - (gameTime % PHASE_LEN); }
 function updateCycle(){
   phaseIdx = (1 + Math.floor(gameTime / PHASE_LEN)) % PHASES.length;
+  if (running) discoverMusic(PHASES[phaseIdx].id);   // se apunta la hora vivida
 }
 
 // farolas: colocadas en veredas validadas, encendidas solo de noche
@@ -5624,7 +6178,16 @@ function drawPlayer(){
   g.addColorStop(0,SK.c[0]); g.addColorStop(0.6,SK.c[1]); g.addColorStop(1,SK.c[2]);
   ctx.fillStyle=g; ctx.beginPath(); ctx.arc(s.x,s.y,R,0,Math.PI*2); ctx.fill();
   if (SK.cosmic) drawCosmos(s.x, s.y, R, 0);          // estrellas dentro del cuerpo
-  ctx.strokeStyle = SK.cosmic ? '#4a5a80' : '#0b2712'; ctx.lineWidth=3; ctx.stroke();
+  if (SK.drip)   drawDrip(s.x, s.y, R, 0);
+  if (SK.flagIL) drawFlagIL(s.x, s.y, R, 0);
+  if (SK.imgRef){                                     // skin de imagen propia
+    ctx.save();
+    ctx.beginPath(); ctx.arc(s.x, s.y, R, 0, Math.PI*2); ctx.clip();
+    pintaImgSkin(SK.imgRef, s.x, s.y, R);
+    ctx.restore();
+  }
+  ctx.strokeStyle = SK.cosmic ? '#4a5a80' : SK.drip ? '#ffd85e' : SK.flagIL ? '#0f3d91' : '#0b2712';
+  ctx.lineWidth=3; ctx.stroke();
   for (const side of [-1,1]){
     ctx.fillStyle='#0d1f10';
     ctx.beginPath(); ctx.ellipse(s.x+side*R*0.32, s.y-R*0.16, R*0.16, R*0.21, 0,0,Math.PI*2); ctx.fill();
@@ -6411,7 +6974,7 @@ document.getElementById('btnRegistro').addEventListener('click', ()=>{
   renderDex(); hide('menu'); show('registro');
 });
 document.getElementById('btnDexBack').addEventListener('click', ()=>{
-  stopBossPreview();                    // que no siga sonando en el menú
+  stopBossPreview();                    // que no siga sonando en el menú (jefes o ambiente)
   hide('registro'); show('menu');
 });
 
@@ -6557,10 +7120,10 @@ document.getElementById('btnMenu').addEventListener('click', async ()=>{
   };
   const pasos = [
     ['Abriendo el guardado',      async ()=>{ await SaveIO.init(); }],
-    ['Cargando registro',         async ()=>{ await loadDex(); }],
+    ['Cargando registro',         async ()=>{ await loadDex(); await loadMusicDex(); }],
     ['Cargando logros',           async ()=>{ await loadAch(); }],
     ['Cargando controles',        async ()=>{ await loadBinds(); await loadBindsP2(); }],
-    ['Cargando monedas y tienda', async ()=>{ await loadShop(); }],
+    ['Cargando monedas y tienda', async ()=>{ await loadShop(); await loadImgSkins(); }],
     ['Cargando preferencias',     async ()=>{ await loadAudioPrefs(); await loadTouchPref();
                                               await loadMenuAnim(); await loadHpBars(); await loadHero();
                                               await loadUICfg(); }],
