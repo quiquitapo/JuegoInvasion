@@ -369,6 +369,9 @@
   .score-hud { background:rgba(5,10,7,0.62); border:1px solid #1f5c37; padding:5px 10px; border-radius:4px; text-align:right; }
   .score-hud .val { color:#ffe066; font-size:1.15rem; font-weight:900; }
   .score-hud .lbl { color:#7bffa0; font-size:0.55rem; letter-spacing:2px; }
+  .coin-hud { border-color:#8a6b1f; }
+  .coin-hud .lbl { color:#ffd257; }
+  .coin-hud .val { color:#ffd257; }
 
   .hud-right { display:flex; flex-direction:column; align-items:flex-end; gap:6px; }
   .quitbtn { position:relative; z-index:9; pointer-events:auto; cursor:pointer; font-family:inherit; font-weight:900;
@@ -505,6 +508,10 @@
       <div class="score-hud">
         <div class="lbl">PUNTAJE</div>
         <div id="scoreval" class="val">0</div>
+      </div>
+      <div class="score-hud coin-hud">
+        <div class="lbl">MONEDAS</div>
+        <div id="coinval" class="val">0</div>
       </div>
       <button type="button" id="btnSalir" class="quitbtn">✕ SALIR</button>
       <div class="clock-hud">
@@ -1269,7 +1276,8 @@ function finalWave(){ return form >= 1 && (gameTime > 140 || score >= 1500); }
 
 function resetGame(){
   player = { x: WORLD_W/2, y: WORLD_H/2, vx:0, vy:0, tentaclePhase:0 };
-  civilians=[]; enemies=[]; cars=[]; trees=[]; planters=[]; trash=[]; benches=[]; bullets=[]; particles=[]; booms=[]; heldObject=null;
+  civilians=[]; enemies=[]; cars=[]; trees=[]; planters=[]; trash=[]; benches=[]; bullets=[]; booms=[]; heldObject=null;
+  partN = 0;                       // el depósito de chispas se reutiliza, no se tira
   sonicRings.length = 0; windRings.length = 0; bossTrack = null;
   planters = [];
   lamps = lampSpots.map((l,i)=>({ si:i, kind:'lamp', x:l.x, y:l.y, w:26, h:58, hp:30, maxhp:30,
@@ -1626,6 +1634,7 @@ function drawOmniBeam(e){
 // Aparece a los 15.000 puntos y detiene la llegada del resto del ejército.
 // Ciclo: 3 s calculando (el cono te sigue) -> 1 s fijo -> llamarada.
 const BOSS_SCORE   = 6850;    // a partir de aquí puede aparecer en cualquier momento
+const BOSS_PLAZO   = 85;      // 1:25 sin derrotarlo y deja de frenar al ejército
 const BOSS_CHANCE  = 0.05;    // probabilidad por segundo mientras está activa
 const BOSS_REST    = 45;      // segundos de tregua tras derrotarlo
 const FLAME_AIM    = 3.0;    // segundos calculando
@@ -1775,11 +1784,25 @@ function drawFlameCone(e){
 }
 
 // ================= FX =================
+// Depósito de partículas de tamaño fijo. Antes cada chispa creaba un objeto y
+// cada fotograma se reconstruía el array entero con filter: mucha basura para
+// el recolector. Ahora se reciclan y se compactan intercambiando posiciones.
+const PART_MAX = 520;
+let partN = 0;
+(function initParticles(){
+  for (let i=0;i<PART_MAX;i++) particles.push({x:0,y:0,vx:0,vy:0,life:0,maxlife:1,color:'#fff',r:3});
+})();
 function addParticles(x,y,color,n,spd){
   for (let i=0;i<n;i++){
+    if (partN >= PART_MAX) return;                 // techo duro: nunca se dispara
+    const p = particles[partN++];
     const a = rand(0,Math.PI*2);
-    particles.push({x,y,vx:Math.cos(a)*rand(20,spd),vy:Math.sin(a)*rand(20,spd),
-      life:rand(0.3,0.75), maxlife:0.75, color});
+    p.x = x; p.y = y;
+    p.vx = Math.cos(a)*rand(20,spd);
+    p.vy = Math.sin(a)*rand(20,spd);
+    p.life = rand(0.3,0.75); p.maxlife = 0.75;
+    p.color = color;
+    p.r = 2 + Math.random()*1.8;                    // tamaños variados
   }
 }
 function shake(mag,t){ shakeMag = Math.max(shakeMag,mag); shakeTime = Math.max(shakeTime,t); }
@@ -2698,8 +2721,22 @@ function initAudio(){
     const comp = audio.ctx.createDynamicsCompressor();
     comp.threshold.value = -18; comp.knee.value = 24; comp.ratio.value = 12;
     comp.attack.value = 0.003; comp.release.value = 0.22;
+    // Cadena de la música: filtro suave + eco corto. Se crea una sola vez y
+    // da profundidad sin coste por nota.
+    const musFlt = audio.ctx.createBiquadFilter();
+    musFlt.type = 'lowpass'; musFlt.frequency.value = 3200; musFlt.Q.value = 0.7;
+    const delay = audio.ctx.createDelay(0.6);
+    delay.delayTime.value = 0.26;
+    const fb = audio.ctx.createGain(); fb.gain.value = 0.26;
+    const wet = audio.ctx.createGain(); wet.gain.value = 0.30;
+    const dfl = audio.ctx.createBiquadFilter();
+    dfl.type = 'lowpass'; dfl.frequency.value = 1800;
+    audio.musGain.connect(musFlt);
+    musFlt.connect(comp);
+    musFlt.connect(delay); delay.connect(dfl); dfl.connect(fb); fb.connect(delay);
+    dfl.connect(wet); wet.connect(comp);
+    audio.musFlt = musFlt;
     audio.sfxGain.connect(comp);
-    audio.musGain.connect(comp);
     comp.connect(audio.master);
     audio.master.connect(audio.ctx.destination);
     audio.comp = comp;
@@ -2732,21 +2769,41 @@ function tone(freq, dur, type, vol, slideTo){
   voiceStart(dur);
 }
 // --- ruido filtrado, para golpes y explosiones ---
+// Un único búfer de ruido blanco, generado una vez y reutilizado por todos
+// los efectos. Antes cada disparo creaba un búfer y lo rellenaba con un bucle
+// de decenas de miles de muestras: era el mayor gasto de CPU del juego.
+let noiseBuf = null;
+function getNoiseBuf(){
+  if (noiseBuf) return noiseBuf;
+  const sr = audio.ctx.sampleRate, n = Math.floor(sr * 2);
+  noiseBuf = audio.ctx.createBuffer(1, n, sr);
+  const d = noiseBuf.getChannelData(0);
+  let v = 0;
+  for (let i=0;i<n;i++){
+    // ruido con un punto de rosa: menos sibilante y más natural que el blanco
+    v = (v + (Math.random()*2-1) * 0.32) * 0.86;
+    d[i] = v + (Math.random()*2-1) * 0.5;
+  }
+  return noiseBuf;
+}
 function noise(dur, vol, freq, q){
   if (!audio.ctx || !audio.sfxOn) return;
   const t0 = audio.ctx.currentTime;
-  const n = Math.floor(audio.ctx.sampleRate * dur);
-  const buf = audio.ctx.createBuffer(1, n, audio.ctx.sampleRate);
-  const d = buf.getChannelData(0);
-  for (let i=0;i<n;i++) d[i] = (Math.random()*2-1) * (1 - i/n);
-  const src = audio.ctx.createBufferSource(); src.buffer = buf;
+  const src = audio.ctx.createBufferSource();
+  src.buffer = getNoiseBuf();
+  src.loop = true;
+  src.playbackRate.value = 0.85 + Math.random()*0.3;   // pequeña variación
+  const off = Math.random() * 1.5;                     // arranca en otro punto
   const flt = audio.ctx.createBiquadFilter();
-  flt.type='lowpass'; flt.frequency.value = freq||900; flt.Q.value = q||1;
+  flt.type='lowpass'; flt.frequency.setValueAtTime(freq||900, t0);
+  flt.frequency.exponentialRampToValueAtTime(Math.max(80,(freq||900)*0.45), t0+dur);
+  flt.Q.value = q||1;
   const g = audio.ctx.createGain();
-  g.gain.setValueAtTime(vol, t0);
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(vol, t0+0.008);   // ataque instantáneo
   g.gain.exponentialRampToValueAtTime(0.0001, t0+dur);
   src.connect(flt); flt.connect(g); g.connect(audio.sfxGain);
-  src.start(t0);
+  src.start(t0, off, dur);
   src.onended = ()=>{ try { src.disconnect(); flt.disconnect(); g.disconnect(); } catch(e){} };
   voiceStart(dur);
 }
@@ -2836,11 +2893,30 @@ function musicStep(){
     if (!isFinite(freq) || freq <= 0) return;
     const o = audio.ctx.createOscillator(), g = audio.ctx.createGain();
     o.type = type; o.frequency.value = freq;
+    // Segunda voz apenas desafinada: engorda la nota sin sonar a coro.
+    let o2 = null;
+    if (vol > 0.06){
+      o2 = audio.ctx.createOscillator();
+      o2.type = type;
+      o2.frequency.value = freq;
+      o2.detune.value = (freq < 200) ? 6 : 9;
+    }
+    // Envolvente con ataque y caída suaves: menos "bip", más instrumento.
     g.gain.setValueAtTime(0.0001, t0);
-    g.gain.exponentialRampToValueAtTime(vol, t0+0.03);
+    g.gain.exponentialRampToValueAtTime(vol, t0+0.028);
+    g.gain.exponentialRampToValueAtTime(vol*0.55, t0+dur*0.45);
     g.gain.exponentialRampToValueAtTime(0.0001, t0+dur);
     o.connect(g); g.connect(audio.musGain);
     o.start(t0); o.stop(t0+dur+0.03);
+    if (o2){
+      const g2 = audio.ctx.createGain();
+      g2.gain.setValueAtTime(0.0001, t0);
+      g2.gain.exponentialRampToValueAtTime(vol*0.45, t0+0.04);
+      g2.gain.exponentialRampToValueAtTime(0.0001, t0+dur);
+      o2.connect(g2); g2.connect(audio.musGain);
+      o2.start(t0); o2.stop(t0+dur+0.03);
+      o2.onended = ()=>{ try { o2.disconnect(); g2.disconnect(); } catch(e){} };
+    }
     o.onended = ()=>{ try { o.disconnect(); g.disconnect(); } catch(e){} };
   };
   if (audio.ctx.state !== 'running') return;
@@ -5777,8 +5853,16 @@ function updateBullets(dt){
 }
 
 function updateFX(dt){
-  for (const p of particles){ p.x+=p.vx*dt; p.y+=p.vy*dt; p.vx*=0.9; p.vy*=0.9; p.life-=dt; }
-  particles = particles.filter(p=>p.life>0);
+  for (let i = partN - 1; i >= 0; i--){
+    const p = particles[i];
+    p.x += p.vx*dt; p.y += p.vy*dt;
+    p.vx *= 0.9; p.vy *= 0.9;
+    p.life -= dt;
+    if (p.life <= 0){                               // se recicla sin reasignar
+      particles[i] = particles[--partN];
+      particles[partN] = p;
+    }
+  }
   for (const b of booms){ b.life -= dt; b.r = b.max * (1 - b.life/b.maxlife); }
   booms = booms.filter(b=>b.life>0);
   for (const b of buildings) if (b.hitFlash>0) b.hitFlash -= dt;
@@ -5886,9 +5970,22 @@ function updateSpawns(dt){
 
   // MINI JEFE: a partir de BOSS_SCORE puede presentarse en cualquier momento.
   // Al derrotarlo la amenaza se desactiva un rato y luego vuelve a acecharte.
+  // Si un jefe aguanta más de BOSS_PLAZO sin caer, la ciudad deja de esperar:
+  // sigue vivo y peleando, pero el ejército vuelve a llegar y más adelante
+  // puede presentarse otro. No da puntaje por esto: solo deja de bloquear.
+  for (const e of enemies){
+    if (e.dead || !JEFES[e.type] || e.ignorado) continue;
+    e.plazo = (e.plazo || 0) + dt;
+    if (e.plazo >= BOSS_PLAZO){
+      e.ignorado = true;
+      toast('EL EJÉRCITO SE REORGANIZA');
+      sfx('ui');
+    }
+  }
+  const cuentaJefes = () => enemies.filter(e => JEFES[e.type] && !e.dead && !e.ignorado).length;
   const habiaJefe = bossAlive;
-  bossAlive = count('flametank') + count('omni') > 0;
-  if (habiaJefe && !bossAlive) bossRest = BOSS_REST;      // acaba de caer: tregua
+  bossAlive = cuentaJefes() > 0;
+  if (habiaJefe && !bossAlive) bossRest = BOSS_REST;      // cayó o se le agotó el plazo
   if (bossRest > 0) bossRest -= dt;
 
   if (score >= BOSS_SCORE && !bossAlive && bossRest <= 0){
@@ -5966,12 +6063,20 @@ function discoverMusic(id){
 
 const PHASES = [
   { id:'manana',   name:'MAÑANA',    icon:'\u{1F304}', sky:['#f6c98a','#dbe4d8','#e8ead9'], tint:'rgba(255,190,120,0.10)', dark:0.00 },
-  { id:'dia',      name:'DÍA',       icon:'\u{2600}\u{FE0F}',  sky:['#8fb8d6','#c7d9e0','#dfe6e2'], tint:null,                    dark:0.00 },
+  { id:'dia',      name:'DÍA',       icon:'\u{2600}\u{FE0F}',  sky:['#8fb8d6','#c7d9e0','#dfe6e2'], tint:'rgba(255,244,214,0.05)', dark:0.00 },
   { id:'atardecer',name:'ATARDECER', icon:'\u{1F305}', sky:['#e8895f','#f0b489','#c98f79'], tint:'rgba(255,120,50,0.16)', dark:0.14 },
-  { id:'noche',    name:'NOCHE',     icon:'\u{1F319}', sky:['#0e1730','#1b2a48','#25324f'], tint:null,                    dark:0.62 }
+  { id:'noche',    name:'NOCHE',     icon:'\u{1F319}', sky:['#0e1730','#1b2a48','#25324f'], tint:'rgba(70,105,180,0.11)',  dark:0.62 }
 ];
 let phaseIdx = 1;                      // arranca de día
 function phase(){ return PHASES[phaseIdx]; }
+// Las luces de la ciudad y los focos de los helicópteros se encienden un poco
+// antes de que caiga la noche, como al atardecer de verdad.
+const LUZ_ANTES  = 9;           // se encienden 9s antes de la noche
+const LUZ_DESPUES = 5;          // y se apagan 5s antes de que acabe
+function lucesEncendidas(){
+  if (isNight()) return phaseTimeLeft() > LUZ_DESPUES;   // se apagan al clarear
+  return phase().id === 'atardecer' && phaseTimeLeft() <= LUZ_ANTES;
+}
 function isNight(){ return phase().id === 'noche'; }
 function phaseTimeLeft(){ return PHASE_LEN - (gameTime % PHASE_LEN); }
 function updateCycle(){
@@ -6079,7 +6184,7 @@ function llevaFoco(e){ return e.type === 'heli' || e.type === 'gunship'; }
 // El punto iluminado se guarda en el propio aparato y se mueve poco a poco,
 // así el haz se desliza en vez de saltar.
 function updateFocos(dt){
-  if (!isNight()) return;
+  if (!lucesEncendidas()) return;         // se encienden justo antes de anochecer
   for (const e of enemies){
     if (e.dead || e.thrown || e.held || !llevaFoco(e)) continue;
     if (e.focoX === undefined){ e.focoX = e.x; e.focoY = e.y + 60; e.focoT = rand(0, 6.28); }
@@ -6098,18 +6203,80 @@ function updateFocos(dt){
   }
 }
 
+// Cuánto llevamos recorrido de la fase actual (0 a 1). Sirve para pasar de
+// una hora del día a la siguiente sin saltos bruscos.
+function faseProgreso(){
+  const t = gameTime % PHASE_LEN;
+  return clamp(t / PHASE_LEN, 0, 1);
+}
+// La mezcla ocupa el último tercio de cada fase.
+function mezclaFase(){
+  const p = faseProgreso();
+  return p < 0.66 ? 0 : (p - 0.66) / 0.34;
+}
+function faseSiguiente(){ return PHASES[(phaseIdx + 1) % PHASES.length]; }
+
+// Oscuridad y tinte interpolados entre la hora actual y la siguiente.
+function oscuridadAhora(){
+  const m = mezclaFase();
+  return phase().dark * (1-m) + faseSiguiente().dark * m;
+}
+// Graduación de color y viñeta en UNA sola estampa cacheada: antes eran dos
+// pasadas a pantalla completa; ahora es una, y solo se rehace cuando cambia
+// la hora del día o el tamaño de la ventana.
+let _ovKey = '', _ovCv = null;
+function leerRGBA(c){
+  if (!c) return [0,0,0,0];
+  const m = c.match(/rgba?\(([^)]+)\)/);
+  if (!m) return [0,0,0,0];
+  const v = m[1].split(',').map(Number);
+  return [v[0]||0, v[1]||0, v[2]||0, v.length>3 ? v[3] : 1];
+}
+function overlayFase(){
+  const a = phase(), b = faseSiguiente(), m = Math.round(mezclaFase()*8)/8;
+  const key = a.id + '|' + b.id + '|' + m + '|' + CW + 'x' + CH;
+  if (key === _ovKey && _ovCv) return _ovCv;
+  const p1 = leerRGBA(a.tint), p2 = leerRGBA(b.tint);
+  const c = [ p1[0]*(1-m)+p2[0]*m, p1[1]*(1-m)+p2[1]*m,
+              p1[2]*(1-m)+p2[2]*m, p1[3]*(1-m)+p2[3]*m ];
+  // Lienzo a un cuarto de resolución: el degradado es suave y al ampliarlo
+  // no se nota, pero se dibuja con la cuarta parte de trabajo.
+  const cv = _ovCv && _ovCv.width === Math.ceil(CW/4) ? _ovCv : document.createElement('canvas');
+  cv.width = Math.max(1, Math.ceil(CW/4)); cv.height = Math.max(1, Math.ceil(CH/4));
+  const g = cv.getContext('2d');
+  g.clearRect(0,0,cv.width,cv.height);
+  if (c[3] > 0.004){
+    const rgba = (k, al)=>`rgba(${Math.round(c[0]*k)},${Math.round(c[1]*k)},${Math.round(c[2]*k)},${al})`;
+    const lg = g.createLinearGradient(0,0,0,cv.height);
+    lg.addColorStop(0,   rgba(1.14, c[3]*1.3));    // cielo más cálido
+    lg.addColorStop(0.55,rgba(1.00, c[3]));
+    lg.addColorStop(1,   rgba(0.70, c[3]*0.7));    // suelo más frío
+    g.fillStyle = lg; g.fillRect(0,0,cv.width,cv.height);
+  }
+  // viñeta encima, en el mismo lienzo
+  const r = Math.max(cv.width, cv.height) * 0.74;
+  const vg = g.createRadialGradient(cv.width/2, cv.height/2, r*0.44, cv.width/2, cv.height/2, r);
+  vg.addColorStop(0,   'rgba(0,0,0,0)');
+  vg.addColorStop(0.72,'rgba(0,0,0,0.09)');
+  vg.addColorStop(1,   'rgba(0,0,0,0.32)');
+  g.fillStyle = vg; g.fillRect(0,0,cv.width,cv.height);
+  _ovKey = key; _ovCv = cv;
+  return cv;
+}
+
 function drawLighting(){
   const p = phase();
-  if (p.dark > 0){
+  const oscuro = oscuridadAhora();
+  if (oscuro > 0.004){
     ensureLightBuf();
     const L = lightCtx, k = ZOOM/LIGHT_DS;
     L.setTransform(1,0,0,1,0,0);
     L.globalCompositeOperation = 'source-over';
     L.clearRect(0,0,lightW,lightH);
-    L.fillStyle = `rgba(6,10,26,${p.dark})`;
+    L.fillStyle = `rgba(6,10,26,${oscuro})`;
     L.fillRect(0,0,lightW,lightH);
 
-    if (isNight()){
+    if (lucesEncendidas()){
       const r = LAMP_R*k, pr = PLAYER_R*k;
       const mx = camX - LAMP_R, Mx = camX + VW + LAMP_R;
       const my = camY - LAMP_R, My = camY + VH + LAMP_R;
@@ -6156,7 +6323,7 @@ function drawLighting(){
     }
     ctx.drawImage(lightCv, 0, 0, CW, CH);          // un solo volcado a pantalla
   }
-  if (p.tint){ ctx.fillStyle = p.tint; ctx.fillRect(0,0,CW,CH); }
+  ctx.drawImage(overlayFase(), 0, 0, CW, CH);   // graduación + viñeta, de una vez
 }
 
 // ================= DRAW =================
@@ -6568,25 +6735,60 @@ function drawBullets(){
     if (b.shell){ ctx.strokeStyle='rgba(255,180,80,0.6)'; ctx.lineWidth=2; ctx.stroke(); }
   }
 }
+// Estampa de la bola de fuego, generada una vez.
+let _boomSp = null;
+function boomSprite(){
+  if (_boomSp) return _boomSp;
+  const S2 = 128, c = document.createElement('canvas');
+  c.width = c.height = S2;
+  const g = c.getContext('2d');
+  const gr = g.createRadialGradient(S2/2,S2/2,S2*0.06, S2/2,S2/2,S2/2);
+  gr.addColorStop(0,   '#fffdf0');
+  gr.addColorStop(0.22,'#ffe08a');
+  gr.addColorStop(0.48,'#ff9d3b');
+  gr.addColorStop(0.74,'rgba(198,62,18,0.55)');
+  gr.addColorStop(1,   'rgba(120,40,10,0)');
+  g.fillStyle = gr; g.fillRect(0,0,S2,S2);
+  _boomSp = c;
+  return c;
+}
+
 function drawFX(){
+  // Bola de fuego: antes se construía un degradado radial nuevo por estallido
+  // y por fotograma, que es de lo más caro que hay. Ahora es una estampa.
+  const bs = boomSprite();
   for (const b of booms){
-    const s = S(b.x,b.y), a = clamp(b.life/b.maxlife,0,1);
-    ctx.globalAlpha = a*0.75;
-    const g = ctx.createRadialGradient(s.x,s.y,b.r*0.2,s.x,s.y,Math.max(b.r,1));
-    g.addColorStop(0,'#fff3c4'); g.addColorStop(0.45,'#ff9d3b'); g.addColorStop(1,'rgba(120,40,10,0)');
-    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(s.x,s.y,Math.max(b.r,1),0,Math.PI*2); ctx.fill();
-    ctx.globalAlpha=1;
+    const a = clamp(b.life/b.maxlife,0,1);
+    const r = Math.max(b.r,1);
+    ctx.globalAlpha = a*0.8;
+    ctx.drawImage(bs, b.x-camX-r, b.y-camY-r, r*2, r*2);
+    ctx.globalAlpha = a*0.5;                       // núcleo blanco que se apaga
+    ctx.drawImage(bs, b.x-camX-r*0.45, b.y-camY-r*0.45, r*0.9, r*0.9);
+    ctx.globalAlpha = 1;
   }
-  for (const p of particles){
-    const s = S(p.x,p.y);
-    ctx.globalAlpha = clamp(p.life/p.maxlife,0,1);
-    ctx.fillStyle=p.color; ctx.beginPath(); ctx.arc(s.x,s.y,3,0,Math.PI*2); ctx.fill();
-    ctx.globalAlpha=1;
+  // Las chispas se agrupan por color y por franja de transparencia, de modo
+  // que un estallido entero se pinta en dos o tres llamadas en vez de treinta.
+  let col = '', alfa = -1, abierto = false;
+  for (let i = 0; i < partN; i++){
+    const p = particles[i];
+    const a = Math.round(clamp(p.life/p.maxlife,0,1) * 4) / 4;   // 4 franjas
+    if (a <= 0) continue;
+    if (p.color !== col || a !== alfa){
+      if (abierto) ctx.fill();
+      ctx.globalAlpha = a; ctx.fillStyle = p.color;
+      ctx.beginPath(); abierto = true;
+      col = p.color; alfa = a;
+    }
+    const x = p.x - camX, y = p.y - camY;
+    ctx.moveTo(x + p.r, y);
+    ctx.arc(x, y, p.r, 0, Math.PI*2);
   }
+  if (abierto) ctx.fill();
+  ctx.globalAlpha = 1;
 }
 
 // Entradas reutilizadas para la lista de dibujo (evita crear objetos por fotograma)
-const dl = []; let dlN = 0;
+const dl = [], dlSorted = []; let dlN = 0;
 function dlPush(y, k, o){
   let e = dl[dlN];
   if (!e) e = dl[dlN] = { y:0, k:0, o:null };
@@ -6628,9 +6830,12 @@ function draw(){
   }
   dlPush(player.y, 7, null);
 
-  const used = dl.slice(0, dlN);
-  used.sort(dlCmp);
-  for (const d of used){
+  // slice creaba un array nuevo en cada fotograma; ahora se reutiliza uno fijo
+  // y solo se ajusta su longitud, que no reserva memoria.
+  dlSorted.length = dlN;
+  for (let i = 0; i < dlN; i++) dlSorted[i] = dl[i];
+  dlSorted.sort(dlCmp);
+  for (const d of dlSorted){
     switch (d.k){
       case 0: drawCivilian(d.o); break;
       case 1: drawCar(d.o); break;
@@ -6739,6 +6944,9 @@ function loop(t){
       if (sw) sw.style.display = 'none';
     }
     document.getElementById('scoreval').textContent = score;
+    // Monedas que llevas ganadas en esta partida (lo mismo que verás al acabar).
+    const cv = document.getElementById('coinval');
+    if (cv) cv.textContent = coinsFor(score, demolished) + coinsBanco;
     const ph = phase();
     document.getElementById('clockicon').textContent  = ph.icon;
     document.getElementById('clockphase').textContent = ph.name;
