@@ -1379,7 +1379,7 @@ function spawnEnemy(type, atX, atY){
   const p = (atX != null && atY != null) ? {x:atX, y:atY} : edgeSpawnPos(460, 620);
   const base = { x:p.x, y:p.y, type, dead:false, facing:1, shootCd:rand(0.3,1.6), rot:0,
                  held:false, thrown:false, alt:0, stunT:0, stunVx:0, stunVy:0, person:false };
-  if (type==='police')   Object.assign(base, {hp:35,maxhp:35,speed:66, w:26,h:34, grabbable:true, person:true});
+  if (type==='police')   Object.assign(base, {hp:35,maxhp:35,speed:66, w:26,h:33, grabbable:true, person:true});
   if (type==='military') Object.assign(base, {hp:70,maxhp:70,speed:54, w:28,h:36, grabbable:true, person:true});
   if (type==='tank')     Object.assign(base, {hp:220,maxhp:220,speed:34, w:74,h:56, grabbable:true});
   if (type==='heli')     Object.assign(base, {hp:120,maxhp:120,speed:88, w:70,h:56, grabbable:true, alt:52, bob:rand(0,6)});
@@ -1392,12 +1392,12 @@ function spawnEnemy(type, atX, atY){
                                                px2:undefined, py2:0, armed:1});
   // Omnidroide: esfera negra con cuatro patas y un ojo rojo. Alterna entre
   // rodar en línea recta hacia un punto calculado y caminar atacando.
-  if (type==='omni')      Object.assign(base, {hp:820,maxhp:820,speed:54, w:96,h:96,
+  if (type==='omni')      Object.assign(base, {hp:950,maxhp:950,speed:54, w:96,h:96,
                                                grabbable:false, mode:'roll',
                                                tx:0, ty:0, rollA:0, roll:0,
                                                walkT:0, throwCd:2.2, beamCd:5,
                                                beamPh:'', beamT:0, beamA:0, legT:0});
-  if (type==='flametank') Object.assign(base, {hp:900,maxhp:900,speed:38, w:152,h:99,
+  if (type==='flametank') Object.assign(base, {hp:1050,maxhp:1050,speed:38, w:152,h:99,
                                                grabbable:false, phase:'aim', pt:FLAME_AIM,
                                                aimA:0, lockA:0, closeCd:0});
   // Minigunero: como el militar pero con una cadencia mucho mayor.
@@ -1790,7 +1790,8 @@ function drawFlameCone(e){
 const PART_MAX = 520;
 let partN = 0;
 (function initParticles(){
-  for (let i=0;i<PART_MAX;i++) particles.push({x:0,y:0,vx:0,vy:0,life:0,maxlife:1,color:'#fff',r:3});
+  for (let i=0;i<PART_MAX;i++)
+    particles.push({x:0,y:0,vx:0,vy:0,life:0,maxlife:1,color:'#fff',r:3,drag:0.9,grow:0});
 })();
 function addParticles(x,y,color,n,spd){
   for (let i=0;i<n;i++){
@@ -1803,7 +1804,34 @@ function addParticles(x,y,color,n,spd){
     p.life = rand(0.3,0.75); p.maxlife = 0.75;
     p.color = color;
     p.r = 2 + Math.random()*1.8;                    // tamaños variados
+    p.drag = 0.9; p.grow = 0;
   }
+}
+
+// Humo de la chatarra: usa el mismo depósito, así no cuesta nada extra. Sube
+// despacio, se hincha y se desvanece.
+let humoCursor = 0;
+function addSmoke(x, y){
+  let p;
+  if (partN < PART_MAX) p = particles[partN++];
+  else {
+    // Depósito lleno (por ejemplo tras varias explosiones): en vez de perder
+    // la columna de humo, se reaprovecha la chispa más gastada de un puñado.
+    let mejor = humoCursor % PART_MAX, vida = particles[mejor].life;
+    for (let k = 1; k < 4; k++){
+      const j = (humoCursor + k*37) % PART_MAX;
+      if (particles[j].life < vida){ vida = particles[j].life; mejor = j; }
+    }
+    humoCursor = (humoCursor + 1) % PART_MAX;
+    p = particles[mejor];
+  }
+  p.x = x; p.y = y;
+  p.vx = rand(-7, 7); p.vy = rand(-26, -15);
+  p.life = rand(1.1, 1.9); p.maxlife = 1.9;
+  p.color = Math.random() < 0.5 ? '#2a2a2e' : '#3a3a40';
+  p.r = 2.5 + Math.random()*2;
+  p.drag = 0.985;                                   // apenas frena: se eleva
+  p.grow = 5.5;                                     // se expande al subir
 }
 function shake(mag,t){ shakeMag = Math.max(shakeMag,mag); shakeTime = Math.max(shakeTime,t); }
 
@@ -3056,11 +3084,11 @@ const BESTIARY = [
             ['bankOk','Banco · intacto'],['bankDmg','Banco · dañado'],['bankRub','Banco · escombros']],
     hint:'Domina la ciudad. Demuele uno para registrarlo.',
     desc:'Pasa por tres etapas: intacto, agrietado y escombros transitables. Solo el COLOSO puede derribarlos, y cada demolición da puntos y algo de vida.' },
-  { id:'flametank', name:'TANQUE DE FUEGO', hp:900, dmg:'46/s dentro del fuego', sprite:'flametank',
+  { id:'flametank', name:'TANQUE DE FUEGO', hp:1050, dmg:'46/s dentro del fuego', sprite:'flametank',
     desc:'Mini jefe que puede presentarse en cualquier momento pasados los 6.850 puntos, y detiene la llegada de refuerzos mientras vive. Vale tanto como diez tanques. Tras derrotarlo la ciudad respira un rato antes de que vuelva a acecharte. Calcula tu posición durante 3 segundos con el cono siguiéndote, lo fija 1 segundo y suelta la llamarada. El fuego quema por igual a sus propias tropas. Si te pegas a él, la llamarada corta te alcanza siempre: esquiva de lejos y bombardéalo con objetos.' },
   { id:'plane', name:'CAZA', hp:90, dmg:'28 por misil (recto)', sprite:'plane',
     desc:'Vuela tan rápido como un taxi a toda marcha: se te viene encima, te sobrevuela y sigue de largo sin frenar. Al alejarse da media vuelta y suelta un misil recto, sin guiado, que puedes esquivar o bloquear. Es frágil y agarrable si aciertas el instante en que pasa.' },
-  { id:'omni', name:'OMNIDROIDE', hp:820, dmg:'52/s el rayo', sprite:null,
+  { id:'omni', name:'OMNIDROIDE', hp:950, dmg:'52/s el rayo', sprite:null,
     desc:'Esfera acorazada con cuatro patas y un único ojo rojo. Calcula dónde estás y rueda en línea recta hasta ese punto, arrollando lo que pille; al llegar se detiene y camina. Andando te arroja el mobiliario de la calle y carga un rayo desde su ojo: primero marca la línea, luego dispara y barre muy despacio, así que se esquiva moviéndose de lado. El rayo también achicharra a sus propias tropas.' },
   { id:'truck', name:'CAMIÓN CISTERNA', hp:60, dmg:'200 en área al detonar', sprite:'truck',
     desc:'Aparición rara en el tráfico. No te ataca, pero lanzarlo provoca la mayor explosión del juego y encadena con otras cisternas.' }
@@ -4205,7 +4233,8 @@ function ondaDeViento(ang){
       while (da < -Math.PI) da += Math.PI*2;
       const frente = 0.45 + 0.55 * Math.max(0, Math.cos(da));
       const cerca  = 1 - d/VIL_ONDA_R;
-      damageEnemy(t, VIL_ONDA_DMG * frente * (0.5 + cerca*0.5), t.x, t.y);
+      const jf = JEFES[t.type] ? VIL_JEFE_CARGA : 1;   // los jefes lo resisten
+      damageEnemy(t, VIL_ONDA_DMG * frente * (0.5 + cerca*0.5) * jf, t.x, t.y);
       if (!t.dead && t.person){                       // sale despedido
         const a2 = Math.atan2(t.y-player.y, t.x-player.x);
         t.stunT = Math.max(t.stunT||0, 1.1);
@@ -4254,7 +4283,8 @@ function rafagaViento(ang){
       if (t.dead || t.held) continue;
       const f = enAbanico(t.x, t.y);
       if (!f) continue;
-      damageEnemy(t, VIL_RAFAGA_DMG * f, t.x, t.y);
+      const jf2 = JEFES[t.type] ? VIL_JEFE_CARGA : 1;
+      damageEnemy(t, VIL_RAFAGA_DMG * f * jf2, t.x, t.y);
       if (!t.dead && t.person){
         t.stunT = Math.max(t.stunT||0, 1.0);
         t.stunVx = Math.cos(ang)*320*f;
@@ -4353,6 +4383,9 @@ const VIL_CLAP_DMG   = 520;     // el aplauso pega aún más de cerca
 const VIL_RAFAGA_R   = 300;     // alcance de la ráfaga dirigida
 const VIL_RAFAGA_SP  = 0.62;    // medio ángulo del abanico de la ráfaga
 const VIL_RAFAGA_DMG = 110;
+// Los jefes resisten el puño cargado del viltrumita: contra ellos, y solo
+// contra ellos, el golpe cargado vale la mitad. El toque simple no cambia.
+const VIL_JEFE_CARGA = 0.5;
 const VIL_CHARGE_DMG = 210;     // daño del golpe cargado normal
 // Al completar la carga, el golpe pasa a otra categoría: pega mucho más
 // lejos y suelta una onda de viento a su alrededor.
@@ -4706,8 +4739,9 @@ function buildingNear(tip, range){
 
 // El cañón de asedio es una mole: aguanta como un edificio y cae a golpes.
 function meleeDmg(e){
-  if (e.type === 'omni')      return 68;  // ~13 golpes de tentáculo
-  if (e.type === 'flametank') return 70;  // mole: ~13 golpes de tentáculo
+  // Contra los jefes el tentazo rinde un poco menos: son moles acorazadas.
+  if (e.type === 'omni')      return 58;
+  if (e.type === 'flametank') return 60;
   if (e.type === 'siege')   return 65;    // ~10 golpes
   if (e.type === 'gunship') return 130;
   if (e.type === 'tank')    return 160;
@@ -5376,7 +5410,9 @@ function vilPunch(carga, modo){
     for (const t of pool){
       if (t.dead || t.held) continue;
       if (dist(t.x,t.y,px2,py2) > alcance) continue;
-      damageEnemy(t, dmg, t.x, t.y); dio = true;
+      // Contra los jefes, el puño cargado del viltrumita rinde la mitad.
+      const d2 = (carga > 0 && JEFES[t.type]) ? dmg * VIL_JEFE_CARGA : dmg;
+      damageEnemy(t, d2, t.x, t.y); dio = true;
     }
   }
   for (const c of cars){
@@ -5433,9 +5469,11 @@ function updateCars(dt){
       if (c.onRoad === undefined) c.onRoad = sobreCarretera(c.x, c.y);
       if (!c.held && !c.thrown && c.onRoad){
         c.fuse = (c.fuse || 0) + dt;
-        if (Math.random() < 0.10){                    // muy poco humo: nada de lag
-          particles.push({ x:c.x + rand(-8,8), y:c.y - 10, vx:rand(-6,6), vy:rand(-26,-14),
-                           life:rand(0.9,1.5), maxlife:1.5, color:'#2a2a2e', size:rand(2,4) });
+        // Una voluta cada pocos fotogramas: columna continua sin coste.
+        c.humo = (c.humo || 0) + dt;
+        if (c.humo >= 0.16){
+          c.humo = 0;
+          addSmoke(c.x + rand(-7,7), c.y - 10);
         }
         if (c.fuse >= WRECK_FUSE){
           c.dead = true; discoverObj(c);
@@ -5856,7 +5894,8 @@ function updateFX(dt){
   for (let i = partN - 1; i >= 0; i--){
     const p = particles[i];
     p.x += p.vx*dt; p.y += p.vy*dt;
-    p.vx *= 0.9; p.vy *= 0.9;
+    p.vx *= p.drag; p.vy *= p.drag;
+    if (p.grow) p.r += p.grow*dt;
     p.life -= dt;
     if (p.life <= 0){                               // se recicla sin reasignar
       particles[i] = particles[--partN];
@@ -6141,9 +6180,9 @@ function ensureLightBuf(){
   if (lightW !== w || lightH !== h){ lightCv.width = w; lightCv.height = h; lightW = w; lightH = h; }
   if (!holeSprite){
     // recorta oscuridad (se usa con destination-out)
-    holeSprite = makeRadial(128, [[0,'rgba(0,0,0,1)'],[0.5,'rgba(0,0,0,0.55)'],[1,'rgba(0,0,0,0)']]);
+    holeSprite = makeRadial(128, [[0,'rgba(0,0,0,0.88)'],[0.5,'rgba(0,0,0,0.46)'],[1,'rgba(0,0,0,0)']]);
     // tinte cálido de la farola
-    warmSprite = makeRadial(128, [[0,'rgba(255,214,130,0.55)'],[0.5,'rgba(255,196,105,0.18)'],[1,'rgba(255,190,90,0)']]);
+    warmSprite = makeRadial(128, [[0,'rgba(255,214,130,0.40)'],[0.5,'rgba(255,196,105,0.13)'],[1,'rgba(255,190,90,0)']]);
     // claro y tinte del foco: blanco frío y flojo, para que no deslumbre
     focoSprite = makeRadial(96, [[0,'rgba(0,0,0,0.92)'],[0.55,'rgba(0,0,0,0.42)'],[1,'rgba(0,0,0,0)']]);
     focoHaz    = makeRadial(96, [[0,'rgba(226,240,255,0.34)'],[0.55,'rgba(210,230,255,0.12)'],[1,'rgba(200,225,255,0)']]);
@@ -6187,15 +6226,22 @@ function updateFocos(dt){
   if (!lucesEncendidas()) return;         // se encienden justo antes de anochecer
   for (const e of enemies){
     if (e.dead || e.thrown || e.held || !llevaFoco(e)) continue;
-    if (e.focoX === undefined){ e.focoX = e.x; e.focoY = e.y + 60; e.focoT = rand(0, 6.28); }
+    if (e.focoX === undefined){ e.focoX = e.x; e.focoY = e.y + 60; }
+    if (e.focoT === undefined) e.focoT = rand(0, 6.28);
     const cerca = dist(e.x, e.y, player.x, player.y) < FOCO_CERCA;
     let tx, ty;
     if (cerca){                                  // te tiene a tiro: te alumbra
       tx = player.x; ty = player.y;
-    } else {                                     // lejos: barre el suelo delante
+    } else {
+      // Lejos: todavía no te ha localizado, pero vuela hacia ti, así que
+      // alumbra en tu dirección con un barrido circular suave. No te sigue:
+      // el haz pasa cerca y se mueve, hasta que te tiene a tiro.
+      e.rumbo = Math.atan2(player.y - e.y, player.x - e.x);
       e.focoT += dt * 0.7;
-      tx = e.x + Math.cos(e.focoT) * 120;
-      ty = e.y + 70 + Math.sin(e.focoT * 1.3) * 60;
+      const a = e.rumbo + Math.sin(e.focoT) * 0.34;     // vaivén alrededor del rumbo
+      const alcance = 150 + Math.cos(e.focoT * 0.8) * 34;
+      tx = e.x + Math.cos(a) * alcance;
+      ty = e.y + Math.sin(a) * alcance + 46;            // algo por delante y abajo
     }
     const f = Math.min(1, dt * FOCO_GIRO);
     e.focoX += (tx - e.focoX) * f;
