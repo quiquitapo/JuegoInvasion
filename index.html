@@ -395,6 +395,37 @@
   #wavebadge { background:rgba(5,10,7,0.72); border:1px solid #5c1f1f; color:#ff9d3b; padding:5px 14px;
                border-radius:20px; font-size:0.7rem; letter-spacing:2px; text-transform:uppercase; }
 
+  /* Contador de combo: placa con número, multiplicador y barra de tiempo.
+     Los colores van por variable, así cambiar de fase es tocar una sola cosa. */
+  #combo { position:absolute; left:50%; top:12%; transform:translateX(-50%);
+           pointer-events:none; z-index:6; --cc:#7bffa0;
+           text-shadow:0 2px 0 rgba(0,0,0,0.7); }
+  #combo.hidden { display:none; }
+  .combobox { display:flex; align-items:center; gap:11px; padding:7px 15px 7px 13px;
+              border:2px solid var(--cc); border-radius:11px;
+              background:linear-gradient(180deg, rgba(10,16,13,0.86), rgba(6,10,8,0.9));
+              box-shadow:0 0 14px rgba(0,0,0,0.5), inset 0 0 18px rgba(255,255,255,0.05); }
+  .comboleft { display:flex; align-items:baseline; gap:6px; }
+  .comboleft b { font-size:clamp(1.5rem,5vw,2.3rem); color:var(--cc); letter-spacing:1px;
+                 line-height:1; }
+  .combox { font-size:0.46rem; letter-spacing:2px; color:#9fb3a8; }
+  .comborule { width:2px; align-self:stretch; background:var(--cc); opacity:0.4; border-radius:2px; }
+  .comboright { text-align:left; }
+  .combomult { font-size:0.86rem; letter-spacing:1px; color:var(--cc); line-height:1.1; }
+  .combofase { font-size:0.4rem; letter-spacing:2px; color:#9fb3a8; margin-top:2px; }
+  .combobar { width:100%; height:6px; margin:5px 0 0;
+              border:2px solid rgba(0,0,0,0.5); border-radius:5px;
+              background:rgba(8,12,10,0.72); overflow:hidden; }
+  #combofill { height:100%; width:100%; border-radius:3px; background:var(--cc);
+               box-shadow:0 0 8px var(--cc); }
+  #combo.f1 { --cc:#7bffa0; }
+  #combo.f2 { --cc:#8fd7ff; }
+  #combo.f3 { --cc:#ff9d5c; }
+  #combo.sube .combobox { animation:comboPop 0.42s ease-out; }
+  @keyframes comboPop {
+    0%   { transform:scale(1.22); box-shadow:0 0 26px var(--cc); }
+    100% { transform:scale(1);    box-shadow:0 0 14px rgba(0,0,0,0.5); }
+  }
   #toast { position:absolute; top:34%; left:50%; transform:translateX(-50%); z-index:9; pointer-events:none;
            color:#7bffa0; font-size:clamp(1.2rem,4vw,2.2rem); font-weight:900; letter-spacing:4px;
            text-shadow:0 0 18px #23ff6b, 2px 2px 0 #052b12; opacity:0; transition:opacity .4s ease; text-align:center; }
@@ -533,6 +564,20 @@
   </div>
 
   <div id="vsclock" class="hidden"><span class="vslbl">EL ALIEN DEBE AGUANTAR</span><b id="vstime">1:30</b></div>
+  <div id="combo" class="hidden">
+    <div class="combobox">
+      <div class="comboleft">
+        <b id="combon">0</b>
+        <span class="combox">BAJAS</span>
+      </div>
+      <div class="comborule"></div>
+      <div class="comboright">
+        <div class="combomult" id="combomult">x1.1</div>
+        <div class="combofase" id="combofase">CADENA</div>
+      </div>
+    </div>
+    <div class="combobar"><div id="combofill"></div></div>
+  </div>
   <div id="toast"></div>
   <div id="achtoast"></div>
 
@@ -1348,7 +1393,7 @@ function demolish(b){
   discover('building');
   b.hp = 0;
   demolished++;
-  score += 60;
+  score += comboPts(60);
   hp = clamp(hp + 6, 0, maxHp());
   for (let i=0;i<26;i++){
     addParticles(rand(b.x,b.x+b.w), rand(b.y,b.y+b.h), i%3?'#8a949b':'#5d666c', 1, 190);
@@ -1404,6 +1449,7 @@ function resetGame(){
   spawnTimers = { civ:0, pol:0, mil:0, car:0, tank:0, heli:0, gunship:8, siege:12, plane:7 };
   resetRunStats();
   finalAnnounced = false; bossAlive = false; bossRest = 0; bossRoll = 0; coinsBanco = 0;
+  comboReset(); comboBonus = 0; comboFlash = 0;
   for (const b of buildings){ b.stage=0; b.hp=b.maxhp; b.hitFlash=0; b.downAt=undefined; }
   for (const k in regenSeen) regenSeen[k] = {};
   // spawn player on a road intersection so it isn't stuck inside a building
@@ -1550,7 +1596,7 @@ function beamHit(e, dmg){
     if (c.dead || c.held) continue;
     if (!inBeam(c.x, c.y, ox, oy, ang, OMNI_BEAM_LEN, OMNI_BEAM_W)) continue;
     c.hp -= dmg;
-    if (c.hp <= 0){ c.dead = true; discoverObj(c); const bl = blastOf(c); explode(c.x,c.y,bl.r,bl.dmg,bl.big); }
+    if (c.hp <= 0) autoAbatido(c);
   }
   if (inBeam(player.x, player.y, ox, oy, ang, OMNI_BEAM_LEN, OMNI_BEAM_W + F().r*0.5)){
     hp = clamp(hp - dmg, 0, maxHp());
@@ -1743,6 +1789,11 @@ function drawOmniBeam(e){
 const BOSS_SCORE   = 6850;    // a partir de aquí puede aparecer en cualquier momento
 const BOSS_PLAZO   = 85;      // 1:25 sin derrotarlo y deja de frenar al ejército
 const BOSS_CHANCE  = 0.05;    // probabilidad por segundo mientras está activa
+// Pasados los 20.000 la ciudad se pone seria: los jefes se asoman con más
+// frecuencia y el ejército ya no se detiene mientras uno está en pie.
+const ASEDIO_SCORE  = 20000;
+const BOSS_CHANCE_2 = 0.085;
+function enAsedio(){ return score >= ASEDIO_SCORE; }
 const BOSS_REST    = 45;      // segundos de tregua tras derrotarlo
 const FLAME_AIM    = 3.0;    // segundos calculando
 const FLAME_LOCK   = 1.0;    // segundos con el objetivo fijo
@@ -1778,7 +1829,7 @@ function burn(e, ox, oy, ang, len, spread, dmg){
     if (c.dead || c.held) continue;
     if (!inCone(c.x, c.y, ox, oy, ang, len, spread)) continue;
     c.hp -= dmg;
-    if (c.hp <= 0){ c.dead = true; discoverObj(c); const bl = blastOf(c); explode(c.x,c.y,bl.r,bl.dmg,bl.big); }
+    if (c.hp <= 0) autoAbatido(c);
   }
   if (inCone(player.x, player.y, ox, oy, ang, len, spread)){
     hp = clamp(hp - dmg, 0, maxHp());
@@ -1982,6 +2033,8 @@ function explode(x, y, radius, dmg, big, hurtPlayer){
     if (dist(x,y,c.x,c.y) < radius*0.8){
       c.dead = true;
       discoverObj(c);
+      // Un vehículo que revienta por tu explosión también encadena.
+      if (culpaJug > 0) comboHit();
       if (c.type==='truck'){ chain.push({x:c.x, y:c.y, o:c}); }   // chain reaction
       else explodeSmall(c.x, c.y);
     }
@@ -2024,6 +2077,42 @@ const REWARD = {
   omni:     { pts:1800, heal:65 }   // lo que valen 10 tanques (200 c/u)
 };
 
+// ---- ¿Quién causó esta muerte? ----
+// El combo solo cuenta si la baja es obra tuya. Se marca el tramo de código
+// que nace de una acción del jugador; todo lo que ocurra dentro (incluidas
+// explosiones en cadena y objetos lanzados) hereda la autoría. Así, tirar un
+// civil contra otro suma, y el fuego amigo de un jefe no.
+let culpaJug = 0;
+function porJugador(fn){
+  culpaJug++;
+  try { return fn(); }
+  finally { culpaJug--; }
+}
+// Un vehículo destruido por ti también encadena.
+// Mobiliario reventado (árbol, farola, banca, contenedor). Si lo tiraste tú,
+// encadena igual que una baja.
+// El mobiliario urbano NO entra en el combo: solo cuentan seres vivos y
+// vehículos. Un árbol contra una farola no encadena.
+function propAbatido(pr){
+  pr.dead = true; discoverObj(pr); propScore(pr);
+}
+
+// ¿Esto cuenta para el combo? Solo civiles, infantería, blindados, aeronaves,
+// jefes y vehículos. El mobiliario y los edificios quedan fuera.
+function esUnidadCombo(o){
+  if (!o) return false;
+  // 'car' cubre auto, taxi y camión cisterna: los tres son vehículos.
+  if (o.kind === 'civ' || o.kind === 'car') return true;
+  return o.kind === undefined && o.type !== undefined;   // enemigos
+}
+
+function autoAbatido(c){
+  c.dead = true; discoverObj(c);
+  if (culpaJug > 0) comboHit();
+  const bl = blastOf(c);
+  explode(c.x, c.y, bl.r, bl.dmg, bl.big);
+}
+
 function damageEnemy(e, dmg, fx, fy){
   if (e.dead) return;
   e.hp -= dmg;
@@ -2033,7 +2122,8 @@ function damageEnemy(e, dmg, fx, fy){
   const k = e.kind === 'civ' ? 'civ' : e.type;
   discover(k);
   const rw = REWARD[k] || REWARD.civ;
-  score += rw.pts; kills++;
+  score += comboPts(rw.pts); kills++;
+  if (culpaJug > 0) comboHit();     // encadena solo si la muerte es tuya
   p2Refund(e.type);
   // El viltrumita no evoluciona, así que compensa recuperando algo más.
   hp = clamp(hp + Math.round(rw.heal * (isVil() ? 1.45 : 1)), 0, maxHp());
@@ -2445,6 +2535,78 @@ function saveShop(){
     custom:{ body: customSkin.body || '#1f5f9e', tent: customSkin.tent || '#3ba0e0' }
   }));
 }
+// ================= COMBOS =================
+// Cada baja encadena. Cuanto más largo el combo, más corta la ventana para
+// mantenerlo y mayor el multiplicador de puntaje y monedas.
+const COMBO_FASES = [
+  { bajas:1,  ventana:7.0,  mult:1.1 },
+  { bajas:5,  ventana:5.0,  mult:1.2 },
+  { bajas:10, ventana:3.5,  mult:1.3 }
+];
+let comboN = 0, comboT = 0, comboFase = -1, comboBonus = 0, comboFlash = 0;
+
+function comboVentana(){
+  return comboFase >= 0 ? COMBO_FASES[comboFase].ventana : COMBO_FASES[0].ventana;
+}
+function comboMult(){
+  return comboFase >= 0 ? COMBO_FASES[comboFase].mult : 1;
+}
+// Fase que corresponde al número de bajas encadenadas.
+function faseDe(n){
+  let f = -1;
+  for (let i = 0; i < COMBO_FASES.length; i++) if (n >= COMBO_FASES[i].bajas) f = i;
+  return f;
+}
+// Una baja más: sube el contador, reinicia el reloj y puede subir de fase.
+function comboHit(){
+  comboN++;
+  const nueva = faseDe(comboN);
+  if (nueva > comboFase){ comboFase = nueva; comboFlash = 0.6; sfx('ui'); }
+  comboT = comboVentana();
+}
+function comboUpdate(dt){
+  if (comboFlash > 0) comboFlash -= dt;
+  if (comboN <= 0) return;
+  comboT -= dt;
+  if (comboT <= 0) comboReset();
+}
+function comboReset(){ comboN = 0; comboT = 0; comboFase = -1; }
+
+// Pinta el indicador. Solo toca el DOM cuando algo cambia de verdad, salvo
+// la barra, que se mueve cada fotograma pero es un único estilo.
+let _cbN = -1, _cbF = -2;
+function refreshCombo(){
+  const el = document.getElementById('combo');
+  if (!el) return;
+  if (comboN <= 0){
+    if (_cbN !== 0){ el.classList.add('hidden'); _cbN = 0; _cbF = -2; }
+    return;
+  }
+  if (_cbN !== comboN){
+    _cbN = comboN;
+    el.classList.remove('hidden');
+    document.getElementById('combon').textContent = comboN;
+  }
+  if (_cbF !== comboFase){
+    _cbF = comboFase;
+    el.className = 'f' + (comboFase + 1);
+    document.getElementById('combomult').textContent = 'x' + comboMult().toFixed(1);
+    const fz = document.getElementById('combofase');
+    if (fz) fz.textContent = ['CADENA','RACHA','FURIA'][comboFase] || 'CADENA';
+  }
+  el.classList.toggle('sube', comboFlash > 0);
+  const f = document.getElementById('combofill');
+  if (f) f.style.width = Math.max(0, Math.min(1, comboT / comboVentana())) * 100 + '%';
+}
+// Puntos con el multiplicador aplicado. El extra se guarda aparte para
+// poder mostrarlo y para que cuente también en monedas.
+function comboPts(pts){
+  const m = comboMult();
+  const total = Math.round(pts * m);
+  comboBonus += total - pts;
+  return total;
+}
+
 function coinsFor(sc, demo){ return Math.floor(sc/50) + demo*2; }
 
 const SKIN_UNICA = { drip:1, israel:1, cosmica:1 };
@@ -3522,7 +3684,7 @@ const ACHIEVEMENTS = [
 
   // --- SECRETOS: no aparecen en la lista hasta conseguirlos ---
   { id:'superaste', icon:'\u{1F451}', name:'ME SUPERASTE', goal:51237, secret:true,
-    desc:'Soy el creador del juego. Mientras lo probaba lo jugaba (completé todos los logros) y llegué a 51.237 de puntaje. ¿Tú llegaste al mismo puntaje que yo o más? Qué maravilla, sigue disfrutando mi juego.' },
+    desc:'Soy el creador del juego. Mientras lo probaba lo jugaba (completé todos los logros) y llegué a 51.237 de puntaje (antes de la existencia del combo, ya que con él superé los 100k). ¿Tú llegaste al mismo puntaje que yo o más? Qué maravilla, sigue disfrutando mi juego.' },
 ];
 let achUnlocked = {};
 // contadores de la partida en curso
@@ -4352,7 +4514,7 @@ function ondaDeViento(ang){
       const frente = 0.45 + 0.55 * Math.max(0, Math.cos(da));
       const cerca  = 1 - d/VIL_ONDA_R;
       const jf = JEFES[t.type] ? VIL_JEFE_CARGA : 1;   // los jefes lo resisten
-      damageEnemy(t, VIL_ONDA_DMG * frente * (0.5 + cerca*0.5) * jf, t.x, t.y);
+      porJugador(()=> damageEnemy(t, VIL_ONDA_DMG * frente * (0.5 + cerca*0.5) * jf, t.x, t.y));
       if (!t.dead && t.person){                       // sale despedido
         const a2 = Math.atan2(t.y-player.y, t.x-player.x);
         t.stunT = Math.max(t.stunT||0, 1.1);
@@ -4366,13 +4528,13 @@ function ondaDeViento(ang){
     const d = dist(c.x, c.y, player.x, player.y);
     if (d > VIL_ONDA_R) continue;
     c.hp -= VIL_ONDA_DMG * 0.7;
-    if (c.hp <= 0){ c.dead = true; discoverObj(c); const bl = blastOf(c); explode(c.x,c.y,bl.r,bl.dmg,bl.big); }
+    if (c.hp <= 0) autoAbatido(c);
   }
   for (const pool of [trees, lamps, trash, benches]){
     for (const o of pool){
       if (o.dead || o.held || o.thrown) continue;
       if (dist(o.x, o.y, player.x, player.y) > VIL_ONDA_R*0.8) continue;
-      o.dead = true; discoverObj(o); propScore(o);
+      porJugador(()=> propAbatido(o));
       addParticles(o.x, o.y, '#9aa6ad', 6, 140);
     }
   }
@@ -4402,7 +4564,7 @@ function rafagaViento(ang){
       const f = enAbanico(t.x, t.y);
       if (!f) continue;
       const jf2 = JEFES[t.type] ? VIL_JEFE_CARGA : 1;
-      damageEnemy(t, VIL_RAFAGA_DMG * f * jf2, t.x, t.y);
+      porJugador(()=> damageEnemy(t, VIL_RAFAGA_DMG * f * jf2, t.x, t.y));
       if (!t.dead && t.person){
         t.stunT = Math.max(t.stunT||0, 1.0);
         t.stunVx = Math.cos(ang)*320*f;
@@ -4415,13 +4577,13 @@ function rafagaViento(ang){
     const f = enAbanico(c.x, c.y);
     if (!f) continue;
     c.hp -= VIL_RAFAGA_DMG * f * 0.8;
-    if (c.hp <= 0){ c.dead = true; discoverObj(c); const bl = blastOf(c); explode(c.x,c.y,bl.r,bl.dmg,bl.big); }
+    if (c.hp <= 0) autoAbatido(c);
   }
   for (const pool of [trees, lamps, trash, benches]){
     for (const o of pool){
       if (o.dead || o.held || o.thrown) continue;
       if (!enAbanico(o.x, o.y)) continue;
-      o.dead = true; discoverObj(o); propScore(o);
+      porJugador(()=> propAbatido(o));
       addParticles(o.x, o.y, '#9aa6ad', 5, 150);
     }
   }
@@ -4923,7 +5085,7 @@ function onGrab(){
       return;
     }
     const t = enemyNear(tip, R);
-    if (t){ damageEnemy(t, meleeDmg(t), tip.x, tip.y); return; }
+    if (t){ porJugador(()=> damageEnemy(t, meleeDmg(t), tip.x, tip.y)); return; }
     if (F().breaker > 0){
       const b = buildingNear(tip, R);
       if (b){ damageBuilding(b, 90); addParticles(tip.x,tip.y,'#9aa6ad',12,120); }
@@ -4932,7 +5094,7 @@ function onGrab(){
     // Con una persona en el tentáculo, el clic izquierdo la remata.
     const held = heldObject.ref;
     if (held && (held.person || held.kind === 'civ')){
-      damageEnemy(held, 99999, held.x, held.y);
+      porJugador(()=> damageEnemy(held, 99999, held.x, held.y));
       held.held = false;
       addParticles(held.x, held.y, '#c33', 18, 150);
       shake(5, 0.12);
@@ -4942,7 +5104,7 @@ function onGrab(){
     // bludgeon with whatever we're holding
     const t = enemyNear(tip, R + 10);
     if (t){
-      damageEnemy(t, Math.round(objThrowDmg(heldObject.ref)*0.6), tip.x, tip.y);
+      porJugador(()=> damageEnemy(t, Math.round(objThrowDmg(heldObject.ref)*0.6), tip.x, tip.y));
       if (t.dead) unlockAch('provis');
       addParticles(tip.x, tip.y, '#ff8a3b', 12, 110);
       wearWeapon(heldObject.ref, 8);
@@ -5055,6 +5217,16 @@ function damageHeld(amount){
 function breakHeld(){
   if (!heldObject) return;
   const o = heldObject.ref;
+  // El arma que llevas también se gasta hasta romperse. Si era una unidad o
+  // un vehículo, esa muerte es tuya: cuenta como baja y encadena, igual que
+  // si la hubieras lanzado. Antes moría en silencio.
+  if (!o.dead && esUnidadCombo(o)){
+    if (o.kind === 'car'){
+      porJugador(()=>{ if (culpaJug > 0) comboHit(); });
+    } else {
+      porJugador(()=> damageEnemy(o, 99999, o.x, o.y));
+    }
+  }
   o.dead = true; o.held = false;
   discoverObj(o);
   if (isExplosive(o)){ const b = blastOf(o); explode(o.x, o.y, b.r, b.dmg, b.big); }
@@ -5096,12 +5268,12 @@ function updateRam(dt){
     if (Math.abs(e.x-o.x) > halfW || Math.abs(e.y-o.y) > halfH) return false;
     const soft = SOFT[e.kind === 'civ' ? 'civ' : e.type];
     if (soft){
-      damageEnemy(e, 9999, e.x, e.y);      // aplastado en el acto
+      porJugador(()=> damageEnemy(e, 9999, e.x, e.y));      // aplastado en el acto
       unlockAch('provis');
       wearWeapon(o, 3);
       damageHeld(0.34);
     } else {
-      damageEnemy(e, (e.type==='siege'||e.type==='flametank'||e.type==='omni') ? 9 : 18, e.x, e.y);
+      porJugador(()=> damageEnemy(e, (e.type==='siege'||e.type==='flametank'||e.type==='omni') ? 9 : 18, e.x, e.y));
       wearWeapon(o, 10);
       const a = Math.atan2(e.y-o.y, e.x-o.x);
       e.x += Math.cos(a)*26; e.y += Math.sin(a)*26;   // empujón
@@ -5125,7 +5297,7 @@ function updateRam(dt){
     c.hp -= 10;
     damageHeld(0.5);
     addParticles(c.x, c.y, '#ddd', 8, 110);
-    if (c.hp <= 0){ c.dead = true; discoverObj(c); if (isExplosive(c)){ const bl = blastOf(c); explode(c.x,c.y,bl.r,bl.dmg,bl.big); } }
+    if (c.hp <= 0) porJugador(()=> autoAbatido(c));   // cada auto arrasado cuenta
     any = true;
   }
 
@@ -5139,7 +5311,7 @@ function updateRam(dt){
       if (!heldObject) break;
       if (pr.dead || pr.held || pr === o) continue;
       if (Math.abs(pr.x-o.x) > halfW || Math.abs(pr.y-o.y) > halfH) continue;
-      pr.dead = true; discoverObj(pr); propScore(pr);   // el mobiliario revienta
+      porJugador(()=> propAbatido(pr));                  // el mobiliario revienta
       wearWeapon(o, 6);                      // el arma se abolla al arrasar
       addParticles(pr.x, pr.y,
         pr.kind==='tree'  ? '#5c8a3a' : pr.kind==='trash' ? '#b0a878'
@@ -5278,7 +5450,7 @@ function updateViltrum(dt){
       for (const pool of [civilians, enemies]){          // aparta lo que pille debajo
         for (const t of pool){
           if (t.dead || t.held) continue;
-          if (dist(t.x, t.y, player.x, player.y) < 120) damageEnemy(t, 60, t.x, t.y);
+          if (dist(t.x, t.y, player.x, player.y) < 120) porJugador(()=> damageEnemy(t, 60, t.x, t.y));
         }
       }
     }
@@ -5531,15 +5703,15 @@ function vilSmash(dt){
       // así que hacen falta varias pasadas para tumbarlos.
       // Tanques, helicópteros, artillados, asedio y jefes: el impacto sónico
       // los abre bastante mejor, aunque los jefes siguen exigiendo insistencia.
-      if (esBlindado(t)) damageEnemy(t, 420*dt, t.x, t.y);
-      else damageEnemy(t, 999, t.x, t.y);
+      if (esBlindado(t)) porJugador(()=> damageEnemy(t, 420*dt, t.x, t.y));
+      else porJugador(()=> damageEnemy(t, 999, t.x, t.y));
     }
   }
   for (const c of cars){
     if (c.dead || c.held) continue;
     if (dist(c.x,c.y,px2,py2) < 46){
       c.hp -= 220*dt;
-      if (c.hp <= 0){ c.dead = true; discoverObj(c); const bl=blastOf(c); explode(c.x,c.y,bl.r,bl.dmg,bl.big); }
+      if (c.hp <= 0) porJugador(()=> autoAbatido(c));   // volando también cuenta
     }
   }
 }
@@ -5568,14 +5740,14 @@ function vilPunch(carga, modo){
       if (dist(t.x,t.y,px2,py2) > alcance) continue;
       // Contra los jefes, el puño cargado del viltrumita rinde la mitad.
       const d2 = (carga > 0 && JEFES[t.type]) ? dmg * VIL_JEFE_CARGA : dmg;
-      damageEnemy(t, d2, t.x, t.y); dio = true;
+      porJugador(()=> damageEnemy(t, d2, t.x, t.y)); dio = true;
     }
   }
   for (const c of cars){
     if (c.dead || c.held) continue;
     if (dist(c.x,c.y,px2,py2) > alcance+4) continue;
     c.hp -= dmg;
-    if (c.hp <= 0){ c.dead = true; discoverObj(c); const bl=blastOf(c); explode(c.x,c.y,bl.r,bl.dmg,bl.big); }
+    if (c.hp <= 0) porJugador(()=> autoAbatido(c));
     dio = true;
   }
   for (const b of buildings){
@@ -5723,11 +5895,12 @@ function updateThrown(dt){
         addParticles(o.x, o.y, '#dfe4e8', 14, 150);
         shake(6, 0.14);
         if (c.hp <= 0){
-          c.dead = true;
-          discoverObj(c);
-          const bl = blastOf(c);
-          explode(c.x, c.y, bl.r, bl.dmg, bl.big);   // los autos revientan
-          if (c.type === 'truck'){ toast('¡CISTERNA!'); discover('truck'); unlockAch('cisterna'); }
+          const rematar = ()=>{
+            autoAbatido(c);                          // los autos revientan
+            if (c.type === 'truck'){ toast('¡CISTERNA!'); discover('truck'); unlockAch('cisterna'); }
+          };
+          // Si el objeto lo lanzaste tú, la destrucción es obra tuya.
+          if (o.byEnemy) rematar(); else porJugador(rematar);
         }
         break;
       }
@@ -5748,7 +5921,7 @@ function updateThrown(dt){
           if (pr === o || pr.dead || pr.held || pr.thrown) continue;
           const hw = (pr.w||30)/2 + 10, hh = (pr.h||30)/2 + 10;
           if (Math.abs(o.x-pr.x) > hw || Math.abs(o.y-pr.y) > hh) continue;
-          pr.dead = true; discoverObj(pr); propScore(pr);
+          if (o.byEnemy) propAbatido(pr); else porJugador(()=> propAbatido(pr));
           addParticles(pr.x, pr.y,
             pr.kind==='tree'  ? '#5c8a3a' : pr.kind==='trash' ? '#b0a878'
           : pr.kind==='lamp'  ? '#9fd6e0' : '#8a6038', 16, 140);
@@ -5764,7 +5937,8 @@ function updateThrown(dt){
         if (b.stage >= 2) continue;
         const cx=clamp(o.x,b.x,b.x+b.w), cy=clamp(o.y,b.y,b.y+b.h);
         if (dist(o.x,o.y,cx,cy) < 18){
-          damageBuilding(b, o.throwDmg*1.2);
+          if (o.byEnemy) damageBuilding(b, o.throwDmg*1.2);
+          else porJugador(()=> damageBuilding(b, o.throwDmg*1.2));
           impact = {x:o.x, y:o.y, target:null};
           break;
         }
@@ -5776,7 +5950,8 @@ function updateThrown(dt){
         // Aturden los cuerpos lanzados y TODO el mobiliario urbano:
         // árbol, farola, banca y basurero. Cualquier trastazo derriba a un infante.
         const stunAmmo = (o.kind === 'civ' || o.person || isScenery(o));
-        damageEnemy(tgt, throwDmgOn(o, tgt), impact.x, impact.y);
+        if (o.byEnemy) damageEnemy(tgt, throwDmgOn(o, tgt), impact.x, impact.y);
+        else porJugador(()=> damageEnemy(tgt, throwDmgOn(o, tgt), impact.x, impact.y));
         if (tgt.dead) unlockAch('provis');
         // deja aturdido 1s a la infantería que sobreviva al impacto
         else if (stunAmmo && tgt.person){
@@ -5786,6 +5961,17 @@ function updateThrown(dt){
           tgt.stunVx = Math.cos(kb) * 165;
           tgt.stunVy = Math.sin(kb) * 165;
           addParticles(tgt.x, tgt.y - 18, '#ffe066', 10, 90);
+        }
+      }
+      // El propio proyectil se destruye al estrellarse. Si era una unidad
+      // (civil, infante, blindado) o un vehículo, esa muerte es tuya: hasta
+      // ahora se perdía sin dar puntaje, bajas ni combo.
+      if (!o.byEnemy && !o.dead && esUnidadCombo(o)){
+        if (o.kind === 'car'){
+          porJugador(()=>{ if (culpaJug > 0) comboHit(); });
+          discoverObj(o);
+        } else {
+          porJugador(()=> damageEnemy(o, 99999, impact.x, impact.y));
         }
       }
       o.thrown = false; o.dead = true;
@@ -6193,7 +6379,7 @@ function updateSpawns(dt){
     bossRoll -= dt;
     if (bossRoll <= 0){
       bossRoll = 1;                                       // se tira el dado cada segundo
-      if (Math.random() < BOSS_CHANCE){
+      if (Math.random() < (enAsedio() ? BOSS_CHANCE_2 : BOSS_CHANCE)){
         const cual = Math.random() < 0.5 ? 'flametank' : 'omni';
         spawnEnemy(cual);
         bossAlive = true;
@@ -6202,7 +6388,8 @@ function updateSpawns(dt){
       }
     }
   }
-  if (bossAlive) return;
+  // Con el asedio en marcha las tropas siguen llegando aunque haya un jefe.
+  if (bossAlive && !enAsedio()) return;
 
   if (stage>=2){
     spawnTimers.pol -= dt;
@@ -7164,7 +7351,7 @@ lastT = performance.now();
 function loop(t){
   const dt = Math.min((t-lastT)/1000, 0.05); lastT = t;
   if (running){
-    updateZoom(dt); updateSonic(dt); updateFocos(dt); updateWind(dt);
+    updateZoom(dt); updateSonic(dt); updateFocos(dt); updateWind(dt); comboUpdate(dt);
     // Mientras cae en la entrada nada puede tocarle: se anota la vida antes
     // y se restaura después, en vez de parchear las cinco vías de daño.
     const vidaIntro = (isVil() && vil.intro) ? hp : -1;
@@ -7194,6 +7381,7 @@ function loop(t){
       if (sw) sw.style.display = 'none';
     }
     document.getElementById('scoreval').textContent = score;
+    refreshCombo();
     // Monedas que llevas ganadas en esta partida (lo mismo que verás al acabar).
     const cv = document.getElementById('coinval');
     if (cv) cv.textContent = coinsFor(score, demolished) + coinsBanco;
