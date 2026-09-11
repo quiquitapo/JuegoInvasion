@@ -1502,7 +1502,7 @@ function resetGame(){
   spawnTimers = { civ:0, pol:0, mil:0, car:0, tank:0, heli:0, gunship:8, siege:12, plane:7 };
   resetRunStats();
   finalAnnounced = false; bossAlive = false; bossRest = 0; bossRoll = 0; coinsBanco = 0;
-  ultimoJefe = null;                       // cada partida empieza con el bombo lleno
+  ultimoJefe = null; penultimoJefe = null;   // cada partida empieza con el bombo lleno
   comboReset(); comboBonus = 0; comboFlash = 0;
   venenoT = 0; venenoDosis = 0; venenoUlt = 0; paralizadoT = 0;
   for (const b of buildings){ b.stage=0; b.hp=b.maxhp; b.hitFlash=0; b.downAt=undefined; }
@@ -1866,9 +1866,29 @@ const FLAME_SPREAD = 0.34;   // medio ángulo del cono
 const FLAME_DPS    = 46;     // daño por segundo dentro del fuego
 const CLOSE_RANGE  = 165;    // a esta distancia suelta la llamarada corta
 let bossAlive = false;
-// Último jefe que salió en esta partida: el siguiente será otro.
+// Memoria de los dos últimos jefes de la partida. El anterior no repite, y
+// el de antes sale con la mitad de probabilidad; a partir del tercero, todo
+// vuelve a la normalidad.
 const TIPOS_JEFE = ['flametank', 'omni', 'artillero', 'superx'];
-let ultimoJefe = null;
+const PESO_PENULTIMO = 0.5;
+let ultimoJefe = null, penultimoJefe = null;
+
+// Sorteo con pesos: el penúltimo pesa la mitad que el resto.
+function sorteaJefe(){
+  const bombo = TIPOS_JEFE.filter(t => t !== ultimoJefe);
+  let suma = 0;
+  const pesos = bombo.map(t => {
+    const p = (t === penultimoJefe) ? PESO_PENULTIMO : 1;
+    suma += p;
+    return p;
+  });
+  let r = Math.random() * suma;
+  for (let i = 0; i < bombo.length; i++){
+    r -= pesos[i];
+    if (r <= 0) return bombo[i];
+  }
+  return bombo[bombo.length - 1];
+}
 
 function inCone(x, y, ox, oy, ang, len, spread){
   const dx = x - ox, dy = y - oy;
@@ -6865,11 +6885,10 @@ function updateSpawns(dt){
     if (bossRoll <= 0){
       bossRoll = 1;                                       // se tira el dado cada segundo
       if (Math.random() < (enAsedio() ? BOSS_CHANCE_2 : BOSS_CHANCE)){
-        // En invasión no se repite jefe seguido: se sortea entre los que no
-        // salieron la vez anterior. Al tercero, el primero vuelve a entrar en
-        // el bombo. Es memoria de una sola partida.
-        const bombo = TIPOS_JEFE.filter(t => t !== ultimoJefe);
-        const cual = bombo[Math.floor(Math.random()*bombo.length)];
+        // En invasión no se repite jefe seguido, y el de dos turnos atrás
+        // sale con la mitad de probabilidad. Es memoria de una sola partida.
+        const cual = sorteaJefe();
+        penultimoJefe = ultimoJefe;
         ultimoJefe = cual;
         spawnEnemy(cual);
         bossAlive = true;
