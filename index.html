@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>Super Invasores</title>
+<title>INVASIÓN TENTACULAR</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
   html,body { width:100%; height:100%; overflow:hidden; background:#05070a; font-family:'Courier New', monospace; overscroll-behavior:none; }
@@ -42,6 +42,19 @@
   #derrotaimg { width:min(280px,58vw); border-radius:12px; margin-bottom:8px;
                 border:3px solid #7a2020; box-shadow:0 6px 22px rgba(0,0,0,0.6);
                 image-rendering:auto; }
+  .globalask { margin-top:9px; padding-top:9px; border-top:1px dashed #1f4a2c; }
+  .globalask.hidden { display:none; }
+  .globalq { font-size:0.5rem; letter-spacing:1px; color:#cfe8d8; margin-bottom:7px; }
+  .globalbtns { display:flex; gap:7px; flex-wrap:wrap; justify-content:center; }
+  .small.ghost { background:rgba(10,22,14,0.85); color:#8fb3a0; border-color:#2f4a38; }
+  .tabrow { display:flex; gap:6px; justify-content:center; margin:2px 0 8px; }
+  .tabbtn { padding:5px 16px; border-radius:6px; font-family:inherit; font-size:0.56rem;
+            letter-spacing:2px; cursor:pointer; border:2px solid #1f5c37;
+            background:rgba(10,22,14,0.8); color:#6fa382; }
+  .tabbtn.on { border-color:#2fe86e; color:#7bffa0; background:rgba(20,54,32,0.9); }
+  .globalmsg { min-height:14px; font-size:0.44rem; letter-spacing:1px; color:#9fb3a8;
+               text-align:center; margin-top:5px; }
+  .globalmsg.err { color:#ffb36b; }
   .score-row { display:flex; justify-content:space-between; gap:24px; font-size:0.9rem; padding:3px 0; color:#bfe9cd; border-bottom:1px dashed #1f4a2c; }
   .score-row:last-child { border-bottom:none; }
   .score-row span:first-child { color:#6fd694; }
@@ -105,7 +118,7 @@
   .ostbtn:hover { border-color:#c9a6ff; color:#fff; }
   .ostbtn.on { background:#6b4a9c; color:#fff; }
 
-  /* ---- Keybinds Hola persona que ve mi codigo---- */
+  /* ---- Keybinds ---- */
   .bindrow { display:flex; justify-content:space-between; align-items:center; gap:16px; padding:6px 0;
              border-bottom:1px dashed #1f4a2c; }
   .bindrow:last-of-type { border-bottom:none; }
@@ -695,9 +708,14 @@
     <img id="gamelogo" class="gamelogo" alt="Invasión">
     <div class="subtitle">La ciudad es tuya. Devórala.</div>
     <div class="panel">
-      <h3>Mejores Puntajes <span class="localtag">LOCAL</span></h3>
+      <h3>Mejores Puntajes</h3>
+      <div class="tabrow">
+        <button type="button" class="tabbtn on" id="tabLocal">LOCAL</button>
+        <button type="button" class="tabbtn" id="tabGlobal">GLOBAL</button>
+      </div>
       <div id="scoreheader" class="scorehdr"></div>
       <div id="scorelist"></div>
+      <div id="globalmsg" class="globalmsg"></div>
     </div>
     <button class="imgbtn imgbtn-main" id="btnInvadir" aria-label="Invadir"></button>
     <div class="menu-row">
@@ -982,6 +1000,14 @@
         <button class="small" id="btnSaveName" style="margin-top:0">Guardar</button>
       </div>
       <div id="namemsg" class="shopmsg"></div>
+      <div id="globalask" class="globalask hidden">
+        <div class="globalq">¿Quieres subir este puntaje al ranking global?</div>
+        <div class="globalbtns">
+          <button class="small" id="btnSubirGlobal" style="margin-top:0">SUBIR AL GLOBAL</button>
+          <button class="small ghost" id="btnSoloLocal" style="margin-top:0">NO, SOLO LOCAL</button>
+        </div>
+        <div id="globalaskmsg" class="globalmsg"></div>
+      </div>
     </div>
     <button class="big" id="btnRetry">REINTENTAR</button>
     <button class="small" id="btnMenu">Volver al menú</button>
@@ -7616,7 +7642,99 @@ async function saveScore(sc, who){
 function esc(t){
   return String(t).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
+// ================= RANKING GLOBAL =================
+// El ranking local sigue intacto: esto es una capa aparte que habla con
+// /api/scores. Si no hay red, el juego sigue igual y solo falla esta pestaña.
+const API_SCORES = '/api/scores';
+let scoreTab = 'local';          // pestaña visible: 'local' o 'global'
+let globalCache = null;          // último listado traído, para no repetir
+let globalCargando = false;
+
+function globalMsg(txt, err){
+  const el = document.getElementById('globalmsg');
+  if (!el) return;
+  el.textContent = txt || '';
+  el.classList.toggle('err', !!err);
+}
+
+// Trae los mejores puntajes del servidor. Nunca lanza: devuelve null si falla.
+async function fetchGlobal(){
+  try {
+    const ctrl = typeof AbortController === 'function' ? new AbortController() : null;
+    const to = setTimeout(()=>{ try { ctrl && ctrl.abort(); } catch(e){} }, 8000);
+    const r = await fetch(API_SCORES + '?limit=10', ctrl ? { signal: ctrl.signal } : undefined);
+    clearTimeout(to);
+    if (!r.ok) return null;
+    const data = await r.json();
+    return Array.isArray(data && data.scores) ? data.scores : null;
+  } catch(e){ return null; }
+}
+
+// Envía un puntaje. Devuelve true si el servidor lo aceptó.
+async function postGlobal(nombre, sc){
+  try {
+    const r = await fetch(API_SCORES, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ player_name: nombre, score: sc, hero: hero, device: deviceKind() })
+    });
+    if (!r.ok) return false;
+    const data = await r.json();
+    return !!(data && data.ok);
+  } catch(e){ return false; }
+}
+
+function renderGlobalList(lista){
+  const el = document.getElementById('scorelist');
+  if (!el) return;
+  el.innerHTML = (lista && lista.length)
+    ? lista.map((s,i)=>{
+        const ic = s.device === 'movil' ? '\u{1F4F1}' : s.device === 'pc' ? '\u{1F5A5}\u{FE0F}' : '';
+        const tt = s.device === 'movil' ? 'Jugado en móvil' : s.device === 'pc' ? 'Jugado en computador' : '';
+        const hi = s.hero === 'viltrum' ? ' \u{1F535}' : '';
+        return `<div class="score-row"><span>#${i+1} <b class="who">${esc(s.player_name || '—')}</b>` +
+               `<span class="devic" title="${tt}">${ic}${hi}</span></span><span>${s.score|0}</span></div>`;
+      }).join('')
+    : '<div class="score-row"><span>Sin registros globales aún</span><span>—</span></div>';
+}
+
+async function showGlobal(forzar){
+  scoreTab = 'global';
+  refreshTabs();
+  if (globalCargando) return;
+  if (globalCache && !forzar){ renderGlobalList(globalCache); globalMsg(''); return; }
+  globalCargando = true;
+  const el = document.getElementById('scorelist');
+  if (el) el.innerHTML = '<div class="score-row"><span>Cargando…</span><span>—</span></div>';
+  globalMsg('');
+  const lista = await fetchGlobal();
+  globalCargando = false;
+  if (scoreTab !== 'global') return;          // el jugador ya cambió de pestaña
+  if (!lista){
+    renderGlobalList([]);
+    globalMsg('No se pudo conectar. El ranking local sigue disponible.', true);
+    return;
+  }
+  globalCache = lista;
+  renderGlobalList(lista);
+}
+
+function refreshTabs(){
+  const a = document.getElementById('tabLocal'), b = document.getElementById('tabGlobal');
+  if (a) a.classList.toggle('on', scoreTab === 'local');
+  if (b) b.classList.toggle('on', scoreTab === 'global');
+}
+
+async function showLocal(){
+  scoreTab = 'local';
+  refreshTabs();
+  globalMsg('');
+  await renderScoreList();
+}
+
 async function renderScoreList(){
+  // Si el jugador está mirando el global, no se pisa su pestaña.
+  if (scoreTab === 'global'){ refreshTabs(); return; }
   const l = await loadScores(), el = document.getElementById('scorelist');
   el.innerHTML = l.length
     ? l.map((s,i)=>{
@@ -7704,6 +7822,7 @@ requestAnimationFrame(loop);
 
 // ================= FLOW =================
 function startGame(mode){
+  ocultarGlobalAsk();
   resumeAudio();
   musPreview = false; clearTimeout(musPreviewT); musPreviewT = null;
   stopBossPreview();                    // la muestra del registro no invade la partida
@@ -7901,6 +8020,27 @@ async function flushPendingScore(){
   await renderScoreList();
 }
 
+// Puntaje de la última partida listo para ofrecerse al ranking global.
+// Solo se rellena en INVASIÓN: el duelo nunca entra al global.
+let globalPend = null;
+
+function ofrecerGlobal(nombre, sc){
+  globalPend = { nombre, score: sc };
+  const box = document.getElementById('globalask');
+  if (box) box.classList.remove('hidden');
+  const m = document.getElementById('globalaskmsg');
+  if (m){ m.textContent = ''; m.classList.remove('err'); }
+  const b1 = document.getElementById('btnSubirGlobal');
+  const b2 = document.getElementById('btnSoloLocal');
+  if (b1){ b1.disabled = false; b1.textContent = 'SUBIR AL GLOBAL'; }
+  if (b2){ b2.disabled = false; }
+}
+function ocultarGlobalAsk(){
+  const box = document.getElementById('globalask');
+  if (box) box.classList.add('hidden');
+  globalPend = null;
+}
+
 async function commitName(){
   if (pendingScore == null) return;
   const input = document.getElementById('nameinput');
@@ -7918,6 +8058,8 @@ async function commitName(){
   msg.textContent = `${name}: ${sc} puntos registrados`;
   msg.style.opacity = '1';
   sfx('coin');
+  // El local ya está guardado. El global es decisión suya, y solo en invasión.
+  if (gameMode === 'invasion') ofrecerGlobal(name, sc);
 }
 
 // --- salir de la partida ---
@@ -7949,6 +8091,39 @@ document.getElementById('btnQuitNo').addEventListener('click', resumeFromQuit);
 document.getElementById('btnQuitYes').addEventListener('click', confirmQuit);
 
 document.getElementById('btnSaveName').addEventListener('click', commitName);
+
+// --- pestañas del ranking ---
+const _tl = document.getElementById('tabLocal');
+if (_tl) _tl.addEventListener('click', ()=>{ showLocal(); sfx('ui'); });
+const _tg = document.getElementById('tabGlobal');
+if (_tg) _tg.addEventListener('click', ()=>{ showGlobal(false); sfx('ui'); });
+
+// --- subir (o no) al ranking global ---
+const _bsg = document.getElementById('btnSubirGlobal');
+if (_bsg) _bsg.addEventListener('click', async ()=>{
+  if (!globalPend) return;
+  const b1 = document.getElementById('btnSubirGlobal');
+  const b2 = document.getElementById('btnSoloLocal');
+  const m  = document.getElementById('globalaskmsg');
+  b1.disabled = true; b1.textContent = 'SUBIENDO…';
+  if (m){ m.textContent = ''; m.classList.remove('err'); }
+  const ok = await postGlobal(globalPend.nombre, globalPend.score);
+  if (ok){
+    b1.textContent = 'SUBIDO';
+    if (b2) b2.disabled = true;
+    if (m) m.textContent = 'Tu puntaje ya está en el ranking mundial';
+    globalCache = null;                     // se refresca la próxima vez
+    if (scoreTab === 'global') showGlobal(true);
+    sfx('coin');
+    globalPend = null;
+  } else {
+    b1.disabled = false; b1.textContent = 'REINTENTAR';
+    if (m){ m.textContent = 'No se pudo subir. Tu puntaje local está a salvo.'; m.classList.add('err'); }
+    sfx('deny');
+  }
+});
+const _bsl = document.getElementById('btnSoloLocal');
+if (_bsl) _bsl.addEventListener('click', ()=>{ ocultarGlobalAsk(); sfx('ui'); });
 document.getElementById('nameinput').addEventListener('keydown', e=>{
   e.stopPropagation();                        // no mover al alien al escribir
   if (e.key === 'Enter') commitName();
