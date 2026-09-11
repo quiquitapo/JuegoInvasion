@@ -10,6 +10,9 @@ CREATE TABLE IF NOT EXISTS scores (
   created_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
--- El ranking se consulta siempre ordenado por puntaje: este índice lo resuelve
--- sin recorrer la tabla entera.
+-- El ranking se consulta por personaje y ordenado por puntaje: este índice
+-- resuelve las dos tablas (cría y viltrumita) sin recorrer todo.
+CREATE INDEX IF NOT EXISTS scores_hero_top_idx ON scores (hero, score DESC, created_at ASC);
+
+-- Y este, para el ranking conjunto si alguna vez se usa.
 CREATE INDEX IF NOT EXISTS scores_top_idx ON scores (score DESC, created_at ASC);

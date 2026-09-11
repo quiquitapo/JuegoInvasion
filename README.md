@@ -86,7 +86,10 @@ juego solo conoce la ruta `/api/scores`.
 
 ## La API
 
-### `GET /api/scores?limit=10`
+### `GET /api/scores?limit=10&hero=alien`
+
+Hay **una tabla por personaje**, igual que en el ranking local. `hero` acepta
+`alien` o `viltrum`; si se omite, devuelve el ranking conjunto.
 
 ```json
 { "ok": true, "scores": [
@@ -95,7 +98,8 @@ juego solo conoce la ruta `/api/scores`.
 ]}
 ```
 
-`limit` admite de 1 a 50; por defecto 10.
+`limit` admite de 1 a 50; por defecto 10. El campo `hero` de la respuesta
+indica de qué tabla se trata, o `null` si vienen mezclados.
 
 ### `POST /api/scores`
 

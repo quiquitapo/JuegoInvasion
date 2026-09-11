@@ -41,13 +41,24 @@ export default async function handler(req, res) {
       if (!Number.isFinite(limit) || limit < 1) limit = 10;
       if (limit > 50) limit = 50;
 
-      const filas = await sql`
-        SELECT id, player_name, score, hero, device, created_at
-        FROM scores
-        ORDER BY score DESC, created_at ASC
-        LIMIT ${limit}
-      `;
-      return res.status(200).json({ ok: true, scores: filas });
+      // Cada personaje tiene su propia tabla. Sin ?hero= se devuelve la
+      // mezcla, por si algún día hace falta un ranking conjunto.
+      const hero = req.query.hero;
+      const filas = HEROES.includes(hero)
+        ? await sql`
+            SELECT id, player_name, score, hero, device, created_at
+            FROM scores
+            WHERE hero = ${hero}
+            ORDER BY score DESC, created_at ASC
+            LIMIT ${limit}
+          `
+        : await sql`
+            SELECT id, player_name, score, hero, device, created_at
+            FROM scores
+            ORDER BY score DESC, created_at ASC
+            LIMIT ${limit}
+          `;
+      return res.status(200).json({ ok: true, hero: HEROES.includes(hero) ? hero : null, scores: filas });
     }
 
     if (req.method === 'POST') {
