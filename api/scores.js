@@ -1,17 +1,20 @@
 // /api/scores  —  Ranking global de Invasión Tentacular
 //
-// GET  /api/scores?limit=10  -> { ok:true, scores:[...] }
-// POST /api/scores           -> { ok:true, id }   body JSON:
-//                               { player_name, score, hero, device }
+// GET  /api/scores?limit=25&hero=alien          -> tabla del personaje
+// GET  /api/scores?hero=alien&name=ZORA         -> posición de ese jugador
+// POST /api/scores                              -> guarda / mejora un puntaje
+//
+// Cada jugador tiene UN registro por personaje: el de su mejor partida. Si
+// envía uno peor, se le dice y no se toca la tabla.
 //
 // La cadena de conexión NUNCA viaja al navegador: vive solo aquí, en la
 // variable de entorno DATABASE_URL de Vercel.
 
 import { neon } from '@neondatabase/serverless';
 
-const MAX_SCORE   = 5000000;   // techo defensivo: por encima se rechaza
-const MAX_NOMBRE  = 14;
-const HEROES      = ['alien', 'viltrum'];
+const MAX_SCORE    = 5000000;   // techo defensivo: por encima se rechaza
+const MAX_NOMBRE   = 14;
+const HEROES       = ['alien', 'viltrum'];
 const DISPOSITIVOS = ['pc', 'movil'];
 
 function conexion() {
@@ -37,18 +40,38 @@ export default async function handler(req, res) {
     const sql = conexion();
 
     if (req.method === 'GET') {
-      let limit = parseInt(req.query.limit, 10);
-      if (!Number.isFinite(limit) || limit < 1) limit = 10;
-      if (limit > 50) limit = 50;
+      const hero = HEROES.includes(req.query.hero) ? req.query.hero : null;
+      const nombre = limpiarNombre(req.query.name);
 
-      // Cada personaje tiene su propia tabla. Sin ?hero= se devuelve la
-      // mezcla, por si algún día hace falta un ranking conjunto.
-      const hero = req.query.hero;
-      const filas = HEROES.includes(hero)
+      // --- consulta de posición: ¿en qué puesto estoy? ---
+      if (nombre && hero) {
+        const [mio] = await sql`
+          SELECT score FROM scores WHERE player_name = ${nombre} AND hero = ${hero}
+        `;
+        if (!mio) return res.status(200).json({ ok: true, encontrado: false });
+
+        const [{ mejores }] = await sql`
+          SELECT COUNT(*)::int AS mejores FROM scores
+          WHERE hero = ${hero} AND score > ${mio.score}
+        `;
+        const [{ total }] = await sql`
+          SELECT COUNT(*)::int AS total FROM scores WHERE hero = ${hero}
+        `;
+        return res.status(200).json({
+          ok: true, encontrado: true, hero,
+          score: mio.score, rank: mejores + 1, total
+        });
+      }
+
+      // --- tabla ---
+      let limit = parseInt(req.query.limit, 10);
+      if (!Number.isFinite(limit) || limit < 1) limit = 25;
+      if (limit > 100) limit = 100;
+
+      const filas = hero
         ? await sql`
             SELECT id, player_name, score, hero, device, created_at
-            FROM scores
-            WHERE hero = ${hero}
+            FROM scores WHERE hero = ${hero}
             ORDER BY score DESC, created_at ASC
             LIMIT ${limit}
           `
@@ -58,7 +81,7 @@ export default async function handler(req, res) {
             ORDER BY score DESC, created_at ASC
             LIMIT ${limit}
           `;
-      return res.status(200).json({ ok: true, hero: HEROES.includes(hero) ? hero : null, scores: filas });
+      return res.status(200).json({ ok: true, hero, scores: filas });
     }
 
     if (req.method === 'POST') {
@@ -85,12 +108,41 @@ export default async function handler(req, res) {
       const hero = HEROES.includes(body.hero) ? body.hero : 'alien';
       const device = DISPOSITIVOS.includes(body.device) ? body.device : 'pc';
 
+      // Un registro por jugador y personaje, con su mejor marca. La base de
+      // datos decide: si el nuevo no supera al guardado, no se toca nada.
       const [fila] = await sql`
         INSERT INTO scores (player_name, score, hero, device)
         VALUES (${nombre}, ${score}, ${hero}, ${device})
-        RETURNING id
+        ON CONFLICT (player_name, hero) DO UPDATE
+          SET score = EXCLUDED.score,
+              device = EXCLUDED.device,
+              created_at = NOW()
+          WHERE scores.score < EXCLUDED.score
+        RETURNING id, score
       `;
-      return res.status(201).json({ ok: true, id: fila.id });
+
+      // Sin fila devuelta, el puntaje no superaba al que ya tenía.
+      const [actual] = await sql`
+        SELECT score FROM scores WHERE player_name = ${nombre} AND hero = ${hero}
+      `;
+      const mejor = actual ? actual.score : score;
+
+      const [{ mejores }] = await sql`
+        SELECT COUNT(*)::int AS mejores FROM scores
+        WHERE hero = ${hero} AND score > ${mejor}
+      `;
+      const [{ total }] = await sql`
+        SELECT COUNT(*)::int AS total FROM scores WHERE hero = ${hero}
+      `;
+
+      return res.status(fila ? 201 : 200).json({
+        ok: true,
+        mejorado: !!fila,
+        score: mejor,
+        rank: mejores + 1,
+        total,
+        hero
+      });
     }
 
     res.setHeader('Allow', 'GET, POST');

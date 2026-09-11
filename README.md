@@ -86,7 +86,7 @@ juego solo conoce la ruta `/api/scores`.
 
 ## La API
 
-### `GET /api/scores?limit=10&hero=alien`
+### `GET /api/scores?limit=25&hero=alien`
 
 Hay **una tabla por personaje**, igual que en el ranking local. `hero` acepta
 `alien` o `viltrum`; si se omite, devuelve el ranking conjunto.
@@ -98,8 +98,20 @@ Hay **una tabla por personaje**, igual que en el ranking local. `hero` acepta
 ]}
 ```
 
-`limit` admite de 1 a 50; por defecto 10. El campo `hero` de la respuesta
+`limit` admite de 1 a 100; por defecto 25. El campo `hero` de la respuesta
 indica de qué tabla se trata, o `null` si vienen mezclados.
+
+### `GET /api/scores?hero=alien&name=ZORA`
+
+Consulta la posición de un jugador concreto, para poder decirle en qué puesto
+está cuando no entra en los 25 visibles.
+
+```json
+{ "ok": true, "encontrado": true, "hero": "alien",
+  "score": 9000, "rank": 4, "total": 128 }
+```
+
+Si ese jugador nunca subió nada con ese personaje: `{ "ok": true, "encontrado": false }`.
 
 ### `POST /api/scores`
 
@@ -107,7 +119,18 @@ indica de qué tabla se trata, o `null` si vienen mezclados.
 { "player_name": "ZORA", "score": 99000, "hero": "alien", "device": "pc" }
 ```
 
-Responde `201 { "ok": true, "id": 42 }`.
+Cada jugador tiene **un solo registro por personaje**: el de su mejor partida.
+
+```json
+{ "ok": true, "mejorado": true, "score": 99000, "rank": 3, "total": 128, "hero": "alien" }
+```
+
+- `201` y `mejorado: true` → era mejor que la marca anterior y se guardó.
+- `200` y `mejorado: false` → ya tenía una marca igual o mejor; la tabla no se
+  toca y `score` devuelve la que conserva.
+
+Quién decide es la base de datos, con `ON CONFLICT ... WHERE scores.score <
+EXCLUDED.score`, así que dos partidas terminadas a la vez no pueden pisarse.
 
 El servidor **no se fía del navegador** y rechaza con `400`:
 
