@@ -400,6 +400,20 @@
                 border:2px solid #8a3a3a; border-radius:6px; padding:20px 24px; }
   .confirmbox h3 { color:#ff9d9d; font-size:0.9rem; letter-spacing:2px; margin-bottom:8px; }
   .confirmbox p { color:#c9a8a8; font-size:0.7rem; line-height:1.6; margin-bottom:16px; }
+  /* En táctil, el botón de volver sube a la esquina superior izquierda: abajo
+     queda tapado por el borde del teléfono y cuesta alcanzarlo. */
+  body.touch-ui #btnShopBack,
+  body.touch-ui #btnDexBack,
+  body.touch-ui #btnCtrlBack,
+  body.touch-ui #btnAchBack {
+    position:fixed; top:calc(8px + env(safe-area-inset-top, 0px));
+    left:calc(8px + env(safe-area-inset-left, 0px));
+    margin:0; z-index:40; padding:9px 16px;
+  }
+  .pausacfg { margin:10px 0 4px; padding:9px 0; border-top:1px dashed #1f4a2c;
+              border-bottom:1px dashed #1f4a2c; }
+  .pausacfg .volrow { margin-bottom:6px; }
+  .pausacfg .small { margin-top:4px; width:100%; }
   .confirm-row { display:flex; gap:12px; justify-content:center; flex-wrap:wrap; }
   .clock-hud { background:rgba(5,10,7,0.62); border:1px solid #1f5c37; padding:4px 10px; border-radius:4px;
                display:flex; align-items:center; gap:8px; }
@@ -795,6 +809,19 @@
     <div class="confirmbox">
       <h3>¿ABANDONAR LA INVASIÓN?</h3>
       <p>Se acabará la partida actual.<br>Conservarás el puntaje y las monedas ganadas.</p>
+      <div class="pausacfg">
+        <div class="volrow">
+          <span class="vollbl">Volumen efectos</span>
+          <input type="range" id="pVolSfx" min="0" max="100" value="70">
+          <span class="volval" id="pVolSfxVal">70</span>
+        </div>
+        <div class="volrow">
+          <span class="vollbl">Volumen música</span>
+          <input type="range" id="pVolMus" min="0" max="100" value="45">
+          <span class="volval" id="pVolMusVal">45</span>
+        </div>
+        <button type="button" class="small" id="btnPantalla">PANTALLA COMPLETA</button>
+      </div>
       <div class="confirm-row">
         <button class="small" id="btnQuitYes">Sí, salir</button>
         <button class="small" id="btnQuitNo">Seguir jugando</button>
@@ -1640,7 +1667,8 @@ function spawnEnemy(type, atX, atY){
                             rayoAng:0, frio: type==='mbtFrio'});
   // OVNI: visitante despistado. No ataca ni te persigue, solo cruza la ciudad.
   if (type==='ovni')      Object.assign(base, {hp:60,maxhp:60,speed:150, w:96,h:56,
-                            alt:150, bob:rand(0,6), rumbo:0, pacifico:true});
+                            alt:150, bob:rand(0,6), rumbo:0, pacifico:true,
+                            fase:'llegada'});
   if (type==='superx')    Object.assign(base, {hp:1650,maxhp:1650,speed:30, w:184,h:98,
                             alt:46, bob:rand(0,6),
                             shootCd:rand(0.8,1.4), escudoCd:rand(10,14), escudoT:0,
@@ -2137,6 +2165,10 @@ function explode(x, y, radius, dmg, big, hurtPlayer){
   booms.push({x, y, r:radius*0.25, max:radius*1.7, life:0.42, maxlife:0.42, ring:true});
   // Fogonazo inicial, muy breve
   booms.push({x, y, r:radius*0.2, max:radius*0.55, life:0.11, maxlife:0.11, flash:true});
+  // Las explosiones grandes levantan una ráfaga que dobla los árboles de
+  // alrededor, igual que el vuelo sónico del viltrumita. La de la cisterna,
+  // con sus 300px de radio, es la que más se nota.
+  if (big) sacudeArboles(x, y, radius * 0.9, 0.34);
   // Columna de humo tras el estallido
   const nh = big ? 7 : 4;
   for (let i=0;i<nh;i++) addSmoke(x + rand(-radius*0.35, radius*0.35), y + rand(-8, 6));
@@ -2411,6 +2443,9 @@ function arrancaEdificio(b){
     kind:'edificio', set, etapa, x: b.x + b.w/2, y: b.y + b.h/2,
     w: b.w, h: b.h,
     hp: 400, maxhp: 400, held:true, thrown:false, dead:false,
+    // Se lleva la misma orientación que tenía en pie: si miraba a la izquierda,
+    // en el tentáculo sigue mirando a la izquierda.
+    giro: b.rot || 0,
     rot:0, vx:0, vy:0, spin:0, pesado:true
   };
   // Antes de añadir, se barren los pedazos ya deshechos para que la lista no
@@ -2496,8 +2531,39 @@ let buffT = 0, buffTipo = null;   // 'gigante' o 'rayos'
 
 function buffActivo(tipo){ return buffT > 0 && buffTipo === tipo; }
 
+const OVNI_VEL_LLEGADA = 330;   // la misma que un caza
+const OVNI_CERCA = 150;         // a esta distancia deja de corregir el rumbo
+const OVNI_LEJOS = 620;         // y a esta, ya pasado de largo, se calma
+
 function updateOvni(e, dt){
   e.bob += dt*1.4;
+
+  // Entra directo hacia ti, a velocidad de caza: da tiempo justo a reaccionar.
+  if (e.fase === 'llegada'){
+    const a = Math.atan2(player.y - e.y, player.x - e.x);
+    e.x += Math.cos(a)*OVNI_VEL_LLEGADA*dt;
+    e.y += Math.sin(a)*OVNI_VEL_LLEGADA*dt;
+    e.facing = Math.cos(a) >= 0 ? 1 : -1;
+    if (Math.random() < 0.4) addParticles(e.x, e.y + 12, '#9fe8ff', 1, 90);
+    // Al tenerte cerca deja de corregir y sigue recto: te pasa por al lado,
+    // como hace un caza en su pasada.
+    if (dist(e.x, e.y, player.x, player.y) < OVNI_CERCA){
+      e.fase = 'pasada';
+      e.rumbo = a + rand(-0.35, 0.35);
+    }
+    return;
+  }
+  // Pasada: mantiene el rumbo y la velocidad hasta quedar lejos.
+  if (e.fase === 'pasada'){
+    e.x += Math.cos(e.rumbo)*OVNI_VEL_LLEGADA*dt;
+    e.y += Math.sin(e.rumbo)*OVNI_VEL_LLEGADA*dt;
+    e.facing = Math.cos(e.rumbo) >= 0 ? 1 : -1;
+    if (Math.random() < 0.3) addParticles(e.x, e.y + 12, '#9fe8ff', 1, 70);
+    if (dist(e.x, e.y, player.x, player.y) > OVNI_LEJOS) e.fase = 'paseo';
+    if (e.x < -260 || e.x > WORLD_W+260 || e.y < -260 || e.y > WORLD_H+260) e.dead = true;
+    return;
+  }
+
   if (!e.rumbo){                                     // rumbo fijo al aparecer
     e.rumbo = Math.atan2(WORLD_H/2 - e.y, WORLD_W/2 - e.x) + rand(-0.5, 0.5);
   }
@@ -2525,6 +2591,7 @@ function updateOvniSpawn(dt){
     else if (lado === 2){ o.x = rand(200, WORLD_W-200); o.y = -120; }
     else { o.x = rand(200, WORLD_W-200); o.y = WORLD_H+120; }
     o.rumbo = 0;
+    o.fase = 'llegada';
   }
   toast('¿QUÉ ES ESA COSA?');
 }
@@ -2569,6 +2636,34 @@ function arbIndexa(){
   for (const t of trees){
     const c = (Math.floor(t.y / ARB_CELDA) * arbCols) + Math.floor(t.x / ARB_CELDA);
     (arbGrid[c] || (arbGrid[c] = [])).push(t);
+  }
+}
+
+// Sacude los árboles alrededor de un punto: lo usa la explosión de la
+// cisterna. Se apoya en la misma rejilla, así que solo mira las celdas
+// vecinas y no recorre la ciudad entera.
+function sacudeArboles(cx, cy, radio, fuerza){
+  if (!arbGrid) arbIndexa();
+  const c0 = Math.floor((cx - radio) / ARB_CELDA), c1 = Math.floor((cx + radio) / ARB_CELDA);
+  const f0 = Math.floor((cy - radio) / ARB_CELDA), f1 = Math.floor((cy + radio) / ARB_CELDA);
+  const r2 = radio * radio;
+  for (let f = f0; f <= f1; f++){
+    if (f < 0) continue;
+    for (let c = c0; c <= c1; c++){
+      if (c < 0 || c >= arbCols) continue;
+      const celda = arbGrid[f * arbCols + c];
+      if (!celda) continue;
+      for (let i = 0; i < celda.length; i++){
+        const t = celda[i];
+        if (t.dead || t.held || t.thrown) continue;
+        const dx = t.x - cx, dy = t.y - cy;
+        const d2 = dx*dx + dy*dy;
+        if (d2 > r2) continue;
+        // se inclina apartándose del estallido, más cuanto más cerca
+        const f2 = 1 - Math.sqrt(d2) / radio;
+        t.viento = (dx >= 0 ? 1 : -1) * fuerza * f2;
+      }
+    }
   }
 }
 
@@ -6032,6 +6127,14 @@ function objDurability(o){
   if (o.type === 'siege') return 8;    // la mole del ejército: mejor escudo que el tanque
   return 2;
 }
+// Radio de choque de lo que vuela: la mitad de su lado menor, con un mínimo
+// para que los objetos pequeños sigan comportándose como antes.
+function radioChoque(o){
+  if (!o) return 36;
+  const lado = Math.min(o.w || 40, o.h || 40);
+  return Math.max(36, lado * 0.45);
+}
+
 // ============ PENETRACIÓN DE LO LANZADO ============
 // Cuántos choques resiste un proyectil antes de destruirse. Lo pesado sigue
 // de largo llevándose varias cosas por delante; lo demás revienta al primero.
@@ -6070,6 +6173,9 @@ function objThrowDmg(o){
   if (o.type === 'gunship') return 175;
   if (o.type === 'plane') return 150;
   if (o.type === 'tank') return 150;
+  // La pieza más pesada del ejército: por encima de los 120 PV del
+  // helicóptero, así que lo parte de un solo trastazo.
+  if (o.type === 'siege') return 230;
   return 50;
 }
 
@@ -6927,7 +7033,9 @@ function updateThrown(dt){
       for (const e of pool){
         if (e === o || e.dead || e.held) continue;
         if (o.golpeados && o.golpeados.indexOf(e) >= 0) continue;   // ya atravesado
-        if (dist(o.x,o.y,e.x,e.y) < 36){ impact = {x:o.x, y:o.y, target:e}; break; }
+        // El alcance del choque va con el tamaño del proyectil: un edificio de
+        // 272px no puede tener la misma caja que una farola.
+        if (dist(o.x,o.y,e.x,e.y) < radioChoque(o)){ impact = {x:o.x, y:o.y, target:e}; break; }
       }
       if (impact) break;
     }
@@ -8020,7 +8128,8 @@ function drawTrash(t){
     const cy2 = (t.held || t.thrown) ? s3.y : s3.y - t.h*0.3;
     ctx.save();
     ctx.translate(s3.x, cy2);
-    if (t.rot) ctx.rotate(t.rot);
+    // el giro propio del edificio más el que lleve por el vuelo
+    if (t.rot || t.giro) ctx.rotate((t.rot || 0) + (t.giro || 0));
     // Mismo dibujo que tenía en pie: intacto o dañado, según cómo lo cogiste.
     const dmg = t.etapa === 1;
     const kr = (t.set === 'C') ? (dmg ? 'cafeDmg' : 'cafeOk')
@@ -8996,6 +9105,7 @@ function askQuit(){
   running = false;                 // congela el mundo mientras decides
   stopMusic();
   sfx('ui');
+  refreshAudioUI();               // los mandos de la pausa, al día
   show('confirmquit');
 }
 function resumeFromQuit(){
@@ -9258,6 +9368,30 @@ function refreshAudioUI(){
   const vs = document.getElementById('volSfx'), vm = document.getElementById('volMus');
   if (vs){ vs.value = Math.round(audio.sfxVol*100); document.getElementById('volSfxVal').textContent = vs.value; }
   if (vm){ vm.value = Math.round(audio.musVol*100); document.getElementById('volMusVal').textContent = vm.value; }
+  // Los de la pausa son los mismos ajustes, así que se mantienen al día.
+  const ps = document.getElementById('pVolSfx'), pm = document.getElementById('pVolMus');
+  if (ps){ ps.value = Math.round(audio.sfxVol*100); document.getElementById('pVolSfxVal').textContent = ps.value; }
+  if (pm){ pm.value = Math.round(audio.musVol*100); document.getElementById('pVolMusVal').textContent = pm.value; }
+  const bp = document.getElementById('btnPantalla');
+  if (bp) bp.textContent = enPantallaCompleta() ? 'SALIR DE PANTALLA COMPLETA' : 'PANTALLA COMPLETA';
+}
+
+// ---- pantalla completa ----
+function enPantallaCompleta(){
+  return !!(document.fullscreenElement || document.webkitFullscreenElement);
+}
+function alternaPantalla(){
+  try {
+    if (enPantallaCompleta()){
+      if (document.exitFullscreen) document.exitFullscreen();
+      else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+    } else {
+      const el = document.documentElement;
+      if (el.requestFullscreen) el.requestFullscreen();
+      else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+    }
+  } catch(e){}
+  setTimeout(refreshAudioUI, 120);       // el botón se reetiqueta solo
 }
 const _uiAuto = document.getElementById('tgUiAuto');
 if (_uiAuto) _uiAuto.addEventListener('click', ()=>{
@@ -9330,6 +9464,25 @@ document.getElementById('volSfx').addEventListener('input', e=>{
   applyAudioVolumes(); saveAudioPrefs(); refreshAudioUI();
 });
 document.getElementById('volSfx').addEventListener('change', ()=> sfx('ui'));
+
+// --- controles de la pausa: mismos ajustes, otra pantalla ---
+const _pvs = document.getElementById('pVolSfx');
+if (_pvs) _pvs.addEventListener('input', e=>{
+  resumeAudio();
+  audio.sfxVol = (+e.target.value)/100;
+  if (audio.sfxVol > 0) audio.sfxOn = true;
+  applyAudioVolumes(); saveAudioPrefs(); refreshAudioUI();
+});
+if (_pvs) _pvs.addEventListener('change', ()=> sfx('ui'));
+const _pvm = document.getElementById('pVolMus');
+if (_pvm) _pvm.addEventListener('input', e=>{
+  resumeAudio();
+  audio.musVol = (+e.target.value)/100;
+  if (audio.musVol > 0) audio.musOn = true;
+  applyAudioVolumes(); saveAudioPrefs(); refreshAudioUI();
+});
+const _bpc = document.getElementById('btnPantalla');
+if (_bpc) _bpc.addEventListener('click', ()=>{ alternaPantalla(); sfx('ui'); });
 document.getElementById('volMus').addEventListener('input', e=>{
   resumeAudio();
   audio.musVol = (+e.target.value)/100;
