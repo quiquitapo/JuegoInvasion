@@ -405,7 +405,8 @@
   body.movil #btnShopBack,
   body.movil #btnDexBack,
   body.movil #btnCtrlBack,
-  body.movil #btnAchBack {
+  body.movil #btnAchBack,
+  body.movil #btnModeBack {
     position:fixed; top:calc(8px + env(safe-area-inset-top, 0px));
     left:calc(8px + env(safe-area-inset-left, 0px));
     margin:0; z-index:40; padding:9px 16px;
@@ -437,7 +438,8 @@
   body.duelo #combo { top:84px; }
   /* el botón de volver nunca puede quedar fuera de la pantalla */
   body.movil #btnShopBack, body.movil #btnDexBack,
-  body.movil #btnCtrlBack, body.movil #btnAchBack { display:block !important; }
+  body.movil #btnCtrlBack, body.movil #btnAchBack,
+  body.movil #btnModeBack { display:block !important; }
   .combobox { display:flex; align-items:center; gap:11px; padding:7px 15px 7px 13px;
               border:2px solid var(--cc); border-radius:11px;
               background:linear-gradient(180deg, rgba(10,16,13,0.86), rgba(6,10,8,0.9));
