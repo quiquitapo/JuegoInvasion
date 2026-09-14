@@ -402,10 +402,10 @@
   .confirmbox p { color:#c9a8a8; font-size:0.7rem; line-height:1.6; margin-bottom:16px; }
   /* En táctil, el botón de volver sube a la esquina superior izquierda: abajo
      queda tapado por el borde del teléfono y cuesta alcanzarlo. */
-  body.touch-ui #btnShopBack,
-  body.touch-ui #btnDexBack,
-  body.touch-ui #btnCtrlBack,
-  body.touch-ui #btnAchBack {
+  body.movil #btnShopBack,
+  body.movil #btnDexBack,
+  body.movil #btnCtrlBack,
+  body.movil #btnAchBack {
     position:fixed; top:calc(8px + env(safe-area-inset-top, 0px));
     left:calc(8px + env(safe-area-inset-left, 0px));
     margin:0; z-index:40; padding:9px 16px;
@@ -435,6 +435,9 @@
            text-shadow:0 2px 0 rgba(0,0,0,0.7); }
   #combo.hidden { display:none; }
   body.duelo #combo { top:84px; }
+  /* el botón de volver nunca puede quedar fuera de la pantalla */
+  body.movil #btnShopBack, body.movil #btnDexBack,
+  body.movil #btnCtrlBack, body.movil #btnAchBack { display:block !important; }
   .combobox { display:flex; align-items:center; gap:11px; padding:7px 15px 7px 13px;
               border:2px solid var(--cc); border-radius:11px;
               background:linear-gradient(180deg, rgba(10,16,13,0.86), rgba(6,10,8,0.9));
@@ -1230,6 +1233,7 @@ function resize(){
   VW = CW / ZOOM; VH = CH / ZOOM;
   // layoutUI se declara más abajo: en el primer resize aún no existe.
   try { if (typeof layoutUI === 'function') layoutUI(); } catch(e){}
+  try { if (typeof marcaMovil === 'function') marcaMovil(); } catch(e){}
 }
 window.addEventListener('resize', resize);
 // Al girar el móvil, el navegador a veces informa del tamaño antiguo:
@@ -2577,7 +2581,10 @@ function buffActivo(tipo){ return buffT > 0 && buffTipo === tipo; }
 // ¿Se está jugando con mandos táctiles? Lo dice la misma clase que decide si
 // se dibujan los joysticks, así que no hay dos criterios distintos.
 function tactil(){
-  try { return document.body.classList.contains('touch-ui'); } catch(e){ return false; }
+  try {
+    return document.body.classList.contains('touch-ui') ||
+           document.body.classList.contains('movil');
+  } catch(e){ return false; }
 }
 
 // Siendo colosal por el regalo del OVNI, la piel aguanta algo más: un 5%
@@ -5924,6 +5931,23 @@ function hasTouch(){
   try { return (navigator.maxTouchPoints||0) > 0 || 'ontouchstart' in window; }
   catch(e){ return false; }
 }
+// El botón de volver se recoloca según el DISPOSITIVO, no según el último
+// input. La marca 'touch-ui' cambia en cuanto llega un evento de ratón, y los
+// teléfonos emiten eventos de ratón sintéticos al tocar: con ella, el botón
+// saltaba de sitio o se iba de pantalla. Esta otra solo se recalcula al
+// arrancar y al girar o redimensionar.
+function esMovil(){
+  try {
+    const dedos = (navigator.maxTouchPoints || 0) > 0;
+    const finoYSinRaton = window.matchMedia
+      ? window.matchMedia('(pointer: coarse)').matches : false;
+    return dedos || finoYSinRaton || window.innerWidth <= 820;
+  } catch(e){ return false; }
+}
+function marcaMovil(){
+  try { document.body.classList.toggle('movil', esMovil()); } catch(e){}
+}
+
 function updateTouchUI(){
   const show = touchUIMode === 'on'  ? true
              : touchUIMode === 'off' ? false
@@ -8949,6 +8973,7 @@ function startGame(mode){
   document.getElementById('gameover').classList.add('hidden');
   document.getElementById('hud').classList.remove('hidden');
   document.getElementById('bottomhud').classList.remove('hidden');
+  marcaMovil();                          // teléfono o escritorio: decidido una vez
   layoutUI();                            // tamaños y posiciones del personaje activo
   const ab = document.getElementById('actionBtns');
   ab.classList.add('playing');
