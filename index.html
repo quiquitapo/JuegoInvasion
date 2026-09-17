@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>Super Invasores</title>
+<title>SUPER INVASORES</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
   html,body { width:100%; height:100%; overflow:hidden; background:#05070a; font-family:'Courier New', monospace; overscroll-behavior:none; }
-  /* 100vh incluye la barra del navegador móvil; dvh es el alto realmente visible y hola si ves mi codigo */
+  /* 100vh incluye la barra del navegador móvil; dvh es el alto realmente visible */
   #wrap { position:relative; width:100vw; height:100vh; touch-action:none; }
   @supports (height: 100dvh){ #wrap { height:100dvh; } html,body { height:100dvh; } }
   canvas { display:block; background:#0a0e14; cursor:crosshair; touch-action:none; }
@@ -4808,8 +4808,8 @@ const ACHIEVEMENTS = [
     desc:'Alcanza 11.180 puntos o más en una partida.' },
   { id:'colector', icon:'\u{1F3A8}', name:'COLECCIONISTA DE COLORES', goal:1,
     desc:'Compra todos los colores de la tienda, incluido el color propio.' },
-  { id:'imparable', icon:'\u{1F525}', name:'IMPARABLE',       goal:29999,
-    desc:'Alcanza 29.999 puntos o más en una partida.' },
+  { id:'imparable', icon:'\u{1F525}', name:'IMPARABLE',       goal:49999,
+    desc:'Llega a 49.999 puntos en una sola partida. A esas alturas el ejército ya no manda tropas: manda jefes, y encadenados. Vas a necesitar el combo alto y no soltarlo.' },
   { id:'millonario',icon:'\u{1F4B0}', name:'MILLONARIO',      goal:1500,
     desc:'Acumula más de 1.500 monedas.' },
   { id:'basura',    icon:'\u{1F5D1}', name:'A LA BASURA TUS BALAS', goal:1,
@@ -4856,7 +4856,7 @@ function achProgress(){
   if (gameTime >= 60)        unlockAch('superviv');
   if (score >= 5350)         unlockAch('superviv2');
   if (score >= 11180)        unlockAch('apex');
-  if (score >= 29999)        unlockAch('imparable');
+  if (score >= 49999)        unlockAch('imparable');
 
   if (coins  >  1500)        unlockAch('millonario');
 }
@@ -6030,8 +6030,12 @@ function actionPressEnd(){
   const btn = document.getElementById('btnAction');
   if (btn){ btn.classList.remove('pressed'); btn.classList.remove('charging'); }
   if (actLongFired){ actLongFired = false; return; }
-  if (heldObject) onThrow();
-  else onGrab();
+  if (heldObject){ onThrow(); return; }
+  // En táctil no hay clic derecho: el mismo botón de acción prueba primero a
+  // levantar un edificio (solo puede con el regalo del OVNI) y, si no hay
+  // ninguno a mano, agarra lo de siempre.
+  if (agarraEdificio()) return;
+  onGrab();
 }
 function bindActionBtn(){
   const b = document.getElementById('btnAction');
