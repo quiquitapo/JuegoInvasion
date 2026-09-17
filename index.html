@@ -2667,9 +2667,11 @@ function ovniRecompensa(){
   buffT = OVNI_BUFF;
   if (isVil()){
     buffTipo = 'rayos';
+    unlockAch('calorifica');
     toast('¡VISIÓN CALÓRICA!');
   } else {
     buffTipo = 'gigante';
+    unlockAch('colosal');
     updateZoom(0);
     toast('¡COLOSAL! AHORA LEVANTAS EDIFICIOS');
   }
@@ -3206,7 +3208,8 @@ function damageEnemy(e, dmg, fx, fy){
   hp = clamp(hp + Math.round(rw.heal * (isVil() ? 1.45 : 1)), 0, maxHp());
   addParticles(e.x, e.y, '#ffd27b', 16, 150);
   sfx('kill');
-  if (k === 'flametank' || k === 'omni'){ unlockAch('esotodo'); explode(e.x, e.y, 190, 70, true); }
+  // El estallido de su caída se queda; el logro ahora es del Registro completo.
+  if (k === 'flametank' || k === 'omni'){ explode(e.x, e.y, 190, 70, true); }
   else if (k === 'tank' || k === 'heli') explode(e.x, e.y, 100, 40, true);
   shake(6, 0.15);
   checkEvolve();
@@ -4534,11 +4537,24 @@ function dexCount(id){
   const v = dex[id];
   return v === true ? 1 : (typeof v === 'number' ? v : 0);
 }
+// El Registro está completo cuando no queda una sola ficha por descubrir.
+// Se recorre una sola vez al conseguir una ficha nueva, no cada fotograma.
+function registroCompleto(){
+  for (const b of BESTIARY){
+    if (dexCount(b.id) <= 0) return false;
+  }
+  return true;
+}
+
 function discover(id){
   if (!id) return;
   const prev = dexCount(id);
   dex[id] = prev + 1;
-  if (prev === 0) achPopupNew(id);          // aviso solo la primera vez
+  if (prev === 0){
+    achPopupNew(id);                        // aviso solo la primera vez
+    // Solo al descubrir algo nuevo tiene sentido mirar si ya está todo.
+    if (registroCompleto()) unlockAch('esotodo');
+  }
   storeSet('invasion_dex', JSON.stringify(dex));
 }
 function achPopupNew(id){}                  // gancho reservado
@@ -4815,7 +4831,11 @@ const ACHIEVEMENTS = [
   { id:'basura',    icon:'\u{1F5D1}', name:'A LA BASURA TUS BALAS', goal:1,
     desc:'Bloquea el disparo de un policía o un soldado usando un basurero como escudo.' },
   { id:'esotodo',   icon:'\u{1F979}', name:'¿ESO ES TODO?', goal:1,
-    desc:'Derrota a un mini jefe: el Tanque de Fuego o el Omnidroide.' },
+    desc:'Completa el Registro entero: hay que haber acabado al menos una vez con cada unidad y con cada uno de los cuatro jefes, y haber destrozado todo lo que hay en la calle. Cuando no quede una sola ficha con interrogantes, la ciudad no tendrá nada más que enseñarte.' },
+  { id:'colosal',   icon:'\u{1F47E}', name:'TAMAÑO COLOSAL', goal:1,
+    desc:'Derriba un OVNI siendo la cría y aprovecha el regalo: te vuelves enorme y arrancas edificios enteros del suelo para usarlos de maza o de escudo.' },
+  { id:'calorifica',icon:'\u{1F441}\u{FE0F}', name:'VISIÓN CALÓRICA', goal:1,
+    desc:'Derriba un OVNI siendo el viltrumita y estrena sus ojos: dos hilos rojos que atraviesan lo que mires mientras dure el regalo.' },
 
   // --- SECRETOS: no aparecen en la lista hasta conseguirlos ---
   { id:'curioso', icon:'\u{1F50E}', name:'CURIOSO', goal:1, secret:true,
