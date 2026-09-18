@@ -2211,10 +2211,11 @@ function explode(x, y, radius, dmg, big, hurtPlayer){
   booms.push({x, y, r:radius*0.25, max:radius*1.7, life:0.42, maxlife:0.42, ring:true});
   // Fogonazo inicial, muy breve
   booms.push({x, y, r:radius*0.2, max:radius*0.55, life:0.11, maxlife:0.11, flash:true});
-  // Cualquier estallido levanta una ráfaga que dobla los árboles de alrededor,
-  // con la fuerza que le corresponda: la cisterna, con sus 300px, es la que
-  // más se nota; el de un auto corriente apenas los despeina.
-  sacudeArboles(x, y, radius * 0.9, big ? 0.34 : 0.20);
+  // La onda llega mucho más lejos que las astillas: los árboles que arden
+  // (hasta 0.8 del radio) desaparecen, y los de alrededor se doblan. Antes la
+  // sacudida apenas rebasaba la zona de destrucción y no se veía a nadie
+  // moverse, porque justo ahí ya no quedaba ningún árbol en pie.
+  sacudeArboles(x, y, radius * (big ? 2.6 : 2.2), big ? 0.34 : 0.22);
   // Columna de humo tras el estallido
   const nh = big ? 7 : 4;
   for (let i=0;i<nh;i++) addSmoke(x + rand(-radius*0.35, radius*0.35), y + rand(-8, 6));
