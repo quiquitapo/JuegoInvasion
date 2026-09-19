@@ -291,6 +291,22 @@
               border:1px solid #1f5c37; }
 
   /* ---- panel jugador 2 ---- */
+  /* Indicador del Jugador 2 fuera de pantalla. Va por encima de TODO el resto
+     del HUD (paneles, reloj, combo y mandos táctiles) porque antes se dibujaba
+     en el lienzo, que queda por debajo, y cualquier panel lo tapaba. */
+  #p2arrow { position:fixed; left:0; top:0; z-index:50; pointer-events:none;
+             display:flex; flex-direction:column; align-items:center; gap:1px;
+             transform:translate(-50%,-50%); will-change:left,top; }
+  #p2arrow.hidden { display:none; }
+  #p2arrowk { font-size:0.46rem; letter-spacing:1px; font-weight:900;
+              color:#cfeaff; background:rgba(4,10,7,0.82); padding:2px 6px;
+              border-radius:5px; border:1px solid rgba(143,215,255,0.6);
+              white-space:nowrap; }
+  #p2arrowg { font-size:1.35rem; line-height:1; color:#8fd7ff;
+              text-shadow:0 2px 0 rgba(0,0,0,0.7); }
+  #p2arrow.lejos #p2arrowg { color:#ff6a6a; }
+  #p2arrow.lejos #p2arrowk { color:#ffd0d0; border-color:rgba(255,106,106,0.6); }
+
   #p2panel { position:absolute; right:0; top:0; bottom:0; width:min(190px,32vw); z-index:4;
              background:linear-gradient(90deg, rgba(4,10,7,0.35), rgba(4,10,7,0.85));
              border-left:2px solid #1f5c37; padding:10px 8px;
@@ -594,6 +610,11 @@
     </div>
   </div>
   <div id="bottomhud" class="hidden"><div id="wavebadge">CIVILES</div></div>
+
+  <div id="p2arrow" class="hidden">
+    <span id="p2arrowk">HOME</span>
+    <b id="p2arrowg">&#10148;</b>
+  </div>
 
   <div id="p2panel" class="hidden">
     <div class="p2title">JUGADOR DOS</div>
@@ -5331,8 +5352,12 @@ function resetVS(){
   vsTimeLeft = VS_DURATION; vsWinner = null;
   p2.mat = P2_START_MAT; p2.sel = 0; p2.placeFlash = 0; p2.recallCd = 0;
   p2.cool = P2_UNITS.map(()=>0);
-  p2.x = clamp(player.x + 320, 60, WORLD_W-60);
-  p2.y = clamp(player.y,        60, WORLD_H-60);
+  // El viltrumita entra cayendo desde 620px de altura, así que al arrancar
+  // la partida su posición aún no es donde va a quedarse. Se usa el punto de
+  // aterrizaje para que el Jugador 2 no salga lejísimos de él.
+  const destinoY = (typeof vil === 'object' && vil.intro) ? vil.introY : player.y;
+  p2.x = clamp(player.x + 230, 60, WORLD_W-60);
+  p2.y = clamp(destinoY,       60, WORLD_H-60);
 }
 
 function p2Gain(dmg){
@@ -5416,8 +5441,67 @@ function updateVS(dt){
 }
 
 // dibuja el cursor y la unidad fantasma que se va a colocar
+// ---- Indicador del Jugador 2 fuera de pantalla ----
+// Vive en su propio elemento, por encima de todo el HUD. Antes se pintaba en
+// el lienzo y cualquier panel lo tapaba: subiendo quedaba detrás del contador
+// de combo y por los lados, bajo los selectores de unidades.
+const FLECHA_M = 40;              // margen con el borde de la ventana
+let flechaVis = false, flechaPX = -1, flechaPY = -1, flechaRot = '', flechaTxt = '', flechaCol = null;
+
+function ocultaFlechaP2(){
+  if (!flechaVis) return;
+  flechaVis = false;
+  const el = document.getElementById('p2arrow');
+  if (el) el.classList.add('hidden');
+}
+
+function flechaP2(){
+  if (gameMode !== 'vs' || !running){ ocultaFlechaP2(); return false; }
+  const el = document.getElementById('p2arrow');
+  if (!el) return false;
+
+  const sx = p2.x - camX, sy = p2.y - camY;
+  const m = FLECHA_M;
+  if (sx >= m && sx <= CW - m && sy >= m && sy <= CH - m){ ocultaFlechaP2(); return false; }
+
+  // Se recorta el rayo desde el centro de la pantalla contra un marco
+  // interior, así que la punta siempre cae dentro de la ventana.
+  const cx = CW/2, cy = CH/2;
+  const ang = Math.atan2(sy - cy, sx - cx);
+  const dx = Math.cos(ang), dy = Math.sin(ang);
+  let t = Infinity;
+  if (dx > 0.0001)  t = Math.min(t, (CW - m - cx) / dx);
+  if (dx < -0.0001) t = Math.min(t, (m - cx) / dx);
+  if (dy > 0.0001)  t = Math.min(t, (CH - m - cy) / dy);
+  if (dy < -0.0001) t = Math.min(t, (m - cy) / dy);
+  if (!isFinite(t)) t = 0;
+  const px2 = clamp(cx + dx*t, m, CW - m);
+  const py2 = clamp(cy + dy*t, m, CH - m);
+
+  const u = P2_UNITS[p2.sel];
+  const listo = u && p2.cool[p2.sel] <= 0 && p2.mat >= u.cost;
+  const txt = prettyKey(bindsP2.p2Recall || 'home');
+
+  // Solo se tocan los estilos cuando algo cambia de verdad.
+  if (!flechaVis){ el.classList.remove('hidden'); flechaVis = true; }
+  const ix = Math.round(px2), iy = Math.round(py2);
+  if (ix !== flechaPX){ el.style.left = ix + 'px'; flechaPX = ix; }
+  if (iy !== flechaPY){ el.style.top  = iy + 'px'; flechaPY = iy; }
+  const rot = 'translate(-50%,-50%) rotate(' + ang.toFixed(2) + 'rad)';
+  const g = document.getElementById('p2arrowg');
+  if (g && rot !== flechaRot){ g.style.transform = 'rotate(' + ang.toFixed(2) + 'rad)'; flechaRot = rot; }
+  if (txt !== flechaTxt){
+    const k = document.getElementById('p2arrowk');
+    if (k) k.textContent = txt;
+    flechaTxt = txt;
+  }
+  if (listo !== flechaCol){ el.classList.toggle('lejos', !listo); flechaCol = listo; }
+  return true;
+}
+
 function drawP2Cursor(){
-  if (gameMode !== 'vs') return;
+  if (gameMode !== 'vs'){ ocultaFlechaP2(); return; }
+  if (flechaP2()) return;                         // fuera de vista: solo la flecha
   const s2 = S(p2.x, p2.y);
   const u = P2_UNITS[p2.sel];
   const ready = u && p2.cool[p2.sel] <= 0 && p2.mat >= u.cost;
@@ -9055,6 +9139,7 @@ function startGame(mode){
 }
 async function endGame(){
   running = false;
+  try { ocultaFlechaP2(); } catch(e){}
   pausedForQuit = false;
   // Si caíste peleando con un jefe, su tema seguía sonando en los menús.
   bossTrack = null;
