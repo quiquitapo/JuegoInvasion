@@ -65,11 +65,29 @@
     cursor:pointer; box-shadow: 0 6px 0 #0a5e28, 0 8px 18px rgba(0,0,0,0.5);
     transition: transform .08s ease; font-family:inherit; text-transform:uppercase;
   }
-  button.big:active { transform: translateY(5px); box-shadow: 0 1px 0 #0a5e28; }
+  button.big { box-shadow: 0 6px 0 #0a5e28, 0 8px 18px rgba(0,0,0,0.5),
+                           inset 0 2px 0 rgba(200,255,220,0.35); }
+  button.big:hover { filter:brightness(1.07); }
+  button.big:active { transform: translateY(5px);
+                      box-shadow: 0 1px 0 #0a5e28, inset 0 3px 8px rgba(0,0,0,0.35); }
+  /* Relieve con una sombra sólida (sin desenfoque) y un brillo interior: se
+     ve con profundidad y no cuesta nada de pintar en un móvil. */
   button.small {
-    margin-top:14px; background:transparent; border:1px solid #2fe86e; color:#7bffa0;
-    padding:8px 22px; letter-spacing:2px; border-radius:4px; cursor:pointer; font-family:inherit; font-size:0.78rem;
+    margin-top:14px; color:#9dffbe; font-family:inherit; font-size:0.78rem;
+    background:linear-gradient(180deg, rgba(36,86,54,0.95), rgba(14,40,24,0.95));
+    border:1px solid #2fe86e; border-radius:7px;
+    padding:9px 22px; letter-spacing:2px; cursor:pointer;
+    box-shadow: 0 3px 0 #0b4a25, inset 0 1px 0 rgba(160,255,190,0.28);
+    transition: transform .07s ease, box-shadow .07s ease, filter .07s ease;
   }
+  button.small:hover { filter:brightness(1.12); }
+  button.small:active {
+    transform:translateY(3px);
+    box-shadow: 0 0 0 #0b4a25, inset 0 2px 5px rgba(0,0,0,0.45);
+  }
+  .small.ghost { box-shadow: 0 3px 0 #21382a, inset 0 1px 0 rgba(200,220,210,0.14); }
+  .small.ghost:active { box-shadow: 0 0 0 #21382a, inset 0 2px 5px rgba(0,0,0,0.45); }
+  button.small:disabled { opacity:0.5; box-shadow:none; transform:none; cursor:default; }
 
   .howto { max-width:500px; color:#6fa382; font-size:0.7rem; line-height:1.7; letter-spacing:0.4px; }
   .howto b { color:#a9f3c0; }
@@ -400,10 +418,16 @@
   .evo-bar-fill { height:100%; background:linear-gradient(90deg,#2fe86e,#8fffd7); transition:width .2s ease; }
   .shield-label { font-size:0.55rem; color:#8fd7ff; margin-top:4px; letter-spacing:1px; min-height:12px; }
 
-  .score-hud { background:rgba(5,10,7,0.62); border:1px solid #1f5c37; padding:5px 10px; border-radius:4px; text-align:right; }
-  .score-hud .val { color:#ffe066; font-size:1.15rem; font-weight:900; }
-  .score-hud .lbl { color:#7bffa0; font-size:0.55rem; letter-spacing:2px; }
-  .coin-hud { border-color:#8a6b1f; }
+  /* Placa del marcador: fondo algo más opaco y un filo claro arriba para que
+     las cifras se lean sobre cualquier escenario, sin desenfoques. */
+  .score-hud { background:linear-gradient(180deg, rgba(9,18,13,0.80), rgba(4,9,6,0.72));
+               border:1px solid #2a7a4a; border-radius:7px; padding:5px 11px; text-align:right;
+               box-shadow:0 2px 0 rgba(0,0,0,0.45), inset 0 1px 0 rgba(140,255,180,0.16); }
+  .score-hud .val { color:#ffe066; font-size:1.15rem; font-weight:900;
+                    text-shadow:0 2px 0 rgba(0,0,0,0.6); }
+  .score-hud .lbl { color:#8fffb4; font-size:0.55rem; letter-spacing:2px; }
+  .coin-hud { border-color:#a3811f;
+              box-shadow:0 2px 0 rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,225,150,0.18); }
   .coin-hud .lbl { color:#ffd257; }
   .coin-hud .val { color:#ffd257; }
 
@@ -557,18 +581,24 @@
   .p2joy .joy-knob { background:radial-gradient(circle at 35% 30%, #8fd0ff, #1f5f9e) !important; }
   #p2Buttons { position:absolute; right:14px; bottom:6px; display:flex; gap:10px;
                align-items:center; pointer-events:auto; }
-  .p2btn { min-width:52px; height:46px; padding:0 10px; border-radius:10px;
-           border:2px solid rgba(120,180,255,0.75); background:rgba(12,26,44,0.85);
+  .p2btn { min-width:52px; height:46px; padding:0 10px; border-radius:12px;
+           border:2px solid rgba(120,180,255,0.75);
+           background:linear-gradient(180deg, rgba(30,58,92,0.92), rgba(10,22,38,0.92));
            color:#cfe6ff; font-family:inherit; font-size:0.5rem; letter-spacing:1px;
            display:flex; align-items:center; justify-content:center;
+           box-shadow:0 3px 0 rgba(8,20,36,0.9), inset 0 1px 0 rgba(180,220,255,0.22);
+           transition:transform .07s ease, box-shadow .07s ease;
            -webkit-user-select:none; user-select:none; }
   .p2btn.wide { min-width:96px; }
   .tipmovil { display:none; color:#ffd257; }
   body.touch-ui .tipmovil { display:block; margin-bottom:5px; }
-  .p2btn:active { transform:scale(0.94); border-color:#fff; }
-  #btnAction { background:radial-gradient(circle at 35% 30%, #4fe07f, #14742f); }
+  .p2btn:active { transform:translateY(3px) scale(0.97); border-color:#fff;
+                  box-shadow:0 0 0 rgba(8,20,36,0.9), inset 0 2px 6px rgba(0,0,0,0.5); }
+  #btnAction { background:radial-gradient(circle at 35% 30%, #4fe07f, #14742f);
+               box-shadow:0 5px 14px rgba(0,0,0,0.5), inset 0 2px 0 rgba(220,255,230,0.35); }
   #btnAction.holding { background:radial-gradient(circle at 35% 30%, #ff8a5b, #b8330f); }
-  #btnAction.pressed { transform:scale(0.92); }
+  #btnAction.pressed { transform:scale(0.92);
+                       box-shadow:0 2px 6px rgba(0,0,0,0.5), inset 0 3px 9px rgba(0,0,0,0.4); }
   #btnAction.charging { box-shadow:0 0 0 4px rgba(255,226,102,0.55), 0 4px 12px rgba(0,0,0,0.45); }
   /* Los botones táctiles dependen del tipo de entrada REAL, no del ancho de
      ventana: una ventana de escritorio pequeña (o un .exe) no es un móvil. */
@@ -1914,8 +1944,7 @@ function omniIconURL(){
 function drawOmni(e){
   const s2 = S(e.x, e.y);
   const R = e.w*0.42;
-  ctx.fillStyle = 'rgba(0,0,0,0.30)';
-  ctx.beginPath(); ctx.ellipse(s2.x, s2.y+R*0.72, R*0.86, R*0.26, 0,0,Math.PI*2); ctx.fill();
+  sombra(s2.x, s2.y+R*0.72, R*2.0, R*0.62, 1);
 
   // patas: se mueven al caminar, se recogen al rodar
   const rodando = e.mode === 'roll';
@@ -7955,8 +7984,7 @@ function drawLamps(){
     if (l.dead || l.held || l.thrown) continue;     // en mano o volando se dibuja aparte
     if (l.x<camX-60 || l.x>camX+VW+60 || l.y<camY-60 || l.y>camY+VH+60) continue;
     const s2 = S(l.x, l.y);
-    ctx.fillStyle='rgba(0,0,0,0.20)';
-    ctx.beginPath(); ctx.ellipse(s2.x, s2.y, l.w*0.34, l.h*0.06, 0,0,Math.PI*2); ctx.fill();
+    sombra(s2.x, s2.y, l.w*0.78, l.h*0.15, 0.85);
     if (!drawSprite('lamp', s2.x, s2.y - l.h*0.44, l.w, l.h, 1, 0)){
       ctx.fillStyle='#2c4448'; ctx.fillRect(s2.x-3, s2.y-56, 6, 56);
     }
@@ -8230,6 +8258,99 @@ function S(x,y){ return {x: x-camX, y: y-camY}; }
 // de fondo nunca llegaban a verse. Se sustituyen por un único relleno de
 // baldosa que hace de suelo, lo que ahorra una pasada a pantalla completa.
 const WALK_TILE = 40;
+// ============ MANCHAS DE LUZ DEL SUELO ============
+// Claros y sombras muy tenues repartidos por la ciudad, para que el suelo no
+// sea una superficie plana. Se generan UNA vez en una textura de 256px y se
+// repiten con un patrón: un solo relleno por fotograma, cueste lo que cueste
+// el tamaño de la pantalla.
+let _luzPat = null;
+function luzPat(){
+  if (_luzPat) return _luzPat;
+  const T = 256;
+  const cv = document.createElement('canvas');
+  cv.width = cv.height = T;
+  const g = cv.getContext('2d');
+  // semilla fija: el mapa siempre se ve igual entre partidas
+  let sem = 20260911;
+  const rnd = ()=>{ sem = (sem*1664525 + 1013904223) & 0x7fffffff; return sem / 0x7fffffff; };
+  for (let i = 0; i < 14; i++){
+    const x = rnd()*T, y = rnd()*T, r = 34 + rnd()*62;
+    const claro = rnd() < 0.5;
+    const a = 0.030 + rnd()*0.035;
+    const rg = g.createRadialGradient(x, y, 0, x, y, r);
+    rg.addColorStop(0, claro ? `rgba(255,248,224,${a})` : `rgba(10,14,22,${a})`);
+    rg.addColorStop(1, claro ? 'rgba(255,248,224,0)'   : 'rgba(10,14,22,0)');
+    g.fillStyle = rg;
+    g.beginPath(); g.arc(x, y, r, 0, Math.PI*2); g.fill();
+  }
+  _luzPat = ctx.createPattern(cv, 'repeat');
+  return _luzPat;
+}
+
+function drawManchasLuz(){
+  const p = luzPat();
+  if (!p) return;
+  const T = 256;
+  const ox = -(((camX % T) + T) % T);
+  const oy = -(((camY % T) + T) % T);
+  ctx.save();
+  ctx.translate(ox, oy);
+  ctx.fillStyle = p;
+  ctx.fillRect(0, 0, VW + T, VH + T);
+  ctx.restore();
+}
+
+// ============ SOMBRAS SUAVES ============
+// Una sola mancha con degradado, generada una vez y reutilizada por todo lo
+// que proyecta sombra. Sale más barato que rellenar una elipse por objeto
+// (un drawImage frente a un trazado) y además el borde queda difuminado.
+let _somSp = null;
+function sombraSp(){
+  if (_somSp) return _somSp;
+  const R = 64;
+  const cv = document.createElement('canvas');
+  cv.width = cv.height = R*2;
+  const g = cv.getContext('2d');
+  const rg = g.createRadialGradient(R, R, 0, R, R, R);
+  rg.addColorStop(0,    'rgba(0,0,0,0.42)');
+  rg.addColorStop(0.45, 'rgba(0,0,0,0.30)');
+  rg.addColorStop(0.78, 'rgba(0,0,0,0.11)');
+  rg.addColorStop(1,    'rgba(0,0,0,0)');
+  g.fillStyle = rg;
+  g.beginPath(); g.arc(R, R, R, 0, Math.PI*2); g.fill();
+  _somSp = cv;
+  return cv;
+}
+
+// Hacia dónde cae la sombra y cuánto se estira: el sol recorre el cielo a lo
+// largo del día. Se calcula una vez por fotograma, no por objeto.
+let solX = 0.30, solY = 0.16, solLargo = 1, solFuerza = 1;
+function actualizaSol(){
+  const p = phase(), m = mezclaFase();
+  // 0 al amanecer, 1 al anochecer: el ángulo barre de un lado al otro
+  const idx = { amanecer:0, dia:1, atardecer:2, noche:3 }[p.id] || 0;
+  const t = (idx + m) / 4;
+  const ang = Math.PI * (0.18 + t*0.9);
+  solX = Math.cos(ang) * 0.42;
+  solY = 0.14 + Math.sin(ang) * 0.10;
+  // Al alba y al ocaso el sol está bajo y las sombras se alargan; a mediodía
+  // cae a plomo y casi no hay. (Con seno pasaba justo al revés.)
+  const bajo = Math.abs(Math.cos(t * Math.PI * 2));
+  solLargo = 1 + bajo * 0.55;
+  solFuerza = (p.id === 'noche') ? 0.55 : 1 - bajo*0.22;
+}
+
+// Dibuja la sombra de un objeto. (sx,sy) es donde pisa; w y h, su huella.
+function sombra(sx, sy, w, h, fuerza){
+  const sp = sombraSp();
+  const a = (fuerza === undefined ? 1 : fuerza) * solFuerza;
+  if (a <= 0.02) return;
+  const ww = w * solLargo, hh = h;
+  ctx.globalAlpha = a;
+  ctx.drawImage(sp, sx - ww/2 + w*solX, sy - hh/2 + h*solY, ww, hh);
+  ctx.globalAlpha = 1;
+}
+
 function drawBackground(){
   getWalkPats();
   // El patrón se ancla al MUNDO, no al lienzo: sin este desplazamiento las
@@ -8239,7 +8360,7 @@ function drawBackground(){
   const oy = -(((camY % T) + T) % T);
   ctx.save();
   ctx.translate(ox, oy);
-  ctx.fillStyle = walkPat || '#a2a0a5';
+  ctx.fillStyle = walkPat || '#a7a5aa';
   ctx.fillRect(0, 0, VW + T, VH + T);     // un poco de más para tapar el desfase
   ctx.restore();
 }
@@ -8248,7 +8369,15 @@ function drawRoads(){
   for (const r of roads){
     if (r.x+r.w<camX || r.x>camX+VW || r.y+r.h<camY || r.y>camY+VH) continue;
     const s = S(r.x,r.y);
-    ctx.fillStyle = '#3a3f42'; ctx.fillRect(s.x,s.y,r.w,r.h);
+    // El asfalto baja un punto y se enfría: así la acera clara y los edificios
+    // destacan sin tocar ningún sprite.
+    ctx.fillStyle = '#33383c'; ctx.fillRect(s.x,s.y,r.w,r.h);
+    // borde del bordillo: una línea clara donde la calzada encuentra la acera
+    ctx.globalAlpha = 0.16;
+    ctx.fillStyle = '#cfd4d8';
+    if (r.dir === 'v'){ ctx.fillRect(s.x, s.y, 2, r.h); ctx.fillRect(s.x+r.w-2, s.y, 2, r.h); }
+    else { ctx.fillRect(s.x, s.y, r.w, 2); ctx.fillRect(s.x, s.y+r.h-2, r.w, 2); }
+    ctx.globalAlpha = 1;
     ctx.strokeStyle = 'rgba(255,220,120,0.5)'; ctx.setLineDash([16,14]); ctx.lineWidth=2;
     ctx.beginPath();
     if (r.dir==='v'){ ctx.moveTo(s.x+r.w/2,s.y); ctx.lineTo(s.x+r.w/2,s.y+r.h); }
@@ -8305,8 +8434,15 @@ function drawBuildings(){
       continue;
     }
 
-    ctx.fillStyle='rgba(0,0,0,0.28)';
-    ctx.fillRect(s2.x+7, s2.y+9, b.w, b.h);
+    // La sombra del edificio cae según la hora: al alba y al ocaso se alarga
+    // y se tumba, a mediodía casi desaparece bajo la fachada. Sigue siendo un
+    // rectángulo relleno, así que no cuesta más que antes.
+    const desX = 7 + solX * 26 * solLargo;
+    const desY = 9 + solY * 26 * solLargo;
+    ctx.globalAlpha = 0.26 * solFuerza;
+    ctx.fillStyle = '#000';
+    ctx.fillRect(s2.x + desX, s2.y + desY, b.w, b.h);
+    ctx.globalAlpha = 1;
 
     const key = (b.set === 'C') ? (b.stage === 1 ? 'cafeDmg' : 'cafeOk')
               : (b.set === 'T') ? (b.stage === 1 ? 'tienDmg' : 'tienOk')
@@ -8379,8 +8515,7 @@ function drawTrash(t){
     return;
   }
   const s2 = S(t.x, t.y);
-  ctx.fillStyle='rgba(0,0,0,0.25)';
-  ctx.beginPath(); ctx.ellipse(s2.x, s2.y, t.w*0.34, t.h*0.11, 0,0,Math.PI*2); ctx.fill();
+  sombra(s2.x, s2.y, t.w*0.80, t.h*0.28, 0.9);
   const cy = (t.held || t.thrown) ? s2.y : s2.y - t.h*0.38;
   if (!drawSpriteTint('trash', t.tinte|0, TRASH_TINTES, s2.x, cy, t.w, t.h, 1, t.rot)){
     ctx.fillStyle='#6a6f75'; ctx.fillRect(s2.x-t.w/2, cy-t.h/2, t.w, t.h);
@@ -8389,8 +8524,7 @@ function drawTrash(t){
 
 function drawBench(b){
   const s2 = S(b.x, b.y);
-  ctx.fillStyle='rgba(0,0,0,0.24)';
-  ctx.beginPath(); ctx.ellipse(s2.x, s2.y, b.w*0.36, b.h*0.12, 0,0,Math.PI*2); ctx.fill();
+  sombra(s2.x, s2.y, b.w*0.84, b.h*0.30, 0.9);
   const cy = (b.held || b.thrown) ? s2.y : s2.y - b.h*0.36;
   if (!drawSprite(b.horiz ? 'benchH' : 'benchV', s2.x, cy, b.w, b.h, 1, b.rot)){
     ctx.fillStyle='#7a5433'; ctx.fillRect(s2.x-b.w/2, cy-b.h/2, b.w, b.h);
@@ -8412,8 +8546,7 @@ function drawTree(t){
   // El punto válido es la BASE del tronco: el sprite crece hacia arriba desde ahí,
   // así el árbol se apoya en la vereda en vez de quedar 21px más abajo.
   const cy = (t.held || t.thrown) ? s2.y : s2.y - t.h*0.42;
-  ctx.fillStyle='rgba(0,0,0,0.22)';
-  ctx.beginPath(); ctx.ellipse(s2.x, s2.y, t.w*0.30, t.h*0.09, 0,0,Math.PI*2); ctx.fill();
+  sombra(s2.x, s2.y, t.w*0.72, t.h*0.24, 1);
   // Doblado por la ráfaga del vuelo: gira sobre su base, no sobre el centro.
   if (t.viento){
     ctx.save();
@@ -8441,7 +8574,7 @@ function drawCivilian(c){
   const pelo = c.pelo || '#2b1d12';
   ctx.save(); ctx.translate(s.x,s.y);
   if (c.rot) ctx.rotate(c.rot);
-  ctx.fillStyle='rgba(0,0,0,0.25)'; ctx.beginPath(); ctx.ellipse(0,10,10,4,0,0,Math.PI*2); ctx.fill();
+  sombra(0, 10, 24, 11, 0.95);
   // ropa y brazos
   ctx.fillStyle=c.color; ctx.fillRect(-6,-4,12,16);
   ctx.fillStyle=piel; ctx.fillRect(-8,-2,2,7); ctx.fillRect(6,-2,2,7);
@@ -8484,8 +8617,7 @@ function drawCivilian(c){
 
 function drawCar(c){
   const s = S(c.x,c.y);
-  ctx.fillStyle='rgba(0,0,0,0.22)';
-  ctx.beginPath(); ctx.ellipse(s.x, s.y+c.h*0.42, c.w*0.42, c.h*0.2, 0,0,Math.PI*2); ctx.fill();
+  sombra(s.x, s.y+c.h*0.42, c.w*0.98, c.h*0.48, 0.95);
   // Solo cuando está prácticamente destruido: ahí también deja de circular.
   const maltrecho = c.hp <= c.maxhp * WRECK_HP;
   const skin = maltrecho ? (c.type === 'taxi' ? 'taxiDmg' : c.type === 'car' ? 'carDmg' : c.type)
@@ -8516,11 +8648,10 @@ function drawEnemy(e){
     return;
   }
   const alt = e.alt ? e.alt + Math.sin(e.bob*3)*4 : 0;
-  // ground shadow
-  ctx.fillStyle = `rgba(0,0,0,${alt ? 0.18 : 0.25})`;
-  ctx.beginPath();
-  ctx.ellipse(s.x, s.y + (e.h||34)*0.32, (e.w||28)*(alt?0.34:0.40), (e.h||34)*0.16, 0,0,Math.PI*2);
-  ctx.fill();
+  // Sombra en el suelo: lo que vuela la proyecta más tenue y recogida.
+  sombra(s.x, s.y + (e.h||34)*0.32,
+         (e.w||28)*(alt?0.80:0.94), (e.h||34)*(alt?0.30:0.38),
+         alt ? 0.62 : 0.95);
 
   const dy = s.y - alt;
   if (e.type==='police' || e.type==='military' || e.type==='minigun'){
@@ -8769,7 +8900,9 @@ function draw(){
   ctx.setTransform(ZOOM, 0, 0, ZOOM, 0, 0);   // todo el mundo se dibuja escalado
   ctx.save();
   if (shakeTime>0) ctx.translate(rand(-shakeMag,shakeMag), rand(-shakeMag,shakeMag));
+  actualizaSol();
   drawBackground(); drawRoads();
+  drawManchasLuz();                    // profundidad del suelo, un solo relleno
   drawBuildings(); drawPlanters(); drawLamps();
   // Las zonas marcadas del Artillero van DESPUÉS de los edificios: si no, los
   // escombros las tapaban justo donde más falta hace verlas.
