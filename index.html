@@ -1344,8 +1344,9 @@ const BANCO_MONEDAS = 79;
       const hue = 205 + Math.floor(R()*25) - 12;
       const light = 22 + Math.floor(R()*14);
       const mh = 140 + tier*55;
-      // ~40% de los edificios salen girados: misma caja cuadrada, otra silueta
-      const turn = R() < 0.40 ? (1 + Math.floor(R()*3)) : 0;   // 0,1,2,3 -> 0/90/180/270
+      // La mayoría miran de frente. Antes giraba el 40%; ahora un 16%, un 60%
+      // menos, así la ciudad se lee mejor y las fachadas dan a la calle.
+      const turn = R() < 0.16 ? (1 + Math.floor(R()*3)) : 0;   // 0,1,2,3 -> 0/90/180/270
       // De vez en cuando la manzana no lleva un solo edificio sino dos
       // pegados, uno junto a otro, compartiendo pared. Se reparten el ancho
       // (o el alto) y quedan alineados en el mismo ángulo.
@@ -1766,7 +1767,7 @@ function spawnEnemy(type, atX, atY){
   if (type==='ovni')      Object.assign(base, {hp:60,maxhp:60,speed:150, w:96,h:56,
                             alt:150, bob:rand(0,6), rumbo:0, pacifico:true,
                             fase:'llegada'});
-  if (type==='superx')    Object.assign(base, {hp:1650,maxhp:1650,speed:30, w:184,h:98,
+  if (type==='superx')    Object.assign(base, {hp:1450,maxhp:1450,speed:30, w:184,h:98,
                             alt:46, bob:rand(0,6),
                             shootCd:rand(0.8,1.4), escudoCd:rand(10,14), escudoT:0,
                             dashCd:rand(6,9), dashT:0, dashX:0, dashY:0, curado:0});
@@ -4539,7 +4540,7 @@ const BESTIARY = [
   { id:'mbtFrio', name:'MBT-MB92 FRÍO', hp:150, dmg:'26 + congelación', sprite:'mbtFrio', verb:'DESTRUIDOS',
     desc:'La misma pieza con el cañón recalibrado en azul. Apunta y carga igual, pero su rayo no quema: congela. Un impacto te deja clavado un segundo y medio, tiempo de sobra para que el resto del ejército se acerque. Es la variante menos frecuente de las dos.',
     states:[['mbtFrio','Apuntando']] },
-  { id:'superx', name:'SUPER X2', hp:1650, dmg:'11 + veneno', sprite:'superx', verb:'DERROTADOS',
+  { id:'superx', name:'SUPER X2', hp:1450, dmg:'11 + veneno', sprite:'superx', verb:'DERROTADOS',
     desc:'Plataforma flotante diseñada por el ejército específicamente contra el invasor. No pelea de cerca: si te acercas retrocede, y si la acorralas o la hieres se impulsa lejos de un salto para volver a distancia. Sus disparos son lentos como los de un soldado pero dejan veneno: encadenar impactos alarga el envenenamiento y te desgasta sin parar. Cada tanto levanta un escudo reflector que anula golpes y tentacazos, convierte en vida propia todo el daño que recibe con él puesto, y devuelve por donde vino cualquier cosa que le arrojes. No usa faros: se mueve a oscuras.',
     states:[['superx','En vuelo']] },
   { id:'artillero', name:'EL ARTILLERO', hp:1800, dmg:'misiles, minigun y embestida', sprite:'artOk',
@@ -7796,11 +7797,11 @@ function updateRegen(dt){
     // la pareja puede quedar tienda-tienda, café-café o mezclada.
     if (b.pareja){
       b.set = (Math.random() < 0.5) ? 'C' : 'T';
-      b.rot = (Math.random() < 0.4 ? 2 : 0) * Math.PI/2;   // 0° o 180°: no es cuadrado
+      b.rot = (Math.random() < 0.16 ? 2 : 0) * Math.PI/2;  // 0° o 180°: no es cuadrado
     } else {
       b.set = (Math.random() < BANCO_REGEN) ? 'B' : ((Math.random() < 0.5) ? 'G' : 'R');
       b.saqueado = false;
-      b.rot = (Math.random() < 0.40 ? (1 + Math.floor(Math.random()*3)) : 0) * Math.PI/2;
+      b.rot = (Math.random() < 0.16 ? (1 + Math.floor(Math.random()*3)) : 0) * Math.PI/2;
     }
     b.seed = Math.random()*1000;                   // otra silueta
     b.stage = 0; b.hp = b.maxhp; b.hitFlash = 0; b.downAt = undefined;   // reconstruido
