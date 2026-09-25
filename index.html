@@ -3550,7 +3550,20 @@ const SKINS = [
     limb:'#1d1810', tip:'#ffd85e', drip:true },
   // Colores y emblema de la bandera de Israel.
   { id:'israel',   name:'ISRAEL',  cost:180, c:['#f4f8ff','#8fb8e8','#2c5aa8'],
-    limb:'#4a7ec0', tip:'#0f3d91', flagIL:true }
+    limb:'#4a7ec0', tip:'#0f3d91', flagIL:true },
+  // Huaso chileno: chamanto oscuro con franjas de colores y greca, faja roja,
+  // tentáculos de cuero y la chupalla de paja con su cinta.
+  { id:'huaso',    name:'HUASO',   cost:190, c:['#3b2b22','#241811','#120b07'],
+    limb:'#6e4629', tip:'#c9302c', huaso:true,
+    muestra:'linear-gradient(#241811 0 26%,#c9302c 26% 32%,#f1ead8 32% 38%,#1f4fa0 38% 44%,#9c1f1c 44% 56%,#1f4fa0 56% 62%,#f1ead8 62% 68%,#c9302c 68% 74%,#241811 74%)' },
+  // Calabaza de Halloween: gajos naranjas, boca tallada que brilla y tallo.
+  { id:'calabaza', name:'CALABAZA',  cost:200, c:['#ffb347','#f07f16','#a8480a'],
+    limb:'#3f6b22', tip:'#f07f16', calabaza:true,
+    muestra:'radial-gradient(circle at 50% 55%, #ffd54a 0 12%, transparent 13%), repeating-linear-gradient(90deg, #f28a1f 0 22%, #d9670d 22% 26%), #f07f16' },
+  // Navidad: traje de Papá Noel con cinturón, ribete blanco y gorro.
+  { id:'navidad',  name:'NAVIDAD',   cost:200, c:['#f0444a','#c8141e','#7e0a10'],
+    limb:'#1f7a3a', tip:'#f4f4f0', navidad:true,
+    muestra:'linear-gradient(#d11a23 0 55%, #1a1210 55% 68%, #f4f4f0 68%)' }
 ];
 function skinById(id){
   if (id === 'custom') return customSkin;
@@ -3629,6 +3642,200 @@ function drawDrip(cx, cy, r, seed){
   ctx.beginPath(); ctx.arc(cx, cy + r*0.12, r*0.62, Math.PI*0.18, Math.PI*0.82); ctx.stroke();
   ctx.fillStyle = '#fff0a8';
   ctx.beginPath(); ctx.arc(cx, cy + r*0.74, Math.max(1.6, r*0.11), 0, Math.PI*2); ctx.fill();
+}
+
+// HUASO: el cuerpo es un chamanto. Base oscura, franjas de colores arriba y
+// abajo, una greca de rombos en el centro y la faja roja. Todo por fórmula.
+const HUASO_FRANJAS = ['#c9302c', '#f1ead8', '#1f4fa0', '#2f7d3a', '#e8b62c'];
+function drawHuaso(cx, cy, r, seed){
+  if (r < 3) return;
+  ctx.save();
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.clip();
+  // franjas horizontales, simétricas respecto al centro
+  const gr = Math.max(1, r*0.075);                   // grosor de cada franja
+  for (const lado of [-1, 1]){
+    let y = cy + lado*r*0.34;
+    for (let i = 0; i < HUASO_FRANJAS.length; i++){
+      ctx.fillStyle = HUASO_FRANJAS[i];
+      ctx.fillRect(cx - r, lado > 0 ? y : y - gr, r*2, gr);
+      y += lado * gr * 1.25;
+    }
+  }
+  // greca central: una fila de rombos claros sobre la banda roja
+  const bh = r*0.30;
+  ctx.fillStyle = '#9c1f1c';
+  ctx.fillRect(cx - r, cy - bh/2, r*2, bh);
+  if (r >= 7){
+    const paso = Math.max(4, r*0.34);
+    ctx.fillStyle = '#f1ead8';
+    ctx.beginPath();
+    for (let x = cx - r - paso; x <= cx + r + paso; x += paso){
+      ctx.moveTo(x, cy - bh*0.38); ctx.lineTo(x + paso*0.30, cy);
+      ctx.lineTo(x, cy + bh*0.38); ctx.lineTo(x - paso*0.30, cy);
+      ctx.closePath();
+    }
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+// CALABAZA: gajos verticales más oscuros y una boca tallada que brilla.
+function drawCalabaza(cx, cy, r, seed){
+  if (r < 3) return;
+  ctx.save();
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.clip();
+  // gajos: arcos verticales que dan volumen
+  ctx.strokeStyle = 'rgba(140,55,6,0.55)';
+  ctx.lineWidth = Math.max(1, r*0.07);
+  for (const k of [-0.62, -0.28, 0.28, 0.62]){
+    ctx.beginPath();
+    ctx.ellipse(cx + k*r*0.35, cy, Math.abs(k)*r*0.85, r*1.02, 0, 0, Math.PI*2);
+    ctx.stroke();
+  }
+  ctx.beginPath(); ctx.moveTo(cx, cy - r); ctx.lineTo(cx, cy + r); ctx.stroke();
+  // brillo de la piel
+  ctx.globalAlpha = 0.22; ctx.fillStyle = '#fff0c8';
+  ctx.beginPath(); ctx.ellipse(cx - r*0.35, cy - r*0.42, r*0.22, r*0.12, -0.5, 0, Math.PI*2); ctx.fill();
+  ctx.globalAlpha = 1;
+  // boca tallada en zigzag, con la luz de la vela dentro
+  if (r >= 7){
+    const bw = r*0.95, by = cy + r*0.30, bh = r*0.26;
+    ctx.fillStyle = '#3a1604';
+    ctx.beginPath();
+    ctx.moveTo(cx - bw/2, by - bh*0.35);
+    const n = 5;
+    for (let i = 0; i <= n; i++){
+      const x = cx - bw/2 + (bw*i)/n;
+      ctx.lineTo(x, by - bh*0.35 + (i%2 ? bh*0.35 : 0));
+    }
+    ctx.lineTo(cx + bw/2, by + bh*0.30);
+    for (let i = n; i >= 0; i--){
+      const x = cx - bw/2 + (bw*i)/n;
+      ctx.lineTo(x, by + bh*0.65 - (i%2 ? bh*0.35 : 0));
+    }
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = 'rgba(255,214,74,0.85)';
+    ctx.beginPath(); ctx.ellipse(cx, by + bh*0.15, bw*0.34, bh*0.26, 0, 0, Math.PI*2); ctx.fill();
+  }
+  ctx.restore();
+}
+// Tallo de la calabaza, con una hoja y un zarcillo enroscado.
+function drawTallo(cx, topY, t){
+  ctx.fillStyle = '#5a3a14';
+  ctx.beginPath();
+  ctx.moveTo(cx - t*0.16, topY + t*0.15);
+  ctx.lineTo(cx - t*0.10, topY - t*0.55);
+  ctx.lineTo(cx + t*0.16, topY - t*0.62);
+  ctx.lineTo(cx + t*0.18, topY + t*0.15);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#3f7a25';
+  ctx.beginPath(); ctx.ellipse(cx + t*0.55, topY - t*0.12, t*0.42, t*0.18, -0.4, 0, Math.PI*2); ctx.fill();
+  ctx.strokeStyle = '#2c5a1a'; ctx.lineWidth = Math.max(1, t*0.08);
+  ctx.beginPath(); ctx.moveTo(cx + t*0.22, topY - t*0.05); ctx.lineTo(cx + t*0.9, topY - t*0.22); ctx.stroke();
+  ctx.strokeStyle = '#3f7a25'; ctx.lineWidth = Math.max(1, t*0.07);
+  ctx.beginPath(); ctx.arc(cx - t*0.45, topY - t*0.10, t*0.22, 0.3, Math.PI*1.7); ctx.stroke();
+}
+
+// NAVIDAD: traje rojo con ribete blanco abajo y cinturón con hebilla dorada.
+function drawNavidad(cx, cy, r, seed){
+  if (r < 3) return;
+  ctx.save();
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.clip();
+  // ribete de piel blanca en la parte baja, con bultitos
+  // Bultos pequeños y solapados: se lee como piel mullida. Separados y más
+  // grandes parecían una hilera de dientes bajo el cinturón.
+  const fy = cy + r*0.70;
+  ctx.fillStyle = '#f4f4f0';
+  ctx.fillRect(cx - r, fy, r*2, r);
+  if (r >= 7){
+    for (let x = cx - r; x <= cx + r; x += r*0.13){
+      ctx.beginPath(); ctx.arc(x, fy, r*0.10, 0, Math.PI*2); ctx.fill();
+    }
+    ctx.fillStyle = 'rgba(180,180,175,0.45)';            // sombra suave de la piel
+    ctx.fillRect(cx - r, fy + r*0.16, r*2, r*0.05);
+  }
+  // cinturón negro con hebilla dorada
+  const cyB = cy + r*0.30, ch = r*0.20;
+  ctx.fillStyle = '#1a1210';
+  ctx.fillRect(cx - r, cyB - ch/2, r*2, ch);
+  if (r >= 5){
+    const hw = r*0.34, hh = ch*1.25;
+    ctx.fillStyle = '#e8b62c';
+    ctx.fillRect(cx - hw/2, cyB - hh/2, hw, hh);
+    ctx.fillStyle = '#1a1210';
+    ctx.fillRect(cx - hw*0.28, cyB - hh*0.22, hw*0.56, hh*0.44);
+  }
+  // botones blancos en el pecho
+  if (r >= 9){
+    ctx.fillStyle = '#f4f4f0';
+    for (const k of [-0.05]){
+      ctx.beginPath(); ctx.arc(cx, cy + k*r, r*0.06, 0, Math.PI*2); ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+// Gorro de Navidad: ribete blanco, cono rojo que cae hacia un lado y pompón.
+function drawGorroNavidad(cx, baseY, ancho){
+  const a = ancho/2;
+  // cono
+  ctx.fillStyle = '#c8141e';
+  ctx.beginPath();
+  ctx.moveTo(cx - a*0.85, baseY);
+  ctx.quadraticCurveTo(cx - a*0.35, baseY - ancho*0.95, cx + a*1.05, baseY - ancho*0.55);
+  ctx.quadraticCurveTo(cx + a*0.35, baseY - ancho*0.40, cx + a*0.85, baseY);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = 'rgba(0,0,0,0.18)';
+  ctx.beginPath();
+  ctx.moveTo(cx + a*0.2, baseY);
+  ctx.quadraticCurveTo(cx + a*0.35, baseY - ancho*0.40, cx + a*1.05, baseY - ancho*0.55);
+  ctx.quadraticCurveTo(cx + a*0.55, baseY - ancho*0.25, cx + a*0.85, baseY);
+  ctx.closePath(); ctx.fill();
+  // ribete blanco
+  ctx.fillStyle = '#f4f4f0';
+  const rh = ancho*0.17;
+  ctx.beginPath();
+  ctx.ellipse(cx, baseY, a*0.98, rh*0.72, 0, 0, Math.PI*2); ctx.fill();
+  // pompón
+  ctx.beginPath(); ctx.arc(cx + a*1.05, baseY - ancho*0.55, ancho*0.13, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = 'rgba(0,0,0,0.10)';
+  ctx.beginPath(); ctx.arc(cx + a*1.09, baseY - ancho*0.52, ancho*0.07, 0, Math.PI*2); ctx.fill();
+}
+
+// La chupalla: sombrero de paja de ala ancha y copa baja, con su cinta.
+// (cx, baseY) es el centro del ala; ancho, lo que mide de punta a punta.
+function drawChupalla(cx, baseY, ancho){
+  const a = ancho/2, alto = ancho*0.26;
+  // sombra del ala sobre la cabeza
+  ctx.fillStyle = 'rgba(0,0,0,0.25)';
+  ctx.beginPath(); ctx.ellipse(cx, baseY + ancho*0.05, a*0.92, ancho*0.08, 0, 0, Math.PI*2); ctx.fill();
+  // ala
+  ctx.fillStyle = '#d6b36f';
+  ctx.beginPath(); ctx.ellipse(cx, baseY, a, ancho*0.11, 0, 0, Math.PI*2); ctx.fill();
+  ctx.strokeStyle = '#8f6a2c'; ctx.lineWidth = Math.max(1, ancho*0.025);
+  ctx.stroke();
+  // copa: baja y de lados rectos, como la chupalla de verdad
+  const cw = a*0.56;
+  ctx.fillStyle = '#e2c283';
+  ctx.fillRect(cx - cw, baseY - alto, cw*2, alto);
+  ctx.beginPath(); ctx.ellipse(cx, baseY - alto, cw, ancho*0.06, 0, 0, Math.PI*2); ctx.fill();
+  ctx.strokeStyle = '#8f6a2c';
+  ctx.strokeRect(cx - cw, baseY - alto, cw*2, alto);
+  // trenzado de la paja, en líneas finas
+  if (ancho >= 20){
+    ctx.strokeStyle = 'rgba(143,106,44,0.55)'; ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let k = 1; k < 4; k++){
+      const yy = baseY - alto + (alto*k)/4;
+      ctx.moveTo(cx - cw, yy); ctx.lineTo(cx + cw, yy);
+    }
+    ctx.stroke();
+  }
+  // cinta negra con un toque rojo
+  const ch = Math.max(1.5, alto*0.28);
+  ctx.fillStyle = '#1a1210';
+  ctx.fillRect(cx - cw, baseY - ch*1.2, cw*2, ch);
+  ctx.fillStyle = '#c9302c';
+  ctx.fillRect(cx + cw*0.45, baseY - ch*1.2, Math.max(1, cw*0.22), ch);
 }
 
 // Bandera de Israel: dos franjas azules y la estrella de seis puntas.
@@ -3794,7 +4001,7 @@ function comboPts(pts){
 
 function coinsFor(sc, demo){ return Math.floor(sc/50) + demo*2; }
 
-const SKIN_UNICA = { drip:1, israel:1, cosmica:1 };
+const SKIN_UNICA = { drip:1, israel:1, cosmica:1, huaso:1, calabaza:1, navidad:1 };
 
 // ---- Skins hechas con una imagen propia ----
 // Se guarda la imagen ya reducida (240px de lado, JPEG) más el encuadre
@@ -3874,7 +4081,7 @@ function renderShop(){
       : owned ? `<button class="skinbtn own" data-use="${k.id}">USAR</button>`
       : `<button class="skinbtn buy${coins>=k.cost?'':' poor'}" data-buy="${k.id}">${k.cost} ⬤</button>`;
     return `<div class="skincard${active?' active':''}${uniq?' uniq':''}">
-      <span class="swatch" style="background:radial-gradient(circle at 34% 30%, ${k.c[0]}, ${k.c[1]} 60%, ${k.c[2]})"></span>
+      <span class="swatch" style="background:${k.muestra || `radial-gradient(circle at 34% 30%, ${k.c[0]}, ${k.c[1]} 60%, ${k.c[2]})`}"></span>
       <span class="skinname">${k.name}</span>${btn}</div>`;
   };
   const lk = document.getElementById('imgLock');
@@ -7189,6 +7396,9 @@ function drawViltrum(){
     if (SK.cosmic) drawCosmos(1, 0, 14, 1.3);
     if (SK.drip)   drawDrip(1, 0, 13, 1.3);
     if (SK.flagIL) drawFlagIL(1, 0, 13, 1.3);
+    if (SK.huaso)  drawHuaso(1, 0, 13, 1.3);
+    if (SK.calabaza) drawCalabaza(1, 0, 13, 1.3);
+    if (SK.navidad)  drawNavidad(1, 0, 13, 1.3);
     if (SK.imgRef){ ctx.save(); ctx.beginPath(); ctx.rect(-12,-9,26,18); ctx.clip();
                     pintaImgSkin(SK.imgRef, 1, 0, 14); ctx.restore(); }
     ctx.fillStyle = SOMBRA; ctx.fillRect(-12, -9, 5, 18);   // cintura hacia atrás
@@ -7197,6 +7407,9 @@ function drawViltrum(){
     if (SK.cosmic) drawCosmos(0, -1, 13, 1.3);        // el traje es un trozo de cielo
     if (SK.drip)   drawDrip(0, -1, 12, 1.3);
     if (SK.flagIL) drawFlagIL(0, -1, 12, 1.3);
+    if (SK.huaso)  drawHuaso(0, -1, 12, 1.3);
+    if (SK.calabaza) drawCalabaza(0, -1, 12, 1.3);
+    if (SK.navidad)  drawNavidad(0, -1, 12, 1.3);
     if (SK.imgRef){ ctx.save(); ctx.beginPath(); ctx.rect(-9,-12,18,23); ctx.clip();
                     pintaImgSkin(SK.imgRef, 0, -1, 13); ctx.restore(); }
     ctx.fillStyle = SOMBRA; ctx.fillRect(-9, 5, 18, 5);
@@ -7208,6 +7421,9 @@ function drawViltrum(){
   if (SK.cosmic) drawCosmos(ccx, ccy, 3.0, 2.7);      // galaxia en el pecho
   if (SK.drip)   drawDrip(ccx, ccy, 3.4, 2.7);
   if (SK.flagIL) drawFlagIL(ccx, ccy, 3.4, 2.7);
+  if (SK.huaso)  drawHuaso(ccx, ccy, 3.4, 2.7);
+  if (SK.calabaza) drawCalabaza(ccx, ccy, 3.4, 2.7);
+  if (SK.navidad)  drawNavidad(ccx, ccy, 3.4, 2.7);
   ctx.fillStyle = OSCURO; ctx.beginPath(); ctx.arc(0,-4,1.4,0,Math.PI*2); ctx.fill();
   // brazos
   const cargando = vil.charge > 0;
@@ -7242,6 +7458,18 @@ function drawViltrum(){
     ctx.beginPath(); ctx.arc(hx,hy,8.4,0,Math.PI*2); ctx.stroke();
     ctx.fillStyle = '#eaf3ff';
     ctx.fillRect(hx+1, hy-2.6, 5, 2.2);
+  } else if (SK.calabaza){
+    // cabeza de calabaza tallada, con ojos triangulares que brillan
+    ctx.fillStyle = '#f07f16'; ctx.beginPath(); ctx.arc(hx,hy,9,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle = 'rgba(140,55,6,0.6)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.ellipse(hx, hy, 4.5, 9, 0, 0, Math.PI*2); ctx.stroke();
+    ctx.strokeStyle = '#6e3208'; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.arc(hx,hy,9,0,Math.PI*2); ctx.stroke();
+    ctx.fillStyle = '#ffd54a';
+    ctx.beginPath(); ctx.moveTo(hx+1,hy-1); ctx.lineTo(hx+3.5,hy-4.5); ctx.lineTo(hx+6,hy-1); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(hx-5,hy-1); ctx.lineTo(hx-2.5,hy-4.5); ctx.lineTo(hx,hy-1); ctx.closePath(); ctx.fill();
+    ctx.fillRect(hx-4, hy+3, 9, 2);
+    drawTallo(hx, hy - 8.5, 5.5);
   } else {
     ctx.fillStyle = PELO;
     ctx.beginPath();
@@ -7249,6 +7477,8 @@ function drawViltrum(){
     ctx.lineTo(hx+8,hy); ctx.lineTo(hx-8,hy); ctx.closePath(); ctx.fill();
     ctx.fillRect(hx-9,hy-3,4,6);
     ctx.fillStyle = OJO; ctx.fillRect(hx+2,hy-1,4,2.6);
+    if (SK.huaso) drawChupalla(hx, hy - 5, 24);          // chupalla sobre la cabeza
+    if (SK.navidad) drawGorroNavidad(hx, hy - 5, 18);     // gorro de Navidad
   }
   ctx.restore();
 
@@ -9155,13 +9385,22 @@ function drawPlayer(){
   if (SK.cosmic) drawCosmos(s.x, s.y, R, 0);          // estrellas dentro del cuerpo
   if (SK.drip)   drawDrip(s.x, s.y, R, 0);
   if (SK.flagIL) drawFlagIL(s.x, s.y, R, 0);
+  if (SK.huaso)  drawHuaso(s.x, s.y, R, 0);
+  if (SK.calabaza) drawCalabaza(s.x, s.y, R, 0);
+  if (SK.navidad)  drawNavidad(s.x, s.y, R, 0);
   if (SK.imgRef){                                     // skin de imagen propia
     ctx.save();
     ctx.beginPath(); ctx.arc(s.x, s.y, R, 0, Math.PI*2); ctx.clip();
     pintaImgSkin(SK.imgRef, s.x, s.y, R);
     ctx.restore();
   }
-  ctx.strokeStyle = SK.cosmic ? '#4a5a80' : SK.drip ? '#ffd85e' : SK.flagIL ? '#0f3d91' : '#0b2712';
+  ctx.strokeStyle = SK.cosmic ? '#4a5a80' : SK.drip ? '#ffd85e' : SK.flagIL ? '#0f3d91'
+                  : SK.huaso ? '#1a1210' : SK.calabaza ? '#6e3208'
+                  : SK.navidad ? '#5c0d12' : '#0b2712';
+  // Se rehace el círculo antes de perfilarlo: las skins dibujan sus propios
+  // trazados, y sin esto el contorno se aplicaba al último de ellos (los
+  // rombos del huaso asomaban fuera del cuerpo y el cuerpo quedaba sin borde).
+  ctx.beginPath(); ctx.arc(s.x, s.y, R, 0, Math.PI*2);
   ctx.lineWidth=3; ctx.stroke();
   for (const side of [-1,1]){
     ctx.fillStyle='#0d1f10';
@@ -9169,6 +9408,9 @@ function drawPlayer(){
     ctx.fillStyle='#ffe066';
     ctx.beginPath(); ctx.arc(s.x+side*R*0.32, s.y-R*0.16, R*0.065,0,Math.PI*2); ctx.fill();
   }
+  if (SK.huaso) drawChupalla(s.x, s.y - R*0.66, R*2.3);   // la chupalla, bien puesta
+  if (SK.calabaza) drawTallo(s.x, s.y - R*0.92, R*0.62);  // tallo y hoja arriba
+  if (SK.navidad)  drawGorroNavidad(s.x, s.y - R*0.70, R*1.7);
 }
 
 function drawStun(x, y, tLeft){
