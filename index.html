@@ -948,7 +948,7 @@
         <div class="salalbl">Jugadores</div>
         <div id="salaLista" class="salalista"></div>
         <div id="salaEstado" class="salaestado">Esperando al otro jugador…</div>
-        <button class="small" id="btnSalaEmpezar" disabled>EMPEZAR · disponible en la próxima fase</button>
+        <button class="small" id="btnSalaEmpezar" disabled>EMPEZAR</button>
         <button class="small ghost" id="btnSalaSalir">Salir de la sala</button>
       </div>
       <div id="salaError" class="salaerror"></div>
@@ -2306,6 +2306,7 @@ let partN = 0;
     particles.push({x:0,y:0,vx:0,vy:0,life:0,maxlife:1,color:'#fff',r:3,drag:0.9,grow:0});
 })();
 function addParticles(x,y,color,n,spd){
+  if (_fxRed && Math.abs(x-player.x) < OL_CAJA_X && Math.abs(y-player.y) < OL_CAJA_Y) _fxRed.push(['p', Math.round(x), Math.round(y), color, n, spd]);
   for (let i=0;i<n;i++){
     if (partN >= PART_MAX) return;                 // techo duro: nunca se dispara
     const p = particles[partN++];
@@ -2324,6 +2325,7 @@ function addParticles(x,y,color,n,spd){
 // despacio, se hincha y se desvanece.
 let humoCursor = 0;
 function addSmoke(x, y){
+  if (_fxRed && Math.abs(x-player.x) < OL_CAJA_X && Math.abs(y-player.y) < OL_CAJA_Y) _fxRed.push(['h', Math.round(x), Math.round(y)]);
   let p;
   if (partN < PART_MAX) p = particles[partN++];
   else {
@@ -2345,7 +2347,7 @@ function addSmoke(x, y){
   p.drag = 0.985;                                   // apenas frena: se eleva
   p.grow = 5.5;                                     // se expande al subir
 }
-function shake(mag,t){ shakeMag = Math.max(shakeMag,mag); shakeTime = Math.max(shakeTime,t); }
+function shake(mag,t){ if (_fxRed) _fxRed.push(['k', mag, t]); shakeMag = Math.max(shakeMag,mag); shakeTime = Math.max(shakeTime,t); }
 
 let chainDepth = 0;
 function explode(x, y, radius, dmg, big, hurtPlayer){
@@ -2417,6 +2419,7 @@ function explodeSmall(x,y){ explode(x,y,86,45,false); }
 
 let toastTimer = 0;
 function toast(msg){
+  if (_fxRed) _fxRed.push(['t', msg]);
   const el = document.getElementById('toast');
   el.textContent = msg; el.style.opacity = '1'; toastTimer = 1.6;
 }
@@ -4661,6 +4664,7 @@ let sfxVoices = 0;
 const SFX_MAX_VOICES = 14;
 
 function sfx(name){
+  if (_fxRed && _fxRed.length < 200) _fxRed.push(['s', name]);
   if (!audio.ctx || !audio.sfxOn || !SFX[name]) return;
   const now = audio.ctx.currentTime;
   const gap = SFX_GAP[name] != null ? SFX_GAP[name] : 0.04;
@@ -5815,6 +5819,8 @@ function p2Refund(type){
 }
 
 function p2Place(){
+  if (Online.rol === 'invitado'){ if (Online.jugando) salaEnviar(Online.otro, { t:'acc', a:'place' }); return; }
+  if (enLineaAnfitrion() && !Online.desdeRed) return;    // en línea, el J2 es el otro
   if (gameMode !== 'vs' || !running) return;
   const u = P2_UNITS[p2.sel];
   if (!u) return;
@@ -5839,6 +5845,8 @@ function p2Place(){
 }
 
 function p2Cycle(dir){
+  if (Online.rol === 'invitado'){ if (Online.jugando) salaEnviar(Online.otro, { t:'acc', a: dir > 0 ? 'next' : 'prev' }); return; }
+  if (enLineaAnfitrion() && !Online.desdeRed) return;
   p2.sel = (p2.sel + dir + P2_UNITS.length) % P2_UNITS.length;
   sfx('ui');
 }
@@ -5849,7 +5857,9 @@ function updateVS(dt){
   // Si el Jugador 2 se pierde por el mapa, esta tecla le devuelve la mira
   // junto al alien. Con una pequeña espera para que no se pueda abusar.
   if (p2.recallCd > 0) p2.recallCd -= dt;
-  if (p2Pressed('p2Recall') && p2.recallCd <= 0){
+  const remoto = enLineaAnfitrion();                   // el J2 juega desde otro dispositivo
+  const quiereVolver = remoto ? Online.p2in.r : p2Pressed('p2Recall');
+  if (quiereVolver && p2.recallCd <= 0){
     const a = Math.random()*Math.PI*2;
     p2.x = clamp(player.x + Math.cos(a)*P2_RECALL_DIST, 40, WORLD_W-40);
     p2.y = clamp(player.y + Math.sin(a)*P2_RECALL_DIST, 40, WORLD_H-40);
@@ -5861,7 +5871,10 @@ function updateVS(dt){
 
   // cursor del jugador 2
   let dx=0, dy=0, mag=1;
-  if (p2Joy.active){                       // mando táctil del Jugador 2
+  if (remoto){
+    dx = Online.p2in.x; dy = Online.p2in.y;
+    mag = clamp(Math.sqrt(dx*dx+dy*dy), 0, 1);
+  } else if (p2Joy.active){                // mando táctil del Jugador 2
     dx = p2Joy.dx; dy = p2Joy.dy;
     mag = clamp(Math.sqrt(dx*dx+dy*dy), 0, 1);
   } else {
@@ -5989,6 +6002,7 @@ function renderP2Panel(){
 // ================= INPUT =================
 const keys = {};
 window.addEventListener('keydown', e=>{
+  if (enLineaInvitado()){ teclaInvitado(e, true); return; }
   const k = e.key.toLowerCase();
   // Doble toque de una dirección: activa el vuelo sónico del viltrumita.
   if (isVil() && running && !e.repeat){
@@ -6049,6 +6063,7 @@ canvas.addEventListener('mousemove', e=>{
   mouse.x = e.clientX - r.left; mouse.y = e.clientY - r.top;
 });
 canvas.addEventListener('mousedown', e=>{
+  if (enLineaInvitado()) return;
   if (isVil()){
     // Izquierdo: golpe (mantenido, golpe cargado). Derecho: agarrar / lanzar.
     if (e.button === 0){ vil.holding = true; vil.charge = 0.0001; }
@@ -6105,6 +6120,7 @@ function hideJoy(el,k){ el.style.display='none'; k.style.left=KNOB_OFF+'px'; k.s
 function knob(k,dx,dy){ k.style.left=(KNOB_OFF+dx*JOY_R*0.55)+'px'; k.style.top=(KNOB_OFF+dy*JOY_R*0.55)+'px'; }
 
 canvas.addEventListener('touchstart', e=>{
+  if (enLineaInvitado()) return;
   const r = canvas.getBoundingClientRect();
   for (const t of e.changedTouches){
     const x = t.clientX-r.left, y = t.clientY-r.top;
@@ -6680,6 +6696,9 @@ function bindP2Touch(){
   tocar('p2Next',  ()=> p2Cycle(1));
   tocar('p2Place', ()=> p2Place());
   tocar('p2Recall', ()=>{
+    // en línea, el invitado pide la mira al anfitrión durante un instante
+    if (Online.rol === 'invitado'){ Online.recallTactil = true; setTimeout(()=>{ Online.recallTactil = false; }, 300); return; }
+    if (enLineaAnfitrion()) return;
     if (p2.recallCd > 0) return;
     const a = Math.random()*Math.PI*2;
     p2.x = clamp(player.x + Math.cos(a)*P2_RECALL_DIST, 40, WORLD_W-40);
@@ -6714,6 +6733,7 @@ function aimAngle(){
   return Math.atan2(v.dy, v.dx);
 }
 function aimVector(){
+  if (_apRed && enLineaInvitado()) return _apRed;       // el tentáculo del anfitrión
   if (aimJoy.active){
     const m = Math.hypot(aimJoy.dx, aimJoy.dy);
     if (m < 0.08) return { dx:1, dy:0, mag:0.2 };
@@ -9935,7 +9955,15 @@ async function renderScoreList(){
 // ================= LOOP =================
 lastT = performance.now();
 function loop(t){
-  const dt = Math.min((t-lastT)/1000, 0.05); lastT = t;
+  // Acotado también por abajo: al reanudar una pausa, la marca del fotograma
+  // puede quedar un pelo por detrás de performance.now() y dar un paso negativo.
+  const dt = clamp((t-lastT)/1000, 0, 0.05); lastT = t;
+  if (enLineaInvitado()){                  // no simula: dibuja lo que manda el anfitrión
+    loopInvitado(dt);
+    draw();
+    requestAnimationFrame(loop);
+    return;
+  }
   if (running){
     updateZoom(dt); updateSonic(dt); updateFocos(dt); updateWind(dt); comboUpdate(dt);
     updateFuegos(dt); updateVeneno(dt); updateEstados(dt); updateRayos(dt);
@@ -9954,6 +9982,18 @@ function loop(t){
     camX = clamp(player.x-VW/2, 0, Math.max(0,WORLD_W-VW));
     camY = clamp(player.y-VH/2, 0, Math.max(0,WORLD_H-VH));
 
+    pintaHUD();
+    if (enLineaAnfitrion()) tickAnfitrion(dt);
+    if (hp<=0){
+      if (gameMode === 'vs' && !vsWinner) vsWinner = 'p2';
+      endGame();
+    }
+  }
+  draw();
+  requestAnimationFrame(loop);
+}
+// Marcador, reloj, panel del J2… Lo usan el anfitrión y el invitado.
+function pintaHUD(){
     document.getElementById('hpfill').style.width  = (hp/maxHp()*100)+'%';
     document.getElementById('evofill').style.width = (form>=1 ? 100 : clamp(kills/EVOLVE_KILLS,0,1)*100)+'%';
     const ew = document.getElementById('evowrap');
@@ -10004,13 +10044,6 @@ function loop(t){
       document.getElementById('vstime').textContent = mm+':'+String(ss).padStart(2,'0');
       document.getElementById('vsclock').classList.toggle('urgent', t <= 15);
     }
-    if (hp<=0){
-      if (gameMode === 'vs' && !vsWinner) vsWinner = 'p2';
-      endGame();
-    }
-  }
-  draw();
-  requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
 
@@ -10059,6 +10092,8 @@ function startGame(mode){
   pendingScore = null;
 }
 async function endGame(){
+  const enLinea = Online.activo;
+  terminaEnLinea();
   running = false;
   try { ocultaFlechaP2(); } catch(e){}
   pausedForQuit = false;
@@ -10109,6 +10144,10 @@ async function endGame(){
     await setupNameBox();                  // el jugador elige nombre y luego se registra
   }
   SaveIO.flush();
+  if (enLinea){                    // en línea no hay reintento inmediato: se vuelve a la sala
+    document.getElementById('btnRetry').style.display = 'none';
+    document.getElementById('btnMenu').textContent = 'Volver a la sala';
+  }
   document.getElementById('gameover').classList.remove('hidden');
 }
 
@@ -10907,6 +10946,13 @@ function pintaSala(){
     return `<div class="salajug"><span>${escapaHtml(j.nombre)}${yo}${j.anfitrion ? ' ★' : ''}</span>` +
            `<span class="rol">${rol}${lat}</span></div>`;
   }).join('');
+  const b = document.getElementById('btnSalaEmpezar');
+  if (b){
+    if (Sala.modo === 'doble'){ b.disabled = true; b.textContent = 'EMPEZAR · Doble Invasión llega en la próxima fase'; }
+    else if (!Sala.anfitrion){ b.disabled = true; b.textContent = 'Esperando a que el anfitrión empiece…'; }
+    else if (puedeEmpezar()){ b.disabled = false; b.textContent = 'EMPEZAR PARTIDA'; }
+    else { b.disabled = true; b.textContent = 'EMPEZAR · falta que se conecte el otro jugador'; }
+  }
 }
 function escapaHtml(t){
   return String(t).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -10955,6 +11001,9 @@ async function salirSala(){
 // ---- sondeo: presencia, lista de jugadores y señales ----
 async function sondeaSala(){
   if (!Sala.codigo) return;
+  const ahora = Date.now();
+  if (Online.jugando && ahora - (Sala.tSondeo || 0) < 10000) return;   // en partida, solo presencia
+  Sala.tSondeo = ahora;
   let r;
   try { r = await salaGet({ codigo:Sala.codigo, jugador:Sala.jugador, token:Sala.token, desde:Sala.desde }); }
   catch(e){
@@ -11019,7 +11068,15 @@ function preparaCanal(otro, canal){
     salaEnviar(otro, { t:'hola', nombre: document.getElementById('salaNombre').value, heroe: Sala.heroe });
     sfx('coin');
   };
-  canal.onclose = ()=>{ delete Sala.canales[otro]; };
+  canal.onclose = ()=>{
+    delete Sala.canales[otro];
+    if (enLineaAnfitrion()){ Online.jugando = false; _fxRed = null; toast('EL JUGADOR 2 SE DESCONECTÓ'); }
+    else if (enLineaInvitado()){
+      Online.jugando = false; endGame();
+      const gs = document.querySelector && document.querySelector('#gameover .subtitle');
+      if (gs) gs.textContent = 'Se perdió la conexión con el anfitrión';
+    }
+  };
   canal.onmessage = (ev)=>{
     let m; try { m = JSON.parse(ev.data); } catch(e){ return; }
     recibeMensaje(otro, m);
@@ -11052,9 +11109,347 @@ function salaEnviar(otro, m){
   return false;
 }
 function salaEnviarTodos(m){ for (const id in Sala.canales) salaEnviar(id, m); }
+// ================= PARTIDA EN LÍNEA (VERSUS) =================
+// El anfitrión simula la partida como siempre y, 15 veces por segundo, envía
+// al invitado lo que hay alrededor del alien. El invitado no simula nada:
+// dibuja eso (suavizando el movimiento entre envíos) y manda los controles
+// del Jugador 2. La ciudad es la misma en ambos (semilla fija), así que solo
+// viaja lo que cambia.
+var _fxRed = null;      // efectos a reenviar (solo en el anfitrión, mientras juega)
+var _apRed = null;      // puntería del anfitrión, para dibujar su tentáculo en el invitado
+const Online = {
+  activo:false, rol:null, otro:null, jugando:false,
+  acum:0, seq:0, nidSeq:0,
+  intervalo: 1/15,
+  p2in:{ x:0, y:0, r:false }, desdeRed:false,
+  ultimo:{ en:new Map(), ci:new Map(), ca:new Map(), bu:new Map(), pr:new Map() },
+  // invitado
+  tRecibida:0, mapas:{ en:new Map(), ci:new Map(), ca:new Map(), bu:new Map() },
+  heroePropio:null, skinPropia:null, ultimoMv:'', tMv:0, teclas:{},
+  bdSig:'', plN:-1, btKey:null
+};
+const OL_CAJA_X = 1400, OL_CAJA_Y = 950;     // lo que se envía alrededor del alien
+function enLineaInvitado(){ return Online.rol === 'invitado' && Online.jugando; }
+function enLineaAnfitrion(){ return Online.rol === 'anfitrion' && Online.jugando; }
+
+// Campos simples de un objeto (números redondeados, textos y booleanos).
+function _prim(o, out){
+  out = out || {};
+  for (const k in o){
+    if (k.charCodeAt(0) === 95) continue;          // '_' : de uso interno
+    const v = o[k], t = typeof v;
+    if (t === 'number') out[k] = Math.round(v*100)/100;
+    else if (t === 'boolean' || t === 'string') out[k] = v;
+  }
+  return out;
+}
+function _dentro(o){
+  return Math.abs(o.x - player.x) < OL_CAJA_X && Math.abs(o.y - player.y) < OL_CAJA_Y + (o.alt||0);
+}
+function _conId(o){ if (!o._nid) o._nid = ++Online.nidSeq; const d = _prim(o); d.id = o._nid; return d; }
+// Envío por diferencias: la primera vez que una entidad entra en la vista del
+// invitado viaja entera; después, solo los campos que cambiaron. El canal es
+// fiable y ordenado, así que no se pierde nada por el camino. Si sale de la
+// vista y vuelve, se manda entera otra vez (el invitado ya la había olvidado).
+function _delta(lista, previo, fuente){
+  const vistos = new Set(), out = [];
+  for (const o of fuente){
+    const d = _conId(o);
+    vistos.add(d.id);
+    const p = previo.get(d.id);
+    previo.set(d.id, d);
+    if (!p){ out.push(d); continue; }
+    const q = { id: d.id };
+    let hay = false;
+    for (const k in d) if (d[k] !== p[k]){ q[k] = d[k]; hay = true; }
+    // sin cambios: basta con el id, para que el invitado sepa que sigue ahí
+    out.push(hay ? q : { id: d.id });
+  }
+  for (const id of previo.keys()) if (!vistos.has(id)) previo.delete(id);
+  return out;
+}
+const OL_POOLS = { t:'trees', l:'lamps', b:'trash', n:'benches' };
+function _pool(c){ return c === 't' ? trees : c === 'l' ? lamps : c === 'b' ? trash : benches; }
+
+function instantaneaAnfitrion(){
+  const i = { t:'i', n: ++Online.seq,
+    gt: gameTime, sc: score, hp, form, kills, dem: demolished, stg: stage, vt: vsTimeLeft,
+    dr: drawR, fase: phaseIdx, hero, sk: activeSkin, rayos: rayosOn ? 1 : 0,
+    buff: [buffT, buffTipo], cl: [clima, nubeK, lluviaK],
+    cb: [comboN, comboT, comboFase, comboBonus, comboFlash],
+    pl: _prim(player), ap: aimVector(),
+    p2: { x:p2.x, y:p2.y, sel:p2.sel, mat:p2.mat, pf:p2.placeFlash, rc:p2.recallCd, cool:p2.cool.map(c => Math.round(c*10)/10) },
+    en:[], ci:[], ca:[], bu:[], pr:[], tz:[],
+    bo: booms.filter(_dentro).map(b => _prim(b)),
+    fu: fuegos.filter(_dentro).map(f => _prim(f)),
+    ra: rayos.map(r => _prim(r)),
+    sr: sonicRings.map(r => _prim(r)), wr: windRings.map(r => _prim(r)),
+    at: auraTxts.map(a => _prim(a)),
+    fx: _fxRed ? _fxRed.splice(0, _fxRed.length) : []
+  };
+  if (isVil()) i.vil = _prim(vil);
+  const bt = bossTrack ? Object.keys(BOSS_TRACKS).find(k => BOSS_TRACKS[k] === bossTrack) : null;
+  i.bt = bt || null;
+  const U = Online.ultimo;
+  i.en = _delta(null, U.en, enemies.filter(e => !e.dead && _dentro(e)));
+  i.ci = _delta(null, U.ci, civilians.filter(c => !c.dead && _dentro(c)));
+  i.ca = _delta(null, U.ca, cars.filter(c => !c.dead && _dentro(c)));
+  i.bu = _delta(null, U.bu, bullets.filter(_dentro));
+  for (const c in OL_POOLS){
+    for (const p of _pool(c)){
+      if (p.kind === 'edificio'){ if (!p.dead) i.tz.push(_prim(p)); continue; }
+      if (!_dentro(p)) continue;
+      const f = [c, p.si, p.dead?1:0, p.held?1:0, p.thrown?1:0, Math.round(p.x), Math.round(p.y),
+                 Math.round((p.rot||0)*100)/100, Math.round((p.viento||0)*1000)/1000, p.uprooted?1:0];
+      const clave = c + p.si, firma = f.join(',');
+      if (U.pr.get(clave) !== firma){ U.pr.set(clave, firma); i.pr.push(f); }
+    }
+  }
+  // lo que lleva en el tentáculo, para que el invitado lo sepa encontrar
+  if (heldObject && heldObject.ref){
+    const r = heldObject.ref;
+    let donde = null;
+    if (enemies.includes(r)) donde = ['en', r._nid];
+    else if (civilians.includes(r)) donde = ['ci', r._nid];
+    else if (cars.includes(r)) donde = ['ca', r._nid];
+    else if (r.kind === 'edificio') donde = ['tz', 0];
+    else for (const c in OL_POOLS) if (_pool(c).includes(r)) donde = ['pr', c, r.si];
+    i.ho = { d: donde, dur: heldObject.dur, max: heldObject.maxDur };
+  }
+  // edificios: solo cuando cambia algo (se derrumban, se rehacen…)
+  const bd = buildings.map(b => [b.stage, b.set || '', Math.round((b.rot||0)*100)/100, b.hp|0, b.maxhp|0,
+                                 b.saqueado ? 1 : 0, b.hitFlash > 0 ? 1 : 0, Math.round(b.seed||0)]);
+  const sig = JSON.stringify(bd);
+  if (sig !== Online.bdSig || Online.seq % 30 === 0){ Online.bdSig = sig; i.bd = bd; }
+  if (planters.length !== Online.plN || Online.seq % 30 === 0){ Online.plN = planters.length; i.pt = planters.map(p => _prim(p)); }
+  return i;
+}
+function tickAnfitrion(dt, forzar){
+  Online.acum += dt;
+  if (!forzar && Online.acum < Online.intervalo) return;
+  Online.acum = 0;
+  salaEnviar(Online.otro, instantaneaAnfitrion());
+}
+
+// ---- invitado: aplicar lo recibido ----
+function _sincroniza(datos, mapa){
+  const lista = [], vivos = new Set();
+  for (const d of datos){
+    let o = mapa.get(d.id);
+    const nuevo = !o;
+    if (nuevo){ o = {}; mapa.set(d.id, o); }
+    // la posición mostrada ahora es el punto de partida; el destino es la
+    // recibida o, si no vino (no se movió), la que ya tenía como destino
+    const x0 = nuevo ? d.x : o.x, y0 = nuevo ? d.y : o.y;
+    const x1 = (d.x !== undefined) ? d.x : o._x1, y1 = (d.y !== undefined) ? d.y : o._y1;
+    Object.assign(o, d);
+    o._x0 = x0; o._y0 = y0; o._x1 = x1; o._y1 = y1;
+    // un salto grande (lo lanzan, reaparece) no se suaviza: se coloca de golpe
+    if (Math.abs(x1 - x0) > 300 || Math.abs(y1 - y0) > 300){ o._x0 = x1; o._y0 = y1; }
+    o.x = o._x0; o.y = o._y0;
+    lista.push(o); vivos.add(d.id);
+  }
+  for (const id of mapa.keys()) if (!vivos.has(id)) mapa.delete(id);
+  return lista;
+}
+function aplicaInstantanea(i){
+  gameTime = i.gt; score = i.sc; hp = i.hp; form = i.form; kills = i.kills; demolished = i.dem;
+  stage = i.stg; vsTimeLeft = i.vt; drawR = i.dr; phaseIdx = i.fase; rayosOn = !!i.rayos;
+  buffT = i.buff[0]; buffTipo = i.buff[1];
+  clima = i.cl[0]; nubeK = i.cl[1]; lluviaK = i.cl[2];
+  comboN = i.cb[0]; comboT = i.cb[1]; comboFase = i.cb[2]; comboBonus = i.cb[3]; comboFlash = i.cb[4];
+  hero = i.hero; activeSkin = i.sk;
+  const px0 = player.x, py0 = player.y;
+  Object.assign(player, i.pl);
+  player._x0 = px0; player._y0 = py0; player._x1 = i.pl.x; player._y1 = i.pl.y;
+  if (Math.abs(i.pl.x - px0) > 300 || Math.abs(i.pl.y - py0) > 300){ player._x0 = i.pl.x; player._y0 = i.pl.y; }
+  player.x = player._x0; player.y = player._y0;
+  _apRed = i.ap;
+  if (i.vil) Object.assign(vil, i.vil);
+  Object.assign(p2, { x:i.p2.x, y:i.p2.y, sel:i.p2.sel, mat:i.p2.mat, placeFlash:i.p2.pf, recallCd:i.p2.rc });
+  p2.cool = i.p2.cool;
+  enemies   = _sincroniza(i.en, Online.mapas.en);
+  civilians = _sincroniza(i.ci, Online.mapas.ci);
+  cars      = _sincroniza(i.ca, Online.mapas.ca);
+  bullets   = _sincroniza(i.bu, Online.mapas.bu);
+  booms = i.bo;
+  fuegos.length = 0; for (const f of i.fu) fuegos.push(f);
+  rayos.length = 0;  for (const r of i.ra) rayos.push(r);
+  sonicRings.length = 0; for (const r of i.sr) sonicRings.push(r);
+  windRings.length = 0;  for (const r of i.wr) windRings.push(r);
+  auraTxts.length = 0;   for (const a of i.at) auraTxts.push(a);
+  for (const p of i.pr){
+    const arr = _pool(p[0]);
+    let o = arr.find(q => q.si === p[1] && q.kind !== 'edificio');
+    if (!o){ o = makeProp(OL_POOLS[p[0]] === 'trees' ? 'tree' : OL_POOLS[p[0]] === 'lamps' ? 'lamp'
+                          : OL_POOLS[p[0]] === 'trash' ? 'trash' : 'bench', { x:p[5], y:p[6], si:p[1] }); arr.push(o); }
+    o.dead = !!p[2]; o.held = !!p[3]; o.thrown = !!p[4]; o.x = p[5]; o.y = p[6];
+    o.rot = p[7]; o.viento = p[8]; o.uprooted = !!p[9];
+  }
+  for (let k = trash.length - 1; k >= 0; k--) if (trash[k].kind === 'edificio') trash.splice(k, 1);
+  for (const z of i.tz) trash.push(z);
+  if (i.bd){
+    i.bd.forEach((d, k) => {
+      const b = buildings[k]; if (!b) return;
+      b.stage = d[0]; b.set = d[1] || b.set; b.rot = d[2]; b.hp = d[3]; b.maxhp = d[4];
+      b.saqueado = !!d[5]; b.hitFlash = d[6] ? 0.1 : 0; b.seed = d[7];
+    });
+  }
+  if (i.pt){ planters.length = 0; for (const p of i.pt) planters.push(p); }
+  heldObject = null;
+  if (i.ho && i.ho.d){
+    const d = i.ho.d; let ref = null;
+    if (d[0] === 'en') ref = Online.mapas.en.get(d[1]);
+    else if (d[0] === 'ci') ref = Online.mapas.ci.get(d[1]);
+    else if (d[0] === 'ca') ref = Online.mapas.ca.get(d[1]);
+    else if (d[0] === 'tz') ref = trash.find(t => t.kind === 'edificio' && t.held);
+    else if (d[0] === 'pr') ref = _pool(d[1]).find(q => q.si === d[2] && q.kind !== 'edificio');
+    if (ref) heldObject = { ref, dur: i.ho.dur, maxDur: i.ho.max };
+  }
+  for (const f of i.fx){
+    if (f[0] === 'p') addParticles(f[1], f[2], f[3], f[4], f[5]);
+    else if (f[0] === 'h') addSmoke(f[1], f[2]);
+    else if (f[0] === 's') sfx(f[1]);
+    else if (f[0] === 't') toast(f[1]);
+    else if (f[0] === 'k') shake(f[1], f[2]);
+  }
+  if (i.bt !== Online.btKey){
+    Online.btKey = i.bt;
+    bossTrack = i.bt ? BOSS_TRACKS[i.bt] : null;
+    if (audio.musOn){ if (!audio.musicTimer) startMusic(); else retuneMusic(); }
+  }
+  Online.tRecibida = performance.now()/1000;
+}
+function _interpola(lista, t){
+  for (const o of lista){
+    if (o._x1 === undefined) continue;
+    o.x = o._x0 + (o._x1 - o._x0)*t; o.y = o._y0 + (o._y1 - o._y0)*t;
+  }
+}
+function loopInvitado(dt){
+  if (Online.pendiente){ aplicaInstantanea(Online.pendiente); Online.pendiente = null; }
+  const t = clamp((performance.now()/1000 - Online.tRecibida) / Online.intervalo, 0, 1);
+  _interpola(enemies, t); _interpola(civilians, t); _interpola(cars, t); _interpola(bullets, t);
+  if (player._x1 !== undefined){
+    player.x = player._x0 + (player._x1 - player._x0)*t;
+    player.y = player._y0 + (player._y1 - player._y0)*t;
+  }
+  updateFX(dt); updateZoom(dt);
+  if (shakeTime > 0){ shakeTime -= dt; if (shakeTime <= 0) shakeMag = 0; }
+  camX = clamp(player.x - VW/2, 0, Math.max(0, WORLD_W - VW));
+  camY = clamp(player.y - VH/2, 0, Math.max(0, WORLD_H - VH));
+  pintaHUD();
+  enviaMandoInvitado();
+}
+// Controles del Jugador 2 en el dispositivo del invitado.
+function enviaMandoInvitado(){
+  let dx = 0, dy = 0;
+  if (p2Joy.active){ dx = p2Joy.dx; dy = p2Joy.dy; }
+  else {
+    const T = Online.teclas;
+    if (T.arrowup || T.w) dy -= 1;
+    if (T.arrowdown || T.s) dy += 1;
+    if (T.arrowleft || T.a) dx -= 1;
+    if (T.arrowright || T.d) dx += 1;
+  }
+  const r = !!(Online.teclas.home || Online.teclas.r || Online.recallTactil);
+  const firma = dx.toFixed(2) + ',' + dy.toFixed(2) + ',' + (r ? 1 : 0);
+  const ahora = performance.now();
+  if (firma !== Online.ultimoMv || ahora - Online.tMv > 250){
+    Online.ultimoMv = firma; Online.tMv = ahora;
+    salaEnviar(Online.otro, { t:'mv', x: Math.round(dx*100)/100, y: Math.round(dy*100)/100, r });
+  }
+}
+function teclaInvitado(e, abajo){
+  const k = e.key.toLowerCase();
+  Online.teclas[k] = abajo;
+  if (!abajo || e.repeat) return;
+  if (k === 'enter' || k === ' ' || k === 'e' || k === bindsP2.p2Place) p2Place();
+  else if (k === 'pagedown' || k === 'x' || k === '.' || k === bindsP2.p2Next) p2Cycle(1);
+  else if (k === 'pageup' || k === 'z' || k === ',' || k === bindsP2.p2Prev) p2Cycle(-1);
+  if (['arrowup','arrowdown','arrowleft','arrowright',' ','pageup','pagedown','home'].includes(k)) e.preventDefault && e.preventDefault();
+}
+
+// ---- empezar y terminar ----
+function puedeEmpezar(){
+  const otro = Sala.jugadores.find(j => j.id !== Sala.jugador);
+  return Sala.modo === 'vs' && Sala.anfitrion && otro && Sala.canales[otro.id] &&
+         Sala.canales[otro.id].readyState === 'open';
+}
+function empiezaEnLinea(){
+  if (!puedeEmpezar()) return;
+  const otro = Sala.jugadores.find(j => j.id !== Sala.jugador);
+  Online.activo = true; Online.rol = 'anfitrion'; Online.otro = otro.id;
+  Online.seq = 0; Online.acum = 0; Online.bdSig = ''; Online.plN = -1;
+  for (const k in Online.ultimo) Online.ultimo[k].clear();
+  Online.p2in = { x:0, y:0, r:false };
+  salaPost({ accion:'empezar', codigo:Sala.codigo, jugador:Sala.jugador, token:Sala.token }).catch(()=>{});
+  salaEnviar(otro.id, { t:'empezar', hero: Sala.heroe, sk: activeSkin });
+  Online.heroePropio = hero;
+  hero = Sala.heroe;
+  hide('sala');
+  startGame('vs');
+  _fxRed = [];
+  Online.jugando = true;
+}
+function empiezaComoInvitado(m, otro){
+  Online.activo = true; Online.rol = 'invitado'; Online.otro = otro;
+  Online.heroePropio = hero; Online.skinPropia = activeSkin;
+  Online.teclas = {}; Online.pendiente = null; Online.btKey = null;
+  for (const k in Online.mapas) Online.mapas[k].clear();
+  hero = m.hero; activeSkin = m.sk;
+  hide('sala');
+  startGame('vs');
+  // el invitado no maneja al alien: fuera sus botones y su joystick
+  document.getElementById('actionBtns').classList.remove('playing');
+  _fxRed = null;
+  Online.jugando = true;
+  toast('¡A POR ÉL! MANDAS AL EJÉRCITO');
+}
+function terminaEnLinea(){
+  // el anfitrión avisa del final; el invitado, de que se va
+  if (enLineaAnfitrion()){
+    tickAnfitrion(0, true);
+    salaEnviar(Online.otro, { t:'fin', w: vsWinner });
+  } else if (enLineaInvitado()){
+    salaEnviar(Online.otro, { t:'adios' });
+  }
+  Online.jugando = false;
+  _fxRed = null; _apRed = null;
+}
+function volverASala(){
+  if (Online.heroePropio) hero = Online.heroePropio;
+  if (Online.rol === 'invitado' && Online.skinPropia) activeSkin = Online.skinPropia;
+  Online.activo = false; Online.rol = null; Online.jugando = false;
+  document.getElementById('gameover').classList.add('hidden');
+  document.getElementById('btnRetry').style.display = '';
+  document.getElementById('btnMenu').textContent = 'Volver al menú';
+  document.getElementById('salaEntrada').classList.add('hidden');
+  document.getElementById('salaDentro').classList.remove('hidden');
+  show('sala');
+  pintaSala();
+}
+
 function recibeMensaje(otro, m){
   if (m.t === 'ping') salaEnviar(otro, { t:'pong', ts:m.ts });
-  else if (m.t === 'pong'){ Sala.latencia[otro] = Math.max(1, Date.now() - m.ts); pintaSala(); }
+  else if (m.t === 'pong'){ Sala.latencia[otro] = Math.max(1, Date.now() - m.ts); if (!Online.jugando) pintaSala(); }
+  else if (m.t === 'i'){ if (enLineaInvitado()) Online.pendiente = m; }       // se aplica en el próximo fotograma
+  else if (m.t === 'mv'){ if (enLineaAnfitrion()) Online.p2in = { x:+m.x||0, y:+m.y||0, r:!!m.r }; }
+  else if (m.t === 'acc' && enLineaAnfitrion()){
+    Online.desdeRed = true;
+    try { if (m.a === 'place') p2Place(); else if (m.a === 'next') p2Cycle(1); else if (m.a === 'prev') p2Cycle(-1); }
+    finally { Online.desdeRed = false; }
+  }
+  else if (m.t === 'empezar' && !Sala.anfitrion) empiezaComoInvitado(m, otro);
+  else if (m.t === 'fin' && enLineaInvitado()){
+    Online.jugando = false;
+    vsWinner = m.w;
+    endGame();
+  }
+  else if (m.t === 'adios' && enLineaAnfitrion()){
+    Online.jugando = false; _fxRed = null;
+    toast('EL JUGADOR 2 SE DESCONECTÓ');
+  }
 }
 
 // ---- botones de modos y sala ----
@@ -11072,6 +11467,7 @@ function cambiaHeroeSala(h){
                      .then(sondeaSala).catch(()=>{});
 }
 document.getElementById('btnSalaCrear').addEventListener('click', crearSala);
+document.getElementById('btnSalaEmpezar').addEventListener('click', ()=>{ sfx('ui'); empiezaEnLinea(); });
 document.getElementById('btnSalaUnirse').addEventListener('click', unirseSala);
 document.getElementById('salaCodigo').addEventListener('input', (e)=>{
   e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 5);
@@ -11091,6 +11487,7 @@ document.getElementById('btnModeVs').addEventListener('click', ()=>{ sfx('ui'); 
 document.getElementById('btnRetry').addEventListener('click', ()=> startGame(gameMode));
 document.getElementById('btnMenu').addEventListener('click', async ()=>{
   sfx('ui');
+  if (Online.activo){ volverASala(); return; }
   await flushPendingScore();
   document.getElementById('gameover').classList.add('hidden');
   document.getElementById('modeselect').classList.add('hidden');
