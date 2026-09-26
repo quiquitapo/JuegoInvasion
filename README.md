@@ -89,7 +89,7 @@ juego solo conoce la ruta `/api/scores`.
 ### `GET /api/scores?limit=25&hero=alien`
 
 Hay **una tabla por personaje**, igual que en el ranking local. `hero` acepta
-`alien` o `viltrum`; si se omite, devuelve el ranking conjunto.
+`alien`, `viltrum` o `dragon`; si se omite, devuelve el ranking conjunto.
 
 ```json
 { "ok": true, "scores": [

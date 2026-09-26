@@ -14,7 +14,7 @@ import { neon } from '@neondatabase/serverless';
 
 const MAX_SCORE    = 5000000;   // techo defensivo: por encima se rechaza
 const MAX_NOMBRE   = 14;
-const HEROES       = ['alien', 'viltrum'];
+const HEROES       = ['alien', 'viltrum', 'dragon'];
 const DISPOSITIVOS = ['pc', 'movil'];
 
 function conexion() {

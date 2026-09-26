@@ -20,7 +20,7 @@ import { neon } from '@neondatabase/serverless';
 import { randomBytes } from 'node:crypto';
 
 const MODOS        = ['vs', 'doble'];
-const HEROES       = ['alien', 'viltrum'];
+const HEROES       = ['alien', 'viltrum', 'dragon'];
 const TIPOS_SENAL  = ['oferta', 'respuesta', 'candidato'];
 const MAX_JUGADORES = 2;          // ambos modos son de a dos
 const MAX_NOMBRE   = 14;
