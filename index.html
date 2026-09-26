@@ -453,11 +453,36 @@
   body.movil #btnDexBack,
   body.movil #btnCtrlBack,
   body.movil #btnAchBack,
-  body.movil #btnModeBack {
+  body.movil #btnModeBack,
+  body.movil #btnSalaVolver {
     position:fixed; top:calc(8px + env(safe-area-inset-top, 0px));
     left:calc(8px + env(safe-area-inset-left, 0px));
     margin:0; z-index:40; padding:9px 16px;
   }
+  .salabox { width:min(420px,92vw); margin:10px auto 0; padding:14px 16px; border-radius:10px;
+             background:linear-gradient(180deg, rgba(14,30,20,0.92), rgba(6,14,9,0.92));
+             border:1px solid #2a7a4a; box-shadow:0 3px 0 rgba(0,0,0,0.4); text-align:center; }
+  .salalbl { font-size:0.52rem; letter-spacing:2px; color:#8fffb4; margin:10px 0 5px; }
+  .salain { width:100%; box-sizing:border-box; padding:9px 10px; border-radius:7px; font-family:inherit;
+            font-size:0.8rem; color:#e8ffef; background:rgba(0,0,0,0.45); border:1px solid #2fe86e; }
+  .salain.codigo { text-transform:uppercase; letter-spacing:6px; text-align:center; font-weight:900; }
+  .salaheroes { display:flex; gap:8px; justify-content:center; }
+  .salaheroes .small { margin-top:0; flex:1; }
+  .salahero.on { background:linear-gradient(180deg,#2fe86e,#128a3c); color:#04210f; }
+  .salasep { font-size:0.5rem; color:#6f9a80; margin:12px 0 6px; letter-spacing:1px; }
+  .salaunir { display:flex; gap:8px; }
+  .salaunir .small { margin-top:0; }
+  .salacodigo { font-size:2rem; font-weight:900; letter-spacing:10px; color:#ffe066;
+                text-shadow:0 2px 0 rgba(0,0,0,0.6); padding:4px 0; }
+  .salalista { display:flex; flex-direction:column; gap:6px; }
+  .salajug { display:flex; justify-content:space-between; align-items:center; padding:7px 10px;
+             border-radius:7px; background:rgba(0,0,0,0.35); border:1px solid #1f5c37; font-size:0.62rem; }
+  .salajug .rol { color:#8fd7ff; font-size:0.5rem; letter-spacing:1px; }
+  .salaestado { margin:10px 0 2px; font-size:0.56rem; color:#cfe6d8; min-height:1.2em; }
+  .salaestado.ok { color:#7bffa0; }
+  .salaestado.mal { color:#ff8a7a; }
+  .salaerror { color:#ff8a7a; font-size:0.56rem; min-height:1.1em; margin-top:8px; }
+  #btnSalaEmpezar:disabled { opacity:0.55; }
   .pausacfg { margin:10px 0 4px; padding:9px 0; border-top:1px dashed #1f4a2c;
               border-bottom:1px dashed #1f4a2c; }
   .pausacfg .volrow { margin-bottom:6px; }
@@ -864,8 +889,71 @@
           <canvas class="modeanim" id="animVs" width="230" height="130"></canvas>
         </div>
       </div>
+
+      <div class="modecard" id="cardDoble">
+        <div class="modename">DOBLE INVASIÓN</div>
+        <div class="modetag">2 jugadores en línea · cooperativo</div>
+        <div class="modedesc">
+          Invadid la ciudad <b>juntos</b>, cada uno desde su teléfono u ordenador. Uno crea una
+          <b>sala</b> y comparte el <b>código</b>; el otro lo escribe y entra. Cada jugador pone su
+          nombre y elige personaje, y se pueden repetir: dos crías, dos viltrumitas o uno de cada.<br>
+          <span class="moderec">Necesita conexión a internet y la versión publicada del juego.</span>
+        </div>
+        <div class="playrow">
+          <span class="btnwrap">
+            <button class="big modebtn" id="btnModeDoble">JUGAR EN LÍNEA</button>
+          </span>
+        </div>
+      </div>
     </div>
     <button class="small" id="btnModeBack">Volver</button>
+  </div>
+
+  <!-- ============ VERSUS: LOCAL O EN LÍNEA ============ -->
+  <div id="vselige" class="overlay hidden">
+    <div class="confirmbox">
+      <h3>CONTRA OTRO JUGADOR</h3>
+      <p>¿Cómo queréis jugar?</p>
+      <div class="confirm-row" style="flex-direction:column;gap:8px">
+        <button class="small" id="btnVsLocal">LOCAL · mismo dispositivo</button>
+        <button class="small" id="btnVsOnline">MULTIJUGADOR · en línea, creando una sala</button>
+        <button class="small ghost" id="btnVsElegirNo">Volver</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ SALA MULTIJUGADOR ============ -->
+  <div id="sala" class="overlay hidden">
+    <h1 class="title" style="font-size:clamp(1.3rem,4.6vw,2.4rem)" id="salaTitulo">SALA</h1>
+    <div class="subtitle" id="salaSub">Juega con otra persona desde otro dispositivo</div>
+    <div class="salabox">
+      <div id="salaEntrada">
+        <label class="salalbl" for="salaNombre">Tu nombre</label>
+        <input id="salaNombre" class="salain" maxlength="14" autocomplete="off" placeholder="Escribe tu nombre">
+        <div class="salalbl" id="salaHeroeLbl">Tu personaje</div>
+        <div class="salaheroes">
+          <button type="button" class="small salahero on" id="salaHeroeAlien">CRÍA</button>
+          <button type="button" class="small salahero" id="salaHeroeVil">VILTRUMITA</button>
+        </div>
+        <button class="small" id="btnSalaCrear">CREAR SALA</button>
+        <div class="salasep">o entra en la de otra persona</div>
+        <div class="salaunir">
+          <input id="salaCodigo" class="salain codigo" maxlength="5" autocomplete="off" placeholder="CÓDIGO">
+          <button class="small" id="btnSalaUnirse">UNIRSE</button>
+        </div>
+      </div>
+      <div id="salaDentro" class="hidden">
+        <div class="salalbl">Código de la sala · compártelo</div>
+        <div class="salacodigo" id="salaCodigoVer">-----</div>
+        <div class="salalbl">Jugadores</div>
+        <div id="salaLista" class="salalista"></div>
+        <div id="salaEstado" class="salaestado">Esperando al otro jugador…</div>
+        <button class="small" id="btnSalaEmpezar" disabled>EMPEZAR · disponible en la próxima fase</button>
+        <button class="small ghost" id="btnSalaSalir">Salir de la sala</button>
+      </div>
+      <div id="salaError" class="salaerror"></div>
+    </div>
+    <button class="small" id="btnSalaVolver">Volver</button>
   </div>
 
   <!-- ============ CONFIRMAR SALIDA ============ -->
@@ -1780,9 +1868,10 @@ function spawnEnemy(type, atX, atY){
                             grabbable:true, rayoFase:'espera', rayoT:rand(2,4),
                             rayoAng:0, frio: type==='mbtFrio'});
   // OVNI: visitante despistado. No ataca ni te persigue, solo cruza la ciudad.
+  // Se puede agarrar como el caza: es liviano, así que no hace falta ser COLOSO.
   if (type==='ovni')      Object.assign(base, {hp:60,maxhp:60,speed:150, w:96,h:56,
                             alt:150, bob:rand(0,6), rumbo:0, pacifico:true,
-                            fase:'llegada'});
+                            fase:'llegada', grabbable:true});
   if (type==='superx')    Object.assign(base, {hp:1450,maxhp:1450,speed:30, w:184,h:98,
                             alt:46, bob:rand(0,6),
                             shootCd:rand(0.8,1.4), escudoCd:rand(10,14), escudoT:0,
@@ -6659,8 +6748,9 @@ function grabbablesNear(tip, range){
   for (const b of benches){ if (b.dead||b.thrown) continue; const d=dist(tip.x,tip.y,b.x,b.y); if(d<bd){bd=d;best=b;} }
   for (const e of enemies){
     if (e.dead||e.thrown||!e.grabbable) continue;
-    // la infantería se agarra siempre; los blindados solo siendo COLOSO
-    if (!e.person && e.type !== 'plane' && !F().heavyGrab) continue;
+    // la infantería se agarra siempre; los blindados solo siendo COLOSO; el
+    // caza y el OVNI son livianos y se agarran igual, sin hacer falta serlo
+    if (!e.person && e.type !== 'plane' && e.type !== 'ovni' && !F().heavyGrab) continue;
     // El cañón de asedio está anclado al suelo: solo el regalo del OVNI
     // da fuerza para arrancarlo.
     if (e.type === 'siege' && !buffActivo('gigante')) continue;
@@ -6736,6 +6826,7 @@ function distCuerpo(px, py, e){
 }
 // Altura a la que se ve un enemigo volador: la misma que usa el dibujo.
 function alturaVisible(e){
+  if (e.held || e.thrown) return 0;          // en la mano o volando lanzado: a ras
   return e.alt ? e.alt + Math.sin((e.bob||0)*3)*4 : 0;
 }
 function enemyNear(tip, range){
@@ -9278,7 +9369,9 @@ function drawEnemy(e){
     if (showHpBars) hpBar(s.x, s.y - e.h*0.62, 60, e.hp, e.maxhp, '#c81f1f');
     return;
   }
-  const alt = e.alt ? e.alt + Math.sin(e.bob*3)*4 : 0;
+  // Agarrado o lanzado ya no vuela: se dibuja en la mano / donde va de verdad.
+  // Antes conservaba su altura y el OVNI flotaba 150 px por encima del tentáculo.
+  const alt = (e.alt && !e.held && !e.thrown) ? e.alt + Math.sin(e.bob*3)*4 : 0;
   // Sombra en el suelo: lo que vuela la proyecta más tenue y recogida.
   sombra(s.x, s.y + (e.h||34)*0.32,
          (e.w||28)*(alt?0.80:0.94), (e.h||34)*(alt?0.30:0.38),
@@ -10025,7 +10118,7 @@ function hide(id){ document.getElementById(id).classList.add('hidden'); revisaMe
 // Pantallas donde suena el tema tranquilo. Se decide mirando cuáles están a
 // la vista, así que no hace falta acordarse de encender y apagar en cada
 // botón: basta con que show/hide pasen por aquí.
-const PANTALLAS_MENU = ['menu','modeselect','tienda','registro','controles','logros'];
+const PANTALLAS_MENU = ['menu','modeselect','tienda','registro','controles','logros','sala'];
 function revisaMenu(){
   let visible = false;
   for (const id of PANTALLAS_MENU){
@@ -10727,11 +10820,274 @@ if (btnHero) btnHero.addEventListener('click', async ()=>{
 document.getElementById('btnInvadir').addEventListener('click', ()=>{
   sfx('ui'); hide('menu'); show('modeselect'); refreshModeText(); playModeIntro(); startModeAnims();
 });
+
+// ================= MULTIJUGADOR EN LÍNEA =================
+// El servidor (/api/salas) solo presenta a los jugadores. La conexión de
+// verdad es directa entre los dos dispositivos (WebRTC): el anfitrión crea
+// una oferta, el invitado responde, y ambos se pasan "candidatos" (rutas de
+// red posibles) hasta encontrar una que funcione. Todo eso viaja por el
+// servidor; después, los datos del juego van de uno a otro sin pasar por él.
+const SALA_API = '/api/salas';
+const SALA_ICE = [{ urls:'stun:stun.l.google.com:19302' },
+                  { urls:'stun:stun1.l.google.com:19302' }];
+const SALA_SONDEO_MS = 1000;
+const Sala = {
+  modo:null, codigo:null, jugador:null, token:null, anfitrion:false,
+  jugadores:[], desde:0, sondeo:null, pcs:{}, canales:{}, pendientes:{},
+  latencia:{}, pingT:null, heroe:'alien'
+};
+function salaDisponible(){
+  try { return /^https?:$/.test(location.protocol); } catch(e){ return false; }
+}
+function rtcDisponible(){ return typeof RTCPeerConnection !== 'undefined'; }
+function salaError(t){ const e = document.getElementById('salaError'); if (e) e.textContent = t || ''; }
+function salaEstado(t, clase){
+  const e = document.getElementById('salaEstado');
+  if (!e) return;
+  e.textContent = t; e.className = 'salaestado' + (clase ? ' ' + clase : '');
+}
+async function salaPost(cuerpo){
+  const r = await fetch(SALA_API, { method:'POST', headers:{ 'Content-Type':'application/json' },
+                                     body: JSON.stringify(cuerpo) });
+  const j = await r.json().catch(()=>({}));
+  if (!r.ok) throw new Error(j.error || 'No se pudo contactar con el servidor');
+  return j;
+}
+async function salaGet(params){
+  const q = Object.keys(params).map(k => k + '=' + encodeURIComponent(params[k])).join('&');
+  const r = await fetch(SALA_API + '?' + q, { cache:'no-store' });
+  const j = await r.json().catch(()=>({}));
+  if (!r.ok) throw new Error(j.error || 'No se pudo contactar con el servidor');
+  return j;
+}
+
+// ---- pantallas ----
+function abrirSala(modo){
+  Sala.modo = modo;
+  document.getElementById('salaTitulo').textContent =
+    modo === 'doble' ? 'DOBLE INVASIÓN' : 'CONTRA OTRO JUGADOR · EN LÍNEA';
+  document.getElementById('salaSub').textContent = modo === 'doble'
+    ? 'Invadid juntos, cada uno desde su dispositivo'
+    : 'Quien crea la sala invade; quien se une manda al ejército';
+  document.getElementById('salaHeroeLbl').textContent =
+    modo === 'doble' ? 'Tu personaje (se pueden repetir)' : 'Tu personaje (si te toca invadir)';
+  document.getElementById('salaEntrada').classList.remove('hidden');
+  document.getElementById('salaDentro').classList.add('hidden');
+  salaError('');
+  if (!salaDisponible())
+    salaError('El multijugador funciona en la versión publicada en internet, no abriendo el archivo.');
+  else if (!rtcDisponible())
+    salaError('Este navegador no admite conexiones directas entre dispositivos.');
+  const n = document.getElementById('salaNombre');
+  if (n && !n.value) storeGet('invasion_mpnombre').then(v => { if (v && !n.value) n.value = v; });
+  marcaHeroeSala(Sala.heroe);
+  hide('modeselect'); show('sala');
+}
+function marcaHeroeSala(h){
+  Sala.heroe = h;
+  document.getElementById('salaHeroeAlien').classList.toggle('on', h === 'alien');
+  document.getElementById('salaHeroeVil').classList.toggle('on', h === 'viltrum');
+}
+function nombreSala(){
+  const v = (document.getElementById('salaNombre').value || '').trim().slice(0, 14);
+  if (!v){ salaError('Escribe tu nombre para entrar.'); return null; }
+  storeSet('invasion_mpnombre', v);
+  return v;
+}
+function pintaSala(){
+  document.getElementById('salaCodigoVer').textContent = Sala.codigo || '-----';
+  const lista = document.getElementById('salaLista');
+  lista.innerHTML = Sala.jugadores.map((j, i) => {
+    const rol = Sala.modo === 'vs'
+      ? (j.anfitrion ? 'INVASOR · ' + (j.heroe === 'viltrum' ? 'VILTRUMITA' : 'CRÍA') : 'EJÉRCITO · Jugador 2')
+      : (j.heroe === 'viltrum' ? 'VILTRUMITA' : 'CRÍA');
+    const yo = j.id === Sala.jugador ? ' (tú)' : '';
+    const ms = Sala.latencia[j.id];
+    const lat = (j.id !== Sala.jugador && ms != null) ? ` · ${ms} ms` : '';
+    return `<div class="salajug"><span>${escapaHtml(j.nombre)}${yo}${j.anfitrion ? ' ★' : ''}</span>` +
+           `<span class="rol">${rol}${lat}</span></div>`;
+  }).join('');
+}
+function escapaHtml(t){
+  return String(t).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function entrarSala(r){
+  Sala.codigo = r.codigo; Sala.jugador = r.jugador; Sala.token = r.token;
+  Sala.anfitrion = !!r.anfitrion; Sala.modo = r.modo || Sala.modo; Sala.desde = 0;
+  Sala.jugadores = []; Sala.pcs = {}; Sala.canales = {}; Sala.pendientes = {}; Sala.latencia = {};
+  document.getElementById('salaEntrada').classList.add('hidden');
+  document.getElementById('salaDentro').classList.remove('hidden');
+  salaEstado(Sala.anfitrion ? 'Sala creada. Esperando a que alguien se una…' : 'Conectando con el anfitrión…');
+  pintaSala();
+  clearInterval(Sala.sondeo);
+  Sala.sondeo = setInterval(sondeaSala, SALA_SONDEO_MS);
+  sondeaSala();
+  clearInterval(Sala.pingT);
+  Sala.pingT = setInterval(()=> salaEnviarTodos({ t:'ping', ts: Date.now() }), 2000);
+}
+async function crearSala(){
+  salaError('');
+  const nombre = nombreSala(); if (!nombre) return;
+  if (!salaDisponible() || !rtcDisponible()) return abrirSala(Sala.modo);
+  try { entrarSala(await salaPost({ accion:'crear', modo:Sala.modo, nombre, heroe:Sala.heroe })); sfx('ui'); }
+  catch(e){ salaError(e.message); sfx('deny'); }
+}
+async function unirseSala(){
+  salaError('');
+  const nombre = nombreSala(); if (!nombre) return;
+  const codigo = (document.getElementById('salaCodigo').value || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (codigo.length !== 5){ salaError('El código tiene 5 caracteres.'); sfx('deny'); return; }
+  if (!salaDisponible() || !rtcDisponible()) return abrirSala(Sala.modo);
+  try { entrarSala(await salaPost({ accion:'unirse', codigo, nombre, heroe:Sala.heroe })); sfx('ui'); }
+  catch(e){ salaError(e.message); sfx('deny'); }
+}
+async function salirSala(){
+  clearInterval(Sala.sondeo); clearInterval(Sala.pingT);
+  Sala.sondeo = null; Sala.pingT = null;
+  for (const id in Sala.pcs){ try { Sala.pcs[id].close(); } catch(e){} }
+  Sala.pcs = {}; Sala.canales = {};
+  if (Sala.codigo && Sala.token){
+    try { await salaPost({ accion:'salir', codigo:Sala.codigo, jugador:Sala.jugador, token:Sala.token }); } catch(e){}
+  }
+  Sala.codigo = null; Sala.jugador = null; Sala.token = null; Sala.jugadores = [];
+}
+
+// ---- sondeo: presencia, lista de jugadores y señales ----
+async function sondeaSala(){
+  if (!Sala.codigo) return;
+  let r;
+  try { r = await salaGet({ codigo:Sala.codigo, jugador:Sala.jugador, token:Sala.token, desde:Sala.desde }); }
+  catch(e){
+    // la sala desapareció (el anfitrión salió o se cerró por inactividad)
+    if (/no existe|cerr/i.test(e.message)){
+      salaEstado('La sala se cerró.', 'mal');
+      clearInterval(Sala.sondeo); Sala.sondeo = null;
+    }
+    return;
+  }
+  Sala.jugadores = r.sala.jugadores;
+  // quien se fue, fuera también de las conexiones
+  for (const id in Sala.pcs){
+    if (!Sala.jugadores.some(j => j.id === id)){
+      try { Sala.pcs[id].close(); } catch(e){}
+      delete Sala.pcs[id]; delete Sala.canales[id]; delete Sala.latencia[id];
+      salaEstado('El otro jugador salió de la sala.', 'mal');
+    }
+  }
+  for (const s of r.senales){ Sala.desde = Math.max(Sala.desde, s.id); await procesaSenal(s); }
+  // el anfitrión abre una conexión con cada invitado nuevo
+  if (Sala.anfitrion){
+    for (const j of Sala.jugadores){
+      if (j.id !== Sala.jugador && !Sala.pcs[j.id]) conectaCon(j.id, true);
+    }
+  }
+  pintaSala();
+}
+async function enviaSenal(para, tipo, datos){
+  try { await salaPost({ accion:'senal', codigo:Sala.codigo, jugador:Sala.jugador, token:Sala.token,
+                         para, tipo, datos: JSON.stringify(datos) }); }
+  catch(e){ /* el sondeo reintentará si hace falta */ }
+}
+
+// ---- WebRTC ----
+function conectaCon(otro, soyQuienLlama){
+  const pc = new RTCPeerConnection({ iceServers: SALA_ICE });
+  Sala.pcs[otro] = pc;
+  Sala.pendientes[otro] = [];
+  pc.onicecandidate = (ev)=>{ if (ev.candidate) enviaSenal(otro, 'candidato', ev.candidate); };
+  pc.onconnectionstatechange = ()=>{
+    const st = pc.connectionState;
+    if (st === 'failed')
+      salaEstado('No se pudo conectar directamente. Suele pasar con redes muy restrictivas (wifi de empresa o colegio); probad con datos móviles.', 'mal');
+    else if (st === 'disconnected') salaEstado('Conexión perdida. Reintentando…', 'mal');
+  };
+  if (soyQuienLlama){
+    preparaCanal(otro, pc.createDataChannel('juego', { ordered:true }));
+    pc.createOffer()
+      .then(o => pc.setLocalDescription(o))
+      .then(() => enviaSenal(otro, 'oferta', pc.localDescription))
+      .catch(()=> salaEstado('No se pudo iniciar la conexión.', 'mal'));
+  } else {
+    pc.ondatachannel = (ev)=> preparaCanal(otro, ev.channel);
+  }
+  return pc;
+}
+function preparaCanal(otro, canal){
+  Sala.canales[otro] = canal;
+  canal.onopen = ()=>{
+    salaEstado('¡Conectados directamente!', 'ok');
+    salaEnviar(otro, { t:'hola', nombre: document.getElementById('salaNombre').value, heroe: Sala.heroe });
+    sfx('coin');
+  };
+  canal.onclose = ()=>{ delete Sala.canales[otro]; };
+  canal.onmessage = (ev)=>{
+    let m; try { m = JSON.parse(ev.data); } catch(e){ return; }
+    recibeMensaje(otro, m);
+  };
+}
+async function procesaSenal(s){
+  const datos = JSON.parse(s.datos);
+  let pc = Sala.pcs[s.de_id];
+  if (s.tipo === 'oferta'){
+    if (!pc) pc = conectaCon(s.de_id, false);
+    await pc.setRemoteDescription(datos);
+    const resp = await pc.createAnswer();
+    await pc.setLocalDescription(resp);
+    await enviaSenal(s.de_id, 'respuesta', pc.localDescription);
+    for (const c of Sala.pendientes[s.de_id] || []) await pc.addIceCandidate(c).catch(()=>{});
+    Sala.pendientes[s.de_id] = [];
+  } else if (s.tipo === 'respuesta' && pc){
+    await pc.setRemoteDescription(datos);
+    for (const c of Sala.pendientes[s.de_id] || []) await pc.addIceCandidate(c).catch(()=>{});
+    Sala.pendientes[s.de_id] = [];
+  } else if (s.tipo === 'candidato' && pc){
+    // si aún no llegó la descripción del otro, el candidato espera su turno
+    if (pc.remoteDescription) await pc.addIceCandidate(datos).catch(()=>{});
+    else (Sala.pendientes[s.de_id] = Sala.pendientes[s.de_id] || []).push(datos);
+  }
+}
+function salaEnviar(otro, m){
+  const c = Sala.canales[otro];
+  if (c && c.readyState === 'open'){ try { c.send(JSON.stringify(m)); return true; } catch(e){} }
+  return false;
+}
+function salaEnviarTodos(m){ for (const id in Sala.canales) salaEnviar(id, m); }
+function recibeMensaje(otro, m){
+  if (m.t === 'ping') salaEnviar(otro, { t:'pong', ts:m.ts });
+  else if (m.t === 'pong'){ Sala.latencia[otro] = Math.max(1, Date.now() - m.ts); pintaSala(); }
+}
+
+// ---- botones de modos y sala ----
+document.getElementById('btnModeDoble').addEventListener('click', ()=>{ sfx('ui'); abrirSala('doble'); });
+document.getElementById('btnVsLocal').addEventListener('click', ()=>{
+  hide('vselige'); crackAndStart('btnModeVs', ()=> startGame('vs'));
+});
+document.getElementById('btnVsOnline').addEventListener('click', ()=>{ sfx('ui'); hide('vselige'); abrirSala('vs'); });
+document.getElementById('btnVsElegirNo').addEventListener('click', ()=>{ sfx('ui'); hide('vselige'); });
+document.getElementById('salaHeroeAlien').addEventListener('click', ()=> cambiaHeroeSala('alien'));
+document.getElementById('salaHeroeVil').addEventListener('click', ()=> cambiaHeroeSala('viltrum'));
+function cambiaHeroeSala(h){
+  marcaHeroeSala(h); sfx('ui');
+  if (Sala.codigo) salaPost({ accion:'heroe', codigo:Sala.codigo, jugador:Sala.jugador, token:Sala.token, heroe:h })
+                     .then(sondeaSala).catch(()=>{});
+}
+document.getElementById('btnSalaCrear').addEventListener('click', crearSala);
+document.getElementById('btnSalaUnirse').addEventListener('click', unirseSala);
+document.getElementById('salaCodigo').addEventListener('input', (e)=>{
+  e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 5);
+});
+document.getElementById('btnSalaSalir').addEventListener('click', async ()=>{
+  sfx('ui'); await salirSala(); abrirSala(Sala.modo);
+});
+document.getElementById('btnSalaVolver').addEventListener('click', async ()=>{
+  sfx('ui'); await salirSala(); hide('sala'); show('modeselect');
+});
+
 document.getElementById('btnModeBack').addEventListener('click', ()=>{
   sfx('ui'); stopModeAnims(); hide('modeselect'); show('menu');
 });
 document.getElementById('btnModeInvasion').addEventListener('click', ()=> crackAndStart('btnModeInvasion', ()=> startGame('invasion')));
-document.getElementById('btnModeVs').addEventListener('click', ()=> crackAndStart('btnModeVs', ()=> startGame('vs')));
+document.getElementById('btnModeVs').addEventListener('click', ()=>{ sfx('ui'); show('vselige'); });
 document.getElementById('btnRetry').addEventListener('click', ()=> startGame(gameMode));
 document.getElementById('btnMenu').addEventListener('click', async ()=>{
   sfx('ui');
