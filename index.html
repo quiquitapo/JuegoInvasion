@@ -608,7 +608,10 @@
   #p2touch { display:none; position:absolute; left:0; right:0;
              bottom:calc(12px + env(safe-area-inset-bottom,0px)); z-index:7;
              pointer-events:none; }
-  body.touch-ui #p2touch.playing { display:block; }
+  /* También con la marca estable de móvil: la de "último toque" cambia con
+     los eventos de ratón que emite el teléfono y el mando desaparecía. */
+  body.touch-ui #p2touch.playing, body.movil #p2touch.playing { display:block; }
+  #p2seeds .seed { pointer-events:auto; cursor:pointer; }
   .p2joy { border-color:rgba(120,180,255,0.75) !important; pointer-events:auto; }
   .p2joy .joy-knob { background:radial-gradient(circle at 35% 30%, #8fd0ff, #1f5f9e) !important; }
   #p2Buttons { position:absolute; right:14px; bottom:6px; display:flex; gap:10px;
@@ -1593,6 +1596,7 @@ function circleRect(px,py,r,b){
 // stage 0 = intacto, 1 = dañado, 2 = escombros (transitable)
 function damageBuilding(b, dmg){
   if (b.stage >= 2) return;
+  if (dobleInv()){ const i = buildings.indexOf(b); if (i >= 0) enviaAccion({ t:'edif', i, dmg }); b.hitFlash = 0.12; return; }
   b.hp -= dmg;
   b.hitFlash = 0.12;
   if (b.hp <= 0){ demolish(b); return; }
@@ -1806,10 +1810,12 @@ function dentroDeEdificio(x, y, margen){
 // edificio o apelotonada contra el borde del mapa. Ahora se prueban varios
 // ángulos y, si ninguno sirve, se recurre a una calle.
 function edgeSpawnPos(dmin, dmax, vuela){
+  // en Doble Invasión, la mitad de las tropas llegan junto al otro invasor
+  const cen = (dobleAnf() && Online.av && !Online.av.caido && Math.random() < 0.5) ? Online.proxy : player;
   const M = 60;                                  // margen con el borde del mapa
   for (let i = 0; i < 14; i++){
     const a = rand(0, Math.PI*2), d = rand(dmin, dmax);
-    const x = player.x + Math.cos(a)*d, y = player.y + Math.sin(a)*d;
+    const x = cen.x + Math.cos(a)*d, y = cen.y + Math.sin(a)*d;
     if (x < M || x > WORLD_W - M || y < M || y > WORLD_H - M) continue;
     if (!vuela && dentroDeEdificio(x, y, 24)) continue;
     return { x, y };
@@ -1824,14 +1830,14 @@ function edgeSpawnPos(dmin, dmax, vuela){
     const cx = r.x + r.w/2, cy = r.y + r.h/2;
     if (r.dir === 'v' && (cx < M || cx > WORLD_W - M)) continue;
     if (r.dir === 'h' && (cy < M || cy > WORLD_H - M)) continue;
-    const x = (r.dir === 'v') ? cx : clamp(player.x + rand(-dmax, dmax), M, WORLD_W - M);
-    const y = (r.dir === 'v') ? clamp(player.y + rand(-dmax, dmax), M, WORLD_H - M) : cy;
-    const d = dist(x, y, player.x, player.y);
+    const x = (r.dir === 'v') ? cx : clamp(cen.x + rand(-dmax, dmax), M, WORLD_W - M);
+    const y = (r.dir === 'v') ? clamp(cen.y + rand(-dmax, dmax), M, WORLD_H - M) : cy;
+    const d = dist(x, y, cen.x, cen.y);
     if (d < dmin*0.6 || d > dmax*1.6) continue;
     return { x, y };
   }
-  return { x: clamp(player.x + dmin, M, WORLD_W - M),
-           y: clamp(player.y, M, WORLD_H - M) };
+  return { x: clamp(cen.x + dmin, M, WORLD_W - M),
+           y: clamp(cen.y, M, WORLD_H - M) };
 }
 
 const ENEMY_TYPES = { police:1, military:1, minigun:1, tank:1, heli:1, gunship:1, siege:1, flametank:1, plane:1, omni:1, artillero:1, superx:1, mbt:1, mbtFrio:1, ovni:1 };
@@ -2306,7 +2312,7 @@ let partN = 0;
     particles.push({x:0,y:0,vx:0,vy:0,life:0,maxlife:1,color:'#fff',r:3,drag:0.9,grow:0});
 })();
 function addParticles(x,y,color,n,spd){
-  if (_fxRed && Math.abs(x-player.x) < OL_CAJA_X && Math.abs(y-player.y) < OL_CAJA_Y) _fxRed.push(['p', Math.round(x), Math.round(y), color, n, spd]);
+  if (_fxRed && Math.abs(x-centroVista().x) < OL_CAJA_X && Math.abs(y-centroVista().y) < OL_CAJA_Y) _fxRed.push(['p', Math.round(x), Math.round(y), color, n, spd]);
   for (let i=0;i<n;i++){
     if (partN >= PART_MAX) return;                 // techo duro: nunca se dispara
     const p = particles[partN++];
@@ -2325,7 +2331,7 @@ function addParticles(x,y,color,n,spd){
 // despacio, se hincha y se desvanece.
 let humoCursor = 0;
 function addSmoke(x, y){
-  if (_fxRed && Math.abs(x-player.x) < OL_CAJA_X && Math.abs(y-player.y) < OL_CAJA_Y) _fxRed.push(['h', Math.round(x), Math.round(y)]);
+  if (_fxRed && Math.abs(x-centroVista().x) < OL_CAJA_X && Math.abs(y-centroVista().y) < OL_CAJA_Y) _fxRed.push(['h', Math.round(x), Math.round(y)]);
   let p;
   if (partN < PART_MAX) p = particles[partN++];
   else {
@@ -2352,6 +2358,12 @@ function shake(mag,t){ if (_fxRed) _fxRed.push(['k', mag, t]); shakeMag = Math.m
 let chainDepth = 0;
 function explode(x, y, radius, dmg, big, hurtPlayer){
   const chain = [];
+  // Doble Invasión: también alcanzan al invasor del otro (si no se está ya
+  // apuntando a él, que entonces lo cubre el bloque de abajo)
+  if (hurtPlayer && dmg > 0 && dobleAnf() && Online.av && !Online.av.caido && player !== Online.proxy){
+    const d2 = dist(x, y, Online.proxy.x, Online.proxy.y), rr = radius + (Online.av.r || 20);
+    if (d2 < rr) Online.danoInv += dmg * clamp(1 - d2 / rr, 0, 1);
+  }
   // Las explosiones enemigas alcanzan también al alien, con caída por distancia.
   if (hurtPlayer && dmg > 0){
     const d = dist(x, y, player.x, player.y);
@@ -2437,8 +2449,9 @@ let venenoT = 0, venenoDosis = 0, venenoUlt = 0, paralizadoT = 0;
 const QUEMA_DUR = 2.6, QUEMA_DPS = 9;
 const HIELO_DUR = 1.4;
 let quemaT = 0, hieloT = 0;
-function quemar(dur){ quemaT = Math.max(quemaT, dur || QUEMA_DUR); }
+function quemar(dur){ if (Online.objetivoInv){ Online.estInv.q = 1; return; } quemaT = Math.max(quemaT, dur || QUEMA_DUR); }
 function congelar(dur){
+  if (Online.objetivoInv){ Online.estInv.h = 1; return; }
   hieloT = Math.max(hieloT, dur || HIELO_DUR);
   toast('¡CONGELADO!');
   sfx('deny');
@@ -2459,6 +2472,7 @@ function updateEstados(dt){
 }
 
 function envenenar(){
+  if (Online.objetivoInv){ Online.estInv.v = 1; return; }
   venenoT = VEN_DUR;
   // si pasó mucho desde el último impacto, la cuenta vuelve a empezar
   if (gameTime - venenoUlt > VEN_MEMORIA) venenoDosis = 0;
@@ -2602,6 +2616,7 @@ function artAplasta(e, dt, dps){
 
 // Intenta arrancar el edificio que tengas delante. Devuelve true si lo cogió.
 function agarraEdificio(){
+  if (dobleInv()) return false;          // arrancar edificios, solo al anfitrión (por ahora)
   // La condición vive aquí y no en quien llama: así no hay forma de levantar
   // un edificio sin el regalo, venga la orden de donde venga.
   if (!buffActivo('gigante') || heldObject) return false;
@@ -2755,6 +2770,7 @@ function tactil(){
 // descuento se aplica una sola vez y en un único sitio.
 const BUFF_RESIST = 0.05;
 function recibe(d){
+  if (Online.objetivoInv){ Online.danoInv += d; return 0; }   // el golpe era para el invitado
   return buffActivo('gigante') ? d * (1 - BUFF_RESIST) : d;
 }
 
@@ -3297,6 +3313,7 @@ function porJugador(fn){
 // El mobiliario urbano NO entra en el combo: solo cuentan seres vivos y
 // vehículos. Un árbol contra una farola no encadena.
 function propAbatido(pr){
+  if (dobleInv()){ const r = refDe(pr); if (r) enviaAccion({ t:'prop', r }); return; }
   pr.dead = true; discoverObj(pr); propScore(pr);
 }
 
@@ -3323,7 +3340,7 @@ function ocupantes(){
 function bajasDeAuto(c){
   if (culpaJug <= 0) return;
   const n = ocupantes();
-  kills += n;
+  if (Online.culpaInv) Online.premioInv.kills += n; else kills += n;
   for (let i = 0; i < n; i++) comboHit();
   score += comboPts(REWARD.civ.pts * n);
   auraBaja(c.x, c.y);             // los ocupantes también cuentan como bajas
@@ -3334,6 +3351,7 @@ function bajasDeAuto(c){
 }
 
 function autoAbatido(c){
+  if (dobleInv()){ const r = refDe(c); if (r) enviaAccion({ t:'auto', r }); return; }
   c.dead = true; discoverObj(c);
   bajasDeAuto(c);
   const bl = blastOf(c);
@@ -3344,6 +3362,11 @@ function damageEnemy(e, dmg, fx, fy){
   // El OVNI es cosa tuya: ni el ejército, ni el fuego, ni una explosión ajena
   // lo tocan. Solo lo que haces tú (golpes, lanzamientos, tus explosiones).
   if (e.type === 'ovni' && culpaJug <= 0) return;
+  if (dobleInv() && culpaJug > 0){                      // lo decide el anfitrión
+    const r = refDe(e); if (r) enviaAccion({ t:'dano', r, dmg, fx, fy });
+    addParticles(fx, fy, '#ff3b3b', 8, 90);
+    return;
+  }
   if (e.dead) return;
   // Escudo del SUPER X2: el daño no entra, se convierte en vida.
   if (sxEscudoActivo(e) && dmg > 0){
@@ -3363,22 +3386,24 @@ function damageEnemy(e, dmg, fx, fy){
   const k = e.kind === 'civ' ? 'civ' : e.type;
   discover(k);
   const rw = REWARD[k] || REWARD.civ;
-  if (k === 'ovni' && culpaJug > 0) ovniRecompensa();
+  if (k === 'ovni' && culpaJug > 0){ if (Online.culpaInv) Online.premioInv.ovni = true; else ovniRecompensa(); }
   // Un jefe cayendo estremece la manzana entera.
   if (JEFES[k]) sacudeArboles(e.x, e.y, 420, 0.40);
   if (culpaJug > 0) auraBaja(e.x, e.y);
-  score += comboPts(rw.pts); kills++;
+  score += comboPts(rw.pts);
+  if (Online.culpaInv) Online.premioInv.kills++; else kills++;   // cada uno evoluciona con lo suyo
   if (culpaJug > 0) comboHit();     // encadena solo si la muerte es tuya
   if (!e.oleada) p2Refund(e.type);
   // El viltrumita no evoluciona, así que compensa recuperando algo más.
-  hp = clamp(hp + Math.round(rw.heal * (isVil() ? 1.45 : 1)), 0, maxHp());
+  if (Online.culpaInv) Online.premioInv.heal += rw.heal;
+  else hp = clamp(hp + Math.round(rw.heal * (isVil() ? 1.45 : 1)), 0, maxHp());
   addParticles(e.x, e.y, '#ffd27b', 16, 150);
   sfx('kill');
   // El estallido de su caída se queda; el logro ahora es del Registro completo.
   if (k === 'flametank' || k === 'omni'){ explode(e.x, e.y, 190, 70, true); }
   else if (k === 'tank' || k === 'heli') explode(e.x, e.y, 100, 40, true);
   shake(6, 0.15);
-  checkEvolve();
+  if (!Online.culpaInv) checkEvolve();
 }
 
 function checkEvolve(){
@@ -5980,6 +6005,27 @@ function drawP2Cursor(){
 
 // panel lateral (solo se redibuja cuando algo cambia)
 let p2PanelSig = '';
+// Tocar una semilla del panel la selecciona (cómodo en el móvil).
+function p2Select(i){
+  if (!(i >= 0 && i < P2_UNITS.length)) return;
+  if (Online.rol === 'invitado'){ if (Online.jugando) salaEnviar(Online.otro, { t:'acc', a:'sel', i }); return; }
+  if (enLineaAnfitrion() && !Online.desdeRed) return;
+  p2.sel = i; sfx('ui');
+}
+(function(){
+  const cont = document.getElementById('p2seeds');
+  if (!cont) return;
+  const elige = (e)=>{
+    let el = e.target;
+    while (el && el !== cont && !(el.classList && el.classList.contains('seed'))) el = el.parentNode;
+    if (!el || el === cont || !cont.children) return;
+    const i = Array.prototype.indexOf.call(cont.children, el);
+    if (i >= 0){ if (e.preventDefault) e.preventDefault(); p2Select(i); }
+  };
+  cont.addEventListener('touchstart', elige, {passive:false});
+  cont.addEventListener('mousedown', elige);
+})();
+
 function renderP2Panel(){
   const mat = Math.floor(p2.mat);
   const sig = mat + '|' + p2.sel + '|' + p2.cool.map(c=>Math.ceil(Math.max(0,c))).join(',');
@@ -6002,7 +6048,7 @@ function renderP2Panel(){
 // ================= INPUT =================
 const keys = {};
 window.addEventListener('keydown', e=>{
-  if (enLineaInvitado()){ teclaInvitado(e, true); return; }
+  if (esVisorVs()){ teclaInvitado(e, true); return; }
   const k = e.key.toLowerCase();
   // Doble toque de una dirección: activa el vuelo sónico del viltrumita.
   if (isVil() && running && !e.repeat){
@@ -6063,7 +6109,7 @@ canvas.addEventListener('mousemove', e=>{
   mouse.x = e.clientX - r.left; mouse.y = e.clientY - r.top;
 });
 canvas.addEventListener('mousedown', e=>{
-  if (enLineaInvitado()) return;
+  if (esVisorVs()) return;
   if (isVil()){
     // Izquierdo: golpe (mantenido, golpe cargado). Derecho: agarrar / lanzar.
     if (e.button === 0){ vil.holding = true; vil.charge = 0.0001; }
@@ -6120,7 +6166,7 @@ function hideJoy(el,k){ el.style.display='none'; k.style.left=KNOB_OFF+'px'; k.s
 function knob(k,dx,dy){ k.style.left=(KNOB_OFF+dx*JOY_R*0.55)+'px'; k.style.top=(KNOB_OFF+dy*JOY_R*0.55)+'px'; }
 
 canvas.addEventListener('touchstart', e=>{
-  if (enLineaInvitado()) return;
+  if (esVisorVs()) return;
   const r = canvas.getBoundingClientRect();
   for (const t of e.changedTouches){
     const x = t.clientX-r.left, y = t.clientY-r.top;
@@ -6733,7 +6779,8 @@ function aimAngle(){
   return Math.atan2(v.dy, v.dx);
 }
 function aimVector(){
-  if (_apRed && enLineaInvitado()) return _apRed;       // el tentáculo del anfitrión
+  if (_apCompa) return _apCompa;                        // dibujando al compañero
+  if (_apRed && esVisorVs()) return _apRed;             // el tentáculo del anfitrión
   if (aimJoy.active){
     const m = Math.hypot(aimJoy.dx, aimJoy.dy);
     if (m < 0.08) return { dx:1, dy:0, mag:0.2 };
@@ -6760,14 +6807,14 @@ function tentacleTip(){
 // ================= ACTIONS =================
 function grabbablesNear(tip, range){
   let best=null, bd=range;
-  for (const c of cars){ if (c.dead||c.thrown) continue; const d=dist(tip.x,tip.y,c.x,c.y); if(d<bd){bd=d;best=c;} }
-  for (const c of civilians){ if (c.dead||c.thrown) continue; const d=dist(tip.x,tip.y,c.x,c.y); if(d<bd){bd=d;best=c;} }
-  for (const t of trees){ if (t.dead||t.thrown) continue; const d=dist(tip.x,tip.y,t.x,t.y); if(d<bd){bd=d;best=t;} }
-  for (const l of lamps){ if (l.dead||l.thrown) continue; const d=dist(tip.x,tip.y,l.x,l.y); if(d<bd){bd=d;best=l;} }
-  for (const b of trash){ if (b.dead||b.thrown) continue; const d=dist(tip.x,tip.y,b.x,b.y); if(d<bd){bd=d;best=b;} }
-  for (const b of benches){ if (b.dead||b.thrown) continue; const d=dist(tip.x,tip.y,b.x,b.y); if(d<bd){bd=d;best=b;} }
+  for (const c of cars){ if (c.dead||c.thrown||c.held) continue; const d=dist(tip.x,tip.y,c.x,c.y); if(d<bd){bd=d;best=c;} }
+  for (const c of civilians){ if (c.dead||c.thrown||c.held) continue; const d=dist(tip.x,tip.y,c.x,c.y); if(d<bd){bd=d;best=c;} }
+  for (const t of trees){ if (t.dead||t.thrown||t.held) continue; const d=dist(tip.x,tip.y,t.x,t.y); if(d<bd){bd=d;best=t;} }
+  for (const l of lamps){ if (l.dead||l.thrown||l.held) continue; const d=dist(tip.x,tip.y,l.x,l.y); if(d<bd){bd=d;best=l;} }
+  for (const b of trash){ if (b.dead||b.thrown||b.held) continue; const d=dist(tip.x,tip.y,b.x,b.y); if(d<bd){bd=d;best=b;} }
+  for (const b of benches){ if (b.dead||b.thrown||b.held) continue; const d=dist(tip.x,tip.y,b.x,b.y); if(d<bd){bd=d;best=b;} }
   for (const e of enemies){
-    if (e.dead||e.thrown||!e.grabbable) continue;
+    if (e.dead||e.thrown||e.held||!e.grabbable) continue;
     // la infantería se agarra siempre; los blindados solo siendo COLOSO; el
     // caza y el OVNI son livianos y se agarran igual, sin hacer falta serlo
     if (!e.person && e.type !== 'plane' && e.type !== 'ovni' && !F().heavyGrab) continue;
@@ -6956,6 +7003,7 @@ function objThrowDmg(o){
 
 function onGrab(){
   if (!running) return;
+  if (Online.caidoYo && esDoble()) return;
   if (isVil()) return vilGrab();
   const tip = tentacleTip(), R = F().grab;
 
@@ -6974,6 +7022,7 @@ function onGrab(){
       g.held = true; g.thrown = false; g.stunT = 0; g.stunVx = 0; g.stunVy = 0; g.byEnemy = false;
       if (g.rayoFase) { g.rayoFase = 'espera'; g.rayoT = rand(MBT_ESPERA[0], MBT_ESPERA[1]); }
       heldObject = { ref:g, dur: objDurability(g), maxDur: objDurability(g) };
+      if (dobleInv()) enviaAccion({ t:'agarra', r: refDe(g) });
       sfx('grab');
       addParticles(tip.x, tip.y, '#ffe066', 10, 90);
       return;
@@ -7018,8 +7067,9 @@ function onGrab(){
 
 function onThrow(){
   if (!running || !heldObject) return;
+  if (Online.caidoYo && esDoble()) return;
   const tip = tentacleTip(), o = heldObject.ref, ang = tip.angle;
-  o.held = false; o.thrown = true;
+  o.held = false; o.thrown = true; o.porInv = false;
   o.tocado = false;                   // vuelo limpio hasta que choque con algo
   o.restan = aguanteLanzado(o);       // cuántos choques aguanta este vuelo
   o.golpeados = [];
@@ -7032,6 +7082,7 @@ function onThrow(){
   sfx('throw');
   o.rot = 0;
   heldObject = null;
+  if (dobleInv()){ const r = refDe(o); if (r) enviaAccion({ t:'lanza', r, x:o.x, y:o.y, vx:o.vx, vy:o.vy, dmg:o.throwDmg, spin:o.spin }); }
 }
 
 // El mobiliario urbano: no se rompe entre sí por simple contacto.
@@ -7243,6 +7294,7 @@ function updateRam(dt){
 
 // ================= UPDATE =================
 function updatePlayer(dt){
+  if (Online.caidoYo && esDoble()) return;
   if (isVil()) return updateViltrum(dt);
   let dx=0, dy=0, mag=1;
   if (moveJoy.active){
@@ -7329,6 +7381,7 @@ function vilGrab(){
     g.held = true; g.thrown = false; g.stunT = 0; g.byEnemy = false;
     if (g.rayoFase) { g.rayoFase = 'espera'; g.rayoT = rand(MBT_ESPERA[0], MBT_ESPERA[1]); }
     heldObject = { ref:g, dur:objDurability(g), maxDur:objDurability(g) };
+    if (dobleInv()) enviaAccion({ t:'agarra', r: refDe(g) });
     sfx('grab');
   }
 }
@@ -7726,7 +7779,7 @@ function updateCivilians(dt){
   const tip = tentacleTip();
   for (const c of civilians){
     if (c.dead) continue;
-    if (c.held){ c.x = tip.x; c.y = tip.y; continue; }
+    if (c.held){ { const pt = c.heldInv ? Online.tipInv : tip; c.x = pt.x; c.y = pt.y; } continue; }
     if (c.thrown) continue;
     const dP = dist(c.x,c.y,player.x,player.y);
     if (dP < 280){
@@ -7747,7 +7800,7 @@ function updateCars(dt){
   const tip = tentacleTip();
   for (const c of cars){
     if (c.dead) continue;
-    if (c.held){ c.x = tip.x; c.y = tip.y; continue; }
+    if (c.held){ { const pt = c.heldInv ? Online.tipInv : tip; c.x = pt.x; c.y = pt.y; } continue; }
     if (c.thrown) continue;
     if (isWreck(c)){
       c.vx = 0; c.vy = 0;
@@ -7794,24 +7847,24 @@ function updateTrees(dt){
   const tip = tentacleTip();
   for (const t of trees){
     if (t.dead || t.thrown) continue;
-    if (t.held){ t.x = tip.x; t.y = tip.y; }
+    if (t.held){ { const pt = t.heldInv ? Online.tipInv : tip; t.x = pt.x; t.y = pt.y; } }
   }
   runStats.trees += trees.reduce((n,t)=>n+(t.dead?1:0),0);
   trees = trees.filter(t=>!t.dead);
   for (const l of lamps){
     if (l.dead || l.thrown) continue;
-    if (l.held){ l.x = tip.x; l.y = tip.y; }
+    if (l.held){ { const pt = l.heldInv ? Online.tipInv : tip; l.x = pt.x; l.y = pt.y; } }
   }
   runStats.lamps += lamps.reduce((n,l)=>n+(l.dead?1:0),0);
   lamps = lamps.filter(l=>!l.dead);
   for (const b of trash){
     if (b.dead || b.thrown) continue;
-    if (b.held){ b.x = tip.x; b.y = tip.y; }
+    if (b.held){ { const pt = b.heldInv ? Online.tipInv : tip; b.x = pt.x; b.y = pt.y; } }
   }
   trash = trash.filter(b=>!b.dead);
   for (const b of benches){
     if (b.dead || b.thrown) continue;
-    if (b.held){ b.x = tip.x; b.y = tip.y; }
+    if (b.held){ { const pt = b.heldInv ? Online.tipInv : tip; b.x = pt.x; b.y = pt.y; } }
   }
   benches = benches.filter(b=>!b.dead);
 }
@@ -7826,6 +7879,7 @@ function updateThrown(dt){
   for (const pool of throwPools){
    for (const o of pool){
     if (!o.thrown || o.dead) continue;
+    Online.culpaInv = !!o.porInv;          // lo lanzó el invitado: lo que tumbe es suyo
     o.x += o.vx*dt; o.y += o.vy*dt;
     if (o.spin) o.rot += o.spin*dt;
     o.throwLife -= dt;
@@ -8012,7 +8066,7 @@ function updateEnemies(dt){
   const tip = tentacleTip();
   for (const e of enemies){
     if (e.dead) continue;
-    if (e.held){ e.x = tip.x; e.y = tip.y; continue; }
+    if (e.held){ { const pt = e.heldInv ? Online.tipInv : tip; e.x = pt.x; e.y = pt.y; } continue; }
     if (e.thrown) continue;
 
     if (e.stunT > 0){          // aturdido: derribado, sin disparar
@@ -8029,6 +8083,7 @@ function updateEnemies(dt){
       if (e.stunT <= 0){ e.stunT = 0; e.stunVx = 0; e.stunVy = 0; }   // se levanta
       continue;
     }
+    if (Online.modo === 'doble' && Online.jugando) apuntaEnemigo(e);   // al invasor más cercano
     const a = dist(e.x,e.y,player.x,player.y);
     const ang = Math.atan2(player.y-e.y, player.x-e.x);
     e.facing = Math.cos(ang) >= 0 ? 1 : -1;
@@ -8239,6 +8294,16 @@ function updateBullets(dt){
     }
     if (blocked) continue;
 
+    // Doble Invasión: una bala también puede dar al invasor del otro jugador
+    if (dobleAnf() && Online.av && !Online.av.caido && !b.artillery &&
+        dist(b.x, b.y, Online.proxy.x, Online.proxy.y) < (Online.av.r || 20) + 6){
+      Online.danoInv += b.dmg; if (b.veneno) Online.estInv.v = 1;
+      b.life = 0;
+      addParticles(b.x, b.y, '#ff5b5b', 8, 90);
+      if (b.blast) explode(b.x, b.y, b.blast, 0, false);
+      else if (b.shell) explode(b.x, b.y, 70, 0, false);
+      continue;
+    }
     if (!b.artillery && dist(b.x,b.y,player.x,player.y) < F().r + 6){
       const before = hp;
       hp = clamp(hp - recibe(b.dmg), 0, maxHp());
@@ -9738,6 +9803,7 @@ function draw(){
     dlPush(vuela ? e.y+900 : e.y + (e.h||34)*0.32, 6, e);
   }
   dlPush(player.y + F().r*0.5, 7, null);      // el alien, también por los pies
+  if (esDoble()){ const cp = datosCompanero(); if (cp && cp.pl) dlPush(cp.pl.y + 12, 8, null); }
 
   // slice creaba un array nuevo en cada fotograma; ahora se reutiliza uno fijo
   // y solo se ajusta su longitud, que no reserva memoria.
@@ -9753,7 +9819,11 @@ function draw(){
       case 4: drawBench(d.o); break;
       case 5: drawLampProp(d.o); break;
       case 6: drawEnemy(d.o); break;
-      default: drawPlayer(); break;
+      case 8: dibujaCompanero(); break;
+      default:
+        if (esDoble() && Online.caidoYo){ const a0 = ctx.globalAlpha; ctx.globalAlpha = 0.35; drawPlayer(); ctx.globalAlpha = a0; }
+        else drawPlayer();
+        break;
     }
   }
 
@@ -9958,12 +10028,19 @@ function loop(t){
   // Acotado también por abajo: al reanudar una pausa, la marca del fotograma
   // puede quedar un pelo por detrás de performance.now() y dar un paso negativo.
   const dt = clamp((t-lastT)/1000, 0, 0.05); lastT = t;
-  if (enLineaInvitado()){                  // no simula: dibuja lo que manda el anfitrión
+  if (esVisorVs()){                        // no simula: dibuja lo que manda el anfitrión
     loopInvitado(dt);
     draw();
     requestAnimationFrame(loop);
     return;
   }
+  if (dobleInv()){                          // simula su invasor; el mundo llega del anfitrión
+    loopInvitadoDoble(dt);
+    draw();
+    requestAnimationFrame(loop);
+    return;
+  }
+  Online.dtDib = dt;
   if (running){
     updateZoom(dt); updateSonic(dt); updateFocos(dt); updateWind(dt); comboUpdate(dt);
     updateFuegos(dt); updateVeneno(dt); updateEstados(dt); updateRayos(dt);
@@ -9973,8 +10050,9 @@ function loop(t){
     // y se restaura después, en vez de parchear las cinco vías de daño.
     const vidaIntro = (isVil() && vil.intro) ? hp : -1;
     updatePlayer(dt); updateCivilians(dt); updateCars(dt); updateTrees(dt); updateRam(dt); updateThrown(dt);
+    Online.culpaInv = false;
     updateVS(dt);
-    updateEnemies(dt); updateBullets(dt); updateFX(dt); updateSpawns(dt);
+    updateEnemiesDoble(dt); updateBullets(dt); updateFX(dt); updateSpawns(dt);
     if (shakeTime>0){ shakeTime-=dt; if (shakeTime<=0) shakeMag=0; }
 
     if (vidaIntro >= 0) hp = vidaIntro;      // intocable mientras aterriza
@@ -9983,8 +10061,12 @@ function loop(t){
     camY = clamp(player.y-VH/2, 0, Math.max(0,WORLD_H-VH));
 
     pintaHUD();
+    if (dobleAnf()){
+      const a = Online.av;
+      if (gestionaCaida(dt, !!(a && a.caido), a && !a.caido ? a.pl : null) === 'fin') endGame();
+    }
     if (enLineaAnfitrion()) tickAnfitrion(dt);
-    if (hp<=0){
+    if (hp<=0 && !esDoble()){
       if (gameMode === 'vs' && !vsWinner) vsWinner = 'p2';
       endGame();
     }
@@ -10131,14 +10213,14 @@ async function endGame(){
     coins += earned; saveShop();
     if (coins >= 1599) unlockAch('millonario');
   }
-  pendingScore = (gameMode === 'invasion') ? score : null;
+  pendingScore = (gameMode === 'invasion' && !enLinea) ? score : null;   // en línea no va al ranking
   const ce = document.getElementById('finalcoins');
   if (ce) ce.textContent = '+' + earned;
   if (earned > 0) sfx('coin');
   sfx('over');
   stopMusic();
-  if (gameMode === 'vs'){
-    await saveScore(score, null);          // el duelo no entra en la tabla
+  if (gameMode === 'vs' || enLinea){
+    await saveScore(score, null);          // el duelo y lo jugado en línea no entran en la tabla
     hide('namebox');
   } else {
     await setupNameBox();                  // el jugador elige nombre y luego se registra
@@ -10948,8 +11030,7 @@ function pintaSala(){
   }).join('');
   const b = document.getElementById('btnSalaEmpezar');
   if (b){
-    if (Sala.modo === 'doble'){ b.disabled = true; b.textContent = 'EMPEZAR · Doble Invasión llega en la próxima fase'; }
-    else if (!Sala.anfitrion){ b.disabled = true; b.textContent = 'Esperando a que el anfitrión empiece…'; }
+    if (!Sala.anfitrion){ b.disabled = true; b.textContent = 'Esperando a que el anfitrión empiece…'; }
     else if (puedeEmpezar()){ b.disabled = false; b.textContent = 'EMPEZAR PARTIDA'; }
     else { b.disabled = true; b.textContent = 'EMPEZAR · falta que se conecte el otro jugador'; }
   }
@@ -11120,9 +11201,12 @@ var _apRed = null;      // puntería del anfitrión, para dibujar su tentáculo 
 const Online = {
   activo:false, rol:null, otro:null, jugando:false,
   acum:0, seq:0, nidSeq:0,
-  intervalo: 1/15,
+  intervalo: 1/20,          // 20 instantáneas por segundo
   p2in:{ x:0, y:0, r:false }, desdeRed:false,
   ultimo:{ en:new Map(), ci:new Map(), ca:new Map(), bu:new Map(), pr:new Map() },
+  modo:'vs', av:null, proxy:{ x:0, y:0, vx:0, vy:0 }, tipInv:{ x:0, y:0 }, jugadorReal:null,
+  objetivoInv:false, culpaInv:false, danoInv:0, estInv:{ q:0, h:0, v:0 },
+  premioInv:{ kills:0, heal:0, ovni:false }, caidoYo:false, reviveT:0, companero:null, cDib:null,
   // invitado
   tRecibida:0, mapas:{ en:new Map(), ci:new Map(), ca:new Map(), bu:new Map() },
   heroePropio:null, skinPropia:null, ultimoMv:'', tMv:0, teclas:{},
@@ -11130,6 +11214,8 @@ const Online = {
 };
 const OL_CAJA_X = 1400, OL_CAJA_Y = 950;     // lo que se envía alrededor del alien
 function enLineaInvitado(){ return Online.rol === 'invitado' && Online.jugando; }
+// (en Doble Invasión el invitado SÍ maneja a su invasor; solo el visor del
+// versus deja de responder a los controles del alien)
 function enLineaAnfitrion(){ return Online.rol === 'anfitrion' && Online.jugando; }
 
 // Campos simples de un objeto (números redondeados, textos y booleanos).
@@ -11144,7 +11230,8 @@ function _prim(o, out){
   return out;
 }
 function _dentro(o){
-  return Math.abs(o.x - player.x) < OL_CAJA_X && Math.abs(o.y - player.y) < OL_CAJA_Y + (o.alt||0);
+  const c = centroVista();
+  return Math.abs(o.x - c.x) < OL_CAJA_X && Math.abs(o.y - c.y) < OL_CAJA_Y + (o.alt||0);
 }
 function _conId(o){ if (!o._nid) o._nid = ++Online.nidSeq; const d = _prim(o); d.id = o._nid; return d; }
 // Envío por diferencias: la primera vez que una entidad entra en la vista del
@@ -11188,6 +11275,16 @@ function instantaneaAnfitrion(){
     fx: _fxRed ? _fxRed.splice(0, _fxRed.length) : []
   };
   if (isVil()) i.vil = _prim(vil);
+  if (Online.modo === 'doble'){
+    i.caido = Online.caidoYo ? 1 : 0;
+    const E = Online.estInv;
+    if (Online.danoInv > 0 || E.q || E.h || E.v){
+      i.hi = { d: Math.round(Online.danoInv*10)/10, q:E.q, h:E.h, v:E.v };
+      Online.danoInv = 0; E.q = 0; E.h = 0; E.v = 0;
+    }
+    const P = Online.premioInv;
+    if (P.kills || P.heal || P.ovni){ i.pv = { k:P.kills, h:P.heal, o:P.ovni ? 1 : 0 }; P.kills = 0; P.heal = 0; P.ovni = false; }
+  }
   const bt = bossTrack ? Object.keys(BOSS_TRACKS).find(k => BOSS_TRACKS[k] === bossTrack) : null;
   i.bt = bt || null;
   const U = Online.ultimo;
@@ -11195,15 +11292,24 @@ function instantaneaAnfitrion(){
   i.ci = _delta(null, U.ci, civilians.filter(c => !c.dead && _dentro(c)));
   i.ca = _delta(null, U.ca, cars.filter(c => !c.dead && _dentro(c)));
   i.bu = _delta(null, U.bu, bullets.filter(_dentro));
+  // Mobiliario: lo que cambia y, sobre todo, lo que DESAPARECE. Al destruirse
+  // una farola el juego la quita de la lista; sin avisar, el invitado se
+  // quedaba viéndola tal cual estaba (por ejemplo, agarrada) para siempre.
+  const presentes = new Set();
   for (const c in OL_POOLS){
     for (const p of _pool(c)){
       if (p.kind === 'edificio'){ if (!p.dead) i.tz.push(_prim(p)); continue; }
+      presentes.add(c + p.si);
       if (!_dentro(p)) continue;
       const f = [c, p.si, p.dead?1:0, p.held?1:0, p.thrown?1:0, Math.round(p.x), Math.round(p.y),
                  Math.round((p.rot||0)*100)/100, Math.round((p.viento||0)*1000)/1000, p.uprooted?1:0];
       const clave = c + p.si, firma = f.join(',');
       if (U.pr.get(clave) !== firma){ U.pr.set(clave, firma); i.pr.push(f); }
     }
+  }
+  i.px = [];
+  for (const clave of U.pr.keys()){
+    if (!presentes.has(clave)){ i.px.push([clave[0], +clave.slice(1)]); U.pr.delete(clave); }
   }
   // lo que lleva en el tentáculo, para que el invitado lo sepa encontrar
   if (heldObject && heldObject.ref){
@@ -11253,11 +11359,37 @@ function _sincroniza(datos, mapa){
   return lista;
 }
 function aplicaInstantanea(i){
-  gameTime = i.gt; score = i.sc; hp = i.hp; form = i.form; kills = i.kills; demolished = i.dem;
-  stage = i.stg; vsTimeLeft = i.vt; drawR = i.dr; phaseIdx = i.fase; rayosOn = !!i.rayos;
-  buffT = i.buff[0]; buffTipo = i.buff[1];
+  const doble = Online.modo === 'doble';
+  gameTime = i.gt; score = i.sc; demolished = i.dem;
+  stage = i.stg; vsTimeLeft = i.vt; phaseIdx = i.fase;
   clima = i.cl[0]; nubeK = i.cl[1]; lluviaK = i.cl[2];
   comboN = i.cb[0]; comboT = i.cb[1]; comboFase = i.cb[2]; comboBonus = i.cb[3]; comboFlash = i.cb[4];
+  if (doble){
+    // tu invasor es tuyo: del anfitrión solo se guarda cómo es el suyo
+    Online.companero = { pl:i.pl, hero:i.hero, form:i.form, dr:i.dr, sk:i.sk, vil:i.vil || null,
+                         ap:i.ap, bT:i.buff[0], bP:i.buff[1], caido: !!i.caido };
+    aplicaMundo(i);
+    if (i.hi){                                     // lo que te han hecho
+      hp = clamp(hp - recibe(i.hi.d), 0, maxHp());
+      if (i.hi.d > 0){ sfx('hurt'); shake(4, 0.1); }
+      if (i.hi.q) quemar(); if (i.hi.h) congelar(); if (i.hi.v) envenenar();
+    }
+    if (i.pv){                                     // y lo que te has ganado
+      if (i.pv.h) hp = clamp(hp + Math.round(i.pv.h * (isVil() ? 1.45 : 1)), 0, maxHp());
+      if (i.pv.k){ kills += i.pv.k; checkEvolve(); }
+      if (i.pv.o) ovniRecompensa();
+    }
+    // lo que llevas en el tentáculo sigue siendo tuyo (salvo que ya no exista)
+    if (heldObject && heldObject.ref){
+      const r = heldObject.ref;
+      const lista = r.kind === 'civ' ? civilians : r.kind === 'car' ? cars
+                  : OL_COD_PROP[r.kind] ? _pool(OL_COD_PROP[r.kind]) : enemies;
+      if (!lista.includes(r) || r.dead) heldObject = null; else r.held = true;
+    }
+    return;
+  }
+  hp = i.hp; form = i.form; kills = i.kills; drawR = i.dr; rayosOn = !!i.rayos;
+  buffT = i.buff[0]; buffTipo = i.buff[1];
   hero = i.hero; activeSkin = i.sk;
   const px0 = player.x, py0 = player.y;
   Object.assign(player, i.pl);
@@ -11266,8 +11398,27 @@ function aplicaInstantanea(i){
   player.x = player._x0; player.y = player._y0;
   _apRed = i.ap;
   if (i.vil) Object.assign(vil, i.vil);
-  Object.assign(p2, { x:i.p2.x, y:i.p2.y, sel:i.p2.sel, mat:i.p2.mat, placeFlash:i.p2.pf, recallCd:i.p2.rc });
+  // La mira se predice en local (ver loopInvitado) y aquí solo se corrige hacia
+  // la del anfitrión; si la diferencia es grande (volvió junto al alien), se salta.
+  if (Online.p2Pred && Math.hypot(i.p2.x - p2.x, i.p2.y - p2.y) < 220){
+    Online.p2Obj = { x:i.p2.x, y:i.p2.y };
+  } else { p2.x = i.p2.x; p2.y = i.p2.y; Online.p2Obj = null; Online.p2Pred = true; }
+  Object.assign(p2, { sel:i.p2.sel, mat:i.p2.mat, placeFlash:i.p2.pf, recallCd:i.p2.rc });
   p2.cool = i.p2.cool;
+  aplicaMundo(i);
+  heldObject = null;
+  if (i.ho && i.ho.d){
+    const d = i.ho.d; let ref = null;
+    if (d[0] === 'en') ref = Online.mapas.en.get(d[1]);
+    else if (d[0] === 'ci') ref = Online.mapas.ci.get(d[1]);
+    else if (d[0] === 'ca') ref = Online.mapas.ca.get(d[1]);
+    else if (d[0] === 'tz') ref = trash.find(t => t.kind === 'edificio' && t.held);
+    else if (d[0] === 'pr') ref = _pool(d[1]).find(q => q.si === d[2] && q.kind !== 'edificio');
+    if (ref) heldObject = { ref, dur: i.ho.dur, maxDur: i.ho.max };
+  }
+}
+// El mundo que llega del anfitrión (común al versus y a Doble Invasión).
+function aplicaMundo(i){
   enemies   = _sincroniza(i.en, Online.mapas.en);
   civilians = _sincroniza(i.ci, Online.mapas.ci);
   cars      = _sincroniza(i.ca, Online.mapas.ca);
@@ -11286,6 +11437,10 @@ function aplicaInstantanea(i){
     o.dead = !!p[2]; o.held = !!p[3]; o.thrown = !!p[4]; o.x = p[5]; o.y = p[6];
     o.rot = p[7]; o.viento = p[8]; o.uprooted = !!p[9];
   }
+  for (const q of (i.px || [])){                       // destruidos: fuera también aquí
+    const arr = _pool(q[0]);
+    for (let k = arr.length - 1; k >= 0; k--) if (arr[k].si === q[1] && arr[k].kind !== 'edificio') arr.splice(k, 1);
+  }
   for (let k = trash.length - 1; k >= 0; k--) if (trash[k].kind === 'edificio') trash.splice(k, 1);
   for (const z of i.tz) trash.push(z);
   if (i.bd){
@@ -11296,16 +11451,6 @@ function aplicaInstantanea(i){
     });
   }
   if (i.pt){ planters.length = 0; for (const p of i.pt) planters.push(p); }
-  heldObject = null;
-  if (i.ho && i.ho.d){
-    const d = i.ho.d; let ref = null;
-    if (d[0] === 'en') ref = Online.mapas.en.get(d[1]);
-    else if (d[0] === 'ci') ref = Online.mapas.ci.get(d[1]);
-    else if (d[0] === 'ca') ref = Online.mapas.ca.get(d[1]);
-    else if (d[0] === 'tz') ref = trash.find(t => t.kind === 'edificio' && t.held);
-    else if (d[0] === 'pr') ref = _pool(d[1]).find(q => q.si === d[2] && q.kind !== 'edificio');
-    if (ref) heldObject = { ref, dur: i.ho.dur, maxDur: i.ho.max };
-  }
   for (const f of i.fx){
     if (f[0] === 'p') addParticles(f[1], f[2], f[3], f[4], f[5]);
     else if (f[0] === 'h') addSmoke(f[1], f[2]);
@@ -11318,7 +11463,14 @@ function aplicaInstantanea(i){
     bossTrack = i.bt ? BOSS_TRACKS[i.bt] : null;
     if (audio.musOn){ if (!audio.musicTimer) startMusic(); else retuneMusic(); }
   }
-  Online.tRecibida = performance.now()/1000;
+  // El suavizado se adapta al ritmo real de llegada (la red no es un reloj):
+  // media móvil del tiempo entre instantáneas.
+  const ahora = performance.now()/1000;
+  if (Online.tRecibida){
+    const d = clamp(ahora - Online.tRecibida, 0.02, 0.25);
+    Online.ritmo = Online.ritmo ? Online.ritmo*0.85 + d*0.15 : d;
+  }
+  Online.tRecibida = ahora;
 }
 function _interpola(lista, t){
   for (const o of lista){
@@ -11328,11 +11480,23 @@ function _interpola(lista, t){
 }
 function loopInvitado(dt){
   if (Online.pendiente){ aplicaInstantanea(Online.pendiente); Online.pendiente = null; }
-  const t = clamp((performance.now()/1000 - Online.tRecibida) / Online.intervalo, 0, 1);
+  // un poco de extrapolación (hasta 1.25) tapa los huecos cuando una llega tarde
+  const t = clamp((performance.now()/1000 - Online.tRecibida) / (Online.ritmo || Online.intervalo), 0, 1.25);
   _interpola(enemies, t); _interpola(civilians, t); _interpola(cars, t); _interpola(bullets, t);
   if (player._x1 !== undefined){
     player.x = player._x0 + (player._x1 - player._x0)*t;
     player.y = player._y0 + (player._y1 - player._y0)*t;
+  }
+  // mira del J2: se mueve ya con tus controles, igual que la moverá el anfitrión
+  if (Online.p2Pred){
+    const v = Online.mvLocal || { x:0, y:0 };
+    const m = clamp(Math.hypot(v.x, v.y), 0, 1), l = Math.hypot(v.x, v.y) || 1;
+    p2.x = clamp(p2.x + (v.x/l)*430*m*dt, 40, WORLD_W-40);
+    p2.y = clamp(p2.y + (v.y/l)*430*m*dt, 40, WORLD_H-40);
+    if (Online.p2Obj){                                   // y se acerca a la oficial
+      const k = Math.min(1, dt*6);
+      p2.x += (Online.p2Obj.x - p2.x)*k; p2.y += (Online.p2Obj.y - p2.y)*k;
+    }
   }
   updateFX(dt); updateZoom(dt);
   if (shakeTime > 0){ shakeTime -= dt; if (shakeTime <= 0) shakeMag = 0; }
@@ -11353,6 +11517,7 @@ function enviaMandoInvitado(){
     if (T.arrowright || T.d) dx += 1;
   }
   const r = !!(Online.teclas.home || Online.teclas.r || Online.recallTactil);
+  Online.mvLocal = { x:dx, y:dy };
   const firma = dx.toFixed(2) + ',' + dy.toFixed(2) + ',' + (r ? 1 : 0);
   const ahora = performance.now();
   if (firma !== Online.ultimoMv || ahora - Online.tMv > 250){
@@ -11370,25 +11535,216 @@ function teclaInvitado(e, abajo){
   if (['arrowup','arrowdown','arrowleft','arrowright',' ','pageup','pagedown','home'].includes(k)) e.preventDefault && e.preventDefault();
 }
 
+
+// ================= DOBLE INVASIÓN =================
+// Dos invasores en la misma ciudad. El anfitrión sigue mandando sobre el
+// mundo (enemigos, civiles, edificios…). El invitado simula SU personaje en
+// su dispositivo, para que responda al instante, y le envía al anfitrión su
+// posición y todo lo que hace al mundo: golpes, agarres, lanzamientos. El
+// anfitrión lo aplica, reparte el daño que recibe el invitado y le devuelve
+// sus recompensas (vida, bajas para evolucionar, el regalo del OVNI).
+var _apCompa = null;          // puntería del compañero, mientras se le dibuja
+function esDoble(){ return Online.modo === 'doble' && Online.jugando; }
+function dobleAnf(){ return esDoble() && Online.rol === 'anfitrion'; }
+function dobleInv(){ return esDoble() && Online.rol === 'invitado'; }
+function esVisorVs(){ return Online.rol === 'invitado' && Online.jugando && Online.modo === 'vs'; }
+function centroVista(){ return (dobleAnf() && Online.av) ? Online.proxy : player; }
+
+// ---- anfitrión: a quién persigue cada enemigo ----
+function apuntaEnemigo(e){
+  const real = Online.jugadorReal;
+  if (!real) return;
+  if (!Online.av || Online.av.caido){ player = real; Online.objetivoInv = false; return; }
+  const dH = Online.caidoYo ? Infinity : (e.x-real.x)*(e.x-real.x) + (e.y-real.y)*(e.y-real.y);
+  const dI = (e.x-Online.proxy.x)*(e.x-Online.proxy.x) + (e.y-Online.proxy.y)*(e.y-Online.proxy.y);
+  if (dI < dH){ player = Online.proxy; Online.objetivoInv = true; }
+  else { player = real; Online.objetivoInv = false; }
+}
+function updateEnemiesDoble(dt){
+  if (!dobleAnf()){ updateEnemies(dt); return; }
+  Online.jugadorReal = player;
+  try { updateEnemies(dt); }
+  finally { player = Online.jugadorReal; Online.objetivoInv = false; }
+}
+
+// ---- referencias a objetos del mundo entre los dos dispositivos ----
+const OL_COD_PROP = { tree:'t', lamp:'l', trash:'b', bench:'n' };
+function refDe(o){
+  if (!o) return null;
+  if (o.kind === 'civ') return o.id ? { p:'ci', id:o.id } : null;
+  if (o.kind === 'car') return o.id ? { p:'ca', id:o.id } : null;
+  if (OL_COD_PROP[o.kind]) return { p:'pr', c: OL_COD_PROP[o.kind], si: o.si };
+  return o.id ? { p:'en', id:o.id } : null;
+}
+function buscaRef(r){
+  if (!r) return null;
+  if (r.p === 'pr') return _pool(r.c).find(q => q.si === r.si && q.kind !== 'edificio');
+  const lista = r.p === 'en' ? enemies : r.p === 'ci' ? civilians : r.p === 'ca' ? cars : null;
+  return lista ? lista.find(o => o._nid === r.id) : null;
+}
+function enviaAccion(m){ salaEnviar(Online.otro, m); }
+
+// ---- anfitrión: aplicar lo que hace el invitado ----
+function accionInvitado(m){
+  Online.culpaInv = true;
+  try {
+    const o = buscaRef(m.r);
+    if (m.t === 'dano'){ if (o && !o.dead) porJugador(()=> damageEnemy(o, +m.dmg||0, m.fx, m.fy)); }
+    else if (m.t === 'edif'){ const b = buildings[m.i]; if (b && b.stage < 2) porJugador(()=> damageBuilding(b, +m.dmg||0)); }
+    else if (m.t === 'prop'){ if (o && !o.dead) porJugador(()=> propAbatido(o)); }
+    else if (m.t === 'auto'){ if (o && !o.dead) porJugador(()=> autoAbatido(o)); }
+    else if (m.t === 'agarra'){
+      if (o && !o.dead && !o.held && !o.thrown){
+        o.held = true; o.heldInv = true; o.thrown = false; o.stunT = 0; o.stunVx = 0; o.stunVy = 0;
+        o.byEnemy = false; o.porInv = false;
+        if (o.rayoFase){ o.rayoFase = 'espera'; o.rayoT = rand(MBT_ESPERA[0], MBT_ESPERA[1]); }
+        if (o.kind === 'lamp' && !o.uprooted) o.uprooted = true;
+        if (o.kind === 'tree' && !o.uprooted){ o.uprooted = true; planters.push({ x:o.x, y:o.y, w:44, h:20 }); }
+      }
+    }
+    else if (m.t === 'lanza'){
+      if (o && o.heldInv){
+        o.held = false; o.heldInv = false; o.thrown = true; o.tocado = false;
+        o.restan = aguanteLanzado(o); o.golpeados = [];
+        o.x = +m.x; o.y = +m.y; o.vx = +m.vx; o.vy = +m.vy;
+        o.throwDmg = +m.dmg || objThrowDmg(o); o.throwLife = 1.5; o.spin = +m.spin || 0; o.rot = 0;
+        o.byEnemy = false; o.porInv = true;          // lo que derribe, para el invitado
+      }
+    }
+    else if (m.t === 'suelta'){ if (o && o.heldInv){ o.held = false; o.heldInv = false; } }
+  } finally { Online.culpaInv = false; }
+}
+function recibeAvatar(m){
+  const primera = !Online.av;
+  Online.av = m;
+  Online.tipInv = m.tip || { x:m.pl.x, y:m.pl.y };
+  Online.proxy.x = m.pl.x; Online.proxy.y = m.pl.y;
+  Online.proxy.vx = m.pl.vx || 0; Online.proxy.vy = m.pl.vy || 0;
+  if (primera) Online.cDib = null;
+}
+
+// ---- caídas: el que cae vuelve a los 8 s si el otro aguanta ----
+const DOBLE_REVIVE = 8;
+function gestionaCaida(dt, companeroCaido, posCompanero){
+  if (!Online.caidoYo && hp <= 0){
+    Online.caidoYo = true; Online.reviveT = DOBLE_REVIVE;
+    if (heldObject){ heldObject.ref.held = false; if (dobleInv()) enviaAccion({ t:'suelta', r: refDe(heldObject.ref) }); heldObject = null; }
+    toast('¡CAÍSTE! VUELVES EN ' + DOBLE_REVIVE + ' s SI TU COMPAÑERO AGUANTA');
+  }
+  if (!Online.caidoYo) return null;
+  if (companeroCaido) return 'fin';
+  Online.reviveT -= dt;
+  if (Online.reviveT <= 0){
+    Online.caidoYo = false;
+    hp = Math.round(maxHp() * 0.5);
+    if (posCompanero){ player.x = posCompanero.x + 50; player.y = posCompanero.y; }
+    toast('¡DE VUELTA A LA INVASIÓN!');
+    sfx('evolve');
+  }
+  return null;
+}
+
+// ---- el compañero, dibujado con su propio aspecto ----
+function datosCompanero(){
+  if (Online.rol === 'anfitrion'){
+    const a = Online.av; if (!a) return null;
+    return { pl:a.pl, hero:a.hero, form:a.form, dr:a.dr, sk:a.sk, vil:a.vil, ap:a.ap, bT:a.bT, bP:a.bP, caido:a.caido };
+  }
+  return Online.companero || null;
+}
+function companeroDibujo(){
+  if (!esDoble()) return null;
+  const c = datosCompanero(); if (!c || !c.pl) return null;
+  // suavizado: la figura se acerca a la posición recibida en vez de saltar
+  if (!Online.cDib || Math.hypot(Online.cDib.x - c.pl.x, Online.cDib.y - c.pl.y) > 300)
+    Online.cDib = { x:c.pl.x, y:c.pl.y };
+  const k = Math.min(1, (Online.dtDib || 0.016) * 14);
+  Online.cDib.x += (c.pl.x - Online.cDib.x)*k; Online.cDib.y += (c.pl.y - Online.cDib.y)*k;
+  const pl = Object.assign({}, c.pl, { x: Online.cDib.x, y: Online.cDib.y });
+  return Object.assign({}, c, { pl });
+}
+function dibujaCompanero(){
+  const c = companeroDibujo(); if (!c) return;
+  const g = { player, hero, form, drawR, activeSkin, buffT, buffTipo, heldObject, vil: Object.assign({}, vil) };
+  player = c.pl; hero = c.hero; form = c.form; drawR = c.dr || drawR; activeSkin = c.sk;
+  buffT = c.bT || 0; buffTipo = c.bP || null; heldObject = null;
+  if (c.vil) Object.assign(vil, c.vil);
+  _apCompa = c.ap || null;
+  const a0 = ctx.globalAlpha;
+  if (c.caido) ctx.globalAlpha = 0.35;
+  try { drawPlayer(); }
+  finally {
+    ctx.globalAlpha = a0; _apCompa = null;
+    player = g.player; hero = g.hero; form = g.form; drawR = g.drawR; activeSkin = g.activeSkin;
+    buffT = g.buffT; buffTipo = g.buffTipo; heldObject = g.heldObject;
+    Object.assign(vil, g.vil);
+  }
+  // su nombre encima, para no confundirse
+  const otro = Sala.jugadores.find(j => j.id === Online.otro);
+  if (otro){
+    const sx = c.pl.x - camX, sy = c.pl.y - camY - 40;
+    ctx.save();
+    ctx.font = '900 11px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+    ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,0.75)';
+    ctx.strokeText(otro.nombre, sx, sy); ctx.fillStyle = c.caido ? '#ff8a7a' : '#8fd7ff';
+    ctx.fillText(otro.nombre, sx, sy);
+    ctx.restore();
+  }
+}
+
+// ---- invitado: su bucle ----
+function enviaAvatar(dt){
+  Online.avAcum = (Online.avAcum || 0) + dt;
+  if (Online.avAcum < 0.05) return;
+  Online.avAcum = 0;
+  const tp = tentacleTip();
+  salaEnviar(Online.otro, { t:'av', pl:_prim(player), hero, form, dr:drawR, sk:activeSkin,
+    vil: isVil() ? _prim(vil) : null, ap: aimVector(), tip:{ x:tp.x, y:tp.y }, r: F().r,
+    caido: Online.caidoYo ? 1 : 0, bT: buffT, bP: buffTipo, hp, mhp: maxHp() });
+}
+function loopInvitadoDoble(dt){
+  Online.dtDib = dt;
+  if (Online.pendiente){ aplicaInstantanea(Online.pendiente); Online.pendiente = null; }
+  const t = clamp((performance.now()/1000 - Online.tRecibida) / (Online.ritmo || Online.intervalo), 0, 1.25);
+  _interpola(enemies, t); _interpola(civilians, t); _interpola(cars, t); _interpola(bullets, t);
+  if (!Online.caidoYo){
+    updatePlayer(dt); updateSonic(dt); updateWind(dt); updateRam(dt); updateRayosOjos(dt);
+  }
+  updateBuff(dt); updateEstados(dt); updateVeneno(dt); updateAura(dt); updateViento(dt);
+  if (heldObject && heldObject.ref){                 // lo que llevas, en tu tentáculo
+    const tp = tentacleTip(); heldObject.ref.x = tp.x; heldObject.ref.y = tp.y; heldObject.ref.held = true;
+  }
+  updateFX(dt); updateZoom(dt);
+  if (shakeTime > 0){ shakeTime -= dt; if (shakeTime <= 0) shakeMag = 0; }
+  camX = clamp(player.x - VW/2, 0, Math.max(0, WORLD_W - VW));
+  camY = clamp(player.y - VH/2, 0, Math.max(0, WORLD_H - VH));
+  const c = Online.companero;
+  gestionaCaida(dt, false, c && !c.caido ? c.pl : null);   // el final lo decide el anfitrión
+  pintaHUD();
+  enviaAvatar(dt);
+}
+
 // ---- empezar y terminar ----
 function puedeEmpezar(){
   const otro = Sala.jugadores.find(j => j.id !== Sala.jugador);
-  return Sala.modo === 'vs' && Sala.anfitrion && otro && Sala.canales[otro.id] &&
+  return (Sala.modo === 'vs' || Sala.modo === 'doble') && Sala.anfitrion && otro && Sala.canales[otro.id] &&
          Sala.canales[otro.id].readyState === 'open';
 }
 function empiezaEnLinea(){
   if (!puedeEmpezar()) return;
   const otro = Sala.jugadores.find(j => j.id !== Sala.jugador);
   Online.activo = true; Online.rol = 'anfitrion'; Online.otro = otro.id;
+  Online.modo = Sala.modo; Online.av = null; Online.caidoYo = false; Online.cDib = null;
+  Online.danoInv = 0; Online.estInv = { q:0, h:0, v:0 }; Online.premioInv = { kills:0, heal:0, ovni:false };
   Online.seq = 0; Online.acum = 0; Online.bdSig = ''; Online.plN = -1;
   for (const k in Online.ultimo) Online.ultimo[k].clear();
   Online.p2in = { x:0, y:0, r:false };
   salaPost({ accion:'empezar', codigo:Sala.codigo, jugador:Sala.jugador, token:Sala.token }).catch(()=>{});
-  salaEnviar(otro.id, { t:'empezar', hero: Sala.heroe, sk: activeSkin });
+  salaEnviar(otro.id, { t:'empezar', modo: Sala.modo, hero: Sala.heroe, sk: activeSkin });
   Online.heroePropio = hero;
   hero = Sala.heroe;
   hide('sala');
-  startGame('vs');
+  startGame(Sala.modo === 'doble' ? 'invasion' : 'vs');
   _fxRed = [];
   Online.jugando = true;
 }
@@ -11396,9 +11752,22 @@ function empiezaComoInvitado(m, otro){
   Online.activo = true; Online.rol = 'invitado'; Online.otro = otro;
   Online.heroePropio = hero; Online.skinPropia = activeSkin;
   Online.teclas = {}; Online.pendiente = null; Online.btKey = null;
+  Online.p2Pred = false; Online.p2Obj = null; Online.ritmo = 0; Online.tRecibida = 0;
   for (const k in Online.mapas) Online.mapas[k].clear();
-  hero = m.hero; activeSkin = m.sk;
+  Online.modo = m.modo === 'doble' ? 'doble' : 'vs';
+  Online.caidoYo = false; Online.companero = null; Online.cDib = null; Online.avAcum = 0;
   hide('sala');
+  if (Online.modo === 'doble'){
+    // cada uno con SU personaje y SU aspecto
+    hero = Sala.heroe;
+    startGame('invasion');
+    player.x += 60;                         // no aparecer uno encima del otro
+    _fxRed = null;
+    Online.jugando = true;
+    toast('¡DOBLE INVASIÓN! ARRASAD LA CIUDAD JUNTOS');
+    return;
+  }
+  hero = m.hero; activeSkin = m.sk;
   startGame('vs');
   // el invitado no maneja al alien: fuera sus botones y su joystick
   document.getElementById('actionBtns').classList.remove('playing');
@@ -11414,8 +11783,10 @@ function terminaEnLinea(){
   } else if (enLineaInvitado()){
     salaEnviar(Online.otro, { t:'adios' });
   }
-  Online.jugando = false;
-  _fxRed = null; _apRed = null;
+  Online.jugando = false; Online.caidoYo = false;
+  _fxRed = null; _apRed = null; _apCompa = null;
+  if (Online.jugadorReal) player = Online.jugadorReal;
+  Online.objetivoInv = false; Online.culpaInv = false;
 }
 function volverASala(){
   if (Online.heroePropio) hero = Online.heroePropio;
@@ -11435,9 +11806,14 @@ function recibeMensaje(otro, m){
   else if (m.t === 'pong'){ Sala.latencia[otro] = Math.max(1, Date.now() - m.ts); if (!Online.jugando) pintaSala(); }
   else if (m.t === 'i'){ if (enLineaInvitado()) Online.pendiente = m; }       // se aplica en el próximo fotograma
   else if (m.t === 'mv'){ if (enLineaAnfitrion()) Online.p2in = { x:+m.x||0, y:+m.y||0, r:!!m.r }; }
+  else if (m.t === 'av'){ if (dobleAnf()) recibeAvatar(m); }
+  else if (['dano','edif','prop','auto','agarra','lanza','suelta'].includes(m.t)){ if (dobleAnf()) accionInvitado(m); }
   else if (m.t === 'acc' && enLineaAnfitrion()){
     Online.desdeRed = true;
-    try { if (m.a === 'place') p2Place(); else if (m.a === 'next') p2Cycle(1); else if (m.a === 'prev') p2Cycle(-1); }
+    try {
+      if (m.a === 'place') p2Place(); else if (m.a === 'next') p2Cycle(1); else if (m.a === 'prev') p2Cycle(-1);
+      else if (m.a === 'sel') p2Select(+m.i);
+    }
     finally { Online.desdeRed = false; }
   }
   else if (m.t === 'empezar' && !Sala.anfitrion) empiezaComoInvitado(m, otro);
