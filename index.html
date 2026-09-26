@@ -611,6 +611,12 @@
   /* También con la marca estable de móvil: la de "último toque" cambia con
      los eventos de ratón que emite el teléfono y el mando desaparecía. */
   body.touch-ui #p2touch.playing, body.movil #p2touch.playing { display:block; }
+  /* En línea, quien manda al ejército desde el móvil tiene su mando siempre:
+     joystick para la mira, botón grande para desplegar y uno pequeño para
+     traer la mira junto al alien. */
+  body.visorvs.movil #p2touch, body.visorvs.touch-ui #p2touch { display:block !important; }
+  body.visorvs #p2Place { min-width:120px; height:58px; font-size:0.62rem; }
+  body.visorvs #p2Recall { min-width:40px; height:40px; }
   #p2seeds .seed { pointer-events:auto; cursor:pointer; }
   .p2joy { border-color:rgba(120,180,255,0.75) !important; pointer-events:auto; }
   .p2joy .joy-knob { background:radial-gradient(circle at 35% 30%, #8fd0ff, #1f5f9e) !important; }
@@ -933,6 +939,13 @@
       <div id="salaEntrada">
         <label class="salalbl" for="salaNombre">Tu nombre</label>
         <input id="salaNombre" class="salain" maxlength="14" autocomplete="off" placeholder="Escribe tu nombre">
+        <div id="salaRolBox" class="hidden">
+          <div class="salalbl">Tu papel en el duelo</div>
+          <div class="salaheroes">
+            <button type="button" class="small salahero on" id="salaRolInv">INVASOR</button>
+            <button type="button" class="small salahero" id="salaRolEje">EJÉRCITO</button>
+          </div>
+        </div>
         <div class="salalbl" id="salaHeroeLbl">Tu personaje</div>
         <div class="salaheroes">
           <button type="button" class="small salahero on" id="salaHeroeAlien">CRÍA</button>
@@ -948,6 +961,13 @@
       <div id="salaDentro" class="hidden">
         <div class="salalbl">Código de la sala · compártelo</div>
         <div class="salacodigo" id="salaCodigoVer">-----</div>
+        <div id="salaRolDentro" class="hidden">
+          <div class="salalbl">Tu papel · al cambiarlo, el otro jugador toma el contrario</div>
+          <div class="salaheroes">
+            <button type="button" class="small salahero" id="salaRolInv2">INVASOR</button>
+            <button type="button" class="small salahero" id="salaRolEje2">EJÉRCITO</button>
+          </div>
+        </div>
         <div class="salalbl">Jugadores</div>
         <div id="salaLista" class="salalista"></div>
         <div id="salaEstado" class="salaestado">Esperando al otro jugador…</div>
@@ -5982,6 +6002,7 @@ function flechaP2(){
 
 function drawP2Cursor(){
   if (gameMode !== 'vs'){ ocultaFlechaP2(); return; }
+  if (enLineaAnfitrion() && Online.modo === 'vs'){ ocultaFlechaP2(); return; }   // secreto del ejército
   if (flechaP2()) return;                         // fuera de vista: solo la flecha
   const s2 = S(p2.x, p2.y);
   const u = P2_UNITS[p2.sel];
@@ -10955,7 +10976,7 @@ const SALA_SONDEO_MS = 1000;
 const Sala = {
   modo:null, codigo:null, jugador:null, token:null, anfitrion:false,
   jugadores:[], desde:0, sondeo:null, pcs:{}, canales:{}, pendientes:{},
-  latencia:{}, pingT:null, heroe:'alien'
+  latencia:{}, pingT:null, heroe:'alien', rol:'invasor'
 };
 function salaDisponible(){
   try { return /^https?:$/.test(location.protocol); } catch(e){ return false; }
@@ -10992,6 +11013,8 @@ function abrirSala(modo){
     : 'Quien crea la sala invade; quien se une manda al ejército';
   document.getElementById('salaHeroeLbl').textContent =
     modo === 'doble' ? 'Tu personaje (se pueden repetir)' : 'Tu personaje (si te toca invadir)';
+  document.getElementById('salaRolBox').classList.toggle('hidden', modo !== 'vs');
+  marcaRolSala(Sala.rol);
   document.getElementById('salaEntrada').classList.remove('hidden');
   document.getElementById('salaDentro').classList.add('hidden');
   salaError('');
@@ -11003,6 +11026,19 @@ function abrirSala(modo){
   if (n && !n.value) storeGet('invasion_mpnombre').then(v => { if (v && !n.value) n.value = v; });
   marcaHeroeSala(Sala.heroe);
   hide('modeselect'); show('sala');
+}
+// Papel en el versus: invasor o ejército. Siempre complementarios: al elegir
+// uno, el otro jugador pasa al contrario. Viaja por la conexión directa.
+function marcaRolSala(r){
+  Sala.rol = (r === 'ejercito') ? 'ejercito' : 'invasor';
+  for (const [id, v] of [['salaRolInv','invasor'],['salaRolEje','ejercito'],['salaRolInv2','invasor'],['salaRolEje2','ejercito']]){
+    const b = document.getElementById(id); if (b) b.classList.toggle('on', Sala.rol === v);
+  }
+}
+function cambiaRolSala(r){
+  marcaRolSala(r); sfx('ui');
+  salaEnviarTodos({ t:'rol', r: Sala.rol });
+  pintaSala();
 }
 function marcaHeroeSala(h){
   Sala.heroe = h;
@@ -11019,8 +11055,9 @@ function pintaSala(){
   document.getElementById('salaCodigoVer').textContent = Sala.codigo || '-----';
   const lista = document.getElementById('salaLista');
   lista.innerHTML = Sala.jugadores.map((j, i) => {
+    const suRol = (j.id === Sala.jugador) ? Sala.rol : (Sala.rol === 'invasor' ? 'ejercito' : 'invasor');
     const rol = Sala.modo === 'vs'
-      ? (j.anfitrion ? 'INVASOR · ' + (j.heroe === 'viltrum' ? 'VILTRUMITA' : 'CRÍA') : 'EJÉRCITO · Jugador 2')
+      ? (suRol === 'invasor' ? 'INVASOR · ' + (j.heroe === 'viltrum' ? 'VILTRUMITA' : 'CRÍA') : 'EJÉRCITO · Jugador 2')
       : (j.heroe === 'viltrum' ? 'VILTRUMITA' : 'CRÍA');
     const yo = j.id === Sala.jugador ? ' (tú)' : '';
     const ms = Sala.latencia[j.id];
@@ -11028,6 +11065,9 @@ function pintaSala(){
     return `<div class="salajug"><span>${escapaHtml(j.nombre)}${yo}${j.anfitrion ? ' ★' : ''}</span>` +
            `<span class="rol">${rol}${lat}</span></div>`;
   }).join('');
+  const rd = document.getElementById('salaRolDentro');
+  if (rd) rd.classList.toggle('hidden', Sala.modo !== 'vs');
+  marcaRolSala(Sala.rol);
   const b = document.getElementById('btnSalaEmpezar');
   if (b){
     if (!Sala.anfitrion){ b.disabled = true; b.textContent = 'Esperando a que el anfitrión empiece…'; }
@@ -11041,6 +11081,7 @@ function escapaHtml(t){
 function entrarSala(r){
   Sala.codigo = r.codigo; Sala.jugador = r.jugador; Sala.token = r.token;
   Sala.anfitrion = !!r.anfitrion; Sala.modo = r.modo || Sala.modo; Sala.desde = 0;
+  if (!Sala.anfitrion) marcaRolSala(Sala.rol === 'invasor' ? 'ejercito' : 'invasor');   // hasta que el anfitrión diga
   Sala.jugadores = []; Sala.pcs = {}; Sala.canales = {}; Sala.pendientes = {}; Sala.latencia = {};
   document.getElementById('salaEntrada').classList.add('hidden');
   document.getElementById('salaDentro').classList.remove('hidden');
@@ -11147,6 +11188,7 @@ function preparaCanal(otro, canal){
   canal.onopen = ()=>{
     salaEstado('¡Conectados directamente!', 'ok');
     salaEnviar(otro, { t:'hola', nombre: document.getElementById('salaNombre').value, heroe: Sala.heroe });
+    if (Sala.anfitrion) salaEnviar(otro, { t:'rol', r: Sala.rol });
     sfx('coin');
   };
   canal.onclose = ()=>{
@@ -11204,7 +11246,7 @@ const Online = {
   intervalo: 1/20,          // 20 instantáneas por segundo
   p2in:{ x:0, y:0, r:false }, desdeRed:false,
   ultimo:{ en:new Map(), ci:new Map(), ca:new Map(), bu:new Map(), pr:new Map() },
-  modo:'vs', av:null, proxy:{ x:0, y:0, vx:0, vy:0 }, tipInv:{ x:0, y:0 }, jugadorReal:null,
+  cola:[], modo:'vs', av:null, proxy:{ x:0, y:0, vx:0, vy:0 }, tipInv:{ x:0, y:0 }, jugadorReal:null,
   objetivoInv:false, culpaInv:false, danoInv:0, estInv:{ q:0, h:0, v:0 },
   premioInv:{ kills:0, heal:0, ovni:false }, caidoYo:false, reviveT:0, companero:null, cDib:null,
   // invitado
@@ -11229,23 +11271,27 @@ function _prim(o, out){
   }
   return out;
 }
+// El centro de la vista se fija UNA vez por instantánea (instantaneaAnfitrion);
+// antes se recalculaba en cada una de las cientos de llamadas.
+var _olCx = 0, _olCy = 0;
 function _dentro(o){
-  const c = centroVista();
-  return Math.abs(o.x - c.x) < OL_CAJA_X && Math.abs(o.y - c.y) < OL_CAJA_Y + (o.alt||0);
+  return Math.abs(o.x - _olCx) < OL_CAJA_X && Math.abs(o.y - _olCy) < OL_CAJA_Y + (o.alt||0);
 }
 function _conId(o){ if (!o._nid) o._nid = ++Online.nidSeq; const d = _prim(o); d.id = o._nid; return d; }
 // Envío por diferencias: la primera vez que una entidad entra en la vista del
 // invitado viaja entera; después, solo los campos que cambiaron. El canal es
 // fiable y ordenado, así que no se pierde nada por el camino. Si sale de la
 // vista y vuelve, se manda entera otra vez (el invitado ya la había olvidado).
-function _delta(lista, previo, fuente){
+function _delta(todo, previo, fuente){
   const vistos = new Set(), out = [];
   for (const o of fuente){
     const d = _conId(o);
     vistos.add(d.id);
     const p = previo.get(d.id);
     previo.set(d.id, d);
-    if (!p){ out.push(d); continue; }
+    // entera si es nueva o si toca refresco completo (cada 2 s): así cualquier
+    // diferencia que se hubiera colado se corrige sola
+    if (!p || todo){ out.push(d); continue; }
     const q = { id: d.id };
     let hay = false;
     for (const k in d) if (d[k] !== p[k]){ q[k] = d[k]; hay = true; }
@@ -11256,9 +11302,11 @@ function _delta(lista, previo, fuente){
   return out;
 }
 const OL_POOLS = { t:'trees', l:'lamps', b:'trash', n:'benches' };
+const OL_NUM = { t:1, l:2, b:3, n:4 }, OL_LETRA = [null, 't', 'l', 'b', 'n'];
 function _pool(c){ return c === 't' ? trees : c === 'l' ? lamps : c === 'b' ? trash : benches; }
 
 function instantaneaAnfitrion(){
+  { const c = centroVista(); _olCx = c.x; _olCy = c.y; }
   const i = { t:'i', n: ++Online.seq,
     gt: gameTime, sc: score, hp, form, kills, dem: demolished, stg: stage, vt: vsTimeLeft,
     dr: drawR, fase: phaseIdx, hero, sk: activeSkin, rayos: rayosOn ? 1 : 0,
@@ -11288,28 +11336,37 @@ function instantaneaAnfitrion(){
   const bt = bossTrack ? Object.keys(BOSS_TRACKS).find(k => BOSS_TRACKS[k] === bossTrack) : null;
   i.bt = bt || null;
   const U = Online.ultimo;
-  i.en = _delta(null, U.en, enemies.filter(e => !e.dead && _dentro(e)));
-  i.ci = _delta(null, U.ci, civilians.filter(c => !c.dead && _dentro(c)));
-  i.ca = _delta(null, U.ca, cars.filter(c => !c.dead && _dentro(c)));
-  i.bu = _delta(null, U.bu, bullets.filter(_dentro));
+  const todo = (Online.seq % 40 === 1);            // refresco completo cada 2 s
+  i.en = _delta(todo, U.en, enemies.filter(e => !e.dead && _dentro(e)));
+  i.ci = _delta(todo, U.ci, civilians.filter(c => !c.dead && _dentro(c)));
+  i.ca = _delta(todo, U.ca, cars.filter(c => !c.dead && _dentro(c)));
+  i.bu = _delta(todo, U.bu, bullets.filter(_dentro));
   // Mobiliario: lo que cambia y, sobre todo, lo que DESAPARECE. Al destruirse
   // una farola el juego la quita de la lista; sin avisar, el invitado se
   // quedaba viéndola tal cual estaba (por ejemplo, agarrada) para siempre.
   const presentes = new Set();
+  const cx = _olCx, cy = _olCy;
   for (const c in OL_POOLS){
+    const base = OL_NUM[c] * 100000;
     for (const p of _pool(c)){
       if (p.kind === 'edificio'){ if (!p.dead) i.tz.push(_prim(p)); continue; }
-      presentes.add(c + p.si);
-      if (!_dentro(p)) continue;
-      const f = [c, p.si, p.dead?1:0, p.held?1:0, p.thrown?1:0, Math.round(p.x), Math.round(p.y),
-                 Math.round((p.rot||0)*100)/100, Math.round((p.viento||0)*1000)/1000, p.uprooted?1:0];
-      const clave = c + p.si, firma = f.join(',');
-      if (U.pr.get(clave) !== firma){ U.pr.set(clave, firma); i.pr.push(f); }
+      const clave = base + p.si;                         // clave numérica: sin crear textos
+      presentes.add(clave);
+      if (Math.abs(p.x - cx) >= OL_CAJA_X || Math.abs(p.y - cy) >= OL_CAJA_Y) continue;
+      // Se compara con lo último enviado, guardado en la propia pieza como
+      // números: si nada cambió no se crea ni un array ni un texto.
+      const fl = (p.dead?1:0) | (p.held?2:0) | (p.thrown?4:0) | (p.uprooted?8:0);
+      const x = Math.round(p.x), y = Math.round(p.y);
+      const r = Math.round((p.rot||0)*100)/100, v = Math.round((p.viento||0)*1000)/1000;
+      if (!todo && U.pr.has(clave) && p._olf === fl && p._olx === x && p._oly === y && p._olr === r && p._olv === v) continue;
+      p._olf = fl; p._olx = x; p._oly = y; p._olr = r; p._olv = v;
+      U.pr.set(clave, 1);
+      i.pr.push([c, p.si, fl & 1, (fl >> 1) & 1, (fl >> 2) & 1, x, y, r, v, (fl >> 3) & 1]);
     }
   }
   i.px = [];
   for (const clave of U.pr.keys()){
-    if (!presentes.has(clave)){ i.px.push([clave[0], +clave.slice(1)]); U.pr.delete(clave); }
+    if (!presentes.has(clave)){ i.px.push([OL_LETRA[Math.floor(clave/100000)], clave % 100000]); U.pr.delete(clave); }
   }
   // lo que lleva en el tentáculo, para que el invitado lo sepa encontrar
   if (heldObject && heldObject.ref){
@@ -11479,7 +11536,7 @@ function _interpola(lista, t){
   }
 }
 function loopInvitado(dt){
-  if (Online.pendiente){ aplicaInstantanea(Online.pendiente); Online.pendiente = null; }
+  while (Online.cola.length) aplicaInstantanea(Online.cola.shift());
   // un poco de extrapolación (hasta 1.25) tapa los huecos cuando una llega tarde
   const t = clamp((performance.now()/1000 - Online.tRecibida) / (Online.ritmo || Online.intervalo), 0, 1.25);
   _interpola(enemies, t); _interpola(civilians, t); _interpola(cars, t); _interpola(bullets, t);
@@ -11704,7 +11761,7 @@ function enviaAvatar(dt){
 }
 function loopInvitadoDoble(dt){
   Online.dtDib = dt;
-  if (Online.pendiente){ aplicaInstantanea(Online.pendiente); Online.pendiente = null; }
+  while (Online.cola.length) aplicaInstantanea(Online.cola.shift());
   const t = clamp((performance.now()/1000 - Online.tRecibida) / (Online.ritmo || Online.intervalo), 0, 1.25);
   _interpola(enemies, t); _interpola(civilians, t); _interpola(cars, t); _interpola(bullets, t);
   if (!Online.caidoYo){
@@ -11724,6 +11781,13 @@ function loopInvitadoDoble(dt){
   enviaAvatar(dt);
 }
 
+// En línea, el invasor no ve lo que prepara el ejército: ni su panel de
+// semillas, ni su mira, ni su mando táctil.
+function ocultaEjercitoAlInvasor(){
+  document.getElementById('p2panel').classList.add('hidden');
+  const t = document.getElementById('p2touch'); if (t) t.classList.remove('playing');
+  try { document.body.classList.add('invasorvs'); } catch(e){}
+}
 // ---- empezar y terminar ----
 function puedeEmpezar(){
   const otro = Sala.jugadores.find(j => j.id !== Sala.jugador);
@@ -11733,6 +11797,15 @@ function puedeEmpezar(){
 function empiezaEnLinea(){
   if (!puedeEmpezar()) return;
   const otro = Sala.jugadores.find(j => j.id !== Sala.jugador);
+  // En el versus manda la partida quien INVADE (su invasor es el que se mueve
+  // y el mundo reacciona a él). Si el que creó la sala eligió el ejército, se
+  // lo cede al otro y él pasa a ver la partida y a desplegar unidades.
+  if (Sala.modo === 'vs' && Sala.rol === 'ejercito'){
+    salaPost({ accion:'empezar', codigo:Sala.codigo, jugador:Sala.jugador, token:Sala.token }).catch(()=>{});
+    salaEnviar(otro.id, { t:'empezar', modo:'vs', invasor: otro.id });
+    empiezaComoInvitado({ modo:'vs' }, otro.id);
+    return;
+  }
   Online.activo = true; Online.rol = 'anfitrion'; Online.otro = otro.id;
   Online.modo = Sala.modo; Online.av = null; Online.caidoYo = false; Online.cDib = null;
   Online.danoInv = 0; Online.estInv = { q:0, h:0, v:0 }; Online.premioInv = { kills:0, heal:0, ovni:false };
@@ -11745,13 +11818,30 @@ function empiezaEnLinea(){
   hero = Sala.heroe;
   hide('sala');
   startGame(Sala.modo === 'doble' ? 'invasion' : 'vs');
+  if (Sala.modo === 'vs') ocultaEjercitoAlInvasor();
   _fxRed = [];
   Online.jugando = true;
+}
+// El que no creó la sala pero eligió invadir: simula la partida.
+function empiezaComoSimulador(otro){
+  Online.activo = true; Online.rol = 'anfitrion'; Online.otro = otro;
+  Online.modo = 'vs'; Online.av = null; Online.caidoYo = false; Online.cDib = null;
+  Online.seq = 0; Online.acum = 0; Online.bdSig = ''; Online.plN = -1;
+  for (const k in Online.ultimo) Online.ultimo[k].clear();
+  Online.p2in = { x:0, y:0, r:false };
+  Online.heroePropio = hero;
+  hero = Sala.heroe;
+  hide('sala');
+  startGame('vs');
+  ocultaEjercitoAlInvasor();
+  _fxRed = [];
+  Online.jugando = true;
+  toast('¡INVADES! EL OTRO MANDA AL EJÉRCITO');
 }
 function empiezaComoInvitado(m, otro){
   Online.activo = true; Online.rol = 'invitado'; Online.otro = otro;
   Online.heroePropio = hero; Online.skinPropia = activeSkin;
-  Online.teclas = {}; Online.pendiente = null; Online.btKey = null;
+  Online.teclas = {}; Online.cola = []; Online.btKey = null;
   Online.p2Pred = false; Online.p2Obj = null; Online.ritmo = 0; Online.tRecibida = 0;
   for (const k in Online.mapas) Online.mapas[k].clear();
   Online.modo = m.modo === 'doble' ? 'doble' : 'vs';
@@ -11771,6 +11861,8 @@ function empiezaComoInvitado(m, otro){
   startGame('vs');
   // el invitado no maneja al alien: fuera sus botones y su joystick
   document.getElementById('actionBtns').classList.remove('playing');
+  const pt = document.getElementById('p2touch'); if (pt) pt.classList.add('playing');
+  try { document.body.classList.add('visorvs'); } catch(e){}
   _fxRed = null;
   Online.jugando = true;
   toast('¡A POR ÉL! MANDAS AL EJÉRCITO');
@@ -11785,6 +11877,7 @@ function terminaEnLinea(){
   }
   Online.jugando = false; Online.caidoYo = false;
   _fxRed = null; _apRed = null; _apCompa = null;
+  try { document.body.classList.remove('visorvs'); document.body.classList.remove('invasorvs'); } catch(e){}
   if (Online.jugadorReal) player = Online.jugadorReal;
   Online.objetivoInv = false; Online.culpaInv = false;
 }
@@ -11803,8 +11896,13 @@ function volverASala(){
 
 function recibeMensaje(otro, m){
   if (m.t === 'ping') salaEnviar(otro, { t:'pong', ts:m.ts });
+  else if (m.t === 'rol'){ marcaRolSala(m.r === 'invasor' ? 'ejercito' : 'invasor'); pintaSala(); }
   else if (m.t === 'pong'){ Sala.latencia[otro] = Math.max(1, Date.now() - m.ts); if (!Online.jugando) pintaSala(); }
-  else if (m.t === 'i'){ if (enLineaInvitado()) Online.pendiente = m; }       // se aplica en el próximo fotograma
+  // Se ENCOLAN: si llegan dos en el mismo fotograma (la red entrega a
+  // trompicones) se aplican las dos, en orden. Guardando solo la última se
+  // perdían los cambios de la otra, y con el envío por diferencias eso era
+  // definitivo: farolas destruidas que seguían viéndose, daño que no llegaba…
+  else if (m.t === 'i'){ if (enLineaInvitado()) Online.cola.push(m); }
   else if (m.t === 'mv'){ if (enLineaAnfitrion()) Online.p2in = { x:+m.x||0, y:+m.y||0, r:!!m.r }; }
   else if (m.t === 'av'){ if (dobleAnf()) recibeAvatar(m); }
   else if (['dano','edif','prop','auto','agarra','lanza','suelta'].includes(m.t)){ if (dobleAnf()) accionInvitado(m); }
@@ -11816,7 +11914,11 @@ function recibeMensaje(otro, m){
     }
     finally { Online.desdeRed = false; }
   }
-  else if (m.t === 'empezar' && !Sala.anfitrion) empiezaComoInvitado(m, otro);
+  else if (m.t === 'empezar'){
+    // el que invade simula; el otro mira y manda al ejército
+    if (m.modo === 'vs' && m.invasor === Sala.jugador) empiezaComoSimulador(otro);
+    else if (!Sala.anfitrion || m.invasor) empiezaComoInvitado(m, otro);
+  }
   else if (m.t === 'fin' && enLineaInvitado()){
     Online.jugando = false;
     vsWinner = m.w;
@@ -11836,6 +11938,8 @@ document.getElementById('btnVsLocal').addEventListener('click', ()=>{
 document.getElementById('btnVsOnline').addEventListener('click', ()=>{ sfx('ui'); hide('vselige'); abrirSala('vs'); });
 document.getElementById('btnVsElegirNo').addEventListener('click', ()=>{ sfx('ui'); hide('vselige'); });
 document.getElementById('salaHeroeAlien').addEventListener('click', ()=> cambiaHeroeSala('alien'));
+for (const [id, v] of [['salaRolInv','invasor'],['salaRolEje','ejercito'],['salaRolInv2','invasor'],['salaRolEje2','ejercito']])
+  document.getElementById(id).addEventListener('click', ()=> cambiaRolSala(v));
 document.getElementById('salaHeroeVil').addEventListener('click', ()=> cambiaHeroeSala('viltrum'));
 function cambiaHeroeSala(h){
   marcaHeroeSala(h); sfx('ui');
