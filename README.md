@@ -11,9 +11,11 @@ pestaña GLOBAL simplemente avisará de que no pudo conectar.
 tu-repo/
 ├── index.html        (el juego)
 ├── package.json
-├── schema.sql
+├── schema.sql        (ranking global)
+├── schema_salas.sql  (salas del multijugador en línea)
 └── api/
-    └── scores.js     (función de servidor)
+    ├── scores.js     (función de servidor: ranking)
+    └── salas.js      (función de servidor: salas)
 ```
 
 `index.html` va en la raíz. La carpeta `api/` es lo que Vercel convierte
@@ -24,11 +26,36 @@ automáticamente en endpoints: `api/scores.js` se publica como `/api/scores`.
 1. Entra en **https://neon.tech** y crea una cuenta.
 2. Pulsa **New Project**, ponle nombre y elige la región más cercana.
 3. Abre el **SQL Editor** del proyecto.
-4. Pega el contenido de `schema.sql` y ejecútalo.
-5. Ve a **Connection Details** y copia la cadena que empieza por
+4. Pega el contenido de `schema.sql` y pulsa **Run**.
+5. Pega el contenido de `schema_salas.sql` y pulsa **Run** (sin esto, el
+   multijugador en línea no funciona).
+6. Ve a **Connection Details** y copia la cadena que empieza por
    `postgresql://`. Marca la opción **Pooled connection** si aparece.
 
 Guarda esa cadena: es la que usarás como `DATABASE_URL`.
+
+### Si ya tenías la base creada (añadir al dragón)
+
+Vuelve a pegar y ejecutar **los dos** archivos, `schema.sql` y
+`schema_salas.sql`, en el SQL Editor de Neon. Están hechos para ejecutarse
+sobre una base existente: no borran ni cambian ningún puntaje, solo añaden lo
+que falte:
+
+- el control de que solo se guarden los tres personajes (`alien`, `viltrum`
+  y `dragon`), tanto en el ranking como en las salas;
+- tres vistas de solo lectura, una por personaje: `ranking_alien`,
+  `ranking_viltrum` y `ranking_dragon`. Sirven para ver cada tabla de
+  puntajes desde Neon (`SELECT * FROM ranking_dragon;`); el juego no las
+  necesita.
+
+Después haz **Redeploy** en Vercel para que `api/scores.js` y `api/salas.js`
+acepten al dragón. Hasta entonces el servidor antiguo guardaba lo del dragón
+como si fuera la cría.
+
+Cada personaje tiene su propio ranking: los tres comparten la tabla `scores`
+y se separan por la columna `hero`. En el navegador, los puntajes locales
+también van por separado (`invasion_scores`, `invasion_scores_vil` e
+`invasion_scores_dra`).
 
 ## 2. Subir el proyecto a GitHub
 
@@ -65,6 +92,8 @@ Vercel crea `DATABASE_URL` por ti y no tienes que copiar nada a mano.
 
 ## 4. Comprobar que funciona
 
+- `https://tu-proyecto.vercel.app/api/scores?hero=dragon` debe responder
+  `{"ok":true,"hero":"dragon","scores":[…]}` (vacío al principio).
 - `https://tu-proyecto.vercel.app/api/scores` debe responder
   `{"ok":true,"scores":[]}`.
 - En el juego, pestaña **GLOBAL**: debe decir "Sin registros globales aún"
