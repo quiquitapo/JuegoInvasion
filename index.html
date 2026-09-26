@@ -605,9 +605,12 @@
   #btnPunch.charging { box-shadow:0 0 0 5px rgba(255,120,60,0.6); }
   body.touch-ui #actionBtns.playing.vil #btnPunch { display:flex; }
   /* Mando táctil del Jugador 2 */
-  #p2touch { display:none; position:absolute; left:0; right:0;
-             bottom:calc(12px + env(safe-area-inset-bottom,0px)); z-index:7;
-             pointer-events:none; }
+  /* Ocupa TODA la pantalla (sin recibir toques; sus mandos sí). Los mandos se
+     colocan con top/left en proporción al alto de la pantalla, así que el
+     contenedor tiene que medir eso: antes era una franja de altura cero
+     pegada abajo y el joystick y los botones quedaban fuera, por debajo. */
+  #p2touch { display:none; position:absolute; left:0; top:0; width:100%; height:100%;
+             z-index:7; pointer-events:none; }
   /* También con la marca estable de móvil: la de "último toque" cambia con
      los eventos de ratón que emite el teléfono y el mando desaparecía. */
   body.touch-ui #p2touch.playing, body.movil #p2touch.playing { display:block; }
@@ -6486,7 +6489,9 @@ const VIL_JOY_OFF = 0.72;   // por debajo de esto, se corta
 const UI_PIEZAS = [
   { id:'act',   el:'btnAction',  nombre:'ACCIÓN',   def:{ v:[0.86,0.60], h:[0.92,0.72] } },
   { id:'punch', el:'btnPunch',   nombre:'GOLPE',    def:{ v:[0.86,0.79], h:[0.78,0.78] } },
-  { id:'p2joy', el:'p2JoyBase',  nombre:'MANDO J2', def:{ v:[0.16,0.88], h:[0.10,0.80] } },
+  // en vertical, un poco más arriba: en un móvil estrecho no caben joystick y
+  // botones a la misma altura y el joystick pisaba el botón ◀
+  { id:'p2joy', el:'p2JoyBase',  nombre:'MANDO J2', def:{ v:[0.16,0.79], h:[0.10,0.80] } },
   { id:'p2btn', el:'p2Buttons',  nombre:'UNIDADES J2', def:{ v:[0.62,0.94], h:[0.72,0.90] } }
 ];
 // Cada personaje guarda su propio tamaño y colocación de mandos.
