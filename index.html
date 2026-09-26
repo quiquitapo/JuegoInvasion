@@ -1798,6 +1798,7 @@ function resetGame(){
   resetRunStats();
   finalAnnounced = false; bossAlive = false; bossRest = 0; bossRoll = 0; coinsBanco = 0;
   ultimoJefe = null; penultimoJefe = null;   // cada partida empieza con el bombo lleno
+  marcianaAvisoT = 0;
   comboReset(); comboBonus = 0; comboFlash = 0;
   venenoT = 0; venenoDosis = 0; venenoUlt = 0; paralizadoT = 0;
   quemaT = 0; hieloT = 0;
@@ -1920,12 +1921,12 @@ function edgeSpawnPos(dmin, dmax, vuela){
            y: clamp(cen.y, M, WORLD_H - M) };
 }
 
-const ENEMY_TYPES = { police:1, military:1, minigun:1, tank:1, heli:1, gunship:1, siege:1, flametank:1, plane:1, omni:1, artillero:1, superx:1, mbt:1, mbtFrio:1, ovni:1 };
+const ENEMY_TYPES = { police:1, military:1, minigun:1, tank:1, heli:1, gunship:1, siege:1, flametank:1, plane:1, omni:1, artillero:1, superx:1, mbt:1, mbtFrio:1, ovni:1, tripode:1 };
 function spawnEnemy(type, atX, atY){
   if (!ENEMY_TYPES[type]) return;      // ignora tipos retirados o mal escritos
   // Lo que vuela puede aparecer sobre un tejado; el resto, no.
   const vuela = (type === 'heli' || type === 'gunship' || type === 'plane' ||
-                 type === 'ovni' || type === 'superx');
+                 type === 'ovni' || type === 'superx' || type === 'tripode');   // el trípode pasa por encima
   const p = (atX != null && atY != null) ? {x:atX, y:atY} : edgeSpawnPos(460, 620, vuela);
   const base = { x:p.x, y:p.y, type, dead:false, facing:1, shootCd:rand(0.3,1.6), rot:0,
                  held:false, thrown:false, alt:0, stunT:0, stunVx:0, stunVy:0, person:false };
@@ -1969,6 +1970,13 @@ function spawnEnemy(type, atX, atY){
   if (type==='flametank') Object.assign(base, {hp:1050,maxhp:1050,speed:38, w:152,h:99,
                                                grabbable:false, phase:'aim', pt:FLAME_AIM,
                                                aimA:0, lockA:0, closeCd:0});
+  // Trípode marciano: camina sobre la ciudad, agarra con tentáculos, se
+  // cubre con un escudo y dispara un rayo a un área marcada.
+  if (type==='tripode')   Object.assign(base, {hp:TRI_HP,maxhp:TRI_HP,speed:40, w:132,h:150,
+                            grabbable:false, paso:rand(0,6), lado:1, miraA:0,
+                            escudoCd:rand(4,8), escudoT:0,
+                            rayCd:rand(4,7), rayFase:'', rayT:0, rayX:0, rayY:0,
+                            tentCd:rand(1.5,2.5), tentFase:'', tentT:0, tentK:0, tentX:0, tentY:0});
   // Minigunero: como el militar pero con una cadencia mucho mayor.
   if (type==='minigun')  Object.assign(base, {hp:70,maxhp:70,speed:52, w:28,h:36,
                                               grabbable:true, person:true});
@@ -2198,6 +2206,393 @@ function drawOmniBeam(e){
   }
 }
 
+// ================= JEFE: INVASIÓN MARCIANA (TRÍPODES) =================
+// No son del ejército: son otros invasores que también quieren el planeta.
+// Llegan en grupo y, mientras quede uno en pie, el ejército humano deja de
+// salir. Caminan por encima de la ciudad sobre tres patas; con los
+// tentáculos atrapan autos, farolas y humanos para lanzártelos (o se comen a
+// los humanos para recuperar un poco de vida), se cubren a ratos con un
+// escudo pequeño y calculan un área del suelo donde descargan un rayo blanco
+// que hace mucho daño y deja quemadura.
+const TRI_HP         = 650;           // como el cañón de asedio
+const TRI_DIST       = 340;           // distancia a la que le gusta pelear
+const TRI_ALCANCE    = 300;           // alcance de los tentáculos
+const TRI_TENT_CD    = [3.0, 4.4];    // entre un agarre y el siguiente
+const TRI_ALCANZA_T  = 0.35;          // el tentáculo sale hasta la presa
+const TRI_ARRASTRA_T = 0.55;          // y la trae hasta la cúpula
+const TRI_LANZA_VEL  = 470;
+const TRI_CURA       = 0.08;          // parte de su vida que recupera al comer
+const TRI_COME_SI    = 0.85;          // solo come si está por debajo de esto
+const TRI_ESC_CD     = [9, 13];
+const TRI_ESC_DUR    = 3.0;
+const TRI_RAYO_CD    = [7, 10];
+const TRI_RAYO_AVISO = 1.7;           // tiempo para salir del área marcada
+const TRI_RAYO_T     = 0.45;          // lo que dura la descarga
+const TRI_RAYO_R     = 96;            // radio del área
+const TRI_RAYO_DMG   = 72;
+const TRI_QUEMA      = 3.5;           // segundos de quemadura
+const TRI_AVISO      = 'AL PARECER NO ERES EL ÚNICO QUE QUIERE EL PLANETA';
+let marcianaAvisoT = 0;
+
+// ¿Hay trípodes que sigan frenando al ejército? (los que agotaron su plazo, no)
+function marcianosActivos(){
+  for (const e of enemies) if (e.type === 'tripode' && !e.dead && !e.ignorado) return true;
+  return false;
+}
+function lanzaInvasionMarciana(){
+  const n = enAsedio() ? 3 : 2;
+  for (let i = 0; i < n; i++) spawnEnemy('tripode');
+  let lado = 1;
+  for (const e of enemies) if (e.type === 'tripode' && !e.dead){ e.lado = lado; lado = -lado; }
+  toast('¡INVASIÓN MARCIANA!', 2.2);
+  marcianaAvisoT = 2.2;                  // después, el aviso largo
+  sfx('ulla');
+  shake(26, 0.9);
+}
+function updateAvisoMarciano(dt){
+  if (marcianaAvisoT <= 0) return;
+  marcianaAvisoT -= dt;
+  if (marcianaAvisoT <= 0) toast(TRI_AVISO, 4);
+}
+// Cúpula: de ahí salen los tentáculos y el rayo, por encima de las patas.
+function triCupula(e){ return { x: e.x, y: e.y - 44 }; }
+// Lo que está siendo arrastrado por un trípode vivo no hace nada por su cuenta.
+function enPresa(o){ return !!(o.presa && o.presaDe && !o.presaDe.dead); }
+function esHumano(o){ return !!(o.person || o.kind === 'civ'); }
+
+// Lo más cercano a mano: autos, farolas y humanos (infantería y civiles).
+function triBuscaPresa(e){
+  let mejor = null, md = TRI_ALCANCE*TRI_ALCANCE;
+  const mira = (o)=>{
+    if (!o || o.dead || o.held || o.thrown || enPresa(o)) return;
+    const dx = o.x - e.x, dy = o.y - e.y, d2 = dx*dx + dy*dy;
+    if (d2 < md){ md = d2; mejor = o; }
+  };
+  for (const c of cars) mira(c);
+  for (const l of lamps) mira(l);
+  for (const t of enemies) if (t.person) mira(t);
+  for (const c of civilians) mira(c);
+  return mejor;
+}
+function triSueltaPresa(e){
+  const o = e._presa;
+  if (o){ o.presa = false; o.presaDe = null; }
+  e._presa = null; e.tentFase = ''; e.tentK = 0;
+}
+
+function updateTripode(e, dt, d, ang){
+  // ---- escudo pequeño a ratos ----
+  if (e.escudoT > 0) e.escudoT -= dt;
+  e.escudoCd -= dt;
+  if (e.escudoCd <= 0 && e.escudoT <= 0){
+    e.escudoT = TRI_ESC_DUR;
+    e.escudoCd = rand(TRI_ESC_CD[0], TRI_ESC_CD[1]);
+    sfx('escudoM');
+  }
+  // ---- rayo: marca un área, espera y descarga ----
+  if (e.rayFase === 'apunta'){
+    e.rayT -= dt;
+    if (e.rayT <= 0){ e.rayFase = 'dispara'; e.rayT = TRI_RAYO_T; triDescarga(e); }
+  } else if (e.rayFase === 'dispara'){
+    e.rayT -= dt;
+    if (e.rayT <= 0){ e.rayFase = ''; e.rayCd = rand(TRI_RAYO_CD[0], TRI_RAYO_CD[1]); }
+  } else {
+    e.rayCd -= dt;
+    if (e.rayCd <= 0 && d < 900){
+      e.rayFase = 'apunta'; e.rayT = TRI_RAYO_AVISO;
+      e.rayX = clamp(player.x, 40, WORLD_W-40);
+      e.rayY = clamp(player.y, 40, WORLD_H-40);
+      sfx('cargaM');
+    }
+  }
+  const quieto = e.rayFase !== '';
+  e.miraA = e.rayFase ? Math.atan2(e.rayY - e.y, e.rayX - e.x) : ang;
+  e.facing = Math.cos(e.miraA) >= 0 ? 1 : -1;
+  // ---- caminar: por encima de los edificios, rodeándote a su distancia ----
+  if (!quieto){
+    let vx = 0, vy = 0;
+    if (d > TRI_DIST + 40){ vx = Math.cos(ang); vy = Math.sin(ang); }
+    else if (d < TRI_DIST - 90){ vx = -Math.cos(ang)*0.6; vy = -Math.sin(ang)*0.6; }
+    const lado = e.lado || 1;                     // cada uno rodea hacia su lado
+    vx += -Math.sin(ang)*0.35*lado; vy += Math.cos(ang)*0.35*lado;
+    // no se amontonan unos encima de otros
+    for (const o of enemies){
+      if (o === e || o.dead || o.type !== 'tripode') continue;
+      const dx = e.x - o.x, dy = e.y - o.y, dd = Math.hypot(dx, dy);
+      if (dd > 0.1 && dd < 190){ vx += dx/dd*0.8; vy += dy/dd*0.8; }
+    }
+    const m = Math.hypot(vx, vy);
+    if (m > 1){ vx /= m; vy /= m; }
+    e.x = clamp(e.x + vx*e.speed*dt, 60, WORLD_W-60);
+    e.y = clamp(e.y + vy*e.speed*dt, 60, WORLD_H-60);
+    e.paso += dt * (1 + m) * 2.6;
+  }
+  triTentaculo(e, dt, quieto);
+}
+
+function triTentaculo(e, dt, quieto){
+  const o = e._presa;
+  if (e.tentFase){
+    // se la quitaron (la agarraste tú, murió, salió volando): se suelta
+    if (!o || o.dead || o.held || o.thrown){ triSueltaPresa(e); e.tentCd = 1.2; return; }
+  }
+  if (e.tentFase === 'alcanza'){
+    e.tentT -= dt;
+    e.tentK = clamp(1 - e.tentT / TRI_ALCANZA_T, 0, 1);
+    e.tentX = o.x; e.tentY = o.y;
+    if (e.tentT <= 0){
+      e.tentFase = 'arrastra'; e.tentT = TRI_ARRASTRA_T; e.tentK = 1;
+      o.presa = true; o.presaDe = e;
+      if (o.kind === 'lamp' && !o.uprooted) o.uprooted = true;
+      o.stunT = 0; o.stunVx = 0; o.stunVy = 0;
+      sfx('grab');
+    }
+    return;
+  }
+  if (e.tentFase === 'arrastra'){
+    e.tentT -= dt;
+    const c = triCupula(e), k = Math.min(1, dt*7);
+    o.x += (c.x + (e.facing||1)*72 - o.x)*k;       // a un lado del cuerpo, a la vista
+    o.y += (c.y + 46 - o.y)*k;
+    if (o.kind === 'lamp') o.rot = (e.facing||1)*1.1;   // la farola, arrancada y ladeada
+    e.tentX = o.x; e.tentY = o.y;
+    if (e.tentT <= 0) triLanzaOCome(e, o);
+    return;
+  }
+  e.tentCd -= dt;
+  if (e.tentCd > 0 || quieto) return;
+  const p = triBuscaPresa(e);
+  if (!p){ e.tentCd = 0.8; return; }
+  e._presa = p; e.tentFase = 'alcanza'; e.tentT = TRI_ALCANZA_T; e.tentK = 0;
+  e.tentX = p.x; e.tentY = p.y;
+}
+
+// Con la presa en la cúpula: si es humana y está herido, se la come; si no,
+// te la lanza.
+function triLanzaOCome(e, o){
+  triSueltaPresa(e);
+  e.tentCd = rand(TRI_TENT_CD[0], TRI_TENT_CD[1]);
+  if (esHumano(o) && e.hp < e.maxhp*TRI_COME_SI){
+    o.dead = true;
+    e.hp = Math.min(e.maxhp, e.hp + e.maxhp*TRI_CURA);
+    addParticles(o.x, o.y, '#c33', 18, 150);
+    addParticles(e.x, e.y - 44, '#7bffa0', 10, 90);
+    sfx('comeM');
+    return;
+  }
+  const a = Math.atan2(player.y - o.y, player.x - o.x);
+  o.thrown = true; o.held = false;
+  o.vx = Math.cos(a)*TRI_LANZA_VEL; o.vy = Math.sin(a)*TRI_LANZA_VEL;
+  o.spin = rand(-9, 9); o.rot = 0;
+  o.throwDmg = objThrowDmg(o); o.throwLife = 1.7;
+  o.restan = aguanteLanzado(o); o.golpeados = null; o.tocado = false;
+  o.byEnemy = true; o.porInv = false;
+  o.marcianoT = gameTime + 2.5;          // no choca con los trípodes al salir
+  sfx('throw');
+}
+
+// La descarga: todo lo que esté dentro del área, sea de quien sea.
+function triDescarga(e){
+  const x = e.rayX, y = e.rayY, R = TRI_RAYO_R;
+  if (dist(player.x, player.y, x, y) < R + F().r*0.5){
+    hp = clamp(hp - recibe(TRI_RAYO_DMG), 0, maxHp());
+    p2Gain(TRI_RAYO_DMG);
+    quemar(TRI_QUEMA);
+    shake(14, 0.3); sfx('hurt');
+  }
+  for (const pool of [civilians, enemies]){
+    for (const t of pool){
+      if (t.dead || t.held || t.type === 'tripode') continue;
+      if (dist(t.x, t.y, x, y) < R) damageEnemy(t, TRI_RAYO_DMG*1.5, t.x, t.y);
+    }
+  }
+  for (const c of cars){
+    if (c.dead || c.held || dist(c.x, c.y, x, y) >= R) continue;
+    c.hp -= TRI_RAYO_DMG;
+    if (c.hp <= 0) autoAbatido(c);
+  }
+  for (const b of buildings){
+    if (b.stage >= 2) continue;
+    const cx = clamp(x, b.x, b.x+b.w), cy = clamp(y, b.y, b.y+b.h);
+    if (dist(x, y, cx, cy) < R) damageBuilding(b, TRI_RAYO_DMG*1.2);
+  }
+  booms.push({ x, y, r:R*0.3, max:R*1.3, life:0.3, maxlife:0.3, flash:true });
+  addParticles(x, y, '#ffffff', 22, 230);
+  addParticles(x, y, '#ffb35a', 12, 160);
+  shake(10, 0.25);
+  sfx('rayoM');
+}
+
+// ---- dibujo ----
+function drawTripode(e){
+  const s = S(e.x, e.y);
+  const paso = e.paso || 0;
+  const bob = Math.sin(paso*2)*2.2;
+  const c = { x: s.x, y: s.y - 44 + bob };
+  sombra(s.x, s.y + 58, 128, 36, 0.9);
+
+  // patas: dos atrás y una delante; los pies se levantan por turnos
+  const pies = [[-56, 44], [56, 44], [0, 66]];
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  for (let i = 0; i < 3; i++){
+    const ph = paso + i*2.094;
+    const fx = s.x + pies[i][0] + Math.sin(ph)*9;
+    const fy = s.y + pies[i][1] - Math.max(0, Math.cos(ph))*7;
+    const hx = c.x + pies[i][0]*0.32, hy = c.y + 14;
+    const sx = Math.sign(pies[i][0]) || 0;
+    const kx = hx + (fx - hx)*0.45 + sx*26, ky = hy + (fy - hy)*0.45 - 28;
+    ctx.strokeStyle = '#2d3534'; ctx.lineWidth = 8;
+    ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(kx, ky); ctx.lineTo(fx, fy); ctx.stroke();
+    ctx.strokeStyle = '#8e9c98'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(kx, ky); ctx.lineTo(fx, fy); ctx.stroke();
+    ctx.fillStyle = '#1d2322';
+    ctx.beginPath(); ctx.arc(kx, ky, 5, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(fx, fy, 9, 4, 0, 0, Math.PI*2); ctx.fill();
+  }
+
+  // tentáculos colgando
+  ctx.strokeStyle = '#6e4a5a'; ctx.lineWidth = 4;
+  for (let i = -1; i <= 1; i++){
+    const w = Math.sin(gameTime*2.2 + i*1.7)*10;
+    const ax = c.x + i*16, ay = c.y + 20;
+    ctx.beginPath(); ctx.moveTo(ax, ay);
+    ctx.quadraticCurveTo(ax + w, ay + 28, ax + i*10 - w*0.6, ay + 52);
+    ctx.stroke();
+  }
+  // cúpula
+  ctx.fillStyle = '#232a29';
+  ctx.beginPath(); ctx.ellipse(c.x, c.y + 10, 60, 24, 0, 0, Math.PI*2); ctx.fill();
+  const g = ctx.createLinearGradient(c.x, c.y - 40, c.x, c.y + 14);
+  g.addColorStop(0, '#c9d3cf'); g.addColorStop(0.45, '#7d8b87'); g.addColorStop(1, '#343d3b');
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.ellipse(c.x, c.y + 4, 54, 40, 0, Math.PI, 0); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = '#1b2120'; ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.ellipse(c.x, c.y + 8, 58, 20, 0, 0, Math.PI*2); ctx.stroke();
+  // ranuras
+  ctx.fillStyle = 'rgba(20,26,25,0.85)';
+  for (let i = -2; i <= 2; i++){
+    ctx.beginPath(); ctx.ellipse(c.x + i*17, c.y - 6 + Math.abs(i)*4, 4, 2.2, 0, 0, Math.PI*2); ctx.fill();
+  }
+  // emisor del rayo: mira hacia donde va a disparar
+  const a = (e.miraA != null) ? e.miraA : (e.facing >= 0 ? 0 : Math.PI);
+  const ox = c.x + Math.cos(a)*38, oy = c.y + Math.sin(a)*16;
+  const carga = e.rayFase === 'apunta' ? clamp(1 - e.rayT / TRI_RAYO_AVISO, 0, 1) : 0;
+  const fuego = e.rayFase === 'dispara';
+  const rr = 7 + carga*5 + (fuego ? 6 : 0);
+  ctx.fillStyle = '#1b2120';
+  ctx.beginPath(); ctx.arc(ox, oy, 10, 0, Math.PI*2); ctx.fill();
+  ctx.globalAlpha = fuego ? 0.95 : 0.35 + carga*0.5 + (carga ? Math.sin(gameTime*30)*0.1 : 0);
+  ctx.fillStyle = '#dff6ff';
+  ctx.beginPath(); ctx.arc(ox, oy, rr, 0, Math.PI*2); ctx.fill();
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = fuego ? '#ffffff' : '#9fe8ff';
+  ctx.beginPath(); ctx.arc(ox, oy, 4, 0, Math.PI*2); ctx.fill();
+
+  // el tentáculo que atrapa
+  if (e.tentFase){
+    const t = S(e.tentX, e.tentY);
+    const k = e.tentFase === 'alcanza' ? (e.tentK || 0) : 1;
+    const ax = c.x, ay = c.y + 18;
+    const ex = ax + (t.x - ax)*k, ey = ay + (t.y - ay)*k;
+    const nx = -(ey - ay), ny = ex - ax, nl = Math.hypot(nx, ny) || 1;
+    const w = Math.sin(gameTime*9)*18;
+    const mx = (ax + ex)/2 + nx/nl*w, my = (ay + ey)/2 + ny/nl*w;
+    ctx.strokeStyle = '#8a4f6a'; ctx.lineWidth = 7;
+    ctx.beginPath(); ctx.moveTo(ax, ay); ctx.quadraticCurveTo(mx, my, ex, ey); ctx.stroke();
+    ctx.strokeStyle = '#d98cb0'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(ax, ay); ctx.quadraticCurveTo(mx, my, ex, ey); ctx.stroke();
+    ctx.fillStyle = '#d98cb0';
+    ctx.beginPath(); ctx.arc(ex, ey, 6, 0, Math.PI*2); ctx.fill();
+  }
+
+  // escudo pequeño
+  if (e.escudoT > 0){
+    const p = 0.5 + Math.sin(gameTime*8)*0.2;
+    ctx.globalAlpha = 0.16 + p*0.12;
+    ctx.fillStyle = '#bfeaff';
+    ctx.beginPath(); ctx.ellipse(c.x, c.y, 76, 58, 0, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 0.55 + p*0.35;
+    ctx.strokeStyle = '#e8f8ff'; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.ellipse(c.x, c.y, 76, 58, 0, 0, Math.PI*2); ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+  if (showHpBars) hpBar(s.x, c.y - 52, 70, e.hp, e.maxhp, '#c81f1f');
+}
+// Área marcada en el suelo mientras calcula (va por debajo de todo).
+function drawTriAvisos(){
+  for (const e of enemies){
+    if (e.dead || e.type !== 'tripode' || e.rayFase !== 'apunta') continue;
+    const p = clamp(1 - e.rayT / TRI_RAYO_AVISO, 0, 1);
+    const s2 = S(e.rayX, e.rayY), R = TRI_RAYO_R;
+    ctx.globalAlpha = 0.45 + p*0.45;
+    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2 + p*2;
+    ctx.beginPath(); ctx.ellipse(s2.x, s2.y, R, R*0.6, 0, 0, Math.PI*2); ctx.stroke();
+    ctx.globalAlpha = 0.08 + p*0.22;
+    ctx.fillStyle = '#e8f8ff';
+    ctx.beginPath(); ctx.ellipse(s2.x, s2.y, R*p, R*0.6*p, 0, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 0.5 + Math.sin(gameTime*20)*0.3;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(s2.x - R*0.35, s2.y); ctx.lineTo(s2.x + R*0.35, s2.y);
+    ctx.moveTo(s2.x, s2.y - R*0.22); ctx.lineTo(s2.x, s2.y + R*0.22);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+}
+// El rayo en sí, por encima de todo lo demás.
+function drawTriRayos(){
+  for (const e of enemies){
+    if (e.dead || e.type !== 'tripode' || !e.rayFase) continue;
+    const c0 = triCupula(e);
+    const a = Math.atan2(e.rayY - e.y, e.rayX - e.x);
+    const o = S(c0.x + Math.cos(a)*38, c0.y + Math.sin(a)*16);
+    const t = S(e.rayX, e.rayY);
+    ctx.lineCap = 'round';
+    if (e.rayFase === 'apunta'){
+      ctx.save();
+      ctx.globalAlpha = 0.55;
+      ctx.strokeStyle = '#dff6ff'; ctx.lineWidth = 1.5; ctx.setLineDash([10, 8]);
+      ctx.beginPath(); ctx.moveTo(o.x, o.y); ctx.lineTo(t.x, t.y); ctx.stroke();
+      ctx.restore();
+      continue;
+    }
+    const k = clamp(e.rayT / TRI_RAYO_T, 0, 1);
+    ctx.globalAlpha = 0.35*k; ctx.strokeStyle = '#9fdcff'; ctx.lineWidth = 30;
+    ctx.beginPath(); ctx.moveTo(o.x, o.y); ctx.lineTo(t.x, t.y); ctx.stroke();
+    ctx.globalAlpha = 0.9*k; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 12;
+    ctx.beginPath(); ctx.moveTo(o.x, o.y); ctx.lineTo(t.x, t.y); ctx.stroke();
+    ctx.globalAlpha = k; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.moveTo(o.x, o.y); ctx.lineTo(t.x, t.y); ctx.stroke();
+    ctx.globalAlpha = 0.5*k; ctx.fillStyle = '#ffffff';
+    ctx.beginPath(); ctx.ellipse(t.x, t.y, TRI_RAYO_R*(1.1 - 0.2*k), TRI_RAYO_R*0.6*(1.1 - 0.2*k), 0, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+}
+// Icono para el registro (no tiene imagen: se pinta una vez y se guarda).
+let triIcon = null;
+function tripodeIconURL(){
+  if (triIcon) return triIcon;
+  const c = document.createElement('canvas');
+  c.width = c.height = 48;
+  const g = c.getContext('2d');
+  if (!g) return '';
+  g.lineCap = 'round';
+  g.strokeStyle = '#2d3534'; g.lineWidth = 3.5;
+  for (const [hx, kx, ky, fx, fy] of [[-6,-15,26,-18,44],[6,15,26,18,44],[0,2,32,0,46]]){
+    g.beginPath(); g.moveTo(24+hx, 20); g.lineTo(24+kx, ky); g.lineTo(24+fx, fy); g.stroke();
+  }
+  const gr = g.createLinearGradient(0, 4, 0, 22);
+  gr.addColorStop(0, '#c9d3cf'); gr.addColorStop(1, '#343d3b');
+  g.fillStyle = gr;
+  g.beginPath(); g.ellipse(24, 20, 20, 15, 0, Math.PI, 0); g.closePath(); g.fill();
+  g.fillStyle = '#232a29';
+  g.beginPath(); g.ellipse(24, 21, 22, 6, 0, 0, Math.PI*2); g.fill();
+  g.fillStyle = '#dff6ff';
+  g.beginPath(); g.arc(37, 17, 3.5, 0, Math.PI*2); g.fill();
+  try { triIcon = c.toDataURL(); } catch(err){ triIcon = ''; }
+  return triIcon;
+}
+
 // ================= MINI JEFE: TANQUE DE FUEGO =================
 // Aparece a los 15.000 puntos y detiene la llegada del resto del ejército.
 // Ciclo: 3 s calculando (el cono te sigue) -> 1 s fijo -> llamarada.
@@ -2221,7 +2616,8 @@ let bossAlive = false;
 // Memoria de los dos últimos jefes de la partida. El anterior no repite, y
 // el de antes sale con la mitad de probabilidad; a partir del tercero, todo
 // vuelve a la normalidad.
-const TIPOS_JEFE = ['flametank', 'omni', 'artillero', 'superx'];
+// 'marciana' no es una unidad: es el evento que trae a los trípodes.
+const TIPOS_JEFE = ['flametank', 'omni', 'artillero', 'superx', 'marciana'];
 const PESO_PENULTIMO = 0.5;
 let ultimoJefe = null, penultimoJefe = null;
 
@@ -2510,10 +2906,11 @@ function explode(x, y, radius, dmg, big, hurtPlayer){
 function explodeSmall(x,y){ explode(x,y,86,45,false); }
 
 let toastTimer = 0;
-function toast(msg){
-  if (_fxRed) _fxRed.push(['t', msg]);
+function toast(msg, dur){
+  if (_fxRed) _fxRed.push(dur ? ['t', msg, dur] : ['t', msg]);
   const el = document.getElementById('toast');
-  el.textContent = msg; el.style.opacity = '1'; toastTimer = 1.6;
+  el.textContent = msg; el.style.opacity = '1';
+  toastTimer = (dur > 0 && dur < 10) ? dur : 1.6;       // los avisos largos, más tiempo
 }
 
 // ================= VENENO DEL SUPER X2 =================
@@ -3376,7 +3773,8 @@ const REWARD = {
   superx:   { pts:2400, heal:76 },
   artillero:{ pts:2600, heal:80 },
   flametank:{ pts:2000, heal:70 },
-  omni:     { pts:1800, heal:65 }   // lo que valen 10 tanques (200 c/u)
+  omni:     { pts:1800, heal:65 },  // lo que valen 10 tanques (200 c/u)
+  tripode:  { pts:900,  heal:60 }   // llegan varios: cada uno algo más que un asedio
 };
 
 // ---- ¿Quién causó esta muerte? ----
@@ -3451,6 +3849,11 @@ function damageEnemy(e, dmg, fx, fy){
     return;
   }
   if (e.dead) return;
+  // Escudo del trípode: pequeño y breve, pero no deja pasar nada.
+  if (e.type === 'tripode' && e.escudoT > 0 && dmg > 0){
+    addParticles(fx, fy, '#cfefff', 5, 80);
+    return;
+  }
   // Escudo del SUPER X2: el daño no entra, se convierte en vida.
   if (sxEscudoActivo(e) && dmg > 0){
     e.hp = Math.min(e.maxhp, e.hp + dmg);
@@ -3466,6 +3869,7 @@ function damageEnemy(e, dmg, fx, fy){
   addParticles(fx, fy, '#ff3b3b', 8, 90);
   if (e.hp > 0) return;
   e.dead = true;
+  if (e.type === 'tripode') triSueltaPresa(e);   // lo que arrastraba queda libre
   const k = e.kind === 'civ' ? 'civ' : e.type;
   discover(k);
   const rw = REWARD[k] || REWARD.civ;
@@ -3484,6 +3888,7 @@ function damageEnemy(e, dmg, fx, fy){
   sfx('kill');
   // El estallido de su caída se queda; el logro ahora es del Registro completo.
   if (k === 'flametank' || k === 'omni'){ explode(e.x, e.y, 190, 70, true); }
+  else if (k === 'tripode'){ explode(e.x, e.y - 30, 150, 55, true); addParticles(e.x, e.y - 44, '#dff6ff', 20, 220); }
   else if (k === 'tank' || k === 'heli') explode(e.x, e.y, 100, 40, true);
   shake(6, 0.15);
   if (!Online.culpaInv) checkEvolve();
@@ -4796,13 +5201,20 @@ const SFX = {
   buy:    ()=> { [523,659,784].forEach((f,i)=> setTimeout(()=>tone(f,0.16,'triangle',0.18), i*80)); },
   deny:   ()=> tone(160, 0.18, 'square', 0.16, 90),
   ui:     ()=> tone(660, 0.05, 'square', 0.08),
+  // Trípodes: bocina grave al llegar, carga que sube, descarga seca, escudo y comida.
+  ulla:   ()=> { tone(98, 1.6, 'sawtooth', 0.20, 82); tone(147, 1.6, 'sawtooth', 0.10, 123); noise(1.2, 0.07, 300, 0.8); },
+  cargaM: ()=> tone(300, 1.2, 'triangle', 0.09, 1600),
+  rayoM:  ()=> { noise(0.35, 0.32, 5200, 0.8); tone(1400, 0.35, 'sine', 0.16, 300); tone(90, 0.4, 'sine', 0.22, 40); },
+  escudoM:()=> tone(520, 0.25, 'sine', 0.10, 900),
+  comeM:  ()=> { noise(0.25, 0.2, 500, 1.2); tone(140, 0.25, 'square', 0.12, 70); },
   over:   ()=> { [440,330,262,196].forEach((f,i)=> setTimeout(()=>tone(f,0.3,'triangle',0.2), i*160)); }
 };
 // Cortafuegos: un mismo efecto no puede repetirse más rápido que su cooldown,
 // y limitamos las voces simultáneas para que nunca se acumule un zumbido.
 const SFX_GAP = { sonicboom:0.30, dash:0.10, crack:0.20,
                   shoot:0.09, hit:0.05, hurt:0.12, kill:0.06, boom:0.07, bigboom:0.12,
-                  demolish:0.15, grab:0.06, throw:0.06, ui:0.05, coin:0.10 };
+                  demolish:0.15, grab:0.06, throw:0.06, ui:0.05, coin:0.10,
+                  ulla:1.2, cargaM:0.25, rayoM:0.12, escudoM:0.2, comeM:0.15 };
 const sfxLast = {};
 let sfxVoices = 0;
 const SFX_MAX_VOICES = 14;
@@ -4841,7 +5253,11 @@ const BOSS_TRACKS = {
   // como algo que orbita sin rumbo. Lleva un bajo que se desliza y un pulso doble.
   omni:      { scale:[110.00,123.47,130.81,146.83,155.56,174.61,185.00,207.65],
                bass:[55.00,58.27,55.00,49.00], tempo:132, name:'ÓRBITA MUERTA',
-               style:'omni' }
+               style:'omni' },
+  // Trípodes: frigio dominante, con la segunda menor pegada a la tónica.
+  // Suena ajeno y ceremonial, como algo que no es de este planeta.
+  tripode:   { scale:[103.83,110.00,138.59,146.83,155.56,207.65,220.00,277.18],
+               bass:[51.91,51.91,55.00,46.25], tempo:150, name:'LA COSECHA', style:'omni' }
 };
 let bossTrack = null;              // el que suena ahora, si hay jefe en pie
 let previewTrack = null, previewT = 0;
@@ -4972,6 +5388,7 @@ function updateBossMusic(dt){
     if (e.type === 'artillero'){ cual = 'artillero'; break; }
     if (e.type === 'flametank'){ cual = 'flametank'; break; }
     if (e.type === 'omni'){ cual = 'omni'; break; }
+    if (e.type === 'tripode'){ cual = 'tripode'; break; }
   }
   const nuevo = cual ? BOSS_TRACKS[cual] : null;
   if (nuevo !== bossTrack){ bossTrack = nuevo; retuneMusic(); }
@@ -5074,6 +5491,8 @@ const BESTIARY = [
     desc:'Vuela tan rápido como un taxi a toda marcha: se te viene encima, te sobrevuela y sigue de largo sin frenar. Al alejarse da media vuelta y suelta un misil recto, sin guiado, que puedes esquivar o bloquear. Es frágil y agarrable si aciertas el instante en que pasa.' },
   { id:'omni', name:'OMNIDROIDE', hp:950, dmg:'52/s el rayo', sprite:null,
     desc:'Esfera acorazada con cuatro patas y un único ojo rojo. Calcula dónde estás y rueda en línea recta hasta ese punto, arrollando lo que pille; al llegar se detiene y camina. Andando te arroja el mobiliario de la calle y carga un rayo desde su ojo: primero marca la línea, luego dispara y barre muy despacio, así que se esquiva moviéndose de lado. El rayo también achicharra a sus propias tropas.' },
+  { id:'tripode', name:'TRÍPODE MARCIANO', hp:TRI_HP, dmg:'72 + quemadura (rayo)', sprite:null, verb:'DERRIBADOS',
+    desc:'Al parecer no eres el único que quiere el planeta. Llegan de dos en dos (de tres en tres pasado el asedio) y, mientras quede uno en pie, el ejército humano no se atreve a salir. Caminan por encima de los edificios y con sus tentáculos atrapan autos, farolas y soldados para lanzártelos; si están heridos, se comen a los humanos para recuperar algo de vida. A ratos se cubren con un escudo pequeño que no deja pasar nada, y marcan en blanco un área del suelo donde descargan un rayo que arrasa y deja quemadura: sal de ella antes de que dispare.' },
   { id:'truck', name:'CAMIÓN CISTERNA', hp:60, dmg:'200 en área al detonar', sprite:'truck',
     desc:'Aparición rara en el tráfico. No te ataca, pero lanzarlo provoca la mayor explosión del juego y encadena con otras cisternas.' }
 ];
@@ -5193,7 +5612,7 @@ function renderDex(){
     const idx = st ? (dexState[b.id] || 0) % st.length : 0;
     const key = st ? st[idx][0] : b.sprite;
     let art = '<span class="qmark" style="color:#7bffa0">☻</span>';
-    const oic = b.id === 'omni' ? omniIconURL() : '';
+    const oic = b.id === 'omni' ? omniIconURL() : b.id === 'tripode' ? tripodeIconURL() : '';
     if (oic){
       art = `<img src="${oic}" alt="">`;
     } else if (key && sprites[key]){
@@ -7190,6 +7609,7 @@ function meleeDmg(e){
   if (e.type === 'superx')    return 55;
   if (e.type === 'artillero') return 52;
   if (e.type === 'omni')      return 58;
+  if (e.type === 'tripode')   return 62;    // ~11 golpes, como el asedio
   if (e.type === 'flametank') return 60;
   if (e.type === 'siege')   return 65;    // ~10 golpes
   if (e.type === 'gunship') return 130;
@@ -7360,9 +7780,9 @@ const SCENERY = { tree:1, lamp:1, bench:1, trash:1 };
 function isScenery(o){ return !!SCENERY[o.kind]; }
 
 // Unidades que no se revientan de una pasada: hay que insistir.
-const BLINDADOS = { tank:1, siege:1, gunship:1, heli:1, flametank:1, omni:1, artillero:1, superx:1, mbt:1, mbtFrio:1 };
+const BLINDADOS = { tank:1, siege:1, gunship:1, heli:1, flametank:1, omni:1, artillero:1, superx:1, mbt:1, mbtFrio:1, tripode:1 };
 // Mini jefes: el viltrumita les hace más daño con lo que les arroja.
-const JEFES = { flametank:1, omni:1, artillero:1, superx:1 };
+const JEFES = { flametank:1, omni:1, artillero:1, superx:1, tripode:1 };
 const VIL_BOSS_MULT = 1.40;
 function throwDmgOn(o, tgt){
   const base = o.throwDmg;
@@ -7496,7 +7916,7 @@ function updateRam(dt){
       wearWeapon(o, 3);
       damageHeld(0.34);
     } else {
-      porJugador(()=> damageEnemy(e, (e.type==='siege'||e.type==='flametank'||e.type==='omni') ? 9 : 18, e.x, e.y));
+      porJugador(()=> damageEnemy(e, (e.type==='siege'||e.type==='flametank'||e.type==='omni'||e.type==='tripode') ? 9 : 18, e.x, e.y));
       wearWeapon(o, 10);
       const a = Math.atan2(e.y-o.y, e.x-o.x);
       e.x += Math.cos(a)*26; e.y += Math.sin(a)*26;   // empujón
@@ -8051,6 +8471,7 @@ function updateCivilians(dt){
     if (c.dead) continue;
     if (c.held){ { const pt = c.heldInv ? Online.tipInv : tip; c.x = pt.x; c.y = pt.y; } continue; }
     if (c.thrown) continue;
+    if (enPresa(c)) continue;                    // en el tentáculo de un trípode
     const dP = dist(c.x,c.y,player.x,player.y);
     if (dP < 280){
       const a = Math.atan2(c.y-player.y, c.x-player.x);
@@ -8072,6 +8493,7 @@ function updateCars(dt){
     if (c.dead) continue;
     if (c.held){ { const pt = c.heldInv ? Online.tipInv : tip; c.x = pt.x; c.y = pt.y; } continue; }
     if (c.thrown) continue;
+    if (enPresa(c)) continue;                    // en el tentáculo de un trípode
     if (isWreck(c)){
       c.vx = 0; c.vy = 0;
       // Chatarra abandonada en plena calzada: echa humo y acaba estallando.
@@ -8159,6 +8581,7 @@ function updateThrown(dt){
       for (const e of pool){
         if (e === o || e.dead || e.held) continue;
         if (o.golpeados && o.golpeados.indexOf(e) >= 0) continue;   // ya atravesado
+        if (e.type === 'tripode' && o.marcianoT > gameTime) continue;   // lo acaba de lanzar uno
         // El alcance del choque va con el tamaño del proyectil: un edificio de
         // 272px no puede tener la misma caja que una farola.
         if (distCuerpo(o.x, o.y, e) < radioChoque(o)){ impact = {x:o.x, y:o.y, target:e}; break; }
@@ -8338,6 +8761,7 @@ function updateEnemies(dt){
     if (e.dead) continue;
     if (e.held){ { const pt = e.heldInv ? Online.tipInv : tip; e.x = pt.x; e.y = pt.y; } continue; }
     if (e.thrown) continue;
+    if (enPresa(e)) continue;                    // en el tentáculo de un trípode
 
     if (e.stunT > 0){          // aturdido: derribado, sin disparar
       e.stunT -= dt;
@@ -8372,6 +8796,10 @@ function updateEnemies(dt){
     }
     if (e.type === 'artillero'){
       updateArtillero(e, dt, a, ang);
+      continue;
+    }
+    if (e.type === 'tripode'){
+      updateTripode(e, dt, a, ang);
       continue;
     }
     if (e.type === 'omni'){
@@ -8706,6 +9134,7 @@ function updateSpawns(dt){
     updateMiniOleada(dt);
     return;
   }
+  updateAvisoMarciano(dt);
   if (finalWave() && !finalAnnounced){
     finalAnnounced = true;
     toast('OLEADA FINAL');
@@ -8734,6 +9163,8 @@ function updateSpawns(dt){
     e.plazo = (e.plazo || 0) + dt;
     if (e.plazo >= BOSS_PLAZO){
       e.ignorado = true;
+      // Los marcianos frenan al ejército incluso en el asedio: su vuelta sí es noticia.
+      if (e.type === 'tripode'){ toast('EL EJÉRCITO HUMANO CONTRAATACA'); sfx('ui'); continue; }
       // Pasados los 20.000 las tropas ya llegaban con el jefe vivo, así que
       // el aviso no anunciaría ningún cambio: se calla.
       if (!enAsedio()){
@@ -8758,14 +9189,20 @@ function updateSpawns(dt){
         const cual = sorteaJefe();
         penultimoJefe = ultimoJefe;
         ultimoJefe = cual;
-        spawnEnemy(cual);
+        if (cual === 'marciana') lanzaInvasionMarciana();
+        else {
+          spawnEnemy(cual);
+          toast(cual === 'omni' ? '¡OMNIDROIDE!' : cual === 'artillero' ? '¡EL ARTILLERO!'
+              : cual === 'superx' ? '¡SUPER X2!' : '¡TANQUE DE FUEGO!');
+          shake(24, 0.8);
+        }
         bossAlive = true;
-        toast(cual === 'omni' ? '¡OMNIDROIDE!' : cual === 'artillero' ? '¡EL ARTILLERO!'
-            : cual === 'superx' ? '¡SUPER X2!' : '¡TANQUE DE FUEGO!');
-        shake(24, 0.8);
       }
     }
   }
+  // Con los marcianos en la ciudad el ejército humano no sale, ni siquiera
+  // en pleno asedio.
+  if (marcianosActivos()) return;
   // Con el asedio en marcha las tropas siguen llegando aunque haya un jefe.
   if (bossAlive && !enAsedio()) return;
 
@@ -9005,7 +9442,7 @@ let lamps = [];   // se rellena en resetGame a partir de lampSpots
 
 function drawLamps(){
   for (const l of lamps){
-    if (l.dead || l.held || l.thrown) continue;     // en mano o volando se dibuja aparte
+    if (l.dead || l.held || l.thrown || l.presa) continue;     // en mano o volando se dibuja aparte
     if (l.x<camX-60 || l.x>camX+VW+60 || l.y<camY-60 || l.y>camY+VH+60) continue;
     const s2 = S(l.x, l.y);
     sombra(s2.x, s2.y, l.w*0.78, l.h*0.15, 0.85);
@@ -9724,6 +10161,7 @@ function drawEnemy(e){
     if (showHpBars) hpBar(s.x, s.y - e.h*0.62, 60, e.hp, e.maxhp, '#c81f1f');
     return;
   }
+  if (e.type === 'tripode'){ drawTripode(e); return; }
   // Agarrado o lanzado ya no vuela: se dibuja en la mano / donde va de verdad.
   // Antes conservaba su altura y el OVNI flotaba 150 px por encima del tentáculo.
   const alt = (e.alt && !e.held && !e.thrown) ? e.alt + Math.sin(e.bob*3)*4 : 0;
@@ -10041,7 +10479,7 @@ function draw(){
   drawBuildings(); drawPlanters(); drawLamps();
   // Las zonas marcadas del Artillero van DESPUÉS de los edificios: si no, los
   // escombros las tapaban justo donde más falta hace verlas.
-  drawFuegos(); drawArtAvisos(); drawMbtRayos();
+  drawFuegos(); drawArtAvisos(); drawTriAvisos(); drawMbtRayos();
 
   // Solo se encolan los objetos visibles: con ~200 props fuera de pantalla,
   // esto evita cientos de entradas y llamadas de dibujo por fotograma.
@@ -10058,14 +10496,14 @@ function draw(){
   for (const t of trees)     if (!t.dead && vis(t)) dlPush(t.y, 2, t);
   for (const b of trash)     if (!b.dead && vis(b)) dlPush(b.y, 3, b);
   for (const b of benches)   if (!b.dead && vis(b)) dlPush(b.y, 4, b);
-  for (const l of lamps)     if (!l.dead && (l.held || l.thrown) && vis(l)) dlPush(l.y, 5, l);
+  for (const l of lamps)     if (!l.dead && (l.held || l.thrown || l.presa) && vis(l)) dlPush(l.y, 5, l);
   // El tanque de fuego usa un margen mayor: su llamarada llega lejos y antes
   // desaparecía de la pantalla aunque siguiera quemando.
   const bx0 = camX - FLAME_LEN - 120, bx1 = camX + VW + FLAME_LEN + 120;
   const by0 = camY - FLAME_LEN - 120, by1 = camY + VH + FLAME_LEN + 120;
   for (const e of enemies){
     if (e.dead) continue;
-    const dentro = (e.type === 'flametank' || e.type === 'omni')
+    const dentro = (e.type === 'flametank' || e.type === 'omni' || e.type === 'tripode')
       ? (e.x > bx0 && e.x < bx1 && e.y > by0 && e.y < by1)
       : vis(e);
     if (!dentro) continue;
@@ -10097,7 +10535,7 @@ function draw(){
     }
   }
 
-  drawBullets(); drawSonic(); drawWind(); drawRayosOjos(); drawFX(); drawAura(); drawP2Cursor();
+  drawBullets(); drawTriRayos(); drawSonic(); drawWind(); drawRayosOjos(); drawFX(); drawAura(); drawP2Cursor();
   ctx.restore();
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   drawLighting();                                  // en píxeles del lienzo
@@ -11862,7 +12300,7 @@ function aplicaMundo(i){
     if (f[0] === 'p') addParticles(f[1], f[2], f[3], f[4], f[5]);
     else if (f[0] === 'h') addSmoke(f[1], f[2]);
     else if (f[0] === 's') sfx(f[1]);
-    else if (f[0] === 't') toast(f[1]);
+    else if (f[0] === 't') toast(String(f[1]).slice(0, 80), +f[2] || 0);
     else if (f[0] === 'k') shake(f[1], f[2]);
   }
   if (i.bt !== Online.btKey){
