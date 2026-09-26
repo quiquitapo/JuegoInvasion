@@ -1407,9 +1407,16 @@ function updateZoom(dt){
 }
 let CW = window.innerWidth, CH = window.innerHeight;   // píxeles del lienzo (entrada/UI)
 let VW = CW / ZOOM, VH = CH / ZOOM;                    // mundo visible (unidades de juego)
+// Resolución real del lienzo. En pantallas con escalado (portátiles al 125 %,
+// Retina…) el navegador estiraba el lienzo y todo se veía borroso; ahora se
+// dibuja a la densidad de la pantalla, con un tope de 2×. Si el equipo no
+// aguanta el ritmo, vigilaRendimiento() lo devuelve a 1× para que no haya lag.
+let DPR = 1, dprTope = 2;
 function resize(){
   CW = window.innerWidth; CH = window.innerHeight;
-  canvas.width = CW; canvas.height = CH;
+  DPR = Math.max(1, Math.min(dprTope, window.devicePixelRatio || 1));
+  canvas.width = Math.round(CW*DPR); canvas.height = Math.round(CH*DPR);
+  canvas.style.width = CW + 'px'; canvas.style.height = CH + 'px';
   VW = CW / ZOOM; VH = CH / ZOOM;
   // layoutUI se declara más abajo: en el primer resize aún no existe.
   try { if (typeof layoutUI === 'function') layoutUI(); } catch(e){}
@@ -4127,8 +4134,7 @@ function refreshCombo(){
     if (fz) fz.textContent = ['CADENA','RACHA','FURIA'][comboFase] || 'CADENA';
   }
   el.classList.toggle('sube', comboFlash > 0);
-  const f = document.getElementById('combofill');
-  if (f) f.style.width = Math.max(0, Math.min(1, comboT / comboVentana())) * 100 + '%';
+  hudCss('combofill', 'width', pctCss(comboT / comboVentana()));
 }
 // Puntos con el multiplicador aplicado. El extra se guarda aparte para
 // poder mostrarlo y para que cuente también en monedas.
@@ -4232,10 +4238,10 @@ function renderShop(){
       ? imgSkins.map(sk=>{
           const act = activeSkin === 'img:'+sk.id;
           return `<div class="skincard${act?' active':''} uniq">
-            <span class="swatch" style="background-image:url(${sk.data}); background-size:cover"></span>
+            <span class="swatch" style="background-image:url(&quot;${esc(sk.data)}&quot;); background-size:cover"></span>
             <span class="skinname">${esc(sk.name)}</span>
             ${act ? '<span class="skinbtn on">EN USO</span>'
-                  : `<button class="skinbtn own" data-imgset="${sk.id}">USAR</button>`}</div>`;
+                  : `<button class="skinbtn own" data-imgset="${esc(sk.id)}">USAR</button>`}</div>`;
         }).join('')
       : '<div class="skincard uniq"><span class="skinname">Aún no tienes ninguna</span></div>';
     li.querySelectorAll('[data-imgset]').forEach(b=>b.addEventListener('click', ()=>{
@@ -4445,11 +4451,11 @@ function imgEdListaGuardadas(){
   mostrarPane(false);
   g.innerHTML = imgSkins.length
     ? imgSkins.map(sk=>`<div class="skincard">
-        <span class="swatch" style="background-image:url(${sk.data}); background-size:cover"></span>
+        <span class="swatch" style="background-image:url(&quot;${esc(sk.data)}&quot;); background-size:cover"></span>
         <span class="skinname">${esc(sk.name)}</span>
-        <button class="skinbtn own" data-imguse="${sk.id}">USAR</button>
-        <button class="skinbtn buy" data-imgedit="${sk.id}">EDITAR</button>
-        <button class="skinbtn buy" data-imgdel="${sk.id}">✕</button></div>`).join('')
+        <button class="skinbtn own" data-imguse="${esc(sk.id)}">USAR</button>
+        <button class="skinbtn buy" data-imgedit="${esc(sk.id)}">EDITAR</button>
+        <button class="skinbtn buy" data-imgdel="${esc(sk.id)}">✕</button></div>`).join('')
     : '<div class="skincard"><span class="skinname">Todavía no has guardado ninguna</span></div>';
   g.querySelectorAll('[data-imguse]').forEach(b=>b.addEventListener('click', ()=>{
     activeSkin = 'img:'+b.dataset.imguse; saveShop(); sfx('ui');
@@ -5181,7 +5187,7 @@ async function loadBindsP2(){
 }
 function saveBindsP2(){ storeSet('invasion_binds_p2', JSON.stringify(bindsP2)); }
 
-// 'Insert' siempre vale como alternativa para colocar
+// Intro ('Start') y el 0 del numérico siempre valen como alternativa para colocar.
 function p2Pressed(action){
   const k = bindsP2[action];
   if (k && keys[k]) return true;
@@ -5206,7 +5212,7 @@ function renderBindsP2(){
   if (!el) return;
   el.innerHTML = BIND_ORDER_P2.map(k=>{
     const listening = listeningFor === k;
-    const label = listening ? 'Pulsa…' : prettyKey(bindsP2[k]);
+    const label = listening ? 'Pulsa…' : esc(prettyKey(bindsP2[k]));
     return `<div class="bindrow">
       <span class="bindname">${BIND_LABELS_P2[k]}</span>
       <button type="button" class="bindkey${listening?' listening':''}" data-bind="${k}">${label}</button>
@@ -5226,7 +5232,7 @@ function renderBinds(){
   if (!el) return;
   el.innerHTML = BIND_ORDER.map(k=>{
     const listening = listeningFor === k;
-    const label = listening ? 'Pulsa…' : prettyKey(binds[k]);
+    const label = listening ? 'Pulsa…' : esc(prettyKey(binds[k]));
     return `<div class="bindrow">
       <span class="bindname">${BIND_LABELS[k]}</span>
       <button type="button" class="bindkey${listening?' listening':''}" data-bind="${k}">${label}</button>
@@ -5241,11 +5247,11 @@ function renderBinds(){
   const dia = document.getElementById('keydiagram');
   if (dia){
     dia.innerHTML = `
-      <div class="kd-row"><span class="kd-key">${prettyKey(binds.up)}</span></div>
+      <div class="kd-row"><span class="kd-key">${esc(prettyKey(binds.up))}</span></div>
       <div class="kd-row">
-        <span class="kd-key">${prettyKey(binds.left)}</span>
-        <span class="kd-key">${prettyKey(binds.down)}</span>
-        <span class="kd-key">${prettyKey(binds.right)}</span>
+        <span class="kd-key">${esc(prettyKey(binds.left))}</span>
+        <span class="kd-key">${esc(prettyKey(binds.down))}</span>
+        <span class="kd-key">${esc(prettyKey(binds.right))}</span>
       </div>
       <div class="kd-lbl">Movimiento</div>`;
   }
@@ -5257,6 +5263,11 @@ function prettyKey(k){
   if (k === 'insert')   return 'INSERT';
   if (k === 'delete')   return 'SUPR';
   if (k === 'enter')    return 'ENTER';
+  if (k === 'home')     return 'INICIO';
+  if (k === 'end')      return 'FIN';
+  if (k === 'escape')   return 'ESC';
+  if (k === 'backspace') return 'RETROCESO';
+  if (k === 'control')  return 'CTRL';
   if (k && k.startsWith('arrow')) return {arrowup:'↑',arrowdown:'↓',arrowleft:'←',arrowright:'→'}[k] || k;
   return (k||'—').toUpperCase();
 }
@@ -5906,6 +5917,9 @@ function updateVS(dt){
   // junto al alien. Con una pequeña espera para que no se pueda abusar.
   if (p2.recallCd > 0) p2.recallCd -= dt;
   const remoto = enLineaAnfitrion();                   // el J2 juega desde otro dispositivo
+  // El invitado repite su mando cada 250 ms. Si deja de llegar (se cortó la
+  // red o minimizó la ventana), su última orden no se queda repitiendo.
+  if (remoto && performance.now() - (Online.tP2in || 0) > 1000) Online.p2in = { x:0, y:0, r:false };
   const quiereVolver = remoto ? Online.p2in.r : p2Pressed('p2Recall');
   if (quiereVolver && p2.recallCd <= 0){
     const a = Math.random()*Math.PI*2;
@@ -6050,30 +6064,78 @@ function p2Select(i){
   cont.addEventListener('mousedown', elige);
 })();
 
-function renderP2Panel(){
-  const mat = Math.floor(p2.mat);
-  const sig = mat + '|' + p2.sel + '|' + p2.cool.map(c=>Math.ceil(Math.max(0,c))).join(',');
-  if (sig === p2PanelSig) return;
-  p2PanelSig = sig;
-  document.getElementById('p2mat').textContent = mat;
-  document.getElementById('p2seeds').innerHTML = P2_UNITS.map((u,i)=>{
-    const cd = p2.cool[i] > 0;
-    const poor = mat < u.cost;
+// Las tarjetas se construyen una sola vez por partida; después solo se tocan
+// las clases y los números que cambian. Antes se rehacía todo el HTML (con
+// sus imágenes) cada vez que subía el material, varias veces por segundo,
+// y eso daba tirones en el versus.
+let p2Seeds = null, p2SeedsSig = '', p2MatShown = -1;
+function construyeP2Seeds(sigImgs){
+  const cont = document.getElementById('p2seeds');
+  cont.innerHTML = P2_UNITS.map(u=>{
     const ic = u.type === 'omni' ? omniIconURL() : '';
     const img = ic ? `<img src="${ic}" alt="">`
               : sprites[u.sprite] ? `<img src="${sprites[u.sprite].img.src}" alt="">` : '';
-    return `<div class="seed${i===p2.sel?' sel':''}${poor?' poor':''}${cd?' cool':''}">
+    return `<div class="seed">
       ${img}<span class="seedinfo"><span class="seedname">${u.name}</span>
       <span class="seedcost">◈ ${u.cost}</span></span>
-      ${cd?`<span class="seedcool">${Math.ceil(p2.cool[i])}</span>`:''}</div>`;
+      <span class="seedcool" style="display:none"></span></div>`;
   }).join('');
+  p2Seeds = Array.prototype.map.call(cont.children, el => ({
+    el, cool: el.querySelector('.seedcool'), sel:null, poor:null, cd:null, n:-1
+  }));
+  p2SeedsSig = sigImgs;
+}
+function renderP2Panel(){
+  const mat = Math.floor(p2.mat);
+  let sigImgs = '';
+  for (const u of P2_UNITS) sigImgs += (u.type === 'omni' || sprites[u.sprite]) ? '1' : '0';
+  if (!p2Seeds || p2PanelSig === '' || sigImgs !== p2SeedsSig){
+    construyeP2Seeds(sigImgs);
+    p2PanelSig = 'ok'; p2MatShown = -1;
+  }
+  if (mat !== p2MatShown){ p2MatShown = mat; document.getElementById('p2mat').textContent = mat; }
+  for (let i = 0; i < p2Seeds.length; i++){
+    const s = p2Seeds[i], u = P2_UNITS[i];
+    const sel = i === p2.sel, poor = mat < u.cost, cd = p2.cool[i] > 0;
+    const n = cd ? Math.ceil(p2.cool[i]) : 0;
+    if (sel  !== s.sel ){ s.sel  = sel;  s.el.classList.toggle('sel', sel); }
+    if (poor !== s.poor){ s.poor = poor; s.el.classList.toggle('poor', poor); }
+    if (cd   !== s.cd  ){ s.cd   = cd;   s.el.classList.toggle('cool', cd); s.cool.style.display = cd ? '' : 'none'; }
+    if (n !== s.n){ s.n = n; if (cd) s.cool.textContent = n; }
+  }
 }
 
 // ================= INPUT =================
 const keys = {};
+// Qué nombre de tecla se registró para cada tecla física. Con Mayús o Bloq Num
+// el nombre cambia entre pulsar y soltar (el 7 del numérico es «Home» o «7»),
+// y sin esto la tecla quedaba pulsada para siempre.
+const keyByCode = {};
+// Teclas que el navegador usa para desplazar la página o pulsar el botón que
+// tenga el foco: en partida no deben hacer nada más que jugar.
+const TECLAS_NAVEGADOR = ['arrowup','arrowdown','arrowleft','arrowright',' ','home','end',
+                          'pageup','pagedown','enter','tab','backspace'];
+function escribiendo(e){
+  const t = e && e.target;
+  if (!t || !t.tagName) return false;
+  const tag = t.tagName.toLowerCase();
+  return tag === 'input' || tag === 'textarea' || tag === 'select' || t.isContentEditable;
+}
+// Suelta todo: al perder el foco la ventana nunca llega el keyup y la
+// tecla se quedaba «pegada» repitiendo su acción sin parar.
+function soltarTeclas(){
+  for (const k in keys) keys[k] = false;
+  for (const c in keyByCode) delete keyByCode[c];
+  try { if (Online.teclas) for (const k in Online.teclas) Online.teclas[k] = false; } catch(e){}
+}
+window.addEventListener('blur', soltarTeclas);
+document.addEventListener('visibilitychange', ()=>{ if (document.hidden) soltarTeclas(); });
 window.addEventListener('keydown', e=>{
-  if (esVisorVs()){ teclaInvitado(e, true); return; }
+  if (!e.key) return;
   const k = e.key.toLowerCase();
+  if (e.code) keyByCode[e.code] = k;
+  if (running && !listeningFor && !escribiendo(e) && TECLAS_NAVEGADOR.indexOf(k) !== -1) e.preventDefault();
+  if (esVisorVs() && k !== 'escape' && k !== binds.pausa){ teclaInvitado(e, true); return; }
   // Doble toque de una dirección: activa el vuelo sónico del viltrumita.
   if (isVil() && running && !e.repeat){
     const dir = dirOfKey(k);
@@ -6125,7 +6187,19 @@ window.addEventListener('keydown', e=>{
   }
   keys[k] = true;
 });
-window.addEventListener('keyup', e=>{ keys[e.key.toLowerCase()] = false; });
+window.addEventListener('keyup', e=>{
+  const k = (e.key || '').toLowerCase();
+  const antes = e.code ? keyByCode[e.code] : null;
+  if (e.code) delete keyByCode[e.code];
+  if (k) keys[k] = false;
+  if (antes) keys[antes] = false;
+  // El invitado del versus en línea guarda sus teclas aparte: antes nunca se
+  // soltaban, e Inicio (traer la mira) o las flechas se repetían sin fin.
+  if (Online.teclas){
+    if (k) Online.teclas[k] = false;
+    if (antes) Online.teclas[antes] = false;
+  }
+});
 
 const mouse = { x: CW/2, y: CH/2 };      // en píxeles del lienzo
 canvas.addEventListener('mousemove', e=>{
@@ -9788,7 +9862,7 @@ function dlPush(y, k, o){
 function dlCmp(a, b){ return a.y - b.y; }
 
 function draw(){
-  ctx.setTransform(ZOOM, 0, 0, ZOOM, 0, 0);   // todo el mundo se dibuja escalado
+  ctx.setTransform(ZOOM*DPR, 0, 0, ZOOM*DPR, 0, 0);   // todo el mundo se dibuja escalado
   ctx.save();
   if (shakeTime>0) ctx.translate(rand(-shakeMag,shakeMag), rand(-shakeMag,shakeMag));
   actualizaSol();
@@ -9855,7 +9929,7 @@ function draw(){
 
   drawBullets(); drawSonic(); drawWind(); drawRayosOjos(); drawFX(); drawAura(); drawP2Cursor();
   ctx.restore();
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   drawLighting();                                  // en píxeles del lienzo
 }
 
@@ -10050,7 +10124,21 @@ async function renderScoreList(){
 
 // ================= LOOP =================
 lastT = performance.now();
+// Mide el ritmo real durante la partida. Si con alta resolución no se llega a
+// ~45 fps, se renuncia a ella (una sola vez) antes de que se note el tirón.
+const perf = { t:0, n:0, lento:0 };
+function vigilaRendimiento(ms){
+  if (DPR <= 1 || !running || document.hidden || ms <= 0 || ms > 250) return;
+  perf.t += ms; perf.n++;
+  if (perf.t < 2000) return;
+  const media = perf.t / perf.n;
+  perf.t = 0; perf.n = 0;
+  if (media > 1000/45){
+    if (++perf.lento >= 2){ dprTope = 1; resize(); }
+  } else perf.lento = 0;
+}
 function loop(t){
+  vigilaRendimiento(t - lastT);
   // Acotado también por abajo: al reanudar una pausa, la marca del fotograma
   // puede quedar un pelo por detrás de performance.now() y dar un paso negativo.
   const dt = clamp((t-lastT)/1000, 0, 0.05); lastT = t;
@@ -10100,35 +10188,46 @@ function loop(t){
   draw();
   requestAnimationFrame(loop);
 }
+// El HUD solo toca el DOM cuando un valor cambia de verdad. Escribir lo
+// mismo en cada fotograma obligaba al navegador a recalcular la maquetación
+// 60 veces por segundo sin que nada se moviera.
+var _hudEl = {}, _hudVal = {};
+function hudEl(id){ return _hudEl[id] || (_hudEl[id] = document.getElementById(id)); }
+function hudTxt(id, v){
+  if (_hudVal[id] === v) return;
+  const el = hudEl(id); if (!el) return;
+  _hudVal[id] = v; el.textContent = v;
+}
+function hudCss(id, prop, v){
+  const key = id + '.' + prop;
+  if (_hudVal[key] === v) return;
+  const el = hudEl(id); if (!el) return;
+  _hudVal[key] = v; el.style[prop] = v;
+}
+function pctCss(f){ return (Math.round(clamp(f, 0, 1)*1000)/10) + '%'; }
 // Marcador, reloj, panel del J2… Lo usan el anfitrión y el invitado.
 function pintaHUD(){
-    document.getElementById('hpfill').style.width  = (hp/maxHp()*100)+'%';
-    document.getElementById('evofill').style.width = (form>=1 ? 100 : clamp(kills/EVOLVE_KILLS,0,1)*100)+'%';
-    const ew = document.getElementById('evowrap');
-    if (ew) ew.style.display = '';
-    const sw = document.getElementById('stamwrap');
+    hudCss('hpfill', 'width', pctCss(hp/maxHp()));
     if (isVil()){
-      document.getElementById('formname').textContent = 'VILTRUMITA';
-      if (sw){ sw.style.display=''; document.getElementById('stamfill').style.width=(vil.stam/vil.maxStam*100).toFixed(1)+'%'; }
-      document.getElementById('evofill').style.width = '0%';
-      const ew = document.getElementById('evowrap');
-      if (ew) ew.style.display = 'none';        // sin barra de evolución
+      hudTxt('formname', 'VILTRUMITA');
+      hudCss('stamwrap', 'display', '');
+      hudCss('stamfill', 'width', pctCss(vil.stam/vil.maxStam));
+      hudCss('evofill', 'width', '0%');
+      hudCss('evowrap', 'display', 'none');        // sin barra de evolución
     } else {
-      document.getElementById('formname').textContent = F().name;
-      if (sw) sw.style.display = 'none';
+      hudTxt('formname', F().name);
+      hudCss('stamwrap', 'display', 'none');
+      hudCss('evofill', 'width', form>=1 ? '100%' : pctCss(kills/EVOLVE_KILLS));
+      hudCss('evowrap', 'display', '');
     }
-    document.getElementById('scoreval').textContent = score;
+    hudTxt('scoreval', String(score));
     refreshCombo();
     // Monedas que llevas ganadas en esta partida (lo mismo que verás al acabar).
     // En el duelo a dos no se juega por monedas: el marcador se oculta.
-    const ch = document.getElementById('coinhud');
-    if (ch) ch.style.display = (gameMode === 'vs') ? 'none' : '';
-    if (gameMode !== 'vs'){
-      const cv = document.getElementById('coinval');
-      if (cv) cv.textContent = coinsFor(score, demolished) + coinsBanco;
-    }
+    hudCss('coinhud', 'display', (gameMode === 'vs') ? 'none' : '');
+    if (gameMode !== 'vs') hudTxt('coinval', String(coinsFor(score, demolished) + coinsBanco));
     const ph = phase();
-    document.getElementById('clockicon').textContent  = ph.icon;
+    hudTxt('clockicon', ph.icon);
     if (climaMostrado !== clima){               // solo se toca al cambiar
       climaMostrado = clima;
       const c = CLIMAS[clima];
@@ -10136,21 +10235,22 @@ function pintaHUD(){
       document.getElementById('climaname').textContent = c.name;
       document.getElementById('climahud').className = 'climahud ' + clima;
     }
-    document.getElementById('clockphase').textContent = ph.name;
-    document.getElementById('clocknext').textContent  = Math.ceil(phaseTimeLeft())+'s';
+    hudTxt('clockphase', ph.name);
+    hudTxt('clocknext', Math.ceil(phaseTimeLeft())+'s');
     const o = heldObject;
-    document.getElementById('shieldlabel').textContent = o ? `ESCUDO: ${objLabel(o.ref)} (${Math.max(0,Math.ceil(o.dur))})` : '';
+    hudTxt('shieldlabel', o ? `ESCUDO: ${objLabel(o.ref)} (${Math.max(0,Math.ceil(o.dur))})` : '');
     refreshActionBtn();
-    document.getElementById('wavebadge').textContent =
+    hudTxt('wavebadge',
       finalWave() ? 'OLEADA FINAL' : form>=1 ? 'OLEADA: BLINDADOS'
-      : stage===1 ? 'OLEADA: CIVILES' : stage===2 ? 'OLEADA: POLICÍA' : 'OLEADA: EJÉRCITO';
+      : stage===1 ? 'OLEADA: CIVILES' : stage===2 ? 'OLEADA: POLICÍA' : 'OLEADA: EJÉRCITO');
 
     if (gameMode === 'vs'){
       renderP2Panel();
       const t = Math.max(0, vsTimeLeft);
       const mm = Math.floor(t/60), ss = Math.floor(t%60);
-      document.getElementById('vstime').textContent = mm+':'+String(ss).padStart(2,'0');
-      document.getElementById('vsclock').classList.toggle('urgent', t <= 15);
+      hudTxt('vstime', mm+':'+String(ss).padStart(2,'0'));
+      const urg = t <= 15;
+      if (_hudVal.vsUrg !== urg){ _hudVal.vsUrg = urg; document.getElementById('vsclock').classList.toggle('urgent', urg); }
     }
 }
 requestAnimationFrame(loop);
@@ -10191,7 +10291,9 @@ function startGame(mode){
   document.getElementById('bottomhud').classList.toggle('hidden', vs);
   if (vs){
     p2PanelSig = '';
-    document.getElementById('p2keyplace').textContent = prettyKey(bindsP2.p2Place)+' / INS';
+    // Intro y el 0 del numérico colocan siempre, además de la tecla elegida.
+    const colocar = [bindsP2.p2Place, 'enter', '0'].filter((k,i,a)=>k && a.indexOf(k) === i).slice(0, 2);
+    document.getElementById('p2keyplace').textContent = colocar.map(prettyKey).join(' / ');
     document.getElementById('p2keycycle').textContent = prettyKey(bindsP2.p2Prev)+'/'+prettyKey(bindsP2.p2Next);
     renderP2Panel();
   }
@@ -11573,12 +11675,13 @@ function enviaMandoInvitado(){
   if (p2Joy.active){ dx = p2Joy.dx; dy = p2Joy.dy; }
   else {
     const T = Online.teclas;
-    if (T.arrowup || T.w) dy -= 1;
-    if (T.arrowdown || T.s) dy += 1;
-    if (T.arrowleft || T.a) dx -= 1;
-    if (T.arrowright || T.d) dx += 1;
+    // Flechas o WASD, y además las teclas que el J2 tenga configuradas.
+    if (T.arrowup || T.w || T[bindsP2.p2Up]) dy -= 1;
+    if (T.arrowdown || T.s || T[bindsP2.p2Down]) dy += 1;
+    if (T.arrowleft || T.a || T[bindsP2.p2Left]) dx -= 1;
+    if (T.arrowright || T.d || T[bindsP2.p2Right]) dx += 1;
   }
-  const r = !!(Online.teclas.home || Online.teclas.r || Online.recallTactil);
+  const r = !!(Online.teclas.home || Online.teclas.r || Online.teclas[bindsP2.p2Recall] || Online.recallTactil);
   Online.mvLocal = { x:dx, y:dy };
   const firma = dx.toFixed(2) + ',' + dy.toFixed(2) + ',' + (r ? 1 : 0);
   const ahora = performance.now();
@@ -11908,7 +12011,7 @@ function recibeMensaje(otro, m){
   // perdían los cambios de la otra, y con el envío por diferencias eso era
   // definitivo: farolas destruidas que seguían viéndose, daño que no llegaba…
   else if (m.t === 'i'){ if (enLineaInvitado()) Online.cola.push(m); }
-  else if (m.t === 'mv'){ if (enLineaAnfitrion()) Online.p2in = { x:+m.x||0, y:+m.y||0, r:!!m.r }; }
+  else if (m.t === 'mv'){ if (enLineaAnfitrion()){ Online.p2in = { x:+m.x||0, y:+m.y||0, r:!!m.r }; Online.tP2in = performance.now(); } }
   else if (m.t === 'av'){ if (dobleAnf()) recibeAvatar(m); }
   else if (['dano','edif','prop','auto','agarra','lanza','suelta'].includes(m.t)){ if (dobleAnf()) accionInvitado(m); }
   else if (m.t === 'acc' && enLineaAnfitrion()){

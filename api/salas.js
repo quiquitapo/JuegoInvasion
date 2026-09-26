@@ -110,7 +110,11 @@ export default async function handler(req, res) {
     }
 
     if (req.method !== 'POST') return res.status(405).json({ error: 'Método no permitido' });
-    const b = (typeof req.body === 'string') ? JSON.parse(req.body || '{}') : (req.body || {});
+    let b = req.body;
+    if (typeof b === 'string') {
+      try { b = JSON.parse(b || '{}'); } catch (e) { b = null; }
+    }
+    if (!b || typeof b !== 'object') return res.status(400).json({ error: 'Cuerpo inválido' });
 
     if (b.accion === 'crear') {
       const modo = MODOS.includes(b.modo) ? b.modo : null;
