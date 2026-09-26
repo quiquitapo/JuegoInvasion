@@ -409,6 +409,9 @@
   /* En VS el panel del Jugador 2 ocupa la franja derecha: se aparta el HUD
      para que puntaje, reloj y botón de salir sigan visibles y pulsables. */
   #hud.vsmode { padding-right: calc(min(190px, 32vw) + 14px); }
+  /* En línea el invasor no ve el panel del ejército: su puntaje, reloj y
+     botón de salir vuelven a pegarse al borde derecho. */
+  body.invasorvs #hud.vsmode { padding-right:12px; }
   .hp-wrap { background:rgba(5,10,7,0.62); border:1px solid #1f5c37; padding:5px 8px; border-radius:4px; width:min(230px,44vw); }
   .hp-label { font-size:0.58rem; color:#7bffa0; letter-spacing:2px; margin-bottom:3px; display:flex; justify-content:space-between; }
   .hp-label b { color:#ffe066; }
@@ -469,6 +472,14 @@
   .salaheroes { display:flex; gap:8px; justify-content:center; }
   .salaheroes .small { margin-top:0; flex:1; }
   .salahero.on { background:linear-gradient(180deg,#2fe86e,#128a3c); color:#04210f; }
+  /* Skins que tienes, para elegir sin salir de la sala */
+  .salaskins { display:flex; flex-wrap:wrap; gap:7px; justify-content:center; }
+  .salaskin { width:30px; height:30px; border-radius:50%; padding:0; cursor:pointer;
+              border:2px solid rgba(255,255,255,0.25); background-size:cover; background-position:center;
+              box-shadow:0 2px 6px rgba(0,0,0,0.5); transition:transform .08s ease; }
+  .salaskin:hover { transform:scale(1.08); }
+  .salaskin.on { border-color:#2fe86e; box-shadow:0 0 0 2px rgba(47,232,110,0.45), 0 2px 6px rgba(0,0,0,0.5); }
+  .salaskinnom { font-size:0.5rem; letter-spacing:1px; color:#cfe6ff; text-align:center; margin-top:6px; min-height:10px; }
   .salasep { font-size:0.5rem; color:#6f9a80; margin:12px 0 6px; letter-spacing:1px; }
   .salaunir { display:flex; gap:8px; }
   .salaunir .small { margin-top:0; }
@@ -620,6 +631,12 @@
   body.visorvs.movil #p2touch, body.visorvs.touch-ui #p2touch { display:block !important; }
   body.visorvs #p2Place { min-width:120px; height:58px; font-size:0.62rem; }
   body.visorvs #p2Recall { min-width:40px; height:40px; }
+  /* Cámara del ejército: solo tiene sentido en línea */
+  #p2Cam { display:none; position:absolute; pointer-events:auto; min-width:46px; height:46px; font-size:1rem; }
+  body.visorvs #p2Cam { display:flex; }
+  #p2hintcam { display:none; }
+  body.visorvs #p2hintcam { display:inline; }
+  body.visorvs.touch-ui #p2hintcam, body.visorvs.movil #p2hintcam { display:none; }
   #p2seeds .seed { pointer-events:auto; cursor:pointer; }
   .p2joy { border-color:rgba(120,180,255,0.75) !important; pointer-events:auto; }
   .p2joy .joy-knob { background:radial-gradient(circle at 35% 30%, #8fd0ff, #1f5f9e) !important; }
@@ -695,7 +712,7 @@
     <div class="p2title">JUGADOR DOS</div>
     <div class="p2res"><span class="p2resicon">◈</span><b id="p2mat">0</b> <span class="p2reslbl">MATERIALES</span></div>
     <div id="p2seeds" class="p2seeds"></div>
-    <div class="p2hint">Flechas: mover · <b id="p2keyplace">0</b>: colocar · <b id="p2keycycle">Re/Av Pág</b>: cambiar</div>
+    <div class="p2hint">Flechas: mover · <b id="p2keyplace">0</b>: colocar · <b id="p2keycycle">Re/Av Pág</b>: cambiar<span id="p2hintcam"> · <b id="p2keycam">C</b>: cámara</span></div>
   </div>
 
   <div id="vsclock" class="hidden"><span class="vslbl">EL ALIEN DEBE AGUANTAR</span><b id="vstime">2:30</b></div>
@@ -738,6 +755,7 @@
       <div class="p2btn" id="p2Recall" title="Traer la mira al alien">⌖</div>
       <div class="p2btn" id="p2Next">▶</div>
     </div>
+    <div class="p2btn" id="p2Cam" title="Cámara: el invasor o tu mira">👁</div>
   </div>
 
   <!-- Editor de colocación: simula una pantalla y deja arrastrar los mandos -->
@@ -752,7 +770,10 @@
       <span style="font-size:0.44rem; color:#9fb3a8; letter-spacing:1px; align-self:center">MODO:</span>
       <button type="button" class="togglebtn" id="uiEdInv">INVASIÓN</button>
       <button type="button" class="togglebtn" id="uiEdVs">2 JUGADORES</button>
+      <button type="button" class="togglebtn" id="uiEdEj">EJÉRCITO EN LÍNEA</button>
     </div>
+    <div id="uiEdModoTxt" style="font-size:0.44rem; color:#8fd7ff; letter-spacing:1px; text-align:center;
+         max-width:520px; line-height:1.8; margin:-2px auto 6px"></div>
     <div class="uiedbar">
       <button type="button" class="togglebtn" id="uiEdVert">VERTICAL</button>
       <button type="button" class="togglebtn" id="uiEdHoriz">HORIZONTAL</button>
@@ -768,7 +789,8 @@
     <div style="font-size:0.44rem; color:#9fb3a8; letter-spacing:1px; margin-top:8px;
                 text-align:center; max-width:520px; line-height:1.8">
       Los joysticks de moverse y apuntar aparecen donde pongas el dedo, así que no
-      necesitan sitio fijo. Aquí colocas los botones y el mando del Jugador 2.
+      necesitan sitio fijo. Aquí colocas los botones, el mando del Jugador 2 y,
+      para cuando mandas al ejército en línea, el botón de cámara.
     </div>
   </div>
 
@@ -971,6 +993,16 @@
             <button type="button" class="small salahero" id="salaRolEje2">EJÉRCITO</button>
           </div>
         </div>
+        <div id="salaPerfil">
+          <div class="salalbl" id="salaHeroeLbl2">Tu personaje</div>
+          <div class="salaheroes">
+            <button type="button" class="small salahero" id="salaHeroeAlien2">CRÍA</button>
+            <button type="button" class="small salahero" id="salaHeroeVil2">VILTRUMITA</button>
+          </div>
+          <div class="salalbl" id="salaSkinLbl">Tu skin</div>
+          <div id="salaSkins" class="salaskins"></div>
+          <div id="salaSkinNom" class="salaskinnom"></div>
+        </div>
         <div class="salalbl">Jugadores</div>
         <div id="salaLista" class="salalista"></div>
         <div id="salaEstado" class="salaestado">Esperando al otro jugador…</div>
@@ -1073,6 +1105,24 @@
       <div class="p2note">Solo se usan en <b>Contra otro jugador</b>. El alien mantiene sus teclas de arriba.</div>
       <div id="bindlistP2"></div>
       <button class="small" id="btnResetBindsP2" style="margin-top:12px">Restaurar por defecto</button>
+    </div>
+
+    <div class="panel" style="min-width:min(340px,92vw)">
+      <h3>Partidas en línea</h3>
+      <div class="bindrow">
+        <span class="bindname">Rayos láser del otro jugador</span>
+        <button type="button" class="togglebtn" id="tgRayosOtro">ON</button>
+      </div>
+      <div class="bindrow">
+        <span class="bindname">Ver la mira del Jugador 2 siendo invasor</span>
+        <button type="button" class="togglebtn off" id="tgMiraJ2">OFF</button>
+      </div>
+      <div class="bindrow">
+        <span class="bindname">Cámara mandando al ejército</span>
+        <button type="button" class="togglebtn" id="tgCamVs">SIGUE AL INVASOR</button>
+      </div>
+      <div class="p2note" style="margin:8px 0 0">La cámara también se cambia en plena partida con
+        <b id="camKeyLbl">C</b> o con el botón <b>👁</b> del mando táctil.</div>
     </div>
 
     <div class="panel" style="min-width:min(340px,92vw)">
@@ -2754,6 +2804,9 @@ function updateRayosOjos(dt){
 
 function drawRayosOjos(){
   if (!rayosOn || !isVil() || !buffActivo('rayos')) return;
+  // Mandando al ejército, el viltrumita es el otro jugador: sus rayos se ven
+  // o no según Ajustes. Los tuyos siempre, que hacen falta para apuntar.
+  if (esVisorVs() && !verRayosOtro) return;
   const a = aimAngle();
   const s2 = S(player.x, player.y - 14);
   const fx = s2.x + Math.cos(a)*RAYO_LARGO, fy = s2.y + Math.sin(a)*RAYO_LARGO;
@@ -3714,7 +3767,36 @@ const SKINS = [
 ];
 function skinById(id){
   if (id === 'custom') return customSkin;
+  if (typeof id === 'string' && id.startsWith('pal:')) return skinPaleta(id);
   return SKINS.find(k=>k.id===id) || SKINS[0];
+}
+// ---- Skins en línea ----
+// El color propio y las skins con imagen solo existen en tu dispositivo. Para
+// que el otro jugador te vea con tus colores, viajan como paleta:
+// 'pal:#claro:#medio:#oscuro:#tentáculo:#punta'. Las de la tienda, por su id.
+const _HEX6 = /^#[0-9a-f]{6}$/i;
+let _paletas = {}, _nPaletas = 0;
+function skinPaleta(id){
+  if (_paletas[id]) return _paletas[id];
+  const p = id.slice(4).split(':');
+  if (p.length !== 5 || !p.every(h => _HEX6.test(h))) return SKINS[0];
+  if (++_nPaletas > 40){ _paletas = {}; _nPaletas = 1; }      // nunca crece sin fin
+  return (_paletas[id] = { id, name:'COLOR PROPIO', cost:0, c:[p[0], p[1], p[2]], limb:p[3], tip:p[4] });
+}
+function aHex(c){ return _HEX6.test(c) ? c : rgbToHex(...hexToRgb(c)); }
+function skinRed(){
+  if (activeSkin === 'custom' || imgSkinActiva()){
+    const k = skin();
+    return 'pal:' + [k.c[0], k.c[1], k.c[2], k.limb, k.tip].map(aHex).join(':');
+  }
+  return activeSkin;
+}
+// Lo que llega por la red: solo textos cortos; cualquier otra cosa, la de serie.
+function skinDeRed(v){ return (typeof v === 'string' && v.length < 64) ? v : 'verde'; }
+// Nombre para mostrar de una skin por su id (tienda, color propio o imagen).
+function nombreSkin(id){
+  if (typeof id === 'string' && id.startsWith('img:')){ const im = imgSkinById(id.slice(4)); return im ? im.name : 'IMAGEN'; }
+  return skinById(id).name;
 }
 function skin(){
   const im = imgSkinActiva();
@@ -4058,14 +4140,22 @@ async function loadShop(){
       auraBought = !!p.auraBought;
       auraOn = auraBought && !!p.auraOn;
       if (p.custom && p.custom.body) buildCustom(p.custom.body, p.custom.tent || p.custom.body);
-      const valid = ownedSkins.includes(p.active) || (p.active === 'custom' && customBought);
+      // Las skins con imagen se guardan como 'img:…' y no están en la lista de
+      // compradas: antes, al recargar, se perdían y volvías a la verde.
+      const valid = ownedSkins.includes(p.active) || (p.active === 'custom' && customBought) ||
+                    (typeof p.active === 'string' && p.active.startsWith('img:') && customBought);
       activeSkin = valid ? p.active : 'verde';
     }
   } catch(e){}
 }
 function saveShop(){
+  // Mandando al ejército en línea se ve la skin del invasor: la tuya es otra
+  // y no debe sobrescribirse si algo guarda la tienda mientras tanto.
+  let propia = activeSkin;
+  try { if (Online.activo && Online.rol === 'invitado' && Online.modo === 'vs' && Online.skinPropia) propia = Online.skinPropia; }
+  catch(e){}
   storeSet('invasion_shop', JSON.stringify({
-    coins, owned:ownedSkins, active:activeSkin, customBought, auraBought, auraOn,
+    coins, owned:ownedSkins, active:propia, customBought, auraBought, auraOn,
     custom:{ body: customSkin.body || '#1f5f9e', tent: customSkin.tent || '#3ba0e0' }
   }));
 }
@@ -5166,12 +5256,13 @@ const BIND_ORDER = ['up','left','down','right','grab','throw','pausa'];
 // --- Jugador 2 (modo VS) ---
 const DEFAULT_BINDS_P2 = { p2Up:'arrowup', p2Down:'arrowdown', p2Left:'arrowleft',
                            p2Right:'arrowright', p2Place:'enter', p2Next:'pagedown', p2Prev:'pageup',
-                           p2Recall:'home' };
+                           p2Recall:'home', p2Cam:'c' };
 const BIND_LABELS_P2 = { p2Up:'P2 · Arriba', p2Down:'P2 · Abajo', p2Left:'P2 · Izquierda',
                          p2Right:'P2 · Derecha', p2Place:'P2 · Colocar unidad (Start)',
                          p2Next:'P2 · Unidad siguiente', p2Prev:'P2 · Unidad anterior',
-                         p2Recall:'P2 · Traer la mira al alien' };
-const BIND_ORDER_P2 = ['p2Up','p2Left','p2Down','p2Right','p2Place','p2Prev','p2Next','p2Recall'];
+                         p2Recall:'P2 · Traer la mira al alien',
+                         p2Cam:'P2 · Cámara: invasor / tu mira (en línea)' };
+const BIND_ORDER_P2 = ['p2Up','p2Left','p2Down','p2Right','p2Place','p2Prev','p2Next','p2Recall','p2Cam'];
 let bindsP2 = Object.assign({}, DEFAULT_BINDS_P2);
 
 function sanitizeBindsP2(){
@@ -5224,6 +5315,7 @@ function renderBindsP2(){
       renderBinds(); renderBindsP2();
     });
   });
+  try { refreshOnlineUI(); } catch(e){}
 }
 
 function renderBinds(){
@@ -5973,12 +6065,15 @@ function ocultaFlechaP2(){
   if (el) el.classList.add('hidden');
 }
 
-function flechaP2(){
+// Señala hacia (tx, ty) si está fuera de la vista. Devuelve true si la flecha
+// se muestra. 'listo' decide el color (azul listo, rojo no).
+function flechaP2(tx, ty, txt, listo){
   if (gameMode !== 'vs' || !running){ ocultaFlechaP2(); return false; }
   const el = document.getElementById('p2arrow');
   if (!el) return false;
 
-  const sx = p2.x - camX, sy = p2.y - camY;
+  // en píxeles de pantalla: el mundo se dibuja ampliado por ZOOM
+  const sx = (tx - camX)*ZOOM, sy = (ty - camY)*ZOOM;
   const m = FLECHA_M;
   if (sx >= m && sx <= CW - m && sy >= m && sy <= CH - m){ ocultaFlechaP2(); return false; }
 
@@ -5995,10 +6090,6 @@ function flechaP2(){
   if (!isFinite(t)) t = 0;
   const px2 = clamp(cx + dx*t, m, CW - m);
   const py2 = clamp(cy + dy*t, m, CH - m);
-
-  const u = P2_UNITS[p2.sel];
-  const listo = u && p2.cool[p2.sel] <= 0 && p2.mat >= u.cost;
-  const txt = prettyKey(bindsP2.p2Recall || 'home');
 
   // Solo se tocan los estilos cuando algo cambia de verdad.
   if (!flechaVis){ el.classList.remove('hidden'); flechaVis = true; }
@@ -6019,11 +6110,19 @@ function flechaP2(){
 
 function drawP2Cursor(){
   if (gameMode !== 'vs'){ ocultaFlechaP2(); return; }
-  if (enLineaAnfitrion() && Online.modo === 'vs'){ ocultaFlechaP2(); return; }   // secreto del ejército
-  if (flechaP2()) return;                         // fuera de vista: solo la flecha
-  const s2 = S(p2.x, p2.y);
+  const invasorEnLinea = enLineaAnfitrion() && Online.modo === 'vs';
+  // La mira es secreta para el invasor en línea, salvo que la active en Ajustes.
+  if (invasorEnLinea && !verMiraJ2){ ocultaFlechaP2(); return; }
   const u = P2_UNITS[p2.sel];
-  const ready = u && p2.cool[p2.sel] <= 0 && p2.mat >= u.cost;
+  const ready = !!(u && p2.cool[p2.sel] <= 0 && p2.mat >= u.cost);
+  if (camaraEnMira()){
+    // La vista va con tu mira, así que la flecha señala al invasor.
+    flechaP2(player.x, player.y, isVil() ? 'VILTRUMITA' : 'ALIEN', false);
+  } else {
+    const txt = invasorEnLinea ? 'J2' : prettyKey(bindsP2.p2Recall || 'home');
+    if (flechaP2(p2.x, p2.y, txt, ready)) return;   // fuera de vista: solo la flecha
+  }
+  const s2 = S(p2.x, p2.y);
 
   if (u && sprites[u.sprite]){
     ctx.globalAlpha = ready ? 0.5 : 0.22;
@@ -6566,33 +6665,60 @@ const UI_PIEZAS = [
   // en vertical, un poco más arriba: en un móvil estrecho no caben joystick y
   // botones a la misma altura y el joystick pisaba el botón ◀
   { id:'p2joy', el:'p2JoyBase',  nombre:'MANDO J2', def:{ v:[0.16,0.79], h:[0.10,0.80] } },
-  { id:'p2btn', el:'p2Buttons',  nombre:'UNIDADES J2', def:{ v:[0.62,0.94], h:[0.72,0.90] } }
+  { id:'p2btn', el:'p2Buttons',  nombre:'UNIDADES J2', def:{ v:[0.62,0.94], h:[0.72,0.90] } },
+  // solo mandando al ejército en línea: alterna la cámara (el invasor / tu mira)
+  { id:'p2cam', el:'p2Cam',      nombre:'CÁMARA',   def:{ v:[0.88,0.80], h:[0.94,0.62] } }
 ];
 // Cada personaje guarda su propio tamaño y colocación de mandos.
-// pos guarda cuatro juegos: vertical/horizontal para invasión, y otros dos
-// para el duelo a dos jugadores (que añade el mando del Jugador 2).
-function uiVacio(){ return { size:'auto', pos:{ v:{}, h:{}, vsv:{}, vsh:{} } }; }
-function uiClave(orient, modo){ return (modo === 'vs' ? 'vs' : '') + orient; }
+// pos guarda seis juegos (vertical/horizontal de cada uno): invasión (también
+// Doble Invasión y el invasor del versus en línea), el duelo en un mismo
+// dispositivo (añade el mando del Jugador 2) y el ejército en línea (solo su
+// mando, los botones de unidades y la cámara).
+const UI_CLAVES = ['v','h','vsv','vsh','ejv','ejh'];
+function uiVacio(){ return { size:'auto', pos:{ v:{}, h:{}, vsv:{}, vsh:{}, ejv:{}, ejh:{} } }; }
+function uiClave(orient, modo){ return (modo === 'vs' ? 'vs' : modo === 'ej' ? 'ej' : '') + orient; }
+// Qué juego de mandos toca ahora mismo.
+function uiModo(){
+  if (gameMode !== 'vs') return 'invasion';
+  if (Online.activo && Online.modo === 'vs') return Online.rol === 'invitado' ? 'ej' : 'invasion';
+  return 'vs';
+}
 let uiCfg = { alien: uiVacio(), viltrum: uiVacio() };
 function uiFor(h){
   const k = (h === 'viltrum') ? 'viltrum' : 'alien';
   // Red de seguridad: un guardado dañado no debe tumbar la interfaz.
   if (!uiCfg[k] || typeof uiCfg[k] !== 'object') uiCfg[k] = uiVacio();
   const c = uiCfg[k];
-  if (!c.pos || typeof c.pos !== 'object') c.pos = { v:{}, h:{}, vsv:{}, vsh:{} };
-  for (const o of ['v','h','vsv','vsh']) if (!c.pos[o] || typeof c.pos[o] !== 'object') c.pos[o] = {};
+  if (!c.pos || typeof c.pos !== 'object') c.pos = uiVacio().pos;
+  for (const o of UI_CLAVES) if (!c.pos[o] || typeof c.pos[o] !== 'object') c.pos[o] = {};
   return c;
 }
-function uiCur(){ return uiFor(hero); }
+// Mandando al ejército en línea, 'hero' es el del invasor (el otro): los
+// mandos que valen son los de TU personaje.
+function uiCur(){
+  let h = hero;
+  try { if (Online.activo && Online.rol === 'invitado' && Online.modo === 'vs' && Online.heroePropio) h = Online.heroePropio; }
+  catch(e){}
+  return uiFor(h);
+}
 
 function mezclaUI(dst, p){
   if (!p || typeof p !== 'object') return;
   if (p.size === 'auto' || (typeof p.size === 'number' && p.size >= 0.6 && p.size <= 1.6)) dst.size = p.size;
   if (p.pos){
-    for (const k of ['v','h','vsv','vsh']) if (p.pos[k]) dst.pos[k] = p.pos[k];
+    for (const k of UI_CLAVES) if (p.pos[k] && typeof p.pos[k] === 'object') dst.pos[k] = p.pos[k];
     // guardados antiguos: lo de invasión sirve de punto de partida para el duelo
     if (!p.pos.vsv && p.pos.v) dst.pos.vsv = JSON.parse(JSON.stringify(p.pos.v));
     if (!p.pos.vsh && p.pos.h) dst.pos.vsh = JSON.parse(JSON.stringify(p.pos.h));
+    // el ejército en línea parte de donde tuvieras el mando del J2 en el duelo
+    for (const o of ['v','h']){
+      const vs = dst.pos['vs'+o];
+      if (!p.pos['ej'+o] && vs){
+        const ej = {};
+        for (const id of ['p2joy','p2btn']) if (Array.isArray(vs[id])) ej[id] = vs[id].slice(0, 2);
+        dst.pos['ej'+o] = ej;
+      }
+    }
   }
 }
 async function loadUICfg(){
@@ -6615,7 +6741,7 @@ function uiOrient(){ return (CW > CH) ? 'h' : 'v'; }
 function uiPos(id, quien, modo){
   const cfg = quien ? uiFor(quien) : uiCur();
   const o = uiOrient();
-  const k = uiClave(o, modo || gameMode);
+  const k = uiClave(o, modo || uiModo());
   const guardada = cfg.pos[k] && cfg.pos[k][id];
   if (guardada) return guardada;
   const p = UI_PIEZAS.find(x=>x.id===id);
@@ -6624,21 +6750,25 @@ function uiPos(id, quien, modo){
 // El botón de golpe solo existe para el viltrumita, y el mando del Jugador 2
 // solo tiene sentido en el duelo.
 function piezasDe(h, modo){
-  return UI_PIEZAS.filter(p =>
-    (p.id !== 'punch' || h === 'viltrum') &&
-    (!p.id.startsWith('p2') || modo === 'vs'));
+  return UI_PIEZAS.filter(p => {
+    if (p.id === 'act')   return modo !== 'ej';          // el ejército no maneja al invasor
+    if (p.id === 'punch') return modo !== 'ej' && h === 'viltrum';
+    if (p.id === 'p2cam') return modo === 'ej';
+    if (p.id.startsWith('p2')) return modo === 'vs' || modo === 'ej';
+    return true;
+  });
 }
 
 // Coloca cada mando donde toque, con su tamaño real.
 function applyUIPositions(){
   const cont = document.getElementById('actionBtns');
   if (cont) cont.classList.add('free');
-  for (const p of piezasDe(hero, gameMode)){
+  for (const p of piezasDe(hero, uiModo())){
     const el = document.getElementById(p.el);
     if (!el) continue;
     const [fx, fy] = uiPos(p.id);
-    const w = el.offsetWidth  || (p.id === 'p2btn' ? 200 : (p.id === 'p2joy' ? JOY_SIZE : ACT_SIZE));
-    const h = el.offsetHeight || (p.id === 'p2btn' ? 46  : (p.id === 'p2joy' ? JOY_SIZE : ACT_SIZE));
+    const w = el.offsetWidth  || (p.id === 'p2btn' ? 200 : p.id === 'p2cam' ? 46 : (p.id === 'p2joy' ? JOY_SIZE : ACT_SIZE));
+    const h = el.offsetHeight || (p.id === 'p2btn' ? 46  : p.id === 'p2cam' ? 46 : (p.id === 'p2joy' ? JOY_SIZE : ACT_SIZE));
     el.style.position = 'absolute';
     el.style.left = (clamp(fx, 0.02, 0.98)*CW - w/2) + 'px';
     el.style.top  = (clamp(fy, 0.02, 0.98)*CH - h/2) + 'px';
@@ -6655,6 +6785,45 @@ async function loadOvniVs(){
   ovniEnVs = (v === 'on');
 }
 function saveOvniVs(){ storeSet('invasion_ovnivs', ovniEnVs ? 'on' : 'off'); }
+
+// ---- Ajustes de las partidas en línea ----
+// verRayosOtro: se dibuja o no la visión calórica del OTRO jugador (la tuya
+//   siempre, para poder apuntar).
+// verMiraJ2: el invasor del versus en línea ve la mira del ejército.
+// camaraVs: quien manda al ejército sigue al invasor ('alien') o centra la
+//   vista en su propia mira ('yo').
+let verRayosOtro = true, verMiraJ2 = false, camaraVs = 'alien';
+async function loadOnlinePrefs(){
+  verRayosOtro = (await storeGet('invasion_rayosotro')) !== 'off';
+  verMiraJ2    = (await storeGet('invasion_miraj2')) === 'on';
+  camaraVs     = (await storeGet('invasion_camvs')) === 'yo' ? 'yo' : 'alien';
+}
+function saveOnlinePrefs(){
+  storeSet('invasion_rayosotro', verRayosOtro ? 'on' : 'off');
+  storeSet('invasion_miraj2', verMiraJ2 ? 'on' : 'off');
+  storeSet('invasion_camvs', camaraVs);
+}
+function refreshOnlineUI(){
+  const pinta = (id, on, txt)=>{
+    const b = document.getElementById(id); if (!b) return;
+    b.textContent = txt; b.classList.toggle('off', !on);
+  };
+  pinta('tgRayosOtro', verRayosOtro, verRayosOtro ? 'ON' : 'OFF');
+  pinta('tgMiraJ2', verMiraJ2, verMiraJ2 ? 'ON' : 'OFF');
+  pinta('tgCamVs', true, camaraVs === 'yo' ? 'CENTRADA EN TU MIRA' : 'SIGUE AL INVASOR');
+  const k = document.getElementById('camKeyLbl');
+  if (k) k.textContent = prettyKey(bindsP2.p2Cam);
+}
+// ¿La vista del ejército va centrada en su mira? Solo en el versus en línea.
+function camaraEnMira(){ return camaraVs === 'yo' && esVisorVs(); }
+function alternaCamaraVs(){
+  camaraVs = (camaraVs === 'yo') ? 'alien' : 'yo';
+  saveOnlinePrefs(); refreshOnlineUI(); sfx('ui');
+  if (esVisorVs()){
+    toast(camaraVs === 'yo' ? 'CÁMARA: TU MIRA' : 'CÁMARA: EL INVASOR');
+    Online.ultimoMv = '';                      // el anfitrión se entera ya
+  }
+}
 function refreshOvniVsUI(){
   const b = document.getElementById('tgOvniVs');
   if (!b) return;
@@ -6841,6 +7010,7 @@ function bindP2Touch(){
   tocar('p2Prev',  ()=> p2Cycle(-1));
   tocar('p2Next',  ()=> p2Cycle(1));
   tocar('p2Place', ()=> p2Place());
+  tocar('p2Cam', ()=> alternaCamaraVs());
   tocar('p2Recall', ()=>{
     // en línea, el invitado pide la mira al anfitrión durante un instante
     if (Online.rol === 'invitado'){ Online.recallTactil = true; setTimeout(()=>{ Online.recallTactil = false; }, 300); return; }
@@ -10295,6 +10465,7 @@ function startGame(mode){
     const colocar = [bindsP2.p2Place, 'enter', '0'].filter((k,i,a)=>k && a.indexOf(k) === i).slice(0, 2);
     document.getElementById('p2keyplace').textContent = colocar.map(prettyKey).join(' / ');
     document.getElementById('p2keycycle').textContent = prettyKey(bindsP2.p2Prev)+'/'+prettyKey(bindsP2.p2Next);
+    document.getElementById('p2keycam').textContent = prettyKey(bindsP2.p2Cam);
     renderP2Panel();
   }
   document.getElementById('modeselect').classList.add('hidden');
@@ -10695,8 +10866,16 @@ function uiEdRender(){
   if (ba)  ba.classList.toggle('off',  uiEdHero !== 'alien');
   if (bv2) bv2.classList.toggle('off', uiEdHero !== 'viltrum');
   const bi = document.getElementById('uiEdInv'), bvs = document.getElementById('uiEdVs');
+  const bej = document.getElementById('uiEdEj');
   if (bi)  bi.classList.toggle('off',  uiEdModo !== 'invasion');
   if (bvs) bvs.classList.toggle('off', uiEdModo !== 'vs');
+  if (bej) bej.classList.toggle('off', uiEdModo !== 'ej');
+  const mt = document.getElementById('uiEdModoTxt');
+  if (mt) mt.textContent = uiEdModo === 'ej'
+      ? 'Cuando mandas al ejército en línea: mando de la mira, unidades y cámara.'
+      : uiEdModo === 'vs'
+      ? 'Los dos en el mismo dispositivo: tus botones y el mando del Jugador 2.'
+      : 'Invasión, Doble Invasión y el invasor del modo contra otro jugador en línea.';
   const { w, h } = uiEdFrameSize();
   f.style.width = w + 'px'; f.style.height = h + 'px';
   // los botones de orientación reflejan la elegida
@@ -10711,7 +10890,7 @@ function uiEdRender(){
     const chip = document.createElement('div');
     chip.className = 'uichip' + (p.id === 'p2btn' ? ' rect' : '') + (p.id.startsWith('p2') ? ' j2' : '');
     const base = (cfg.size === 'auto') ? 1 : cfg.size;
-    const tam = Math.max(26, Math.round((p.id === 'p2btn' ? 74 : 58) * escala * base));
+    const tam = Math.max(26, Math.round((p.id === 'p2btn' ? 74 : p.id === 'p2cam' ? 44 : 58) * escala * base));
     chip.style.width  = (p.id === 'p2btn' ? tam*1.6 : tam) + 'px';
     chip.style.height = (p.id === 'p2btn' ? tam*0.62 : tam) + 'px';
     chip.textContent = p.nombre;
@@ -10771,7 +10950,7 @@ function uiEdGuardar(){
   saveUICfg();
   applyUIPositions();
   toast('GUARDADO: ' + heroName(uiEdHero) + ' · ' +
-        (uiEdModo === 'vs' ? '2 JUGADORES' : 'INVASIÓN') + ' · ' +
+        (uiEdModo === 'vs' ? '2 JUGADORES' : uiEdModo === 'ej' ? 'EJÉRCITO EN LÍNEA' : 'INVASIÓN') + ' · ' +
         (uiEdOrient === 'v' ? 'VERTICAL' : 'HORIZONTAL'));
   sfx('ui');
 }
@@ -10856,6 +11035,8 @@ const _edI = document.getElementById('uiEdInv');
 if (_edI) _edI.addEventListener('click', ()=>{ uiEdModo='invasion'; uiEdRender(); sfx('ui'); });
 const _edVs = document.getElementById('uiEdVs');
 if (_edVs) _edVs.addEventListener('click', ()=>{ uiEdModo='vs'; uiEdRender(); sfx('ui'); });
+const _edEj = document.getElementById('uiEdEj');
+if (_edEj) _edEj.addEventListener('click', ()=>{ uiEdModo='ej'; uiEdRender(); sfx('ui'); });
 const _edA = document.getElementById('uiEdAlien');
 if (_edA) _edA.addEventListener('click', ()=>{ uiEdHero='alien'; uiEdRender(); sfx('ui'); });
 const _edVil = document.getElementById('uiEdVil');
@@ -10879,6 +11060,13 @@ document.getElementById('tgHp').addEventListener('click', ()=>{
   showHpBars = !showHpBars;
   saveHpBars(); refreshHpUI(); sfx('ui');
 });
+document.getElementById('tgRayosOtro').addEventListener('click', ()=>{
+  verRayosOtro = !verRayosOtro; saveOnlinePrefs(); refreshOnlineUI(); sfx('ui');
+});
+document.getElementById('tgMiraJ2').addEventListener('click', ()=>{
+  verMiraJ2 = !verMiraJ2; saveOnlinePrefs(); refreshOnlineUI(); sfx('ui');
+});
+document.getElementById('tgCamVs').addEventListener('click', alternaCamaraVs);
 document.getElementById('tgOvniVs').addEventListener('click', ()=>{
   ovniEnVs = !ovniEnVs;
   saveOvniVs(); refreshOvniVsUI(); sfx('ui');
@@ -11083,7 +11271,7 @@ const SALA_SONDEO_MS = 1000;
 const Sala = {
   modo:null, codigo:null, jugador:null, token:null, anfitrion:false,
   jugadores:[], desde:0, sondeo:null, pcs:{}, canales:{}, pendientes:{},
-  latencia:{}, pingT:null, heroe:'alien', rol:'invasor'
+  latencia:{}, pingT:null, heroe:'alien', rol:'invasor', perfiles:{}
 };
 function salaDisponible(){
   try { return /^https?:$/.test(location.protocol); } catch(e){ return false; }
@@ -11120,6 +11308,10 @@ function abrirSala(modo){
     : 'Quien crea la sala invade; quien se une manda al ejército';
   document.getElementById('salaHeroeLbl').textContent =
     modo === 'doble' ? 'Tu personaje (se pueden repetir)' : 'Tu personaje (si te toca invadir)';
+  document.getElementById('salaHeroeLbl2').textContent =
+    modo === 'doble' ? 'Tu personaje (se pueden repetir)' : 'Tu personaje (si te toca invadir)';
+  document.getElementById('salaSkinLbl').textContent =
+    modo === 'doble' ? 'Tu skin' : 'Tu skin (si te toca invadir)';
   document.getElementById('salaRolBox').classList.toggle('hidden', modo !== 'vs');
   marcaRolSala(Sala.rol);
   document.getElementById('salaEntrada').classList.remove('hidden');
@@ -11148,9 +11340,53 @@ function cambiaRolSala(r){
   pintaSala();
 }
 function marcaHeroeSala(h){
-  Sala.heroe = h;
-  document.getElementById('salaHeroeAlien').classList.toggle('on', h === 'alien');
-  document.getElementById('salaHeroeVil').classList.toggle('on', h === 'viltrum');
+  Sala.heroe = (h === 'viltrum') ? 'viltrum' : 'alien';
+  for (const [id, v] of [['salaHeroeAlien','alien'],['salaHeroeVil','viltrum'],
+                         ['salaHeroeAlien2','alien'],['salaHeroeVil2','viltrum']]){
+    const b = document.getElementById(id); if (b) b.classList.toggle('on', Sala.heroe === v);
+  }
+}
+// ---- Personaje y skin dentro de la sala ----
+// Se pueden cambiar entre partida y partida sin salir de la sala; el otro
+// jugador se entera al momento por la conexión directa.
+function skinsPropias(){
+  const l = SKINS.filter(k => ownedSkins.includes(k.id)).map(k => ({ id:k.id, name:k.name,
+    fondo: k.muestra || `radial-gradient(circle at 34% 30%, ${k.c[0]}, ${k.c[1]} 60%, ${k.c[2]})` }));
+  if (customBought){
+    const c = customSkin.c;
+    l.push({ id:'custom', name:'COLOR PROPIO', fondo:`radial-gradient(circle at 34% 30%, ${c[0]}, ${c[1]} 60%, ${c[2]})` });
+    for (const im of imgSkins) l.push({ id:'img:' + im.id, name: im.name, img: im.data });
+  }
+  return l;
+}
+function pintaSkinsSala(){
+  const cont = document.getElementById('salaSkins');
+  if (!cont) return;
+  const lista = skinsPropias();
+  // si la activa ya no está entre las tuyas (p. ej. se borró), se usa la de serie
+  if (!lista.some(k => k.id === activeSkin)) activeSkin = 'verde';
+  cont.textContent = '';
+  for (const k of lista){
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'salaskin' + (k.id === activeSkin ? ' on' : '');
+    b.title = k.name;
+    b.setAttribute('aria-label', k.name);
+    if (k.img) b.style.backgroundImage = 'url("' + String(k.img).replace(/["\\]/g, '') + '")';
+    else b.style.background = k.fondo;
+    b.addEventListener('click', ()=> cambiaSkinSala(k.id));
+    cont.appendChild(b);
+  }
+  const n = document.getElementById('salaSkinNom');
+  if (n) n.textContent = nombreSkin(activeSkin);
+}
+function cambiaSkinSala(id){
+  if (id === activeSkin) return;
+  activeSkin = id; saveShop(); sfx('ui');
+  pintaSkinsSala(); enviaPerfil(); pintaSala();
+}
+function enviaPerfil(){
+  salaEnviarTodos({ t:'perfil', heroe: Sala.heroe, skn: nombreSkin(activeSkin) });
 }
 function nombreSala(){
   const v = (document.getElementById('salaNombre').value || '').trim().slice(0, 14);
@@ -11162,15 +11398,20 @@ function pintaSala(){
   document.getElementById('salaCodigoVer').textContent = Sala.codigo || '-----';
   const lista = document.getElementById('salaLista');
   lista.innerHTML = Sala.jugadores.map((j, i) => {
-    const suRol = (j.id === Sala.jugador) ? Sala.rol : (Sala.rol === 'invasor' ? 'ejercito' : 'invasor');
+    const soyYo = j.id === Sala.jugador;
+    const suRol = soyYo ? Sala.rol : (Sala.rol === 'invasor' ? 'ejercito' : 'invasor');
+    // lo último que dijo por la conexión directa manda sobre el sondeo, que llega más tarde
+    const pf = soyYo ? { heroe: Sala.heroe, skn: nombreSkin(activeSkin) } : (Sala.perfiles[j.id] || {});
+    const suHeroe = pf.heroe || j.heroe;
+    const pj = (suHeroe === 'viltrum' ? 'VILTRUMITA' : 'CRÍA') + (pf.skn ? ' · ' + pf.skn : '');
     const rol = Sala.modo === 'vs'
-      ? (suRol === 'invasor' ? 'INVASOR · ' + (j.heroe === 'viltrum' ? 'VILTRUMITA' : 'CRÍA') : 'EJÉRCITO · Jugador 2')
-      : (j.heroe === 'viltrum' ? 'VILTRUMITA' : 'CRÍA');
+      ? (suRol === 'invasor' ? 'INVASOR · ' + pj : 'EJÉRCITO · Jugador 2')
+      : pj;
     const yo = j.id === Sala.jugador ? ' (tú)' : '';
     const ms = Sala.latencia[j.id];
     const lat = (j.id !== Sala.jugador && ms != null) ? ` · ${ms} ms` : '';
     return `<div class="salajug"><span>${escapaHtml(j.nombre)}${yo}${j.anfitrion ? ' ★' : ''}</span>` +
-           `<span class="rol">${rol}${lat}</span></div>`;
+           `<span class="rol">${escapaHtml(rol)}${lat}</span></div>`;
   }).join('');
   const rd = document.getElementById('salaRolDentro');
   if (rd) rd.classList.toggle('hidden', Sala.modo !== 'vs');
@@ -11189,10 +11430,11 @@ function entrarSala(r){
   Sala.codigo = r.codigo; Sala.jugador = r.jugador; Sala.token = r.token;
   Sala.anfitrion = !!r.anfitrion; Sala.modo = r.modo || Sala.modo; Sala.desde = 0;
   if (!Sala.anfitrion) marcaRolSala(Sala.rol === 'invasor' ? 'ejercito' : 'invasor');   // hasta que el anfitrión diga
-  Sala.jugadores = []; Sala.pcs = {}; Sala.canales = {}; Sala.pendientes = {}; Sala.latencia = {};
+  Sala.jugadores = []; Sala.pcs = {}; Sala.canales = {}; Sala.pendientes = {}; Sala.latencia = {}; Sala.perfiles = {};
   document.getElementById('salaEntrada').classList.add('hidden');
   document.getElementById('salaDentro').classList.remove('hidden');
   salaEstado(Sala.anfitrion ? 'Sala creada. Esperando a que alguien se una…' : 'Conectando con el anfitrión…');
+  marcaHeroeSala(Sala.heroe); pintaSkinsSala();
   pintaSala();
   clearInterval(Sala.sondeo);
   Sala.sondeo = setInterval(sondeaSala, SALA_SONDEO_MS);
@@ -11295,6 +11537,7 @@ function preparaCanal(otro, canal){
   canal.onopen = ()=>{
     salaEstado('¡Conectados directamente!', 'ok');
     salaEnviar(otro, { t:'hola', nombre: document.getElementById('salaNombre').value, heroe: Sala.heroe });
+    salaEnviar(otro, { t:'perfil', heroe: Sala.heroe, skn: nombreSkin(activeSkin) });
     if (Sala.anfitrion) salaEnviar(otro, { t:'rol', r: Sala.rol });
     sfx('coin');
   };
@@ -11416,7 +11659,7 @@ function instantaneaAnfitrion(){
   { const c = centroVista(); _olCx = c.x; _olCy = c.y; }
   const i = { t:'i', n: ++Online.seq,
     gt: gameTime, sc: score, hp, form, kills, dem: demolished, stg: stage, vt: vsTimeLeft,
-    dr: drawR, fase: phaseIdx, hero, sk: activeSkin, rayos: rayosOn ? 1 : 0,
+    dr: drawR, fase: phaseIdx, hero, sk: skinRed(), rayos: rayosOn ? 1 : 0,
     buff: [buffT, buffTipo], cl: [clima, nubeK, lluviaK],
     cb: [comboN, comboT, comboFase, comboBonus, comboFlash],
     pl: _prim(player), ap: aimVector(),
@@ -11530,7 +11773,7 @@ function aplicaInstantanea(i){
   comboN = i.cb[0]; comboT = i.cb[1]; comboFase = i.cb[2]; comboBonus = i.cb[3]; comboFlash = i.cb[4];
   if (doble){
     // tu invasor es tuyo: del anfitrión solo se guarda cómo es el suyo
-    Online.companero = { pl:i.pl, hero:i.hero, form:i.form, dr:i.dr, sk:i.sk, vil:i.vil || null,
+    Online.companero = { pl:i.pl, hero:i.hero, form:i.form, dr:i.dr, sk:skinDeRed(i.sk), vil:i.vil || null, ry: i.rayos ? 1 : 0,
                          ap:i.ap, bT:i.buff[0], bP:i.buff[1], caido: !!i.caido };
     aplicaMundo(i);
     if (i.hi){                                     // lo que te han hecho
@@ -11554,7 +11797,7 @@ function aplicaInstantanea(i){
   }
   hp = i.hp; form = i.form; kills = i.kills; drawR = i.dr; rayosOn = !!i.rayos;
   buffT = i.buff[0]; buffTipo = i.buff[1];
-  hero = i.hero; activeSkin = i.sk;
+  hero = i.hero; activeSkin = skinDeRed(i.sk);
   const px0 = player.x, py0 = player.y;
   Object.assign(player, i.pl);
   player._x0 = px0; player._y0 = py0; player._x1 = i.pl.x; player._y1 = i.pl.y;
@@ -11664,8 +11907,9 @@ function loopInvitado(dt){
   }
   updateFX(dt); updateZoom(dt);
   if (shakeTime > 0){ shakeTime -= dt; if (shakeTime <= 0) shakeMag = 0; }
-  camX = clamp(player.x - VW/2, 0, Math.max(0, WORLD_W - VW));
-  camY = clamp(player.y - VH/2, 0, Math.max(0, WORLD_H - VH));
+  const foco = camaraEnMira() ? p2 : player;         // según Ajustes: el invasor o tu mira
+  camX = clamp(foco.x - VW/2, 0, Math.max(0, WORLD_W - VW));
+  camY = clamp(foco.y - VH/2, 0, Math.max(0, WORLD_H - VH));
   pintaHUD();
   enviaMandoInvitado();
 }
@@ -11683,17 +11927,19 @@ function enviaMandoInvitado(){
   }
   const r = !!(Online.teclas.home || Online.teclas.r || Online.teclas[bindsP2.p2Recall] || Online.recallTactil);
   Online.mvLocal = { x:dx, y:dy };
-  const firma = dx.toFixed(2) + ',' + dy.toFixed(2) + ',' + (r ? 1 : 0);
+  const c = camaraEnMira() ? 1 : 0;              // el anfitrión envía el mundo alrededor de tu vista
+  const firma = dx.toFixed(2) + ',' + dy.toFixed(2) + ',' + (r ? 1 : 0) + ',' + c;
   const ahora = performance.now();
   if (firma !== Online.ultimoMv || ahora - Online.tMv > 250){
     Online.ultimoMv = firma; Online.tMv = ahora;
-    salaEnviar(Online.otro, { t:'mv', x: Math.round(dx*100)/100, y: Math.round(dy*100)/100, r });
+    salaEnviar(Online.otro, { t:'mv', x: Math.round(dx*100)/100, y: Math.round(dy*100)/100, r, c });
   }
 }
 function teclaInvitado(e, abajo){
   const k = e.key.toLowerCase();
   Online.teclas[k] = abajo;
   if (!abajo || e.repeat) return;
+  if (k === bindsP2.p2Cam){ alternaCamaraVs(); return; }
   if (k === 'enter' || k === ' ' || k === 'e' || k === bindsP2.p2Place) p2Place();
   else if (k === 'pagedown' || k === 'x' || k === '.' || k === bindsP2.p2Next) p2Cycle(1);
   else if (k === 'pageup' || k === 'z' || k === ',' || k === bindsP2.p2Prev) p2Cycle(-1);
@@ -11713,7 +11959,12 @@ function esDoble(){ return Online.modo === 'doble' && Online.jugando; }
 function dobleAnf(){ return esDoble() && Online.rol === 'anfitrion'; }
 function dobleInv(){ return esDoble() && Online.rol === 'invitado'; }
 function esVisorVs(){ return Online.rol === 'invitado' && Online.jugando && Online.modo === 'vs'; }
-function centroVista(){ return (dobleAnf() && Online.av) ? Online.proxy : player; }
+function centroVista(){
+  if (dobleAnf() && Online.av) return Online.proxy;
+  // el ejército mira alrededor de su mira: el mundo se le envía desde ahí
+  if (Online.camInv && Online.modo === 'vs' && enLineaAnfitrion()) return p2;
+  return player;
+}
 
 // ---- anfitrión: a quién persigue cada enemigo ----
 function apuntaEnemigo(e){
@@ -11813,7 +12064,7 @@ function gestionaCaida(dt, companeroCaido, posCompanero){
 function datosCompanero(){
   if (Online.rol === 'anfitrion'){
     const a = Online.av; if (!a) return null;
-    return { pl:a.pl, hero:a.hero, form:a.form, dr:a.dr, sk:a.sk, vil:a.vil, ap:a.ap, bT:a.bT, bP:a.bP, caido:a.caido };
+    return { pl:a.pl, hero:a.hero, form:a.form, dr:a.dr, sk:skinDeRed(a.sk), vil:a.vil, ap:a.ap, bT:a.bT, bP:a.bP, caido:a.caido, ry:a.ry };
   }
   return Online.companero || null;
 }
@@ -11835,10 +12086,15 @@ function dibujaCompanero(){
   buffT = c.bT || 0; buffTipo = c.bP || null; heldObject = null;
   if (c.vil) Object.assign(vil, c.vil);
   _apCompa = c.ap || null;
-  const a0 = ctx.globalAlpha;
+  const a0 = ctx.globalAlpha, rayos0 = rayosOn;
   if (c.caido) ctx.globalAlpha = 0.35;
-  try { drawPlayer(); }
+  try {
+    drawPlayer();
+    // su visión calórica, con su puntería (antes no se dibujaba)
+    if (c.ry && verRayosOtro && !c.caido){ rayosOn = true; drawRayosOjos(); }
+  }
   finally {
+    rayosOn = rayos0;
     ctx.globalAlpha = a0; _apCompa = null;
     player = g.player; hero = g.hero; form = g.form; drawR = g.drawR; activeSkin = g.activeSkin;
     buffT = g.buffT; buffTipo = g.buffTipo; heldObject = g.heldObject;
@@ -11863,7 +12119,7 @@ function enviaAvatar(dt){
   if (Online.avAcum < 0.05) return;
   Online.avAcum = 0;
   const tp = tentacleTip();
-  salaEnviar(Online.otro, { t:'av', pl:_prim(player), hero, form, dr:drawR, sk:activeSkin,
+  salaEnviar(Online.otro, { t:'av', pl:_prim(player), hero, form, dr:drawR, sk:skinRed(), ry: rayosOn ? 1 : 0,
     vil: isVil() ? _prim(vil) : null, ap: aimVector(), tip:{ x:tp.x, y:tp.y }, r: F().r,
     caido: Online.caidoYo ? 1 : 0, bT: buffT, bP: buffTipo, hp, mhp: maxHp() });
 }
@@ -11895,6 +12151,7 @@ function ocultaEjercitoAlInvasor(){
   document.getElementById('p2panel').classList.add('hidden');
   const t = document.getElementById('p2touch'); if (t) t.classList.remove('playing');
   try { document.body.classList.add('invasorvs'); } catch(e){}
+  layoutUI();                       // sin mando del J2: la colocación de invasión
 }
 // ---- empezar y terminar ----
 function puedeEmpezar(){
@@ -11919,9 +12176,9 @@ function empiezaEnLinea(){
   Online.danoInv = 0; Online.estInv = { q:0, h:0, v:0 }; Online.premioInv = { kills:0, heal:0, ovni:false };
   Online.seq = 0; Online.acum = 0; Online.bdSig = ''; Online.plN = -1;
   for (const k in Online.ultimo) Online.ultimo[k].clear();
-  Online.p2in = { x:0, y:0, r:false };
+  Online.p2in = { x:0, y:0, r:false }; Online.camInv = false;
   salaPost({ accion:'empezar', codigo:Sala.codigo, jugador:Sala.jugador, token:Sala.token }).catch(()=>{});
-  salaEnviar(otro.id, { t:'empezar', modo: Sala.modo, hero: Sala.heroe, sk: activeSkin });
+  salaEnviar(otro.id, { t:'empezar', modo: Sala.modo, hero: Sala.heroe, sk: skinRed() });
   Online.heroePropio = hero;
   hero = Sala.heroe;
   hide('sala');
@@ -11936,7 +12193,7 @@ function empiezaComoSimulador(otro){
   Online.modo = 'vs'; Online.av = null; Online.caidoYo = false; Online.cDib = null;
   Online.seq = 0; Online.acum = 0; Online.bdSig = ''; Online.plN = -1;
   for (const k in Online.ultimo) Online.ultimo[k].clear();
-  Online.p2in = { x:0, y:0, r:false };
+  Online.p2in = { x:0, y:0, r:false }; Online.camInv = false;
   Online.heroePropio = hero;
   hero = Sala.heroe;
   hide('sala');
@@ -11965,7 +12222,7 @@ function empiezaComoInvitado(m, otro){
     toast('¡DOBLE INVASIÓN! ARRASAD LA CIUDAD JUNTOS');
     return;
   }
-  hero = m.hero; activeSkin = m.sk;
+  hero = m.hero === 'viltrum' ? 'viltrum' : 'alien'; activeSkin = skinDeRed(m.sk);
   startGame('vs');
   // el invitado no maneja al alien: fuera sus botones y su joystick
   document.getElementById('actionBtns').classList.remove('playing');
@@ -11973,6 +12230,7 @@ function empiezaComoInvitado(m, otro){
   try { document.body.classList.add('visorvs'); } catch(e){}
   _fxRed = null;
   Online.jugando = true;
+  layoutUI();                       // sus mandos: los del ejército en línea
   toast('¡A POR ÉL! MANDAS AL EJÉRCITO');
 }
 function terminaEnLinea(){
@@ -11999,19 +12257,26 @@ function volverASala(){
   document.getElementById('salaEntrada').classList.add('hidden');
   document.getElementById('salaDentro').classList.remove('hidden');
   show('sala');
+  marcaHeroeSala(Sala.heroe); pintaSkinsSala();
   pintaSala();
+  enviaPerfil();
 }
 
 function recibeMensaje(otro, m){
   if (m.t === 'ping') salaEnviar(otro, { t:'pong', ts:m.ts });
   else if (m.t === 'rol'){ marcaRolSala(m.r === 'invasor' ? 'ejercito' : 'invasor'); pintaSala(); }
+  else if (m.t === 'perfil'){
+    Sala.perfiles[otro] = { heroe: m.heroe === 'viltrum' ? 'viltrum' : 'alien',
+                            skn: String(m.skn || '').slice(0, 24) };
+    if (!Online.jugando) pintaSala();
+  }
   else if (m.t === 'pong'){ Sala.latencia[otro] = Math.max(1, Date.now() - m.ts); if (!Online.jugando) pintaSala(); }
   // Se ENCOLAN: si llegan dos en el mismo fotograma (la red entrega a
   // trompicones) se aplican las dos, en orden. Guardando solo la última se
   // perdían los cambios de la otra, y con el envío por diferencias eso era
   // definitivo: farolas destruidas que seguían viéndose, daño que no llegaba…
   else if (m.t === 'i'){ if (enLineaInvitado()) Online.cola.push(m); }
-  else if (m.t === 'mv'){ if (enLineaAnfitrion()){ Online.p2in = { x:+m.x||0, y:+m.y||0, r:!!m.r }; Online.tP2in = performance.now(); } }
+  else if (m.t === 'mv'){ if (enLineaAnfitrion()){ Online.p2in = { x:+m.x||0, y:+m.y||0, r:!!m.r }; Online.camInv = !!m.c; Online.tP2in = performance.now(); } }
   else if (m.t === 'av'){ if (dobleAnf()) recibeAvatar(m); }
   else if (['dano','edif','prop','auto','agarra','lanza','suelta'].includes(m.t)){ if (dobleAnf()) accionInvitado(m); }
   else if (m.t === 'acc' && enLineaAnfitrion()){
@@ -12049,8 +12314,11 @@ document.getElementById('salaHeroeAlien').addEventListener('click', ()=> cambiaH
 for (const [id, v] of [['salaRolInv','invasor'],['salaRolEje','ejercito'],['salaRolInv2','invasor'],['salaRolEje2','ejercito']])
   document.getElementById(id).addEventListener('click', ()=> cambiaRolSala(v));
 document.getElementById('salaHeroeVil').addEventListener('click', ()=> cambiaHeroeSala('viltrum'));
+document.getElementById('salaHeroeAlien2').addEventListener('click', ()=> cambiaHeroeSala('alien'));
+document.getElementById('salaHeroeVil2').addEventListener('click', ()=> cambiaHeroeSala('viltrum'));
 function cambiaHeroeSala(h){
   marcaHeroeSala(h); sfx('ui');
+  enviaPerfil(); pintaSala();
   if (Sala.codigo) salaPost({ accion:'heroe', codigo:Sala.codigo, jugador:Sala.jugador, token:Sala.token, heroe:h })
                      .then(sondeaSala).catch(()=>{});
 }
@@ -12107,6 +12375,7 @@ document.getElementById('btnMenu').addEventListener('click', async ()=>{
     ['Cargando preferencias',     async ()=>{ await loadAudioPrefs(); await loadTouchPref();
                                               await loadMenuAnim(); await loadHpBars(); await loadHero();
                                               await loadOvniVs(); refreshOvniVsUI();
+                                              await loadOnlinePrefs(); refreshOnlineUI();
                                               await loadUICfg(); }],
     ['Preparando la ciudad',      async ()=>{
         checkCollector();
