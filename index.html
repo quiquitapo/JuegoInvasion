@@ -2013,7 +2013,7 @@ function beamHit(e, dmg){
   for (const pool of [civilians, enemies]){
     for (const t of pool){
       if (t.dead || t.held || t === e) continue;
-      if (inBeam(t.x, t.y, ox, oy, ang, OMNI_BEAM_LEN, OMNI_BEAM_W)) damageEnemy(t, dmg, t.x, t.y);
+      if (rayoToca(t, ox, oy, ang, OMNI_BEAM_LEN, OMNI_BEAM_W)) damageEnemy(t, dmg, t.x, t.y - alturaVisible(t));
     }
   }
   for (const c of cars){
@@ -2392,9 +2392,19 @@ function triLanzaOCome(e, o){
 }
 
 // La descarga: todo lo que esté dentro del área, sea de quien sea.
+// ¿Toca el suelo dentro del área? Es la misma elipse que se dibuja.
+function enAreaRayo(px, py, x, y, r){
+  const rx = TRI_RAYO_R + r, ry = (TRI_RAYO_R + r)*0.6;
+  const dx = (px - x)/rx, dy = (py - y)/ry;
+  return dx*dx + dy*dy <= 1;
+}
 function triDescarga(e){
   const x = e.rayX, y = e.rayY, R = TRI_RAYO_R;
-  if (dist(player.x, player.y, x, y) < R + F().r*0.5){
+  // el haz baja desde el emisor de la cúpula hasta el centro del área
+  const c = triCupula(e), a = Math.atan2(y - e.y, x - e.x);
+  const ox = c.x + Math.cos(a)*38, oy = c.y + Math.sin(a)*16;
+  const ha = Math.atan2(y - oy, x - ox), hl = Math.hypot(x - ox, y - oy);
+  if (enAreaRayo(player.x, player.y, x, y, F().r*0.5)){
     hp = clamp(hp - recibe(TRI_RAYO_DMG), 0, maxHp());
     p2Gain(TRI_RAYO_DMG);
     quemar(TRI_QUEMA);
@@ -2403,11 +2413,15 @@ function triDescarga(e){
   for (const pool of [civilians, enemies]){
     for (const t of pool){
       if (t.dead || t.held || t.type === 'tripode') continue;
-      if (dist(t.x, t.y, x, y) < R) damageEnemy(t, TRI_RAYO_DMG*1.5, t.x, t.y);
+      // En el suelo, dentro del área; lo que vuela, solo si el haz cruza su
+      // dibujo (antes bastaba con que su sombra estuviera en el área).
+      const toca = alturaVisible(t) > 0 ? rayoToca(t, ox, oy, ha, hl, 7)
+                                         : enAreaRayo(t.x, t.y, x, y, blancoRayo(t).r);
+      if (toca) damageEnemy(t, TRI_RAYO_DMG*1.5, t.x, t.y - alturaVisible(t));
     }
   }
   for (const c of cars){
-    if (c.dead || c.held || dist(c.x, c.y, x, y) >= R) continue;
+    if (c.dead || c.held || !enAreaRayo(c.x, c.y, x, y, 0)) continue;
     c.hp -= TRI_RAYO_DMG;
     if (c.hp <= 0) autoAbatido(c);
   }
@@ -3176,8 +3190,8 @@ function updateRayosOjos(dt){
   for (const pool of [civilians, enemies]){
     for (const t of pool){
       if (t.dead || t.held) continue;
-      if (!enLinea(t.x, t.y, ox, oy, a, RAYO_LARGO, RAYO_ANCHO)) continue;
-      porJugador(()=> damageEnemy(t, RAYO_DPS*dt, t.x, t.y));
+      if (!rayoToca(t, ox, oy, a, RAYO_LARGO, RAYO_ANCHO)) continue;
+      porJugador(()=> damageEnemy(t, RAYO_DPS*dt, t.x, t.y - alturaVisible(t)));
     }
   }
   for (const c of cars){
@@ -3458,8 +3472,8 @@ function mbtDispara(e){
   for (const pool of [civilians, enemies]){
     for (const t of pool){
       if (t.dead || t.held || t === e) continue;
-      if (!enLinea(t.x, t.y, ox, oy, ang, MBT_ALCANCE, MBT_ANCHO)) continue;
-      damageEnemy(t, MBT_DMG*1.6, t.x, t.y);
+      if (!rayoToca(t, ox, oy, ang, MBT_ALCANCE, MBT_ANCHO)) continue;
+      damageEnemy(t, MBT_DMG*1.6, t.x, t.y - alturaVisible(t));
     }
   }
   for (const c of cars){
@@ -3474,6 +3488,17 @@ function mbtDispara(e){
   }
 }
 
+// Los rayos dan donde se VE la unidad: lo que vuela se dibuja por encima de
+// su sombra, y antes el haz le hacía daño al pasar por la sombra del suelo.
+// Se cuenta además un margen con el tamaño de su dibujo.
+function blancoRayo(t){
+  return { x: t.x, y: t.y - alturaVisible(t), r: Math.min(t.w || 26, t.h || 30)*0.3 };
+}
+function rayoToca(t, ox, oy, ang, largo, ancho){
+  const b = blancoRayo(t);
+  // el margen del dibujo cuenta a lo ancho y también en la punta del haz
+  return enLinea(b.x, b.y, ox, oy, ang, largo + b.r, ancho + b.r);
+}
 // ¿Está este punto dentro del haz recto que sale de (ox,oy) en dirección ang?
 function enLinea(px2, py2, ox, oy, ang, largo, ancho){
   const dx = px2 - ox, dy = py2 - oy;
@@ -6313,6 +6338,8 @@ const P2_UNITS = [
   { type:'omni',     name:'OMNIDROIDE',cost:850, cool:18.0,sprite:null },
   { type:'artillero',name:'ARTILLERO', cost:1100,cool:24.0,sprite:'artOk'  },
   { type:'superx',   name:'SUPER X2',  cost:1000,cool:22.0,sprite:'superx' },
+  // Un trípode marciano: tampoco es del ejército, pero el J2 puede invocarlo.
+  { type:'tripode',  name:'TRÍPODE',   cost:950, cool:24.0,sprite:null },
   { type:'mbt',      name:'MBT-MB92',  cost:300, cool:6.0, sprite:'mbt'     },
   { type:'mbtFrio',  name:'MBT FRÍO',  cost:340, cool:7.0, sprite:'mbtFrio' },
   // No es una unidad: desata durante unos segundos una versión corta de la
@@ -6409,6 +6436,7 @@ function p2Place(){
     return;
   }
   spawnEnemy(u.type, p2.x, p2.y);
+  if (u.type === 'tripode'){ toast(TRI_AVISO, 3); sfx('ulla'); shake(14, 0.5); }
   p2.placeFlash = 0.35;
   addParticles(p2.x, p2.y, '#8fd7ff', 16, 150);
   sfx('grab');
@@ -6587,12 +6615,17 @@ function p2Select(i){
 // sus imágenes) cada vez que subía el material, varias veces por segundo,
 // y eso daba tirones en el versus.
 let p2Seeds = null, p2SeedsSig = '', p2MatShown = -1;
+// Icono de cada unidad en el panel: los que no tienen imagen se pintan por código.
+function iconoUnidadP2(u){
+  if (u.type === 'omni') return omniIconURL();
+  if (u.type === 'tripode') return tripodeIconURL();
+  return sprites[u.sprite] ? sprites[u.sprite].img.src : '';
+}
 function construyeP2Seeds(sigImgs){
   const cont = document.getElementById('p2seeds');
   cont.innerHTML = P2_UNITS.map(u=>{
-    const ic = u.type === 'omni' ? omniIconURL() : '';
-    const img = ic ? `<img src="${ic}" alt="">`
-              : sprites[u.sprite] ? `<img src="${sprites[u.sprite].img.src}" alt="">` : '';
+    const ic = iconoUnidadP2(u);
+    const img = ic ? `<img src="${ic}" alt="">` : '';
     return `<div class="seed">
       ${img}<span class="seedinfo"><span class="seedname">${u.name}</span>
       <span class="seedcost">◈ ${u.cost}</span></span>
@@ -6606,7 +6639,7 @@ function construyeP2Seeds(sigImgs){
 function renderP2Panel(){
   const mat = Math.floor(p2.mat);
   let sigImgs = '';
-  for (const u of P2_UNITS) sigImgs += (u.type === 'omni' || sprites[u.sprite]) ? '1' : '0';
+  for (const u of P2_UNITS) sigImgs += iconoUnidadP2(u) ? '1' : '0';
   if (!p2Seeds || p2PanelSig === '' || sigImgs !== p2SeedsSig){
     construyeP2Seeds(sigImgs);
     p2PanelSig = 'ok'; p2MatShown = -1;
