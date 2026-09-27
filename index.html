@@ -7383,16 +7383,23 @@ function draApunta(){
                                        : DRA_RAYO_MAX*clamp(draJoy.m, 0.35, 1);
       return { a, d, oy: 0 };                        // medido desde el suelo
     }
-    const o = draCercano(DRA_RAYO_MAX);            // solo tocado: al más cercano
-    if (o) return draHacia(o);
-    return { a: dra.mirA, d: draJoy.tipo === 'cola' ? DRA_COLA_MIN + 90 : 300 };
+    if (draJoy.id !== 'raton'){
+      const o = draCercano(DRA_RAYO_MAX);          // tocado sin arrastrar: al más cercano
+      if (o) return draHacia(o);
+      return { a: dra.mirA, d: draJoy.tipo === 'cola' ? DRA_COLA_MIN + 90 : 300 };
+    }
+    // con ratón y sin arrastrar: hacia donde esté el ratón (sigue abajo)
   }
   if (aimJoy.active){
     const m = Math.hypot(aimJoy.dx, aimJoy.dy);
     if (m >= 0.08) return { a: Math.atan2(aimJoy.dy, aimJoy.dx), d: clamp(m, 0.3, 1) * DRA_RAYO_MAX };
     return { a: dra.mirA, d: DRA_RAYO_MAX*0.6 };
   }
-  if (tactil()){                                   // sin ratón: las cabezas miran al enemigo cercano
+  // Solo jugando con los dedos: las cabezas miran al enemigo cercano. Se mira
+  // cuál fue la última entrada, no si el equipo "parece" un móvil: un
+  // portátil con pantalla táctil o una ventana estrecha siguen apuntando
+  // con el ratón.
+  if (lastInputTouch){
     const o = draCercano(DRA_AUTO);
     return o ? draHacia(o) : { a: dra.mirA, d: 300 };
   }
@@ -8359,13 +8366,13 @@ function actionPressStart(){
     }, ACT_LONG_MS);
   }
 }
-function actionPressEnd(){
+function actionPressEnd(conDedo){
   clearTimeout(actTimer);
   const btn = document.getElementById('btnAction');
   if (btn){ btn.classList.remove('pressed'); btn.classList.remove('charging'); }
   if (isDra()){
     if (dra.rayos && draJoy.tipo !== 'rayo'){ dra.rayos = false; sfx('ui'); }
-    else draMordisco(true);                       // la cabeza va sola a por lo más cercano
+    else draMordisco(!!conDedo);                  // con el dedo, la cabeza va sola a por lo más cercano
     return;
   }
   if (actLongFired){ actLongFired = false; return; }
@@ -8380,11 +8387,11 @@ function bindActionBtn(){
   const b = document.getElementById('btnAction');
   if (!b) return;
   b.addEventListener('touchstart', e=>{ e.preventDefault(); e.stopPropagation(); actionPressStart(); }, {passive:false});
-  b.addEventListener('touchend',   e=>{ e.preventDefault(); e.stopPropagation(); actionPressEnd(); }, {passive:false});
+  b.addEventListener('touchend',   e=>{ e.preventDefault(); e.stopPropagation(); actionPressEnd(true); }, {passive:false});
   b.addEventListener('touchcancel',()=>{ clearTimeout(actTimer); actLongFired=false;
     b.classList.remove('pressed'); b.classList.remove('charging'); }, {passive:true});
   b.addEventListener('mousedown',  e=>{ e.preventDefault(); e.stopPropagation(); actionPressStart(); });
-  b.addEventListener('mouseup',    e=>{ e.preventDefault(); e.stopPropagation(); actionPressEnd(); });
+  b.addEventListener('mouseup',    e=>{ e.preventDefault(); e.stopPropagation(); actionPressEnd(false); });
   b.addEventListener('mouseleave', ()=>{ clearTimeout(actTimer); actLongFired=false;
     b.classList.remove('pressed'); b.classList.remove('charging'); });
 }
