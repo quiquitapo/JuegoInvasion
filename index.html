@@ -469,8 +469,9 @@
   .salain { width:100%; box-sizing:border-box; padding:9px 10px; border-radius:7px; font-family:inherit;
             font-size:0.8rem; color:#e8ffef; background:rgba(0,0,0,0.45); border:1px solid #2fe86e; }
   .salain.codigo { text-transform:uppercase; letter-spacing:6px; text-align:center; font-weight:900; }
-  .salaheroes { display:flex; gap:8px; justify-content:center; }
-  .salaheroes .small { margin-top:0; flex:1; }
+  /* con cinco personajes no caben en una fila del móvil: pasan a la siguiente */
+  .salaheroes { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; }
+  .salaheroes .small { margin-top:0; flex:1 1 30%; min-width:0; padding-left:6px; padding-right:6px; }
   .salahero.on { background:linear-gradient(180deg,#2fe86e,#128a3c); color:#04210f; }
   /* Skins que tienes, para elegir sin salir de la sala */
   .salaskins { display:flex; flex-wrap:wrap; gap:7px; justify-content:center; }
@@ -624,6 +625,22 @@
   #btnRayosDra.on { box-shadow:0 0 0 5px rgba(255,216,74,0.7), 0 4px 12px rgba(0,0,0,0.45); }
   #btnCola     { background:radial-gradient(circle at 35% 30%, #d9b85a, #5a480a); }
   #btnCola.charging { box-shadow:0 0 0 5px rgba(255,216,74,0.6); }
+  /* Máquina y mago: sus propios botones; el de acción no se usa */
+  .maqbtn, .magbtn { display:none; }
+  body.touch-ui #actionBtns.playing.maq .maqbtn, body.touch-ui #actionBtns.playing.mag .magbtn { display:flex; }
+  body.touch-ui #actionBtns.playing.maq #btnAction, body.touch-ui #actionBtns.playing.mag #btnAction { display:none; }
+  #btnDisparo  { background:radial-gradient(circle at 35% 30%, #8fb4ff, #1d3f8a); }
+  #btnDisparo.on { box-shadow:0 0 0 5px rgba(255,138,43,0.65), 0 4px 12px rgba(0,0,0,0.45); }
+  #btnArma     { background:radial-gradient(circle at 35% 30%, #d9e0e8, #4a525c); color:#10151b; }
+  #btnSierras  { background:radial-gradient(circle at 35% 30%, #ff8a6a, #8a1a10); }
+  #btnSierras.charging { box-shadow:0 0 0 5px rgba(255,80,50,0.65); }
+  #btnRayoMag  { background:radial-gradient(circle at 35% 30%, #e6c2ff, #5a1f96); }
+  #btnRayoMag.on { box-shadow:0 0 0 5px rgba(199,125,255,0.7), 0 4px 12px rgba(0,0,0,0.45); }
+  #btnTK       { background:radial-gradient(circle at 35% 30%, #cfa0ff, #3a1466); }
+  #btnTK.on    { box-shadow:0 0 0 5px rgba(199,125,255,0.7), 0 4px 12px rgba(0,0,0,0.45); }
+  #btnHielo    { background:radial-gradient(circle at 35% 30%, #effcff, #3a8ab8); color:#08202e; }
+  #btnEscudoMag { background:radial-gradient(circle at 35% 30%, #f3e0ff, #6a3f96); }
+  #btnEscudoMag.on { box-shadow:0 0 0 5px rgba(214,176,255,0.75), 0 4px 12px rgba(0,0,0,0.45); }
   /* Mando táctil del Jugador 2 */
   /* Ocupa TODA la pantalla (sin recibir toques; sus mandos sí). Los mandos se
      colocan con top/left en proporción al alto de la pantalla, así que el
@@ -768,6 +785,36 @@
       <span class="actlabel">COLA</span>
       <span class="acthint">mantén, apunta, suelta</span>
     </div>
+    <!-- solo con la máquina -->
+    <div class="actbtn maqbtn" id="btnDisparo">
+      <span class="actlabel" id="maqArmaLbl">RÁFAGA</span>
+      <span class="acthint">mantén y apunta</span>
+    </div>
+    <div class="actbtn maqbtn" id="btnArma">
+      <span class="actlabel">ARMA</span>
+      <span class="acthint">cambiar</span>
+    </div>
+    <div class="actbtn maqbtn" id="btnSierras">
+      <span class="actlabel">SIERRAS</span>
+      <span class="acthint">mantén, apunta, suelta</span>
+    </div>
+    <!-- solo con el mago -->
+    <div class="actbtn magbtn" id="btnRayoMag">
+      <span class="actlabel">RAYO</span>
+      <span class="acthint">mantén y apunta</span>
+    </div>
+    <div class="actbtn magbtn" id="btnTK">
+      <span class="actlabel">MENTE</span>
+      <span class="acthint">mantén, mueve, suelta</span>
+    </div>
+    <div class="actbtn magbtn" id="btnHielo">
+      <span class="actlabel">HIELO</span>
+      <span class="acthint">área</span>
+    </div>
+    <div class="actbtn magbtn" id="btnEscudoMag">
+      <span class="actlabel">ESCUDO</span>
+      <span class="acthint">toca</span>
+    </div>
   </div>
 
   <!-- Mando del Jugador 2 en móvil (modo VS) -->
@@ -790,6 +837,8 @@
       <button type="button" class="togglebtn" id="uiEdAlien">CRÍA</button>
       <button type="button" class="togglebtn" id="uiEdVil">VILTRUMITA</button>
       <button type="button" class="togglebtn" id="uiEdDra">DRAGÓN</button>
+      <button type="button" class="togglebtn" id="uiEdMaq">MÁQUINA</button>
+      <button type="button" class="togglebtn" id="uiEdMag">MAGO</button>
     </div>
     <div class="uiedbar">
       <span style="font-size:0.44rem; color:#9fb3a8; letter-spacing:1px; align-self:center">MODO:</span>
@@ -1001,6 +1050,8 @@
           <button type="button" class="small salahero on" id="salaHeroeAlien">CRÍA</button>
           <button type="button" class="small salahero" id="salaHeroeVil">VILTRUMITA</button>
           <button type="button" class="small salahero" id="salaHeroeDra">DRAGÓN</button>
+          <button type="button" class="small salahero" id="salaHeroeMaq">MÁQUINA</button>
+          <button type="button" class="small salahero" id="salaHeroeMag">MAGO</button>
         </div>
         <button class="small" id="btnSalaCrear">CREAR SALA</button>
         <div class="salasep">o entra en la de otra persona</div>
@@ -1025,6 +1076,8 @@
             <button type="button" class="small salahero" id="salaHeroeAlien2">CRÍA</button>
             <button type="button" class="small salahero" id="salaHeroeVil2">VILTRUMITA</button>
             <button type="button" class="small salahero" id="salaHeroeDra2">DRAGÓN</button>
+            <button type="button" class="small salahero" id="salaHeroeMaq2">MÁQUINA</button>
+            <button type="button" class="small salahero" id="salaHeroeMag2">MAGO</button>
           </div>
           <div class="salalbl" id="salaSkinLbl">Tu skin</div>
           <div id="salaSkins" class="salaskins"></div>
@@ -1232,6 +1285,33 @@
         Todo gasta estamina (barra azul), que se recupera en tierra. El regalo del OVNI desata una
         <b>tormenta eléctrica</b> que fulmina enemigos cercanos. Las teclas Z y C se cambian arriba (y
         puedes asignar una tecla a los rayos). Al andar o volar bajo, pisotea lo que tenga debajo.
+      </div>
+      <div id="maqhelp" style="display:none; margin-top:10px; padding:10px 12px;
+           border:1px solid #2f4a7a; border-radius:8px; background:rgba(8,14,26,0.6);
+           font-size:0.5rem; line-height:1.9; letter-spacing:0.5px; color:#d6e2f2">
+        <b style="color:#8fb4ff; font-size:0.55rem">CONTROLES DE LA MÁQUINA ABERRANTE</b><br>
+        Moverse: las mismas teclas de arriba (<b>WASD</b> por defecto). <b>Manteniendo</b> la misma
+        dirección acelera poco a poco hasta correr a toda velocidad (y arrolla a quien se cruce);
+        frenar o dar media vuelta le quita el impulso.<br>
+        <b>Click</b>: dispara el arma elegida (mantenido, sigue disparando). <b>Click derecho</b>: cambia
+        de arma: <b>ráfaga</b> → <b>incinerador</b> (marca una zona y la calcina) → <b>lanzacohetes</b>.<br>
+        <b>Mantén C</b>: los brazos se vuelven motosierras y marcas con el ratón dónde caer. Al
+        <b>soltar</b>, salta y lo destroza todo en esa zona.<br>
+        Tiene poca vida, pero cada baja le cura mucho y le deja un rato regenerándose. El regalo del
+        OVNI lo <b>sobrecarga</b>: más daño, más cadencia y un escudo que convierte el daño en vida.
+      </div>
+      <div id="maghelp" style="display:none; margin-top:10px; padding:10px 12px;
+           border:1px solid #4a2f6a; border-radius:8px; background:rgba(16,8,26,0.6);
+           font-size:0.5rem; line-height:1.9; letter-spacing:0.5px; color:#e6dcf2">
+        <b style="color:#c77dff; font-size:0.55rem">CONTROLES DEL MAGO ABERRANTE</b><br>
+        Moverse: las mismas teclas de arriba (<b>WASD</b> por defecto). Flota despacio.<br>
+        <b>Click</b>: un rayo cae donde apuntas (mantenido, sigue lanzándolos).
+        <b>Click derecho</b>: telequinesis. Mantenlo y pasa el ratón sobre las cosas para levantar
+        varias a la vez; al <b>soltar</b>, salen disparadas (en la dirección en que muevas el ratón).<br>
+        <b>Z</b>: congela todo lo que te rodea. <b>C</b>: escudo que para cualquier daño unos segundos.<br>
+        Todo gasta maná (barra morada), que se recupera solo. El regalo del OVNI le da el
+        <b>poder arcano</b>: hechizos más fuertes, y los policías y soldados que mates vuelven como
+        zombis a luchar a tu lado.
       </div>
       <div class="bindrow">
         <span class="bindname">Efectos</span>
@@ -1491,7 +1571,7 @@ const ctx = canvas.getContext('2d');
 const ZOOM_CRIA = 1.30, ZOOM_COLOSO = 1.12;
 let ZOOM = ZOOM_CRIA;
 function updateZoom(dt){
-  let objetivo = (form >= 1 || isDra()) ? ZOOM_COLOSO : ZOOM_CRIA;
+  let objetivo = (form >= 1 || isDra() || isMaq() || isMag()) ? ZOOM_COLOSO : ZOOM_CRIA;
   if (buffActivo('gigante')) objetivo *= 0.78;    // hace falta más campo
   if (Math.abs(ZOOM - objetivo) < 0.0005){ ZOOM = objetivo; return; }
   ZOOM += (objetivo - ZOOM) * Math.min(1, dt * 1.6);   // transición suave
@@ -1801,7 +1881,7 @@ function F(){
 }
 // El viltrumita no evoluciona, así que parte con más aguante.
 const VIL_HP = 230;
-function maxHp(){ return isVil() ? VIL_HP : isDra() ? DRA_HP : F().hp; }
+function maxHp(){ return isVil() ? VIL_HP : isDra() ? DRA_HP : isMaq() ? MAQ_HP : isMag() ? MAG_HP : F().hp; }
 
 // ================= STATE =================
 let player = { x: WORLD_W/2, y: WORLD_H/2, vx:0, vy:0, tentaclePhase:0 };
@@ -1856,7 +1936,9 @@ function resetGame(){
   // El viltrumita no aparece sin más: entra volando y aterriza en su sitio.
   if (typeof vil === 'object'){ vil.stam = vil.maxStam; vil.flying = false; vil.joyFly = false; }
   if (typeof draReset === 'function') draReset();
-  if (typeof isVil === 'function' && (isVil() || isDra())){
+  maqReset(); magReset();
+  proyJ.length = 0; zombis.length = 0; congelados.clear(); proyRed.length = 0;
+  if (typeof isVil === 'function' && usaVil()){
     vil.intro = 1; vil.introY = player.y;
     player.y -= VIL_INTRO_ALTO;
     vil.flying = true; vil.fx = 0; vil.fy = 1;
@@ -3118,6 +3200,7 @@ const ART_CARGA_DMG = 150;
 const ART_CURA_DPS  = 30;
 const ART_CURA_PAUSA = 2.4;   // tras recibir un golpe deja de curarse
 const fuegos = [];            // zonas ardiendo dejadas por los misiles
+const MAQ_FUEGO_DPS = 32;     // lo que quema el suelo que deja el incinerador
 
 function artFuego(x, y, r){
   fuegos.push({ x, y, r, t: ART_FUEGO_T, max: ART_FUEGO_T });
@@ -3125,13 +3208,22 @@ function artFuego(x, y, r){
 function updateFuegos(dt){
   // Estar en dos hogueras a la vez no duele el doble: se aplica una sola vez.
   let ardiendo = false;
-  const quemados = [];
+  const quemados = [], quemadosJ = [];
   for (let i = fuegos.length - 1; i >= 0; i--){
     const f = fuegos[i];
     f.t -= dt;
     if (f.t <= 0){ fuegos.splice(i, 1); continue; }
     if (Math.random() < 0.25) addParticles(f.x + rand(-f.r*0.7, f.r*0.7),
                                            f.y + rand(-f.r*0.4, f.r*0.4), '#ff8a2b', 1, 60);
+    if (f.amigo){                                   // hoguera tuya: solo quema a los demás
+      for (const pool of [civilians, enemies]){
+        for (const t of pool){
+          if (t.dead || t.held || t.thrown || alturaVisible(t) > 0) continue;
+          if (quemadosJ.indexOf(t) < 0 && dist(t.x, t.y, f.x, f.y) < f.r) quemadosJ.push(t);
+        }
+      }
+      continue;
+    }
     if (dist(player.x, player.y, f.x, f.y) < f.r) ardiendo = true;
     for (const pool of [civilians, enemies]){       // fuego amigo
       for (const t of pool){
@@ -3141,6 +3233,7 @@ function updateFuegos(dt){
       }
     }
   }
+  if (quemadosJ.length) porJugador(()=>{ for (const t of quemadosJ) damageEnemy(t, MAQ_FUEGO_DPS*dt*(maqSob() ? MAQ_SOB : 1), t.x, t.y); });
   if (ardiendo){
     hp = clamp(hp - recibe(ART_FUEGO_DPS*dt), 0, maxHp());
     p2Gain(ART_FUEGO_DPS*dt);
@@ -3373,6 +3466,14 @@ function tactil(){
 const BUFF_RESIST = 0.05;
 function recibe(d){
   if (Online.objetivoInv){ Online.danoInv += d; return 0; }   // el golpe era para el invitado
+  if (d > 0 && isMag() && mag.escudoT > 0) return 0;          // la burbuja del mago lo para todo
+  // el escudo de la sobrecarga convierte lo que absorbe en vida
+  if (d > 0 && isMaq() && maq.escudo > 0){
+    const a = Math.min(d, maq.escudo);
+    maq.escudo -= a;
+    if (Math.random() < 0.5) addParticles(player.x, player.y - 14, '#7bffa0', 3, 60);
+    return (d - a) - a;
+  }
   return buffActivo('gigante') ? d * (1 - BUFF_RESIST) : d;
 }
 
@@ -3448,6 +3549,17 @@ function ovniRecompensa(){
     buffTipo = 'rayos';
     unlockAch('calorifica');
     toast('¡VISIÓN CALÓRICA!');
+  } else if (isMaq()){
+    buffTipo = 'sobrecarga';
+    unlockAch('sobrecarga');
+    maq.escudo = MAQ_ESCUDO;
+    toast('¡SOBRECARGA! EL DAÑO TE CURA');
+    sfx('recarga');
+  } else if (isMag()){
+    buffTipo = 'arcano';
+    unlockAch('nigromante');
+    toast('¡PODER ARCANO! LOS CAÍDOS SE LEVANTAN');
+    sfx('conjuro');
   } else if (isDra()){
     buffTipo = 'tormenta';
     unlockAch('tormenta');
@@ -3554,7 +3666,7 @@ function rafagaArboles(){
 // están doblados, que en la práctica son unos pocos.
 const arbDoblados = [];
 function updateViento(dt){
-  if ((isVil() || isDra()) && vil.flying && !vil.intro) rafagaArboles();
+  if (((isVil() || isDra()) && vil.flying || isMaq() && maq.impulso > 0.7) && !vil.intro) rafagaArboles();
   arbDoblados.length = 0;
   for (const t of trees){
     if (!t.viento) continue;
@@ -4034,7 +4146,10 @@ function damageEnemy(e, dmg, fx, fy){
   if (!e.oleada) p2Refund(e.type);
   // El viltrumita no evoluciona, así que compensa recuperando algo más.
   if (Online.culpaInv) Online.premioInv.heal += rw.heal;
-  else hp = clamp(hp + Math.round(rw.heal * ((isVil() || isDra()) ? 1.45 : 1)), 0, maxHp());
+  else hp = clamp(hp + Math.round(rw.heal * curaPorBaja()), 0, maxHp());
+  if (!Online.culpaInv && culpaJug > 0 && isMaq()) maqRegenera();
+  // con el poder arcano del mago, los agentes caídos se levantan como zombis
+  if ((k === 'police' || k === 'military' || k === 'minigun') && bajaArcana()) levantaZombi(e);
   addParticles(e.x, e.y, '#ffd27b', 16, 150);
   sfx('kill');
   // El estallido de su caída se queda; el logro ahora es del Registro completo.
@@ -4050,7 +4165,7 @@ function checkEvolve(){
     form = 1;
     // El viltrumita y el dragón cruzan el mismo umbral (para que lleguen
     // blindados y se abra la cámara), pero sin anuncio: no se transforman.
-    if (isVil() || isDra()) return;
+    if (usaVil()) return;
     hp = maxHp();
     sfx('evolve');
     toast('EVOLUCIÓN: COLOSO');
@@ -5358,6 +5473,19 @@ const SFX = {
   rayoDra:()=> { noise(0.14, 0.10, 3800, 2.5); tone(620 + Math.random()*120, 0.12, 'sawtooth', 0.05, 420); },
   coletazo:()=>{ noise(0.55, 0.40, 300, 1.3); tone(70, 0.5, 'sine', 0.26, 30); },
   trueno: ()=> { noise(0.9, 0.42, 1800, 0.6); noise(1.2, 0.30, 160, 1.0); tone(50, 0.9, 'sine', 0.2, 28); },
+  // Máquina: disparos secos, cohete, carga y chorro del incinerador, motosierra.
+  rafaga: ()=> { noise(0.05, 0.16, 2600, 1.6); tone(170, 0.05, 'square', 0.07, 90); },
+  cohete: ()=> { noise(0.35, 0.22, 900, 0.8); tone(240, 0.3, 'sawtooth', 0.06, 90); },
+  cargaInc:()=> tone(180, 0.5, 'sawtooth', 0.08, 900),
+  incinera:()=> { noise(0.45, 0.34, 600, 0.6); tone(90, 0.4, 'sawtooth', 0.12, 50); },
+  sierra: ()=> { tone(95 + Math.random()*20, 0.12, 'sawtooth', 0.09, 130); noise(0.1, 0.08, 1800, 2); },
+  recarga:()=> { tone(520, 0.05, 'square', 0.1); setTimeout(()=>tone(780, 0.06, 'square', 0.1), 70); },
+  aterriza:()=> { noise(0.4, 0.34, 260, 1.1); tone(60, 0.35, 'sine', 0.24, 30); },
+  // Mago: conjuro, telequinesis, hielo y escudo.
+  conjuro:()=> { tone(880, 0.18, 'triangle', 0.07, 1320); tone(440, 0.22, 'sine', 0.06, 660); },
+  telequinesis:()=> tone(300, 0.35, 'sine', 0.1, 520),
+  hielo:  ()=> { noise(0.5, 0.22, 5200, 3); tone(1400, 0.4, 'triangle', 0.06, 700); },
+  escudoMag:()=> { tone(330, 0.4, 'sine', 0.12, 660); tone(495, 0.4, 'sine', 0.07, 990); },
   // Trípodes: bocina grave al llegar, carga que sube, descarga seca, escudo y comida.
   ulla:   ()=> { tone(98, 1.6, 'sawtooth', 0.20, 82); tone(147, 1.6, 'sawtooth', 0.10, 123); noise(1.2, 0.07, 300, 0.8); },
   cargaM: ()=> tone(300, 1.2, 'triangle', 0.09, 1600),
@@ -5372,7 +5500,9 @@ const SFX_GAP = { sonicboom:0.30, dash:0.10, crack:0.20,
                   shoot:0.09, hit:0.05, hurt:0.12, kill:0.06, boom:0.07, bigboom:0.12,
                   demolish:0.15, grab:0.06, throw:0.06, ui:0.05, coin:0.10,
                   ulla:1.2, cargaM:0.25, rayoM:0.12, escudoM:0.2, comeM:0.15,
-                  mordisco:0.08, aleteo:0.2, rayoDra:0.16, coletazo:0.2, trueno:0.18 };
+                  mordisco:0.08, aleteo:0.2, rayoDra:0.16, coletazo:0.2, trueno:0.18,
+                  rafaga:0.045, cohete:0.15, cargaInc:0.3, incinera:0.2, sierra:0.11, recarga:0.1,
+                  aterriza:0.3, conjuro:0.08, telequinesis:0.3, hielo:0.3, escudoMag:0.3 };
 const sfxLast = {};
 let sfxVoices = 0;
 const SFX_MAX_VOICES = 14;
@@ -5820,8 +5950,9 @@ const DEFAULT_BINDS = { up:'w', down:'s', left:'a', right:'d', grab:'e', throw:'
                         draAle:'z', draRay:'', draCola:'c' };   // rayos: clic derecho (tecla opcional)
 const BIND_LABELS = { up:'Mover arriba', down:'Mover abajo', left:'Mover izquierda',
                       right:'Mover derecha', grab:'Agarrar / Golpear', throw:'Lanzar',
-                      pausa:'Pausa (o Escape)', draAle:'Dragón · Aletazo',
-                      draRay:'Dragón · Rayos (además del clic derecho)', draCola:'Dragón · Embestida y coletazo (mantener)' };
+                      pausa:'Pausa (o Escape)', draAle:'Z · Aletazo (dragón) · Congelar (mago)',
+                      draRay:'Rayos del dragón · Cambiar arma de la máquina (además del clic derecho)',
+                      draCola:'C · Coletazo (dragón) · Motosierras (máquina) · Escudo (mago)' };
 let binds = Object.assign({}, DEFAULT_BINDS);
 
 async function loadBinds(){
@@ -5997,6 +6128,10 @@ const ACHIEVEMENTS = [
     desc:'Derriba un OVNI siendo el viltrumita y estrena sus ojos: dos hilos rojos que atraviesan lo que mires mientras dure el regalo.' },
   { id:'tormenta',  icon:'\u{26A1}', name:'SEÑOR DE LA TORMENTA', goal:1,
     desc:'Derriba un OVNI siendo el dragón de tres cabezas y desata su regalo: una tormenta eléctrica cuyos relámpagos fulminan a los enemigos que te rodean.' },
+  { id:'sobrecarga', icon:'\u{1F916}', name:'SOBRECARGA', goal:1,
+    desc:'Derriba un OVNI siendo la Máquina Aberrante: sus armas se sobrecargan y un escudo convierte en vida el daño que recibes.' },
+  { id:'nigromante', icon:'\u{1F9DF}', name:'NIGROMANTE', goal:1,
+    desc:'Derriba un OVNI siendo el Mago Aberrante: sus hechizos se desatan y los policías y soldados que caen vuelven como zombis a pelear a tu lado.' },
 
   // --- SECRETOS: no aparecen en la lista hasta conseguirlos ---
   { id:'curioso', icon:'\u{1F50E}', name:'CURIOSO', goal:1, secret:true,
@@ -6017,7 +6152,7 @@ function resetRunStats(){ runStats = { lamps:0, trees:0, blocks:0 }; }
 const ACH_POR_HEROE = { superviv:1, superviv2:1, apex:1, imparable:1 };
 function achKey(id){
   if (!ACH_POR_HEROE[id]) return id;
-  return isVil() ? id + '@vil' : isDra() ? id + '@dra' : id;
+  return isVil() ? id + '@vil' : isDra() ? id + '@dra' : isMaq() ? id + '@maq' : isMag() ? id + '@mag' : id;
 }
 function achDone(id){ return !!achUnlocked[achKey(id)]; }
 
@@ -6171,6 +6306,15 @@ function miniDragon(c, x, y, r, t){
   dibujaDragon(c, x, y + r*0.2, r/40, { t, vol:false, lift:0, aleteoT:0, colaFase:'', colaT:0,
     rayos:false, mordT:0, mordCab:0, pal: draPaleta() });
 }
+function miniMaquina(c, x, y, r, t){
+  dibujaMaquina(c, x, y + r*0.3, r/26, { t, f:1, a:Math.sin(t)*0.3, arma:Math.floor(t/2) % 3, paso:t*9, vel:150,
+    imp:0.6 + Math.sin(t*0.7)*0.3, sierras:false, giro:false, salto:false, ret:0, fogon:(t*4 % 1) < 0.15 ? 0.1 : 0,
+    carga:0, sob:false, escudo:0, intro:false, pal: maqPaleta() });
+}
+function miniMago(c, x, y, r, t){
+  dibujaMago(c, x, y + r*0.3, r/26, { t, f:1, a:-0.3, cast:(t % 1.4) < 0.3 ? 1 : 0, tk:false, hielo:0, esc:0,
+    arc:false, intro:false, pal: magPaleta() });
+}
 function miniAlien(c, x, y, r, phase, tipX, tipY){
   const SK = (typeof skin === 'function') ? skin() : {c:['#5fce7f','#2f7a45','#123d1f'], limb:'#2e6b3f', tip:'#45c46b'};
   for (let i=0;i<5;i++){
@@ -6254,6 +6398,8 @@ function drawAnimInvasion(c, t){
 
   animSprite(c,'tank',shX,shY,52,40,1,Math.sin(t*3)*0.05);
   if (isDra()) miniDragon(c, ax, ay, 17, t);
+  else if (isMaq()) miniMaquina(c, ax, ay, 17, t);
+  else if (isMag()) miniMago(c, ax, ay, 17, t);
   else if (isVil()) miniVil(c, ax, ay, 17, t, shX-16, shY);
   else miniAlien(c, ax, ay, 17, t, shX-16, shY);
 
@@ -6323,6 +6469,8 @@ function drawAnimVs(c, t){
   }
 
   if (isDra()) miniDragon(c, ax, ay, 16, t);
+  else if (isMaq()) miniMaquina(c, ax, ay, 16, t);
+  else if (isMag()) miniMago(c, ax, ay, 16, t);
   else if (isVil()) miniVil(c, ax, ay, 16, t, grabbing ? ax+22 : undefined, grabbing ? ay-8 : undefined);
   else miniAlien(c, ax, ay, 16, t, grabbing ? ax+26 : null, grabbing ? ay-10 : null);
 
@@ -6402,7 +6550,7 @@ function updateBtnTent(st, dt){
 function refreshBtnFx(){
   const ti = document.getElementById('tentInvasion');
   const tv = document.getElementById('tentVs');
-  const oculto = (isVil() || isDra()) ? 'none' : '';
+  const oculto = usaVil() ? 'none' : '';
   if (ti) ti.style.display = oculto;
   if (tv) tv.style.display = oculto;
 }
@@ -6549,7 +6697,7 @@ function resetVS(){
 }
 
 function p2Gain(dmg){
-  if (gameMode !== 'vs') return;
+  if (gameMode !== 'vs' || !(dmg > 0)) return;
   p2.mat = Math.min(9999, p2.mat + Math.round(dmg * P2_MAT_PER_DMG));
 }
 
@@ -6747,7 +6895,7 @@ function drawP2Cursor(){
   const ready = !!(u && p2.cool[p2.sel] <= 0 && p2.mat >= u.cost);
   if (camaraEnMira()){
     // La vista va con tu mira, así que la flecha señala al invasor.
-    flechaP2(player.x, player.y, isVil() ? 'VILTRUMITA' : isDra() ? 'DRAGÓN' : 'ALIEN', false);
+    flechaP2(player.x, player.y, hero === 'alien' ? 'ALIEN' : heroName(hero), false);
   } else {
     const txt = invasorEnLinea ? 'J2' : prettyKey(bindsP2.p2Recall || 'home');
     if (flechaP2(p2.x, p2.y, txt, ready)) return;   // fuera de vista: solo la flecha
@@ -6866,6 +7014,7 @@ function escribiendo(e){
 function soltarTeclas(){
   for (const k in keys) keys[k] = false;
   try { dra.colaApunta = false; if (draJoy.tipo === 'rayo') dra.rayos = false; soltarDraJoy(); } catch(e){}
+  try { maq.gatillo = false; maq.sierraApunta = false; mag.lanzando = false; if (mag.tkOn) magSueltaTK(true); } catch(e){}
   for (const c in keyByCode) delete keyByCode[c];
   try { if (Online.teclas) for (const k in Online.teclas) Online.teclas[k] = false; } catch(e){}
 }
@@ -6930,6 +7079,12 @@ window.addEventListener('keydown', e=>{
       if (k === binds.draAle)  draAleteo();
       if (binds.draRay && k === binds.draRay) draAlternaRayos();
       if (k === binds.draCola) draColaApunta();
+    } else if (isMaq()){                        // la máquina: motosierras y cambio de arma
+      if (k === binds.draCola) maqSierraApunta();
+      if (binds.draRay && k === binds.draRay) maqCambiaArma();
+    } else if (isMag()){                        // el mago: hielo y escudo
+      if (k === binds.draAle)  magHielo();
+      if (k === binds.draCola) magEscudo();
     }
   }
   keys[k] = true;
@@ -6943,6 +7098,10 @@ window.addEventListener('keyup', e=>{
   // el dragón embiste al soltar la tecla de la cola
   if (isDra() && (k === binds.draCola || antes === binds.draCola)){
     if (running) draColaSuelta(); else dra.colaApunta = false;      // en pausa no embiste
+  }
+  // la máquina salta con las motosierras al soltar C
+  if (isMaq() && (k === binds.draCola || antes === binds.draCola)){
+    if (running) maqSierraSuelta(); else maq.sierraApunta = false;
   }
   // El invitado del versus en línea guarda sus teclas aparte: antes nunca se
   // soltaban, e Inicio (traer la mira) o las flechas se repetían sin fin.
@@ -6959,6 +7118,18 @@ canvas.addEventListener('mousemove', e=>{
 });
 canvas.addEventListener('mousedown', e=>{
   if (esVisorVs()) return;
+  if (isMaq()){
+    // Izquierdo: dispara (mantenido, sigue). Derecho: cambia de arma.
+    if (e.button === 0){ if (!vil.intro){ maq.gatillo = true; maq.pulso = true; } }
+    else if (e.button === 2) maqCambiaArma();
+    return;
+  }
+  if (isMag()){
+    // Izquierdo: rayos (mantenido, sigue). Derecho: telequinesis mientras se mantiene.
+    if (e.button === 0){ if (!vil.intro){ mag.lanzando = true; mag.pulso = true; } }
+    else if (e.button === 2) magTKEmpieza();
+    return;
+  }
   if (isDra()){
     // Clic izquierdo: mordisco; con los rayos encendidos, los apaga.
     // Clic derecho: enciende o apaga los rayos de las tres bocas.
@@ -6979,6 +7150,11 @@ canvas.addEventListener('mousedown', e=>{
     if (agarraEdificio()) return;
     onThrow();
   }
+});
+// Se escucha en la ventana: soltar el botón fuera del lienzo también cuenta.
+window.addEventListener('mouseup', e=>{
+  if (e.button === 0){ maq.gatillo = false; mag.lanzando = false; }
+  if (e.button === 2 && isMag() && mag.tkOn && running) magSueltaTK(false);
 });
 canvas.addEventListener('mouseup', e=>{
   if (e.button === 2) vilRightRelease();      // se cierran los ojos
@@ -7029,7 +7205,7 @@ canvas.addEventListener('touchstart', e=>{
     if (x < CW*0.5){
       if (!moveJoy.active){ moveJoy.active=true; moveJoy.id=t.identifier; moveJoy.baseX=x; moveJoy.baseY=y;
         moveJoy.dx=0; moveJoy.dy=0; showJoy(mjBase,x,y); }
-    } else if (!aimJoy.active && !isDra()){      // el dragón apunta con sus botones
+    } else if (!aimJoy.active && !sinAimJoy()){  // dragón, máquina y mago apuntan con sus botones
       aimJoy.active=true; aimJoy.id=t.identifier; aimJoy.baseX=x; aimJoy.baseY=y;
       aimJoy.dx=0; aimJoy.dy=0; showJoy(ajBase,x,y);
     }
@@ -7082,6 +7258,10 @@ const heroIcons = {};
 function heroIconURL(which){
   if (heroIcons[which]) return heroIcons[which];
   if (which === 'dragon') return (heroIcons[which] = UI_ART.icoDra || '');
+  if (which === 'maquina' || which === 'mago'){
+    try { heroIcons[which] = iconoHeroe(which); } catch(e){ heroIcons[which] = ''; }
+    return heroIcons[which];
+  }
   try {
     const c = document.createElement('canvas');
     c.width = c.height = 40;
@@ -7109,9 +7289,13 @@ function heroIconURL(which){
   } catch(e){ heroIcons[which] = ''; }
   return heroIcons[which];
 }
-function heroName(which){ return which === 'viltrum' ? 'VILTRUMITA' : which === 'dragon' ? 'DRAGÓN' : 'CRÍA'; }
+function heroName(which){
+  return which === 'viltrum' ? 'VILTRUMITA' : which === 'dragon' ? 'DRAGÓN'
+       : which === 'maquina' ? 'MÁQUINA ABERRANTE' : which === 'mago' ? 'MAGO ABERRANTE' : 'CRÍA';
+}
 // Cualquier personaje que llegue de fuera (guardado, red) se reduce a uno válido.
-function normHeroe(h){ return (h === 'viltrum' || h === 'dragon') ? h : 'alien'; }
+const HEROES = ['alien', 'viltrum', 'dragon', 'maquina', 'mago'];
+function normHeroe(h){ return HEROES.indexOf(h) > 0 ? h : 'alien'; }
 
 // ================= PERSONAJE JUGABLE =================
 // 'alien' = la cría tentacular original. 'viltrum' = el soldado viltrumita.
@@ -7794,11 +7978,15 @@ function draRelampago(){
   sfx('trueno');
 }
 function updateRelampagos(dt){
-  for (let i = relampagos.length - 1; i >= 0; i--){
-    relampagos[i].t -= dt;
-    if (relampagos[i].t <= 0) relampagos.splice(i, 1);
+  for (const lista of [relampagos, relRed]){
+    for (let i = lista.length - 1; i >= 0; i--){
+      lista[i].t -= dt;
+      if (lista[i].t <= 0) lista.splice(i, 1);
+    }
   }
 }
+// Lo que llega por la red del otro jugador (se dibuja, no se simula).
+const relRed = [], proyRed = [];
 
 // ---- dibujo ----
 const DRA_ORO = { cl:'#f0dc62', cm:'#b99a1c', co:'#5a480a', mem:'#8a7a1c', memO:'#3a320a',
@@ -8065,13 +8253,18 @@ function drawRelampagos(){
     ctx.fillRect(-40, -40, VW + 80, VH + 80);                // toda la vista (ya va escalada)
     ctx.globalAlpha = 1;
   }
-  for (const r of relampagos){
+  for (const r of relampagos) dibujaRelampago(r);
+  for (const r of relRed) dibujaRelampago(r);
+}
+function dibujaRelampago(r){
+  {
     const k = clamp(r.t / r.max, 0, 1), s2 = S(r.x, r.y);
     const top = s2.y - 520;
     let sem = r.sem;
     const rnd = ()=>{ sem = (sem*9301 + 49297) % 233280; return sem/233280 - 0.5; };
     ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-    for (const [w, col, al] of [[9, '#6fa8ff', 0.35], [3.2, '#e8f4ff', 0.95]]){
+    const pas = RELAMPAGO_COL[r.col | 0] || RELAMPAGO_COL[0];
+    for (const [w, col, al] of pas){
       ctx.globalAlpha = al*k; ctx.strokeStyle = col; ctx.lineWidth = w;
       ctx.beginPath(); ctx.moveTo(s2.x + 60, top);
       for (let j = 1; j <= 9; j++){
@@ -8081,10 +8274,1347 @@ function drawRelampagos(){
       ctx.stroke();
       sem = r.sem;                                            // la misma forma en las dos pasadas
     }
-    ctx.globalAlpha = 0.45*k; ctx.fillStyle = '#e8f4ff';
+    ctx.globalAlpha = 0.45*k; ctx.fillStyle = pas[1][1];
     ctx.beginPath(); ctx.ellipse(s2.x, s2.y, 34*(1.3 - k*0.3), 20*(1.3 - k*0.3), 0, 0, Math.PI*2); ctx.fill();
     ctx.globalAlpha = 1;
   }
+}
+
+// ================= PERSONAJES CUARTO Y QUINTO =================
+// 'maquina' = la MÁQUINA ABERRANTE (cyborg de metal, rápido y frágil).
+// 'mago'    = el MAGO ABERRANTE (flota, lanza rayos y mueve cosas con la mente).
+// Como el viltrumita y el dragón, no evolucionan: usan la barra de `vil`
+// (la máquina, como impulso; el mago, como maná) y entran en escena desde
+// arriba, así que comparten la entrada y la inmunidad del aterrizaje.
+function isMaq(){ return hero === 'maquina'; }
+function isMag(){ return hero === 'mago'; }
+function usaVil(){ return hero !== 'alien'; }
+// Estos apuntan con los joysticks de sus botones: sin segundo joystick.
+function sinAimJoy(){ return isDra() || isMaq() || isMag(); }
+// Vida que devuelve cada baja: la máquina tiene poca, pero se recompone muy bien.
+function curaPorBaja(){ return isMaq() ? MAQ_CURA : hero === 'alien' ? 1 : 1.45; }
+
+// Joysticks de botón que no son del dragón: se comparte `draJoy`.
+function joyPropio(tipo){ return draJoy.tipo === tipo; }
+// Ángulo y distancia hacia un punto del mundo desde una altura del personaje.
+function haciaPunto(x, y, oy){ return { a: Math.atan2(y - (player.y + oy), x - player.x), d: Math.hypot(x - player.x, y - (player.y + oy)) }; }
+// Apunta con: joystick del botón (tipos dados) > dedo (al más cercano) > ratón.
+function apuntaHeroe(tipos, oy, alcance, auto){
+  if (tipos.indexOf(draJoy.tipo) >= 0){
+    if (draJoy.m >= 0.2) return { a: Math.atan2(draJoy.dy, draJoy.dx), d: alcance*clamp(draJoy.m, 0.25, 1), joy:true };
+    if (draJoy.id !== 'raton'){
+      const o = draCercano(auto);
+      if (o) return haciaPunto(o.x, o.y - alturaVisible(o), oy);
+      return { a: heroeMirA(), d: alcance*0.55 };
+    }
+  } else if (lastInputTouch){
+    const o = draCercano(auto);
+    if (o) return haciaPunto(o.x, o.y - alturaVisible(o), oy);
+    return { a: heroeMirA(), d: alcance*0.55 };
+  }
+  return haciaPunto(mouse.x / ZOOM + camX, mouse.y / ZOOM + camY, oy);
+}
+// Sin nadie cerca a quien apuntar: hacia donde se mueve (o la última dirección).
+function heroeMirA(){
+  if (Math.hypot(player.vx || 0, player.vy || 0) > 40) return Math.atan2(player.vy, player.vx);
+  return isMaq() ? maq.mirA : mag.mirA;
+}
+function danaAuto(c, dmg){
+  c.hp -= dmg;
+  if (c.hp <= 0) porJugador(()=> autoAbatido(c));
+}
+// Explosión propia. En Doble Invasión, como invitado, la hace el anfitrión.
+function explotaPropia(x, y, R, dmg){
+  if (dobleInv()){
+    enviaAccion({ t:'expl', x:Math.round(x), y:Math.round(y), R, dmg });
+    addParticles(x, y, '#ffca4d', 18, 200); addParticles(x, y, '#ff6a2b', 10, 150);
+    shake(8, 0.2); sfx('boom');
+    return;
+  }
+  porJugador(()=> explode(x, y, R, dmg, R > 110, false));
+}
+// Zona ardiendo que solo daña a los demás.
+function fuegoPropio(x, y, r, t){
+  if (dobleInv()){ enviaAccion({ t:'fuego', x:Math.round(x), y:Math.round(y), r, tt:t }); return; }
+  fuegos.push({ x, y, r, t, max:t, amigo:true });
+}
+
+// ---- Congelación de unidades (hechizo del mago) ----
+// Quedan clavadas, sin disparar, envueltas en hielo. Se apoya en el aturdido
+// de siempre, pero de pie y sin estrellitas.
+const congelados = new Set();
+function congelaUnidad(t, dur){
+  if (!t || t.dead || t.held || t.thrown) return;
+  const d = JEFES[t.type] ? dur*0.35 : dur;
+  t.hieloT = Math.max(t.hieloT || 0, d);
+  if (t.kind !== 'civ') t.stunT = Math.max(t.stunT || 0, d);
+  t.stunVx = 0; t.stunVy = 0;
+  congelados.add(t);
+}
+function updateCongelados(dt){
+  if (!congelados.size) return;
+  for (const t of congelados){
+    t.hieloT -= dt;
+    if (t.hieloT <= 0 || t.dead || t.held || t.thrown){ t.hieloT = 0; congelados.delete(t); }
+    else if (Math.random() < 0.05) addParticles(t.x + rand(-10, 10), t.y - alturaVisible(t) - rand(0, 20), '#cff4ff', 1, 30);
+  }
+}
+function drawHieloSobre(e){
+  if (!(e.hieloT > 0) || e.held || e.thrown) return;
+  const s = S(e.x, e.y - alturaVisible(e));
+  const w = Math.min(e.w || 26, 150), h = Math.min(e.h || 34, 120);
+  const k = clamp(e.hieloT / 0.6, 0, 1);
+  ctx.save();
+  ctx.globalAlpha = 0.38*k; ctx.fillStyle = '#9fe8ff';
+  ctx.beginPath(); ctx.moveTo(s.x - w*0.55, s.y + h*0.35); ctx.lineTo(s.x - w*0.6, s.y - h*0.35);
+  ctx.lineTo(s.x - w*0.15, s.y - h*0.62); ctx.lineTo(s.x + w*0.5, s.y - h*0.45);
+  ctx.lineTo(s.x + w*0.6, s.y + h*0.3); ctx.lineTo(s.x + w*0.1, s.y + h*0.5); ctx.closePath(); ctx.fill();
+  ctx.globalAlpha = 0.8*k; ctx.strokeStyle = '#e8fbff'; ctx.lineWidth = 1.4; ctx.stroke();
+  ctx.globalAlpha = 0.7*k; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(s.x - w*0.35, s.y - h*0.3); ctx.lineTo(s.x - w*0.1, s.y - h*0.05);
+  ctx.moveTo(s.x + w*0.2, s.y - h*0.35); ctx.lineTo(s.x + w*0.32, s.y - h*0.12); ctx.stroke();
+  ctx.restore();
+}
+
+// ---- Proyectiles del jugador: balas, cohetes y marcas de rayo ----
+const proyJ = [];
+function proyJBlanco(p, R){
+  for (const pool of [civilians, enemies]){
+    for (const t of pool){
+      if (t.dead || t.held || t.thrown || Math.abs(t.x - p.x) > 90) continue;   // descarte barato
+      const b = blancoRayo(t);
+      const dx = p.x - b.x, dy = p.y - b.y, rr = b.r + R;
+      if (dx*dx + dy*dy < rr*rr) return t;
+    }
+  }
+  return null;
+}
+function proyJAuto(p, R){
+  for (const c of cars){
+    if (c.dead || c.held || c.thrown) continue;
+    if (Math.abs(p.x - c.x) < c.w/2 + R && Math.abs(p.y - c.y) < c.h/2 + R) return c;
+  }
+  return null;
+}
+function proyJMuro(p){
+  for (const b of buildings){
+    if (b.stage >= 2) continue;
+    if (p.x > b.x && p.x < b.x + b.w && p.y > b.y && p.y < b.y + b.h) return b;
+  }
+  return null;
+}
+function updateProyJ(dt){
+  for (let i = proyJ.length - 1; i >= 0; i--){
+    const p = proyJ[i];
+    p.t -= dt;
+    if (p.k === 'marca'){                          // rayo del mago a punto de caer
+      if (p.t <= 0){ proyJ.splice(i, 1); magImpacto(p.x, p.y, !!p.arc); }
+      continue;
+    }
+    if (p.k === 'cohete' && Math.random() < 0.8) addSmoke(p.x - p.vx*0.02, p.y - p.vy*0.02);
+    // pasos cortos: a 900 px/s una bala atravesaría a un soldado de un salto
+    const n = Math.max(1, Math.ceil(Math.hypot(p.vx, p.vy)*dt / 14));
+    let fin = false;
+    for (let s = 0; s < n && !fin; s++){
+      p.x += p.vx*dt/n; p.y += p.vy*dt/n;
+      if (p.k === 'cohete'){
+        const llego = Math.hypot(p.tx - p.x, p.ty - p.y) < 16;
+        if (llego || proyJBlanco(p, 6) || proyJAuto(p, 4) || proyJMuro(p)){
+          explotaPropia(p.x, p.y, p.R, p.dmg); fin = true;
+        }
+        continue;
+      }
+      const t = proyJBlanco(p, 4);
+      if (t){
+        const jf = JEFES[t.type] ? 0.8 : 1;
+        porJugador(()=> damageEnemy(t, p.dmg*jf, p.x, p.y));
+        fin = true; break;
+      }
+      const c = proyJAuto(p, 2);
+      if (c){ danaAuto(c, p.dmg*0.7); addParticles(p.x, p.y, '#ffd27b', 3, 70); fin = true; break; }
+      const b = proyJMuro(p);
+      if (b){ porJugador(()=> damageBuilding(b, p.dmg*0.25)); addParticles(p.x, p.y, '#9aa6ad', 2, 60); fin = true; break; }
+    }
+    if (fin || p.t <= 0 || p.x < -50 || p.y < -50 || p.x > WORLD_W + 50 || p.y > WORLD_H + 50){
+      if (!fin && p.k === 'cohete') explotaPropia(p.x, p.y, p.R, p.dmg);
+      proyJ.splice(i, 1);
+    }
+  }
+}
+function drawProyJ(lista){
+  for (const p of lista){
+    const s = S(p.x, p.y);
+    if (p.k === 'bala'){
+      const l = Math.hypot(p.vx, p.vy) || 1, ux = p.vx/l, uy = p.vy/l;
+      ctx.strokeStyle = p.sob ? '#ff9a5a' : '#ffe9a0'; ctx.lineWidth = p.sob ? 3 : 2.2;
+      ctx.globalAlpha = 0.9;
+      ctx.beginPath(); ctx.moveTo(s.x - ux*14, s.y - uy*14); ctx.lineTo(s.x + ux*3, s.y + uy*3); ctx.stroke();
+      ctx.globalAlpha = 1;
+    } else if (p.k === 'cohete'){
+      const a = Math.atan2(p.vy, p.vx);
+      ctx.save(); ctx.translate(s.x, s.y); ctx.rotate(a);
+      const f = 0.7 + Math.random()*0.5;
+      ctx.fillStyle = '#ff8a3b'; ctx.fillRect(-15 - 8*f, -2.5, 8*f, 5);
+      ctx.fillStyle = '#ffe07a'; ctx.fillRect(-15 - 4*f, -1.5, 4*f, 3);
+      ctx.fillStyle = p.sob ? '#7a1f14' : '#3c4450'; ctx.fillRect(-15, -3.5, 22, 7);
+      ctx.fillStyle = p.sob ? '#ff5a3a' : '#c8d2dc'; ctx.fillRect(-13, -3.5, 18, 2);
+      ctx.fillStyle = '#d23a2a'; ctx.beginPath(); ctx.moveTo(7, -3.5); ctx.lineTo(13, 0); ctx.lineTo(7, 3.5); ctx.fill();
+      ctx.fillStyle = '#2a3038'; ctx.fillRect(-15, -6, 5, 3); ctx.fillRect(-15, 3, 5, 3);
+      ctx.restore();
+    } else if (p.k === 'marca'){
+      const k = clamp(1 - p.t / p.max, 0, 1), R = p.R;
+      const col = p.arc ? '#8dff6a' : '#c77dff';
+      ctx.globalAlpha = 0.25 + k*0.35; ctx.fillStyle = col;
+      ctx.beginPath(); ctx.ellipse(s.x, s.y, R*k, R*0.6*k, 0, 0, Math.PI*2); ctx.fill();
+      ctx.globalAlpha = 0.85; ctx.strokeStyle = col; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.ellipse(s.x, s.y, R, R*0.6, 0, 0, Math.PI*2); ctx.stroke();
+      // runas girando sobre el círculo
+      for (let i = 0; i < 4; i++){
+        const a = gameTime*3 + i*Math.PI/2;
+        ctx.fillRect(s.x + Math.cos(a)*R - 2, s.y + Math.sin(a)*R*0.6 - 2, 4, 4);
+      }
+      ctx.globalAlpha = 1;
+    }
+  }
+}
+
+// =============== LA MÁQUINA ABERRANTE ===============
+// Endoesqueleto de metal con blindaje azul y alas de refrigeración en la
+// espalda. Frágil, pero muy rápido y con tres armas:
+//   mantener W (o cualquier dirección) -> acelera poco a poco hasta un tope
+//   clic        -> dispara el arma elegida (mantenido, sigue disparando)
+//   clic der.   -> cambia de arma: ráfaga -> incinerador -> lanzacohetes
+//   mantener C  -> brazos-motosierra: marca una zona y, al soltar, salta sobre ella
+// Cada baja le devuelve mucha vida y le deja un rato regenerándose.
+// Regalo del OVNI: sobrecarga. Todo pega más y mejor, y un escudo convierte
+// el daño que recibe en vida.
+const MAQ_HP = 150, MAQ_R = 16;
+const MAQ_V0 = 170, MAQ_VMAX = 560, MAQ_ACEL = 0.45;   // de 0 al tope en ~2,2 s
+const MAQ_CURA = 2.2, MAQ_REGEN = 10, MAQ_REGEN_T = 2.2, MAQ_REGEN_MAX = 5;
+const MAQ_ARMAS = ['RÁFAGA', 'INCINERADOR', 'LANZACOHETES'];
+const MAQ_BALA_V = 950, MAQ_BALA_T = 0.62, MAQ_BALA_DMG = 15, MAQ_RAF_N = 5, MAQ_RAF_GAP = 0.055, MAQ_RAF_CD = 0.24;
+const MAQ_INC_CARGA = 0.55, MAQ_INC_LEN = 440, MAQ_INC_W = 34, MAQ_INC_DMG = 75, MAQ_INC_CD = 0.9, MAQ_INC_T = 0.32;
+const MAQ_COH_V = 720, MAQ_COH_CD = 0.8, MAQ_COH_R = 96, MAQ_COH_DMG = 80, MAQ_COH_MAX = 640;
+const MAQ_SIE_MIN = 90, MAQ_SIE_MAX = 360, MAQ_SIE_R = 96, MAQ_SIE_VEL = 1050, MAQ_SIE_T = 0.6,
+      MAQ_SIE_TICK = 0.1, MAQ_SIE_DMG = 30, MAQ_SIE_CD = 2.0;
+const MAQ_SOB = 1.6;                          // daño con la sobrecarga del OVNI
+const MAQ_ESCUDO = 160;                       // cuánto daño convierte en vida el escudo
+const maq = { arma:0, gatillo:false, pulso:false, rafN:0, rafT:0, disCd:0, mirA:0,
+              incCarga:0, incA:0, incL:MAQ_INC_LEN, rayoT:0, rayoA:0, rayoL:0, rayoX:0, rayoY:0,
+              impulso:0, rumbo:0, paso:0, regenT:0, escudo:0, retroceso:0, fogon:0,
+              sierraApunta:false, sierraA:0, sierraL:180, sierraFase:'', sierraT:0, sierraX:0, sierraY:0,
+              sierraTick:0, sierraCd:0, armaT:0 };
+function maqReset(){
+  maq.arma = 0; maq.gatillo = false; maq.pulso = false; maq.rafN = 0; maq.rafT = 0; maq.disCd = 0;
+  maq.incCarga = 0; maq.rayoT = 0; maq.impulso = 0; maq.paso = 0; maq.regenT = 0; maq.escudo = 0;
+  maq.sierraApunta = false; maq.sierraFase = ''; maq.sierraT = 0; maq.sierraCd = 0; maq.armaT = 0;
+  maq.retroceso = 0; maq.fogon = 0;
+}
+function maqSob(){ return buffActivo('sobrecarga'); }
+function maqApunta(){ return apuntaHeroe(['disparo', 'sierra'], -18, maq.arma === 2 ? MAQ_COH_MAX : MAQ_INC_LEN, 560); }
+// Boca del arma, en el mundo.
+function maqBoca(a){
+  const f = Math.cos(a) >= 0 ? 1 : -1;
+  return { x: player.x + f*6 + Math.cos(a)*22, y: player.y - 16 + Math.sin(a)*14 };
+}
+function maqCambiaArma(){
+  if (vil.intro) return;
+  maq.arma = (maq.arma + 1) % 3;
+  maq.incCarga = 0; maq.rafN = 0; maq.armaT = 0.9;
+  toast('ARMA: ' + MAQ_ARMAS[maq.arma]);
+  sfx('recarga');
+}
+function maqRegenera(){
+  maq.regenT = Math.min(MAQ_REGEN_MAX, maq.regenT + MAQ_REGEN_T);
+}
+function maqDisparo(dt, ap){
+  maq.disCd -= dt;
+  const quiere = maq.gatillo || maq.pulso;
+  const sob = maqSob();
+  if (maq.arma === 0){                                   // --- ráfaga ---
+    if (maq.rafN > 0){
+      maq.rafT -= dt;
+      while (maq.rafN > 0 && maq.rafT <= 0){
+        maq.rafN--; maq.rafT += MAQ_RAF_GAP;
+        const a = ap.a + rand(-0.045, 0.045), m = maqBoca(ap.a);
+        proyJ.push({ k:'bala', x:m.x, y:m.y, vx:Math.cos(a)*MAQ_BALA_V, vy:Math.sin(a)*MAQ_BALA_V,
+                     t:MAQ_BALA_T, dmg: MAQ_BALA_DMG*(sob ? MAQ_SOB : 1), sob: sob ? 1 : 0 });
+        maq.retroceso = 1; maq.fogon = 0.06;
+        sfx('rafaga');
+        if (!maq.rafN) maq.disCd = MAQ_RAF_CD*(sob ? 0.7 : 1);
+      }
+    } else if (quiere && maq.disCd <= 0){
+      maq.rafN = MAQ_RAF_N + (sob ? 2 : 0); maq.rafT = 0; maq.pulso = false;
+    }
+  } else if (maq.arma === 1){                            // --- incinerador ---
+    if (maq.incCarga > 0){
+      maq.incCarga -= dt;
+      // la zona sigue a la mira mientras calcula; el último instante queda fija
+      if (maq.incCarga > 0.12){ maq.incA = ap.a; maq.incL = clamp(ap.d, 150, MAQ_INC_LEN); }
+      if (maq.incCarga <= 0){ maq.incCarga = 0; maqIncinera(); }
+    } else if (quiere && maq.disCd <= 0){
+      maq.incCarga = MAQ_INC_CARGA*(sob ? 0.65 : 1); maq.pulso = false;
+      maq.incA = ap.a; maq.incL = clamp(ap.d, 150, MAQ_INC_LEN);
+      sfx('cargaInc');
+    }
+  } else {                                               // --- lanzacohetes ---
+    if (quiere && maq.disCd <= 0){
+      maq.pulso = false;
+      maq.disCd = MAQ_COH_CD*(sob ? 0.6 : 1);
+      const m = maqBoca(ap.a), d = clamp(ap.d, 60, MAQ_COH_MAX);
+      const tx = player.x + Math.cos(ap.a)*d, ty = player.y - 18 + Math.sin(ap.a)*d;
+      const a = Math.atan2(ty - m.y, tx - m.x);
+      proyJ.push({ k:'cohete', x:m.x, y:m.y, vx:Math.cos(a)*MAQ_COH_V, vy:Math.sin(a)*MAQ_COH_V, t:1.6,
+                   tx, ty, R: MAQ_COH_R*(sob ? 1.35 : 1), dmg: MAQ_COH_DMG*(sob ? MAQ_SOB : 1), sob: sob ? 1 : 0 });
+      maq.retroceso = 1.6; maq.fogon = 0.1;
+      addParticles(m.x, m.y, '#cfd6dd', 6, 90);
+      sfx('cohete');
+    }
+  }
+}
+// El haz del incinerador: calcina todo lo que haya en la zona marcada y la
+// deja ardiendo un rato (como la llamarada del tanque de fuego).
+function maqIncinera(){
+  const sob = maqSob();
+  const m = maqBoca(maq.incA), a = maq.incA, L = maq.incL, W = MAQ_INC_W*(sob ? 1.35 : 1);
+  const dmg = MAQ_INC_DMG*(sob ? MAQ_SOB : 1);
+  maq.rayoT = MAQ_INC_T; maq.rayoA = a; maq.rayoL = L; maq.rayoX = m.x; maq.rayoY = m.y;
+  maq.disCd = MAQ_INC_CD*(sob ? 0.7 : 1);
+  for (const pool of [civilians, enemies]){
+    for (const t of pool){
+      if (t.dead || t.held || t.thrown) continue;
+      if (!rayoToca(t, m.x, m.y, a, L, W) && !enLinea(t.x, t.y, player.x, player.y, a, L, W)) continue;
+      const jf = JEFES[t.type] ? 0.75 : 1;
+      porJugador(()=> damageEnemy(t, dmg*jf, t.x, t.y - alturaVisible(t)));
+    }
+  }
+  for (const c of cars){
+    if (c.dead || c.held || c.thrown || !enLinea(c.x, c.y, player.x, player.y, a, L + 10, W + 14)) continue;
+    danaAuto(c, dmg);
+  }
+  for (const pool of [trees, benches, trash]){
+    for (const pr of pool){
+      if (pr.dead || pr.held || pr.thrown || !enLinea(pr.x, pr.y, player.x, player.y, a, L, W)) continue;
+      porJugador(()=> propAbatido(pr));
+      addParticles(pr.x, pr.y, '#ff8a2b', 8, 100);
+    }
+  }
+  for (const b of buildings){
+    if (b.stage >= 2) continue;
+    const ex = player.x + Math.cos(a)*L, ey = player.y + Math.sin(a)*L;
+    if (ex > b.x && ex < b.x + b.w && ey > b.y && ey < b.y + b.h){ porJugador(()=> damageBuilding(b, dmg*1.2)); break; }
+  }
+  // tres hogueras a lo largo de la línea
+  for (const f of [0.35, 0.65, 0.95]) fuegoPropio(player.x + Math.cos(a)*L*f, player.y + Math.sin(a)*L*f, 46*(sob ? 1.25 : 1), 3.2);
+  for (let k = 0; k < 6; k++){
+    const f = Math.random();
+    addParticles(player.x + Math.cos(a)*L*f, player.y + Math.sin(a)*L*f, k % 2 ? '#ffb03a' : '#ff5a1f', 5, 140);
+  }
+  maq.retroceso = 2; maq.fogon = 0.16;
+  shake(7, 0.18);
+  sfx('incinera');
+}
+// ---- motosierras ----
+function maqSierraApunta(){
+  if (vil.intro || maq.sierraFase) return;
+  maq.sierraApunta = true;
+  sfx('sierra');
+}
+function maqSierraSuelta(){
+  if (!maq.sierraApunta) return;
+  maq.sierraApunta = false;
+  if (maq.sierraFase) return;
+  if (maq.sierraCd > 0){ sfx('deny'); toast('MOTOSIERRAS: ' + Math.ceil(maq.sierraCd) + ' s'); return; }
+  maq.sierraFase = 'salto';
+  maq.sierraX = clamp(player.x + Math.cos(maq.sierraA)*maq.sierraL, 30, WORLD_W - 30);
+  maq.sierraY = clamp(player.y + Math.sin(maq.sierraA)*maq.sierraL, 30, WORLD_H - 30);
+  maq.sierraCd = MAQ_SIE_CD*(maqSob() ? 0.65 : 1);
+  sfx('sierra');
+}
+function maqSierrasGiran(){
+  const sob = maqSob();
+  const R = MAQ_SIE_R*(sob ? 1.3 : 1), dmg = MAQ_SIE_DMG*(sob ? MAQ_SOB : 1);
+  draDanaArea(player.x, player.y, R, dmg, 150, 0.5);
+  for (const b of buildings){
+    if (b.stage >= 2) continue;
+    const cx = clamp(player.x, b.x, b.x + b.w), cy = clamp(player.y, b.y, b.y + b.h);
+    if (dist(player.x, player.y, cx, cy) < R*0.55) porJugador(()=> damageBuilding(b, dmg*0.8));
+  }
+  for (const pool of [trees, benches, trash, lamps]){
+    for (const pr of pool){
+      if (pr.dead || pr.held || pr.thrown || dist(pr.x, pr.y, player.x, player.y) > R*0.8) continue;
+      porJugador(()=> propAbatido(pr));
+      addParticles(pr.x, pr.y, '#c8a060', 8, 120);
+    }
+  }
+  for (let k = 0; k < 3; k++){
+    const a = Math.random()*Math.PI*2, r = Math.random()*R;
+    addParticles(player.x + Math.cos(a)*r, player.y + Math.sin(a)*r*0.6, k ? '#ffe07a' : '#c33', 3, 160);
+  }
+  sfx('sierra');
+}
+
+function updateMaquina(dt){
+  vil.capa += dt;
+  if (vil.intro){                              // cae del cielo y aterriza de rodillas
+    player.vx = 0; player.vy = VIL_INTRO_VEL;
+    player.y = Math.min(vil.introY, player.y + player.vy*dt);
+    if (player.y >= vil.introY - 0.5){
+      player.y = vil.introY; vil.intro = 0; player.vy = 0; vil.flying = false;
+      draDanaArea(player.x, player.y, 120, 50, 220, 0.8);
+      sacudeArboles(player.x, player.y, 240, 0.4);
+      addParticles(player.x, player.y, '#9aa6ad', 24, 240);
+      addParticles(player.x, player.y, '#8fd7ff', 14, 200);
+      shake(14, 0.35); sfx('aterriza');
+    }
+    return;
+  }
+  const sob = maqSob();
+  if (maq.armaT > 0) maq.armaT -= dt;
+  if (maq.sierraCd > 0) maq.sierraCd -= dt;
+  if (maq.rayoT > 0) maq.rayoT -= dt;
+  if (maq.fogon > 0) maq.fogon -= dt;
+  maq.retroceso = Math.max(0, maq.retroceso - dt*8);
+  // regeneración tras las bajas (y, con la sobrecarga, un poco siempre)
+  if (maq.regenT > 0){ maq.regenT -= dt; hp = Math.min(maxHp(), hp + MAQ_REGEN*dt); }
+  if (sob) hp = Math.min(maxHp(), hp + 3*dt);
+  else maq.escudo = 0;
+  const ap = maqApunta();
+  maq.mirA = ap.a;
+
+  // ---- salto y giro de las motosierras ----
+  if (maq.sierraFase === 'salto'){
+    const dx = maq.sierraX - player.x, dy = maq.sierraY - player.y, d = Math.hypot(dx, dy);
+    const paso = MAQ_SIE_VEL*dt;
+    if (d <= paso){
+      player.x = maq.sierraX; player.y = maq.sierraY;
+      maq.sierraFase = 'giro'; maq.sierraT = MAQ_SIE_T; maq.sierraTick = 0;
+      shake(8, 0.2);
+    } else {
+      player.x += dx/d*paso; player.y += dy/d*paso;
+      player.vx = dx/d*MAQ_SIE_VEL; player.vy = dy/d*MAQ_SIE_VEL;
+      if (player.vx) player.facing = player.vx > 0 ? 1 : -1;
+    }
+    if (Math.random() < 0.6) addParticles(player.x, player.y + 8, '#8fd7ff', 2, 80);
+    drawR = lerp(drawR, MAQ_R, 0.1);
+    return;
+  }
+  if (maq.sierraFase === 'giro'){
+    maq.sierraT -= dt; maq.sierraTick -= dt;
+    if (maq.sierraTick <= 0){ maq.sierraTick = MAQ_SIE_TICK; maqSierrasGiran(); }
+    player.vx = 0; player.vy = 0;
+    if (maq.sierraT <= 0){ maq.sierraFase = ''; desatascar(MAQ_R); }
+    return;
+  }
+
+  // ---- movimiento: cuanto más tiempo sigue en la misma dirección, más corre ----
+  let dx = 0, dy = 0, mag = 1, joy = false;
+  if (moveJoy.active && !paralizado() && !congelado()){ dx = moveJoy.dx; dy = moveJoy.dy; mag = clamp(Math.hypot(dx, dy), 0, 1); joy = true; }
+  else if (!paralizado() && !congelado()){
+    if (pressed('up'))    dy -= 1;
+    if (pressed('down'))  dy += 1;
+    if (pressed('left'))  dx -= 1;
+    if (pressed('right')) dx += 1;
+  }
+  const anda = (dx || dy) && mag > 0.15;
+  if (anda){
+    const a = Math.atan2(dy, dx);
+    let giro = Math.abs(a - maq.rumbo); if (giro > Math.PI) giro = Math.PI*2 - giro;
+    if (giro > 1.9 && maq.impulso > 0.2) maq.impulso *= 0.3;          // media vuelta: frena
+    else if (giro > 0.8) maq.impulso *= Math.pow(0.4, dt);            // curva cerrada: pierde algo
+    maq.rumbo = a;
+    if (!joy || mag > 0.8) maq.impulso = Math.min(1, maq.impulso + MAQ_ACEL*dt*(sob ? 1.4 : 1));
+    else maq.impulso = Math.max(0, maq.impulso - dt*0.6);
+  } else maq.impulso = Math.max(0, maq.impulso - dt*2.6);
+  const vmax = MAQ_VMAX*(sob ? 1.12 : 1);
+  const sp = (MAQ_V0 + (vmax - MAQ_V0)*Math.pow(maq.impulso, 1.35))*(joy ? Math.max(mag, 0.35) : 1);
+  const len = Math.hypot(dx, dy) || 1;
+  const k = anda ? 0.22 : 0.3;
+  player.vx = lerp(player.vx, anda ? (dx/len)*sp : 0, k);
+  player.vy = lerp(player.vy, anda ? (dy/len)*sp : 0, k);
+  if (Math.abs(player.vx) > 8) player.facing = player.vx > 0 ? 1 : -1;
+  const x0 = player.x, y0 = player.y;
+  player.x = clamp(player.x + player.vx*dt, 30, WORLD_W - 30);
+  player.y = clamp(player.y + player.vy*dt, 30, WORLD_H - 30);
+  collideBuildings(player, MAQ_R, dt, 0);
+  // se estrella contra un muro: pierde el impulso
+  const quiso = Math.hypot(player.vx, player.vy)*dt, hizo = Math.hypot(player.x - x0, player.y - y0);
+  if (quiso > 4 && hizo < quiso*0.35 && maq.impulso > 0.5){
+    maq.impulso *= 0.35; shake(5, 0.12); addParticles(player.x, player.y - 10, '#ffd27b', 8, 120); sfx('hit');
+  }
+  drawR = lerp(drawR, MAQ_R, 0.1);
+  const vel = Math.hypot(player.vx, player.vy);
+  if (vel > 12) maq.paso += dt*(5 + vel*0.025);
+  // a toda velocidad arrolla a la gente que se cruza
+  if (maq.impulso > 0.55){
+    for (const pool of [civilians, enemies]){
+      for (const t of pool){
+        if (t.dead || t.held || t.thrown || !(t.person || t.kind === 'civ')) continue;
+        if ((t._maqT || 0) > gameTime) continue;
+        if (dist(t.x, t.y, player.x, player.y) > MAQ_R + 16) continue;
+        t._maqT = gameTime + 0.6;
+        porJugador(()=> damageEnemy(t, 30 + 45*maq.impulso, t.x, t.y));
+        if (!t.dead && t.person){
+          const a2 = Math.atan2(t.y - player.y, t.x - player.x);
+          t.stunT = Math.max(t.stunT || 0, 0.9); t.stunVx = Math.cos(a2)*220; t.stunVy = Math.sin(a2)*220;
+        }
+        sfx('hit');
+      }
+    }
+    if (Math.random() < 0.5) addParticles(player.x - player.vx*0.03, player.y + 14, '#ffd27b', 1, 50);
+  }
+  // ---- zona de las motosierras ----
+  if (maq.sierraApunta){
+    maq.sierraA = ap.a;
+    maq.sierraL = clamp(ap.d, MAQ_SIE_MIN, MAQ_SIE_MAX);
+  }
+  maqDisparo(dt, ap);
+}
+
+// ---- dibujo de la máquina ----
+const MAQ_AZUL = { pl:'#2f64c8', plO:'#173a82', plC:'#6f9cf0', ojo:'#ff2a1a', ala:'#ffd84a' };
+function maqPaleta(){
+  const SK = skin();
+  if (!SK || SK.id === 'verde') return MAQ_AZUL;
+  const h = c => /^#[0-9a-f]{6}$/i.test(c) ? c : '#2f64c8';
+  return { pl:h(SK.c[0]), plO:shade(h(SK.c[0]), 0.5), plC:shade(h(SK.c[0]), 1.45), ojo:'#ff2a1a', ala:h(SK.tip) };
+}
+function drawMaquina(){
+  const s = S(player.x, player.y);
+  dibujaMaquina(ctx, s.x, s.y, 1, {
+    t: vil.capa || 0, f: player.facing || 1, a: maq.mirA, arma: maq.arma, paso: maq.paso,
+    vel: Math.hypot(player.vx || 0, player.vy || 0), imp: maq.impulso,
+    sierras: maq.sierraApunta || !!maq.sierraFase, giro: maq.sierraFase === 'giro', salto: maq.sierraFase === 'salto',
+    ret: maq.retroceso, fogon: maq.fogon, carga: maq.incCarga, sob: buffActivo('sobrecarga'), escudo: maq.escudo,
+    intro: !!vil.intro, pal: maqPaleta()
+  });
+}
+function dibujaMaquina(g, x, y, esc, st){
+  const P = st.pal, t = st.t;
+  g.save();
+  g.translate(x, y); g.scale(esc, esc);
+  g.lineCap = 'round'; g.lineJoin = 'round';
+  // sombra
+  g.fillStyle = 'rgba(0,0,0,0.28)';
+  g.beginPath(); g.ellipse(0, 26, 15, 4.5, 0, 0, Math.PI*2); g.fill();
+  // estela de velocidad
+  if (st.imp > 0.35 && st.vel > 60){
+    const al = (st.imp - 0.35)*0.9;
+    g.strokeStyle = st.sob ? '#ff7a3a' : '#8fd7ff'; g.lineWidth = 2;
+    for (let k = 0; k < 4; k++){
+      g.globalAlpha = al*(0.6 - k*0.12);
+      const yy = -20 + k*12 + Math.sin(t*20 + k)*2;
+      g.beginPath(); g.moveTo(-st.f*(12 + k*3), yy); g.lineTo(-st.f*(34 + st.imp*26 + k*6), yy); g.stroke();
+    }
+    g.globalAlpha = 1;
+  }
+  const giro = st.giro ? t*28 : 0;
+  if (st.giro){ g.rotate(Math.sin(giro)*0.18); }
+  const f = st.f;
+  const inclina = clamp(st.imp, 0, 1)*0.28*(st.vel > 40 ? 1 : 0);
+  g.scale(f, 1);
+  g.rotate(inclina);                                        // corre echado hacia delante
+  // alas de refrigeración (V1): tres placas en la espalda, hacia arriba y
+  // atrás, con franjas que brillan más cuanto más impulso lleva
+  const brillo = 0.35 + st.imp*0.65;
+  for (let k = 0; k < 3; k++){
+    g.save();
+    g.translate(-4, -22 + k*2.5);
+    g.rotate(-2.05 - k*0.32 + st.imp*0.18 + Math.sin(t*6 + k)*0.04);
+    const L = 22 - k*3;
+    g.fillStyle = '#1b2029';
+    g.beginPath(); g.moveTo(0, -3); g.lineTo(L, -2.2); g.lineTo(L + 3, 0); g.lineTo(L, 2.4); g.lineTo(0, 3); g.closePath(); g.fill();
+    g.fillStyle = '#4a5260'; g.fillRect(1, -3, L - 2, 1.2);
+    g.globalAlpha = brillo; g.fillStyle = st.sob ? '#ff7a2a' : P.ala;
+    g.fillRect(4, -1, L - 6, 2.2);
+    if (st.imp > 0.5){ g.globalAlpha = (st.imp - 0.5)*0.8; g.fillRect(2, -2.6, L - 2, 5.2); }
+    g.globalAlpha = 1;
+    g.restore();
+  }
+  // piernas: endoesqueleto cromado con pistones
+  const zanc = st.vel > 12 ? Math.sin(st.paso) : 0;
+  const pierna = (lado, fase)=>{
+    const sw = zanc*fase;
+    const kx = lado*3 + sw*7, ky = 12, px2 = lado*3 + sw*11, py2 = 24 - Math.max(0, -sw)*3;
+    g.strokeStyle = '#3a4048'; g.lineWidth = 5.2;
+    g.beginPath(); g.moveTo(lado*3, 5); g.lineTo(kx, ky); g.lineTo(px2, py2); g.stroke();
+    g.strokeStyle = '#c9d2dc'; g.lineWidth = 2.2;
+    g.beginPath(); g.moveTo(lado*3, 5); g.lineTo(kx, ky); g.lineTo(px2, py2); g.stroke();
+    g.fillStyle = '#8b96a3'; g.beginPath(); g.arc(kx, ky, 2.4, 0, Math.PI*2); g.fill();   // rodilla
+    g.fillStyle = '#2a2f36'; g.fillRect(px2 - 3, py2 - 1, 8, 3.2);                          // pie
+  };
+  pierna(-1, -1);
+  // torso: costillas de metal y peto azul
+  g.fillStyle = '#2a2f36'; g.fillRect(-7, -4, 14, 10);                    // cadera
+  g.fillStyle = '#9aa6b2';
+  for (let k = 0; k < 3; k++) g.fillRect(-5, -3 + k*3, 10, 1.3);          // vértebras
+  pierna(1, 1);
+  const gr = g.createLinearGradient(-9, -30, 9, -6);
+  gr.addColorStop(0, P.plC); gr.addColorStop(0.5, P.pl); gr.addColorStop(1, P.plO);
+  g.fillStyle = gr;
+  g.beginPath(); g.moveTo(-9, -28); g.lineTo(9, -28); g.lineTo(8, -8); g.lineTo(0, -4); g.lineTo(-8, -8); g.closePath(); g.fill();
+  g.strokeStyle = '#11151b'; g.lineWidth = 1; g.stroke();
+  g.strokeStyle = 'rgba(255,255,255,0.35)'; g.beginPath(); g.moveTo(-6, -26); g.lineTo(-1, -12); g.stroke();
+  // núcleo del pecho
+  const nucleo = st.sob ? '#ff7a2a' : '#8fe8ff';
+  g.globalAlpha = 0.7 + Math.sin(t*9)*0.2; g.fillStyle = nucleo;
+  g.beginPath(); g.arc(1, -18, 3, 0, Math.PI*2); g.fill(); g.globalAlpha = 1;
+  // cabeza: cráneo cromado de ojos rojos
+  const hy = -36 + (st.vel > 12 ? Math.abs(zanc)*-1 : 0);
+  g.fillStyle = '#b8c3ce';
+  g.beginPath(); g.ellipse(2, hy, 7.2, 7.8, 0, 0, Math.PI*2); g.fill();
+  g.fillStyle = '#e8eef4'; g.beginPath(); g.ellipse(0.5, hy - 3, 3.6, 3, -0.4, 0, Math.PI*2); g.fill();
+  g.fillStyle = '#5c6670'; g.fillRect(-2, hy + 3, 10, 5);                 // mandíbula
+  g.fillStyle = '#e8eef4'; for (let k = 0; k < 4; k++) g.fillRect(-1 + k*2.4, hy + 3.4, 1.4, 2.4);
+  g.fillStyle = '#151a20'; g.beginPath(); g.ellipse(5.2, hy - 0.6, 2.8, 2.2, 0, 0, Math.PI*2); g.fill();
+  const ojoC = st.sob ? '#ffb13a' : P.ojo;
+  g.fillStyle = ojoC; g.beginPath(); g.arc(5.6, hy - 0.6, 1.6, 0, Math.PI*2); g.fill();
+  g.globalAlpha = 0.45; g.beginPath(); g.arc(5.6, hy - 0.6, 3.6, 0, Math.PI*2); g.fill(); g.globalAlpha = 1;
+  // brazos
+  const hx = 2, hyA = -24;                                   // hombro
+  if (st.sierras){
+    // los dos brazos convertidos en motosierras, apuntando hacia delante
+    const barra = (dy2, fase)=>{
+      const ang = st.giro ? giro*0.5 + fase : (st.salto ? -0.5 : 0.12) + Math.sin(t*30 + fase)*0.03;
+      g.save(); g.translate(hx, hyA + dy2); g.rotate(ang);
+      g.fillStyle = '#3a4048'; g.fillRect(0, -3.5, 9, 7);                         // motor
+      g.fillStyle = st.sob ? '#ff7a2a' : '#e0a21a'; g.fillRect(1, -2.5, 6, 5);
+      g.fillStyle = '#cfd6dd'; g.fillRect(8, -2.5, 20, 5);                       // espada
+      g.fillStyle = '#2a2f36';
+      const off = (t*120) % 4;
+      for (let k = 0; k < 6; k++){ g.fillRect(9 + ((k*4 + off) % 20), -3.6, 2, 1.4); g.fillRect(9 + ((k*4 + 2 + off) % 20), 2.2, 2, 1.4); }
+      g.restore();
+    };
+    barra(-2, 0); barra(5, 1.6);
+  } else {
+    // brazo trasero, suelto
+    g.strokeStyle = '#3a4048'; g.lineWidth = 4;
+    g.beginPath(); g.moveTo(-4, hyA); g.lineTo(-7, hyA + 12); g.stroke();
+    g.strokeStyle = '#c9d2dc'; g.lineWidth = 1.6;
+    g.beginPath(); g.moveTo(-4, hyA); g.lineTo(-7, hyA + 12); g.stroke();
+    // brazo del arma, girado hacia la mira (en coordenadas ya volteadas)
+    let a = st.a;
+    let ax = Math.cos(a)*f, ay = Math.sin(a);
+    const aa = Math.atan2(ay, ax) - inclina;
+    g.save(); g.translate(hx, hyA); g.rotate(aa);
+    g.translate(-st.ret*2, 0);
+    g.strokeStyle = '#3a4048'; g.lineWidth = 4.4;
+    g.beginPath(); g.moveTo(0, 0); g.lineTo(10, 2); g.stroke();
+    g.strokeStyle = '#c9d2dc'; g.lineWidth = 1.8;
+    g.beginPath(); g.moveTo(0, 0); g.lineTo(10, 2); g.stroke();
+    if (st.arma === 0){                                            // subfusil
+      g.fillStyle = '#20252c'; g.fillRect(8, -2, 16, 5); g.fillRect(12, 2, 3, 5);
+      g.fillStyle = P.pl; g.fillRect(9, -2.8, 9, 2);
+      g.fillStyle = '#5c6670'; g.fillRect(23, -1, 5, 2.4);
+    } else if (st.arma === 1){                                     // incinerador
+      g.fillStyle = '#3c2a22'; g.fillRect(7, -3.5, 13, 8);
+      g.fillStyle = '#7a4a2a'; g.fillRect(19, -4.5, 8, 10);
+      const cg = st.carga > 0 ? 1 : 0.4 + Math.sin(t*6)*0.2;
+      g.globalAlpha = cg; g.fillStyle = st.sob ? '#ff3a1a' : '#ff8a2b';
+      g.beginPath(); g.arc(27, 0.5, 3.4 + (st.carga > 0 ? Math.random()*2 : 0), 0, Math.PI*2); g.fill();
+      g.globalAlpha = 1;
+    } else {                                                       // lanzacohetes
+      g.fillStyle = '#2a3a2e'; g.fillRect(4, -6, 28, 9);
+      g.fillStyle = '#44584a'; g.fillRect(4, -6, 28, 2.5);
+      g.fillStyle = '#1a1f22'; g.fillRect(30, -6.5, 3, 10);
+      g.fillStyle = '#c33'; g.fillRect(12, -4, 4, 5);
+    }
+    if (st.fogon > 0){                                             // fogonazo
+      g.fillStyle = st.arma === 1 ? '#ff8a2b' : '#ffe07a';
+      g.globalAlpha = 0.9;
+      g.beginPath(); g.moveTo(29, 0); g.lineTo(38 + Math.random()*6, -3); g.lineTo(36, 0.5); g.lineTo(38 + Math.random()*6, 4); g.closePath(); g.fill();
+      g.globalAlpha = 1;
+    }
+    g.restore();
+  }
+  g.restore();
+  // escudo de la sobrecarga
+  if (st.escudo > 0){
+    const k = clamp(st.escudo / MAQ_ESCUDO, 0, 1), p = 0.5 + Math.sin(t*8)*0.2;
+    g.save(); g.translate(x, y - 10*esc); g.scale(esc, esc);
+    g.globalAlpha = 0.14 + k*0.14; g.fillStyle = '#ff9a3a';
+    g.beginPath(); g.ellipse(0, 0, 30, 36, 0, 0, Math.PI*2); g.fill();
+    g.globalAlpha = 0.4 + p*0.4*k; g.strokeStyle = '#ffd08a'; g.lineWidth = 1.6;
+    g.beginPath();
+    for (let i = 0; i < 6; i++){ const a = t*0.8 + i*Math.PI/3; g.lineTo(Math.cos(a)*30, Math.sin(a)*36); }
+    g.closePath(); g.stroke();
+    g.restore();
+  }
+}
+// Zona que va a calcinar el incinerador y área de las motosierras.
+function drawMaquinaAvisos(){
+  if (!isMaq()) return;
+  if (maq.incCarga > 0){
+    const m = maqBoca(maq.incA), s0 = S(m.x, m.y), a = maq.incA, L = maq.incL;
+    const W = MAQ_INC_W*(buffActivo('sobrecarga') ? 1.35 : 1);
+    const nx = -Math.sin(a), ny = Math.cos(a);
+    const fx = s0.x + Math.cos(a)*L, fy = s0.y + Math.sin(a)*L;
+    const p = clamp(1 - maq.incCarga / MAQ_INC_CARGA, 0, 1);
+    ctx.save();
+    ctx.globalAlpha = 0.15 + p*0.25; ctx.fillStyle = '#ff5b2b';
+    ctx.beginPath(); ctx.moveTo(s0.x + nx*W, s0.y + ny*W); ctx.lineTo(fx + nx*W, fy + ny*W);
+    ctx.lineTo(fx - nx*W, fy - ny*W); ctx.lineTo(s0.x - nx*W, s0.y - ny*W); ctx.closePath(); ctx.fill();
+    ctx.globalAlpha = 0.5 + Math.sin(gameTime*26)*0.3; ctx.strokeStyle = '#ffd257'; ctx.lineWidth = 2;
+    ctx.setLineDash([10, 6]); ctx.lineDashOffset = -gameTime*80; ctx.stroke(); ctx.setLineDash([]);
+    ctx.restore();
+  }
+  if (maq.sierraApunta){
+    const s0 = S(player.x, player.y);
+    const ex = player.x + Math.cos(maq.sierraA)*maq.sierraL, ey = player.y + Math.sin(maq.sierraA)*maq.sierraL;
+    const s1 = S(ex, ey), R = MAQ_SIE_R*(buffActivo('sobrecarga') ? 1.3 : 1);
+    const listo = maq.sierraCd <= 0, col = listo ? '#ff3b2b' : '#8a8a8a';
+    ctx.save();
+    ctx.globalAlpha = 0.8; ctx.strokeStyle = col; ctx.lineWidth = 2.5; ctx.setLineDash([8, 7]);
+    ctx.lineDashOffset = -gameTime*70;
+    ctx.beginPath(); ctx.moveTo(s0.x, s0.y); ctx.lineTo(s1.x, s1.y); ctx.stroke(); ctx.setLineDash([]);
+    ctx.globalAlpha = 0.14 + Math.sin(gameTime*10)*0.05; ctx.fillStyle = col;
+    ctx.beginPath(); ctx.ellipse(s1.x, s1.y, R, R*0.6, 0, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 0.75; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.ellipse(s1.x, s1.y, R, R*0.6, 0, 0, Math.PI*2); ctx.stroke();
+    // dientes de sierra alrededor del círculo
+    for (let i = 0; i < 12; i++){
+      const a = gameTime*4 + i*Math.PI/6;
+      const px = s1.x + Math.cos(a)*R, py = s1.y + Math.sin(a)*R*0.6;
+      ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px + Math.cos(a + 1.2)*7, py + Math.sin(a + 1.2)*4.2); ctx.stroke();
+    }
+    ctx.restore();
+  }
+}
+// El haz del incinerador (unas décimas de segundo) y el giro de las sierras.
+function drawMaquinaEfectos(){
+  if (!isMaq()) return;
+  if (maq.rayoT > 0){
+    const k = clamp(maq.rayoT / MAQ_INC_T, 0, 1), o = S(maq.rayoX, maq.rayoY);
+    const d = { x: o.x + Math.cos(maq.rayoA)*maq.rayoL, y: o.y + Math.sin(maq.rayoA)*maq.rayoL };
+    const sob = buffActivo('sobrecarga');
+    ctx.save(); ctx.lineCap = 'round';
+    for (const [w, c, a] of [[30, sob ? '#ff3a1a' : '#ff5a1f', 0.35], [14, '#ffb03a', 0.8], [5, '#fff6d0', 1]]){
+      ctx.globalAlpha = a*k; ctx.strokeStyle = c; ctx.lineWidth = w*(0.7 + k*0.3)*(sob ? 1.3 : 1);
+      ctx.beginPath(); ctx.moveTo(o.x, o.y); ctx.lineTo(d.x, d.y); ctx.stroke();
+    }
+    ctx.restore();
+  }
+  if (maq.sierraFase === 'giro'){
+    const s = S(player.x, player.y), R = MAQ_SIE_R*(buffActivo('sobrecarga') ? 1.3 : 1);
+    ctx.save();
+    ctx.strokeStyle = '#e8eef4'; ctx.lineWidth = 2;
+    for (let i = 0; i < 3; i++){
+      ctx.globalAlpha = 0.5 - i*0.12;
+      const a0 = gameTime*18 + i*2.1;
+      ctx.beginPath(); ctx.ellipse(s.x, s.y - 6, R*(0.55 + i*0.18), R*0.6*(0.55 + i*0.18), 0, a0, a0 + 1.6); ctx.stroke();
+    }
+    ctx.restore();
+  }
+}
+
+// =============== EL MAGO ABERRANTE ===============
+// Hechicero encapuchado que flota despacio, sin tocar el suelo:
+//   clic       -> un rayo cae donde apuntas (mantenido, sigue lanzándolos)
+//   clic der.  -> telequinesis: mantén para levantar varias cosas con la mente
+//                 y suelta para lanzarlas
+//   Z          -> congela todo lo que tiene alrededor
+//   C          -> escudo arcano que para cualquier daño durante unos segundos
+// Todo gasta maná (la barra, que se recupera sola).
+// Regalo del OVNI: poder arcano. Hechizos más fuertes y vistosos, y los
+// policías y soldados que mata vuelven como zombis a luchar a su lado.
+const MAG_HP = 200, MAG_R = 17, MAG_SPEED = 138, MAG_REG = 13;
+const MAG_RAYO_MANA = 7, MAG_RAYO_CD = 0.38, MAG_RAYO_DMG = 78, MAG_RAYO_R = 62, MAG_RAYO_AVISO = 0.3, MAG_RAYO_MAX = 600;
+const MAG_TK_MANA = 4, MAG_TK_USO = 6, MAG_TK_MAX = 4, MAG_TK_R = 120, MAG_TK_ALC = 380, MAG_TK_VEL = 640;
+const MAG_HIELO_MANA = 24, MAG_HIELO_CD = 1.3, MAG_HIELO_R = 200, MAG_HIELO_T = 3.0, MAG_HIELO_DMG = 18;
+const MAG_ESC_MANA = 30, MAG_ESC_T = 4.5, MAG_ESC_CD = 2.0, MAG_ESC_R = 46;
+const mag = { mirA:0, lanzando:false, pulso:false, rayoCd:0, castT:0,
+              tk:[], tkOn:false, tkX:0, tkY:0, tkCd:0, tkPX:0, tkPY:0, tkVX:0, tkVY:0, tkN:0,
+              hieloCd:0, hieloT:0, escudoT:0, escudoCd:0, flota:0 };
+function magReset(){
+  magSueltaTK(true);
+  mag.lanzando = false; mag.pulso = false; mag.rayoCd = 0; mag.castT = 0; mag.tkOn = false; mag.tkCd = 0;
+  mag.hieloCd = 0; mag.hieloT = 0; mag.escudoT = 0; mag.escudoCd = 0; mag.tkN = 0;
+}
+function magArc(){ return buffActivo('arcano'); }
+function magApunta(){ return apuntaHeroe(['rayomag', 'tk'], -8, joyPropio('tk') ? MAG_TK_ALC : MAG_RAYO_MAX, MAG_RAYO_MAX); }
+function magMano(){
+  const f = Math.cos(mag.mirA) >= 0 ? 1 : -1;
+  return { x: player.x + f*14, y: player.y - 28 - Math.sin((vil.capa||0)*2)*3 };
+}
+function sinMana(){ sfx('deny'); toast('SIN MANÁ'); }
+// ---- rayo ----
+function magLanzaRayo(ap){
+  if (mag.rayoCd > 0) return;
+  if (vil.stam < MAG_RAYO_MANA){ if (mag.pulso || !mag.lanzando) sinMana(); mag.pulso = false; return; }
+  mag.pulso = false;
+  const arc = magArc();
+  vil.stam -= MAG_RAYO_MANA;
+  mag.rayoCd = MAG_RAYO_CD*(arc ? 0.65 : 1);
+  mag.castT = 0.25;
+  const d = clamp(ap.d, 40, MAG_RAYO_MAX);
+  const x = clamp(player.x + Math.cos(ap.a)*d, 20, WORLD_W - 20);
+  const y = clamp(player.y - 8 + Math.sin(ap.a)*d, 20, WORLD_H - 20);
+  const R = MAG_RAYO_R*(arc ? 1.4 : 1);
+  proyJ.push({ k:'marca', x, y, t:MAG_RAYO_AVISO, max:MAG_RAYO_AVISO, R, arc: arc ? 1 : 0 });
+  addParticles(magMano().x, magMano().y, arc ? '#8dff6a' : '#c77dff', 6, 90);
+  sfx('conjuro');
+}
+function magImpacto(x, y, arc){
+  const R = MAG_RAYO_R*(arc ? 1.4 : 1), dmg = MAG_RAYO_DMG*(arc ? 1.5 : 1);
+  relampagos.push({ x, y, t:0.35, max:0.35, sem:Math.random()*1000, col: arc ? 2 : 1 });
+  draDanaArea(x, y, R, dmg, 120, 0.9);
+  for (const b of buildings){
+    if (b.stage >= 2) continue;
+    if (x > b.x - 10 && x < b.x + b.w + 10 && y > b.y - 10 && y < b.y + b.h + 10){ porJugador(()=> damageBuilding(b, dmg*0.6)); break; }
+  }
+  // con el poder arcano, el rayo salta a dos enemigos cercanos
+  if (arc){
+    let n = 0;
+    for (const e of enemies){
+      if (n >= 2) break;
+      if (e.dead || e.held || e.thrown || e.pacifico || e.type === 'ovni') continue;
+      const d = dist(e.x, e.y, x, y);
+      if (d < R || d > 260) continue;
+      n++;
+      relampagos.push({ x:e.x, y:e.y - alturaVisible(e), t:0.3, max:0.3, sem:Math.random()*1000, col:2 });
+      porJugador(()=> damageEnemy(e, dmg*0.6, e.x, e.y));
+    }
+  }
+  addParticles(x, y, arc ? '#b8ff9a' : '#e6c8ff', 16, 220);
+  shake(5, 0.12);
+  sfx('trueno');
+}
+// ---- telequinesis ----
+function magTKEmpieza(){
+  if (vil.intro) return;
+  if (vil.stam < MAG_TK_MANA){ sinMana(); return; }
+  vil.stam -= MAG_TK_MANA;
+  mag.tkOn = true; mag.tkCd = 0;
+  const ap = magApunta();
+  const d = clamp(ap.d, 60, MAG_TK_ALC);
+  mag.tkX = player.x + Math.cos(ap.a)*d; mag.tkY = player.y + Math.sin(ap.a)*d;
+  mag.tkPX = mag.tkX; mag.tkPY = mag.tkY; mag.tkVX = 0; mag.tkVY = 0;
+  sfx('telequinesis');
+}
+// ¿Se puede levantar con la mente?
+function tkLevantable(o){
+  if (!o || o.dead || o.held || o.thrown || o.tk || enPresa(o)) return false;
+  if (o.kind) return true;                         // civiles, autos y mobiliario
+  if (o.type === 'ovni' || JEFES[o.type]) return false;
+  if (o.type === 'siege') return magArc();
+  return !!o.grabbable || o.person || o.type === 'tank' || o.type === 'heli' || o.type === 'plane' || o.type === 'mbt' || o.type === 'mbtFrio';
+}
+function magAgarraCerca(){
+  const max = MAG_TK_MAX + (magArc() ? 3 : 0);
+  if (mag.tk.length >= max) return;
+  let mejor = null, md = MAG_TK_R*MAG_TK_R;
+  for (const pool of [enemies, civilians, cars, lamps, trees, trash, benches]){
+    for (const o of pool){
+      if (!tkLevantable(o)) continue;
+      const oy = o.y - (pool === enemies ? alturaVisible(o) : 0);
+      const dx = o.x - mag.tkX, dy = oy - mag.tkY, d2 = dx*dx + dy*dy;
+      if (d2 < md){ md = d2; mejor = o; }
+    }
+  }
+  if (!mejor) return;
+  const g = mejor;
+  if (g.kind === 'lamp' && !g.uprooted){ g.uprooted = true; addParticles(g.x, g.y, '#ffe9a8', 12, 130); }
+  if (g.kind === 'tree' && !g.uprooted){ g.uprooted = true; planters.push({ x:g.x, y:g.y, w:44, h:20 }); addParticles(g.x, g.y, '#6b4a2a', 10, 110); }
+  g.held = true; g.tk = true; g.thrown = false; g.stunT = 0; g.stunVx = 0; g.stunVy = 0; g.byEnemy = false;
+  g.hieloT = 0;
+  if (g.rayoFase){ g.rayoFase = 'espera'; g.rayoT = rand(MBT_ESPERA[0], MBT_ESPERA[1]); }
+  g.tkX = g.x; g.tkY = g.y;
+  mag.tk.push(g);
+  if (dobleInv()){ const r = refDe(g); if (r) enviaAccion({ t:'agarra', r }); }
+  addParticles(g.x, g.y, magArc() ? '#8dff6a' : '#c77dff', 10, 110);
+  sfx('grab');
+}
+// Suelta lo que sostiene: lanzándolo, o dejándolo caer (sin=true).
+function magSueltaTK(sin){
+  if (!mag.tk.length){ mag.tkOn = false; return; }
+  const arc = magArc();
+  // dirección: la del gesto si fue rápido; si no, desde ti hacia el punto
+  let ax = mag.tkX - player.x, ay = mag.tkY - player.y;
+  const rap = Math.hypot(mag.tkVX, mag.tkVY);
+  if (joyPropio('tk') && draJoy.m >= 0.2){ ax = draJoy.dx; ay = draJoy.dy; }
+  else if (rap > 380){ ax = mag.tkVX; ay = mag.tkVY; }
+  const l = Math.hypot(ax, ay) || 1;
+  const vel = sin ? 0 : MAG_TK_VEL*(arc ? 1.25 : 1);
+  for (const o of mag.tk){
+    o.tk = false;
+    if (o.dead){ continue; }
+    o.held = false;
+    if (sin){
+      if (dobleInv()){ const r = refDe(o); if (r) enviaAccion({ t:'suelta', r }); }
+      continue;
+    }
+    o.thrown = true; o.porInv = false; o.tocado = false;
+    o.restan = aguanteLanzado(o); o.golpeados = [];
+    const esp = rand(-0.12, 0.12), c = Math.cos(esp), s2 = Math.sin(esp);
+    const ux = (ax*c - ay*s2)/l, uy = (ax*s2 + ay*c)/l;
+    o.vx = ux*vel; o.vy = uy*vel;
+    o.throwDmg = objThrowDmg(o)*(arc ? 1.4 : 1.1);
+    o.throwLife = 1.5;
+    o.spin = (o.type === 'heli' || o.kind === 'car') ? rand(6, 11)*(Math.random() < 0.5 ? -1 : 1) : 0;
+    o.rot = 0;
+    if (dobleInv()){ const r = refDe(o); if (r) enviaAccion({ t:'lanza', r, x:o.x, y:o.y, vx:o.vx, vy:o.vy, dmg:o.throwDmg, spin:o.spin }); }
+  }
+  if (!sin){ sfx('throw'); shake(5, 0.12); }
+  mag.tk.length = 0; mag.tkOn = false; mag.tkN = 0;
+}
+// ---- hielo ----
+function magHielo(){
+  if (vil.intro || mag.hieloCd > 0) return;
+  const arc = magArc();
+  const coste = MAG_HIELO_MANA*(arc ? 0.8 : 1);
+  if (vil.stam < coste){ sinMana(); return; }
+  vil.stam -= coste;
+  mag.hieloCd = MAG_HIELO_CD; mag.hieloT = 0.6;
+  const R = MAG_HIELO_R*(arc ? 1.4 : 1), dur = MAG_HIELO_T*(arc ? 1.4 : 1), dmg = MAG_HIELO_DMG*(arc ? 2 : 1);
+  const refs = [];
+  for (const pool of [civilians, enemies]){
+    for (const t of pool){
+      if (t.dead || t.held || t.thrown || t.type === 'ovni') continue;
+      if (dist(t.x, t.y, player.x, player.y) > R) continue;
+      porJugador(()=> damageEnemy(t, dmg, t.x, t.y));
+      if (t.dead) continue;
+      if (dobleInv()){ const r = refDe(t); if (r) refs.push(r); }
+      congelaUnidad(t, dur);
+    }
+  }
+  for (const c of cars){
+    if (c.dead || c.held || c.thrown || dist(c.x, c.y, player.x, player.y) > R) continue;
+    congelaUnidad(c, dur);
+    if (dobleInv()){ const r = refDe(c); if (r) refs.push(r); }
+  }
+  if (refs.length) enviaAccion({ t:'hielo', rs: refs.slice(0, 40), d: dur });
+  // las balas que había cerca se congelan y caen
+  for (const b of bullets){
+    if (b.life > 0 && dist(b.x, b.y, player.x, player.y) < R){ b.life = 0; addParticles(b.x, b.y, '#cff4ff', 3, 50); }
+  }
+  windRings.push({ x:player.x, y:player.y, ang:0, r:20, life:0.5, max:0.5 });
+  for (let i = 0; i < 18; i++){
+    const a = i/18*Math.PI*2;
+    addParticles(player.x + Math.cos(a)*R*0.7, player.y + Math.sin(a)*R*0.42, i % 2 ? '#e8fbff' : '#9fe8ff', 2, 70);
+  }
+  shake(6, 0.15);
+  sfx('hielo');
+}
+// ---- escudo ----
+function magEscudo(){
+  if (vil.intro || mag.escudoT > 0 || mag.escudoCd > 0) return;
+  if (vil.stam < MAG_ESC_MANA){ sinMana(); return; }
+  vil.stam -= MAG_ESC_MANA;
+  mag.escudoT = MAG_ESC_T*(magArc() ? 1.45 : 1);
+  sfx('escudoMag');
+}
+function magEscudoR(){ return MAG_ESC_R*(magArc() ? 1.25 : 1); }
+// Las balas que llegan a la burbuja se deshacen.
+function escudoParaBala(b){
+  if (!isMag() || !(mag.escudoT > 0)) return false;
+  if (dist(b.x, b.y, player.x, player.y - 12) > magEscudoR()) return false;
+  runStats.blocks++;
+  addParticles(b.x, b.y, magArc() ? '#b8ff9a' : '#d6b0ff', 6, 90);
+  if (b.blast) explode(b.x, b.y, b.blast, 0, false);
+  return true;
+}
+
+function updateMago(dt){
+  vil.capa += dt;
+  mag.flota = Math.sin(vil.capa*2.1)*4;
+  if (vil.intro){                              // desciende despacio envuelto en humo morado
+    player.vx = 0; player.vy = VIL_INTRO_VEL*0.55;
+    player.y = Math.min(vil.introY, player.y + player.vy*dt);
+    if (Math.random() < 0.6) addParticles(player.x + rand(-14, 14), player.y + rand(-10, 20), '#7a3fb0', 2, 60);
+    if (player.y >= vil.introY - 0.5){
+      player.y = vil.introY; vil.intro = 0; player.vy = 0; vil.flying = false;
+      draDanaArea(player.x, player.y, 130, 40, 200, 0.8);
+      addParticles(player.x, player.y, '#c77dff', 26, 220);
+      windRings.push({ x:player.x, y:player.y, ang:0, r:20, life:0.5, max:0.5 });
+      shake(8, 0.25); sfx('conjuro');
+    }
+    return;
+  }
+  const arc = magArc();
+  mag.rayoCd -= dt; mag.hieloCd -= dt;
+  if (mag.castT > 0) mag.castT -= dt;
+  if (mag.hieloT > 0) mag.hieloT -= dt;
+  if (mag.escudoT > 0){
+    mag.escudoT -= dt;
+    if (mag.escudoT <= 0){ mag.escudoT = 0; mag.escudoCd = MAG_ESC_CD; }
+    // con el poder arcano la burbuja quema a quien la toca
+    if (arc && Math.random() < dt*6){
+      for (const t of enemies){
+        if (t.dead || t.held || t.thrown || dist(t.x, t.y, player.x, player.y) > magEscudoR() + 16) continue;
+        porJugador(()=> damageEnemy(t, 14, t.x, t.y));
+      }
+    }
+  } else if (mag.escudoCd > 0) mag.escudoCd -= dt;
+  const ap = magApunta();
+  mag.mirA = ap.a;
+
+  // ---- flota despacio (no corre ni vuela) ----
+  let dx = 0, dy = 0, m = 1;
+  if (moveJoy.active && !paralizado() && !congelado()){ dx = moveJoy.dx; dy = moveJoy.dy; m = clamp(Math.hypot(dx, dy), 0, 1); }
+  else if (!paralizado() && !congelado()){
+    if (pressed('up'))    dy -= 1;
+    if (pressed('down'))  dy += 1;
+    if (pressed('left'))  dx -= 1;
+    if (pressed('right')) dx += 1;
+  }
+  const len = Math.hypot(dx, dy) || 1;
+  const sp = MAG_SPEED*(arc ? 1.15 : 1)*(mag.tk.length ? 0.8 : 1);
+  player.vx = lerp(player.vx, (dx/len)*sp*m, 0.08);             // se desliza, como sin peso
+  player.vy = lerp(player.vy, (dy/len)*sp*m, 0.08);
+  if (Math.abs(player.vx) > 6) player.facing = player.vx > 0 ? 1 : -1;
+  else if (!dx) player.facing = Math.cos(ap.a) >= 0 ? 1 : -1;
+  player.x = clamp(player.x + player.vx*dt, 30, WORLD_W - 30);
+  player.y = clamp(player.y + player.vy*dt, 30, WORLD_H - 30);
+  collideBuildings(player, MAG_R, dt, 0);
+  drawR = lerp(drawR, MAG_R, 0.1);
+  // maná: se recupera siempre, algo más despacio mientras sostiene cosas
+  vil.stam = Math.min(vil.maxStam, vil.stam + MAG_REG*(arc ? 1.6 : 1)*(mag.tk.length ? 0.2 : 1)*dt);
+
+  // ---- rayos ----
+  if (mag.lanzando || mag.pulso) magLanzaRayo(ap);
+
+  // ---- telequinesis ----
+  if (mag.tkOn){
+    const d = clamp(ap.d, 50, MAG_TK_ALC);
+    const tx = player.x + Math.cos(ap.a)*d, ty = player.y - 8 + Math.sin(ap.a)*d;
+    const px0 = mag.tkX, py0 = mag.tkY;
+    const kk = Math.min(1, dt*14);
+    mag.tkX += (tx - mag.tkX)*kk; mag.tkY += (ty - mag.tkY)*kk;
+    mag.tkVX = lerp(mag.tkVX, (mag.tkX - px0)/Math.max(dt, 0.001), 0.3);
+    mag.tkVY = lerp(mag.tkVY, (mag.tkY - py0)/Math.max(dt, 0.001), 0.3);
+    mag.tkCd -= dt;
+    if (mag.tkCd <= 0){ mag.tkCd = 0.1; magAgarraCerca(); }
+    if (mag.tk.length) vil.stam -= MAG_TK_USO*dt;
+    if (vil.stam <= 0){ vil.stam = 0; magSueltaTK(false); }
+  }
+  // lo sostenido gira alrededor del punto
+  for (let i = mag.tk.length - 1; i >= 0; i--){ if (mag.tk[i].dead){ mag.tk[i].tk = false; mag.tk.splice(i, 1); } }
+  const n = mag.tk.length;
+  mag.tkN = n;
+  for (let i = 0; i < n; i++){
+    const o = mag.tk[i];
+    const a = vil.capa*2.2 + i*Math.PI*2/n, r = n > 1 ? 22 + n*7 : 0;
+    o.tkX = mag.tkX + Math.cos(a)*r; o.tkY = mag.tkY + Math.sin(a)*r*0.6;
+    o.x = o.tkX; o.y = o.tkY;
+    o.rot = Math.sin(vil.capa*3 + i)*0.3;
+  }
+}
+function puntoAgarre(o, tip){
+  if (o.tk) return { x:o.tkX, y:o.tkY };
+  return o.heldInv ? Online.tipInv : tip;
+}
+
+// ---- dibujo del mago ----
+const MAG_TUNICA = { t:'#3b2256', tO:'#1c0f2c', tC:'#6a3f96', borde:'#c9a2ff', ojo:'#d58bff', piel:'#7c8f7a' };
+// Más claro para el emblema y el icono, que van sobre fondos oscuros.
+const MAG_LOGO = { t:'#5a3386', tO:'#2c1846', tC:'#9a68d0', borde:'#e0c8ff', ojo:'#f0b0ff', piel:'#9ab098' };
+function magPaleta(){
+  const SK = skin();
+  if (!SK || SK.id === 'verde') return MAG_TUNICA;
+  const h = c => /^#[0-9a-f]{6}$/i.test(c) ? c : '#3b2256';
+  return { t:h(SK.c[1]), tO:shade(h(SK.c[1]), 0.5), tC:h(SK.c[0]), borde:h(SK.tip), ojo:h(SK.tip), piel:'#7c8f7a' };
+}
+function drawMago(){
+  const s = S(player.x, player.y);
+  dibujaMago(ctx, s.x, s.y, 1, {
+    t: vil.capa || 0, f: player.facing || 1, a: mag.mirA, cast: mag.castT, tk: mag.tkOn || mag.tkN > 0,
+    hielo: mag.hieloT, esc: mag.escudoT, arc: buffActivo('arcano'), intro: !!vil.intro, pal: magPaleta()
+  });
+}
+function dibujaMago(g, x, y, esc, st){
+  const P = st.pal, t = st.t, f = st.f;
+  const arc = st.arc;
+  const aura = arc ? '#8dff6a' : P.borde;
+  const fl = Math.sin(t*2.1)*4;
+  g.save();
+  g.translate(x, y); g.scale(esc, esc);
+  g.lineCap = 'round'; g.lineJoin = 'round';
+  // sombra, pequeña: flota
+  g.fillStyle = 'rgba(0,0,0,0.22)';
+  g.beginPath(); g.ellipse(0, 26, 12 - fl*0.4, 3.5, 0, 0, Math.PI*2); g.fill();
+  g.translate(0, -8 + fl);
+  // runas que orbitan (más y más vivas con el poder arcano)
+  const nr = arc ? 5 : 3;
+  for (let i = 0; i < nr; i++){
+    const a = t*1.4 + i*Math.PI*2/nr, rx = Math.cos(a)*24, ry = Math.sin(a)*9 - 12;
+    if (Math.sin(a) < 0){                       // las de atrás, antes del cuerpo
+      g.globalAlpha = 0.45; g.fillStyle = aura; g.fillRect(rx - 1.5, ry - 1.5, 3, 3); g.globalAlpha = 1;
+    }
+  }
+  g.scale(f, 1);
+  // túnica: acampanada, con jirones que ondean en el borde (no tiene pies)
+  const gr = g.createLinearGradient(0, -30, 0, 26);
+  gr.addColorStop(0, P.tC); gr.addColorStop(0.45, P.t); gr.addColorStop(1, P.tO);
+  g.fillStyle = gr;
+  g.beginPath();
+  g.moveTo(-8, -24);
+  g.quadraticCurveTo(-14, 0, -15, 20);
+  for (let k = 0; k <= 6; k++){                                  // flecos
+    const xx = -15 + k*5, yy = 20 + (k % 2 ? 7 : 2) + Math.sin(t*5 + k)*2.2;
+    g.lineTo(xx, yy);
+  }
+  g.quadraticCurveTo(14, 0, 8, -24);
+  g.closePath(); g.fill();
+  // tentáculos que asoman bajo la túnica (lo "aberrante")
+  g.strokeStyle = P.piel; g.lineWidth = 2.4;
+  for (let k = 0; k < 3; k++){
+    const bx = -7 + k*7, ph = t*3 + k*1.7;
+    g.beginPath(); g.moveTo(bx, 22);
+    g.quadraticCurveTo(bx + Math.sin(ph)*5, 28, bx + Math.sin(ph + 1)*7, 32 + Math.cos(ph)*2);
+    g.stroke();
+  }
+  // borde bordado y cinturón de runas
+  g.strokeStyle = aura; g.globalAlpha = 0.8; g.lineWidth = 1.2;
+  g.beginPath(); g.moveTo(-3, -22); g.lineTo(-4, 18); g.stroke();
+  g.globalAlpha = 1;
+  g.fillStyle = '#231433'; g.fillRect(-11, -4, 22, 3.5);
+  g.fillStyle = aura; for (let k = 0; k < 4; k++) g.fillRect(-8 + k*5, -3.4, 2.2, 2.2);
+  // brazo que conjura, hacia la mira
+  const lanza = st.cast > 0 || st.tk;
+  let ax = Math.cos(st.a)*f, ay = Math.sin(st.a);
+  const aa = lanza ? Math.atan2(ay, ax) : 1.25;
+  g.save(); g.translate(5, -18); g.rotate(aa);
+  g.fillStyle = P.t; g.beginPath(); g.moveTo(0, -3.5); g.lineTo(13, -2.6); g.lineTo(14, 3); g.lineTo(0, 4); g.closePath(); g.fill();
+  g.fillStyle = P.piel; g.beginPath(); g.arc(15, 0, 2.8, 0, Math.PI*2); g.fill();          // mano huesuda
+  g.strokeStyle = P.piel; g.lineWidth = 1.2;
+  for (const k of [-1, 0, 1]){ g.beginPath(); g.moveTo(16, k*1.2); g.lineTo(20, k*2.4); g.stroke(); }
+  if (lanza){
+    g.globalAlpha = 0.55 + Math.sin(t*20)*0.25; g.fillStyle = aura;
+    g.beginPath(); g.arc(20, 0, 4.5 + Math.random()*1.5, 0, Math.PI*2); g.fill(); g.globalAlpha = 1;
+  }
+  g.restore();
+  // capucha puntiaguda, caída hacia atrás, con la cara en sombra
+  g.fillStyle = P.t;
+  g.beginPath();
+  g.moveTo(-10, -22); g.quadraticCurveTo(-12, -40, -2, -46);
+  g.quadraticCurveTo(-8, -54 + Math.sin(t*1.5)*1.5, -16, -52);             // punta, caída
+  g.quadraticCurveTo(-4, -60, 6, -46);
+  g.quadraticCurveTo(12, -38, 10, -22);
+  g.closePath(); g.fill();
+  g.fillStyle = P.tC; g.globalAlpha = 0.6;
+  g.beginPath(); g.moveTo(-6, -44); g.quadraticCurveTo(-2, -50, 5, -45); g.lineTo(3, -44); g.closePath(); g.fill();
+  g.globalAlpha = 1;
+  // hueco de la cara
+  g.fillStyle = '#07040c';
+  g.beginPath(); g.ellipse(2.5, -33, 6, 7.2, 0, 0, Math.PI*2); g.fill();
+  // ojos: tres, desiguales (aberrante), que brillan
+  const ojo = arc ? '#b8ff9a' : P.ojo;
+  g.fillStyle = ojo;
+  for (const [ox, oy, r] of [[4.8, -34.5, 1.5], [0.4, -34, 1.2], [2.8, -30.5, 0.9]]){
+    g.beginPath(); g.arc(ox, oy, r, 0, Math.PI*2); g.fill();
+  }
+  g.globalAlpha = 0.35; g.beginPath(); g.arc(3, -33.5, 6, 0, Math.PI*2); g.fill(); g.globalAlpha = 1;
+  g.restore();
+  // runas de delante
+  g.save(); g.translate(x, y + (-8 + fl)*esc); g.scale(esc, esc);
+  for (let i = 0; i < nr; i++){
+    const a = t*1.4 + i*Math.PI*2/nr, rx = Math.cos(a)*24, ry = Math.sin(a)*9 - 12;
+    if (Math.sin(a) >= 0){ g.globalAlpha = 0.9; g.fillStyle = aura; g.fillRect(rx - 2, ry - 2, 4, 4); }
+  }
+  g.globalAlpha = 1;
+  // onda de hielo
+  if (st.hielo > 0){
+    const k = 1 - st.hielo/0.6, R = MAG_HIELO_R*(arc ? 1.4 : 1)*k;
+    g.globalAlpha = 0.5*(1 - k); g.strokeStyle = '#cff4ff'; g.lineWidth = 4;
+    g.beginPath(); g.ellipse(0, 20, R, R*0.6, 0, 0, Math.PI*2); g.stroke();
+    g.globalAlpha = 0.18*(1 - k); g.fillStyle = '#9fe8ff'; g.fill();
+    g.globalAlpha = 1;
+  }
+  // burbuja del escudo
+  if (st.esc > 0){
+    const R = MAG_ESC_R*(arc ? 1.25 : 1), p = 0.5 + Math.sin(t*6)*0.2;
+    const fin = clamp(st.esc / 0.8, 0, 1);                          // parpadea al acabarse
+    const vis = st.esc < 0.8 ? (Math.sin(t*30) > 0 ? 1 : 0.4) : 1;
+    g.translate(0, -12);
+    g.globalAlpha = (0.14 + p*0.1)*vis; g.fillStyle = aura;
+    g.beginPath(); g.arc(0, 0, R, 0, Math.PI*2); g.fill();
+    g.globalAlpha = (0.55 + p*0.3)*vis*Math.max(0.5, fin); g.strokeStyle = aura; g.lineWidth = 2;
+    g.beginPath(); g.arc(0, 0, R, 0, Math.PI*2); g.stroke();
+    g.lineWidth = 1; g.globalAlpha *= 0.6;
+    for (let i = 0; i < 3; i++){
+      const a0 = t*(1 + i*0.4) + i*2;
+      g.beginPath(); g.arc(0, 0, R - 5 - i*4, a0, a0 + 1.4); g.stroke();
+    }
+    g.globalAlpha = 1;
+  }
+  g.restore();
+}
+// Hilo de energía desde la mano hasta lo que levanta con la mente.
+function drawMagoEfectos(){
+  if (!isMag() || !(mag.tkOn || mag.tkN > 0)) return;
+  const arc = buffActivo('arcano'), col = arc ? '#8dff6a' : '#c77dff';
+  const m = magMano(), s0 = S(m.x, m.y), s1 = S(mag.tkX, mag.tkY);
+  ctx.save();
+  ctx.globalAlpha = 0.35; ctx.strokeStyle = col; ctx.lineWidth = 5;
+  ctx.beginPath(); ctx.moveTo(s0.x, s0.y);
+  const mx = (s0.x + s1.x)/2, my = (s0.y + s1.y)/2 - 20;
+  ctx.quadraticCurveTo(mx, my, s1.x, s1.y); ctx.stroke();
+  ctx.globalAlpha = 0.9; ctx.lineWidth = 1.5; ctx.strokeStyle = '#f2e0ff'; ctx.stroke();
+  const R = 26 + mag.tkN*7;
+  ctx.globalAlpha = 0.25 + Math.sin(gameTime*8)*0.1; ctx.fillStyle = col;
+  ctx.beginPath(); ctx.ellipse(s1.x, s1.y, R, R*0.6, 0, 0, Math.PI*2); ctx.fill();
+  ctx.globalAlpha = 0.7; ctx.strokeStyle = col; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.ellipse(s1.x, s1.y, R, R*0.6, gameTime, 0, Math.PI*1.3); ctx.stroke();
+  ctx.restore();
+}
+
+// ---- zombis (regalo del OVNI del mago) ----
+// Los policías y soldados que mata el mago con el poder arcano se levantan y
+// atacan a sus antiguos compañeros. Nadie les dispara, pero se deshacen al
+// cabo de un rato.
+const ZOMBI_MAX = 10, ZOMBI_VIDA = 26, ZOMBI_VEL = 92, ZOMBI_DMG = 18, ZOMBI_CD = 0.7, ZOMBI_ALC = 28;
+const zombis = [];
+const ZOMBI_TINTE = [ null, { id:'zombi', r:120, g:205, b:105, o:10, modo:'todo' } ];
+function levantaZombi(e){
+  if (zombis.length >= ZOMBI_MAX) zombis.shift();
+  zombis.push({ x:e.x, y:e.y, tipo:e.type, t:ZOMBI_VIDA, sube:0.9, cd:0, facing:e.facing || 1, bob:Math.random()*6 });
+  addParticles(e.x, e.y, '#8dff6a', 10, 80);
+}
+// ¿La baja la ha causado un mago con el poder arcano? (tú o, en Doble
+// Invasión, tu compañero)
+function bajaArcana(){
+  if (culpaJug <= 0) return false;
+  if (Online.culpaInv){ const a = Online.av; return !!(a && a.hero === 'mago' && a.bP === 'arcano' && a.bT > 0); }
+  return isMag() && buffActivo('arcano');
+}
+function updateZombis(dt){
+  for (let i = zombis.length - 1; i >= 0; i--){
+    const z = zombis[i];
+    z.t -= dt; z.bob += dt*6;
+    if (z.t <= 0){ addParticles(z.x, z.y, '#5a7a4a', 12, 90); zombis.splice(i, 1); continue; }
+    if (z.sube > 0){ z.sube -= dt; continue; }
+    z.cd -= dt;
+    // al enemigo de a pie más cercano; si no hay, junto al mago
+    let obj = null, md = 700*700;
+    for (const e of enemies){
+      if (e.dead || e.held || e.thrown || e.pacifico || e.type === 'ovni' || alturaVisible(e) > 0) continue;
+      const d2 = (e.x - z.x)*(e.x - z.x) + (e.y - z.y)*(e.y - z.y);
+      if (d2 < md){ md = d2; obj = e; }
+    }
+    let tx = obj ? obj.x : player.x + (i % 2 ? 50 : -50), ty = obj ? obj.y : player.y + 30;
+    const d = Math.hypot(tx - z.x, ty - z.y);
+    const alc = obj ? ZOMBI_ALC + (obj.w || 26)*0.35 : 40;
+    if (d > alc){
+      const v = ZOMBI_VEL*(obj ? 1 : 1.3);
+      z.x += (tx - z.x)/d*v*dt; z.y += (ty - z.y)/d*v*dt;
+      z.facing = tx > z.x ? 1 : -1;
+      collideBuildings(z, 11, dt, 0);
+    } else if (obj && z.cd <= 0){
+      z.cd = ZOMBI_CD;
+      porJugador(()=> damageEnemy(obj, ZOMBI_DMG*(JEFES[obj.type] ? 0.6 : 1), obj.x, obj.y));
+      addParticles(obj.x, obj.y - 10, '#7a1a1a', 4, 70);
+      if (Math.random() < 0.3) sfx('mordisco');
+    }
+  }
+}
+function drawZombi(z){
+  const s = S(z.x, z.y);
+  const key = z.tipo === 'police' ? 'police' : z.tipo === 'minigun' ? 'minigun' : 'soldier';
+  const dim = z.tipo === 'police' ? { w:35, h:49 } : z.tipo === 'minigun' ? { w:52, h:39 } : { w:52, h:52 };
+  const sube = clamp(1 - z.sube/0.9, 0, 1);
+  const fade = clamp(z.t / 1.5, 0, 1);
+  sombra(s.x, s.y + dim.h*0.32, dim.w*0.9, dim.h*0.36, 0.8);
+  ctx.save();
+  ctx.globalAlpha = fade;
+  if (sube < 1){                                   // sale de la tierra
+    ctx.beginPath(); ctx.rect(s.x - dim.w, s.y - dim.h, dim.w*2, dim.h*0.5 + dim.h*sube); ctx.clip();
+  }
+  const dy = s.y + (1 - sube)*dim.h*0.7 + Math.abs(Math.sin(z.bob))*-2;
+  const tambaleo = Math.sin(z.bob*0.7)*0.12;
+  if (!drawSpriteTint(key, 1, ZOMBI_TINTE, s.x, dy, dim.w, dim.h, z.facing, tambaleo)){
+    ctx.fillStyle = '#5a8a4a'; ctx.fillRect(s.x - dim.w/2, dy - dim.h/2, dim.w, dim.h);
+  }
+  ctx.fillStyle = '#d8ff6a';                        // ojos que brillan
+  ctx.globalAlpha = fade*(0.7 + Math.sin(z.bob)*0.3);
+  ctx.fillRect(s.x + z.facing*3 - 1, dy - dim.h*0.36, 2, 2);
+  ctx.restore();
+}
+
+// Relámpagos: los del dragón son azules; los del mago, morados o, con el
+// poder arcano, verdes.
+const RELAMPAGO_COL = [
+  [[9, '#6fa8ff', 0.35], [3.2, '#e8f4ff', 0.95]],
+  [[9, '#9b4dff', 0.4],  [3.2, '#f2e0ff', 0.95]],
+  [[10, '#5dff4a', 0.4], [3.4, '#eaffdf', 0.95]]
+];
+
+// ---- iconos y emblemas ----
+function iconoHeroe(which){
+  const c = document.createElement('canvas');
+  c.width = c.height = 40;
+  const g = c.getContext('2d');
+  if (which === 'maquina'){
+    dibujaMaquina(g, 21, 32, 0.78, { t:0.4, f:1, a:0, arma:0, paso:0, vel:0, imp:0.8, sierras:false, giro:false,
+      salto:false, ret:0, fogon:0, carga:0, sob:false, escudo:0, intro:false, pal:MAQ_AZUL });
+  } else {
+    dibujaMago(g, 20, 34, 0.66, { t:0.3, f:1, a:0, cast:0, tk:false, hielo:0, esc:0, arc:false, intro:false, pal:MAG_LOGO });
+  }
+  return c.toDataURL();
+}
+// Emblema del menú: el mismo marco de "INVASION" con el nuevo personaje en
+// lugar de la cría, dibujado en baja resolución para que case con el pixel art.
+const logosHeroe = {};
+function logoHeroe(which, base){
+  if (logosHeroe[which] !== undefined) return logosHeroe[which];
+  logosHeroe[which] = '';
+  const img = new Image();
+  img.onload = ()=>{
+    try {
+      const W = img.naturalWidth, H = img.naturalHeight;
+      const c = document.createElement('canvas'); c.width = W; c.height = H;
+      const g = c.getContext('2d');
+      g.drawImage(img, 0, 0);
+      // Tapa a la cría con tierra del propio fondo: se copian trozos de la
+      // esquina de abajo (solo tierra) sobre la zona que ocupa, sin tocar al
+      // soldado. Coordenadas medidas sobre la lámina de 260 px.
+      const k = W/260;
+      g.save();
+      g.beginPath(); g.arc(130*k, 110*k, 99*k, 0, Math.PI*2); g.clip();          // dentro del marco
+      g.beginPath(); g.ellipse(177*k, 67*k, 76*k, 64*k, 0, 0, Math.PI*2); g.clip();
+      g.beginPath(); g.rect(0, 0, W, H); g.rect(122*k, 86*k, 19*k, 44*k);   // menos la mano del soldado
+      g.clip('evenodd');
+      const tx = 150*k, ty = 128*k, tw = 70*k, th = 62*k;   // muestra de tierra con piedras
+      for (let y = 6*k, fy = 0; y < 132*k; y += th, fy++){
+        for (let x = 108*k, fx = 0; x < 250*k; x += tw, fx++){
+          g.save(); g.translate(x + (fx % 2 ? tw : 0), y + (fy % 2 ? th : 0));
+          g.scale(fx % 2 ? -1 : 1, fy % 2 ? -1 : 1);
+          g.drawImage(img, tx, ty, tw, th, 0, 0, tw, th);
+          g.restore();
+        }
+      }
+      g.restore();
+      // las puntas de los tentáculos que pisaban el marco: se tapan con el
+      // marco del lado opuesto, reflejado (el aro es simétrico)
+      g.save();
+      g.beginPath(); g.arc(130*k, 110*k, 122*k, -Math.PI*0.5, 0.05); g.arc(130*k, 110*k, 94*k, 0.05, -Math.PI*0.5, true);
+      g.closePath(); g.clip();
+      g.translate(260*k, 0); g.scale(-1, 1);
+      g.drawImage(img, 0, 0);
+      g.restore();
+      const cx = 178*k, cy = 70*k;
+      // halo del color del personaje detrás de la figura
+      const col = which === 'maquina' ? 'rgba(80,160,255,0.32)' : 'rgba(190,110,255,0.36)';
+      const hg = g.createRadialGradient(cx, cy, 4*k, cx, cy, 55*k);
+      hg.addColorStop(0, col); hg.addColorStop(1, 'rgba(0,0,0,0)');
+      g.fillStyle = hg; g.beginPath(); g.arc(cx, cy, 55*k, 0, Math.PI*2); g.fill();
+      // la figura, a baja resolución y ampliada sin suavizado (pixel art)
+      const pc = document.createElement('canvas'); pc.width = 52; pc.height = 56;
+      const pg = pc.getContext('2d');
+      if (which === 'maquina'){
+        dibujaMaquina(pg, 26, 45, 0.78, { t:0.5, f:-1, a:Math.PI*0.8, arma:0, paso:1.2, vel:120, imp:0.9, sierras:false,
+          giro:false, salto:false, ret:0, fogon:0.1, carga:0, sob:false, escudo:0, intro:false, pal:MAQ_AZUL });
+      } else {
+        dibujaMago(pg, 27, 45, 0.74, { t:0.9, f:-1, a:Math.PI*0.8, cast:1, tk:false, hielo:0, esc:0, arc:false, intro:false, pal:MAG_LOGO });
+      }
+      g.imageSmoothingEnabled = false;
+      const esc = 2*k;
+      g.drawImage(pc, Math.round(cx - 26*esc), Math.round(cy - 30*esc), 52*esc, 56*esc);
+      logosHeroe[which] = c.toDataURL();
+      refreshLogos();
+    } catch(e){}
+  };
+  img.src = base;
+  return '';
 }
 
 // ================= TAMAÑO Y COLOCACIÓN DE LOS MANDOS =================
@@ -8098,6 +9628,14 @@ const UI_PIEZAS = [
   { id:'draAle', el:'btnAleteo',   nombre:'ALETEO', def:{ v:[0.66,0.70], h:[0.80,0.56] } },
   { id:'draRay', el:'btnRayosDra', nombre:'RAYOS',  def:{ v:[0.86,0.42], h:[0.92,0.40] } },
   { id:'draCol', el:'btnCola',     nombre:'COLA',   def:{ v:[0.86,0.79], h:[0.78,0.80] } },
+  // los de la máquina (disparo, arma, motosierras) y los del mago
+  { id:'maqDis', el:'btnDisparo',  nombre:'DISPARO', def:{ v:[0.84,0.62], h:[0.91,0.70] } },
+  { id:'maqArm', el:'btnArma',     nombre:'ARMA',    def:{ v:[0.64,0.74], h:[0.78,0.52] } },
+  { id:'maqSie', el:'btnSierras',  nombre:'SIERRAS', def:{ v:[0.84,0.82], h:[0.78,0.84] } },
+  { id:'magRay', el:'btnRayoMag',  nombre:'RAYO',    def:{ v:[0.84,0.62], h:[0.91,0.70] } },
+  { id:'magTK',  el:'btnTK',       nombre:'MENTE',   def:{ v:[0.84,0.42], h:[0.92,0.42] } },
+  { id:'magHie', el:'btnHielo',    nombre:'HIELO',   def:{ v:[0.64,0.72], h:[0.78,0.56] } },
+  { id:'magEsc', el:'btnEscudoMag',nombre:'ESCUDO',  def:{ v:[0.84,0.82], h:[0.78,0.84] } },
   // en vertical, un poco más arriba: en un móvil estrecho no caben joystick y
   // botones a la misma altura y el joystick pisaba el botón ◀
   { id:'p2joy', el:'p2JoyBase',  nombre:'MANDO J2', def:{ v:[0.16,0.79], h:[0.10,0.80] } },
@@ -8119,7 +9657,7 @@ function uiModo(){
   if (Online.activo && Online.modo === 'vs') return Online.rol === 'invitado' ? 'ej' : 'invasion';
   return 'vs';
 }
-let uiCfg = { alien: uiVacio(), viltrum: uiVacio(), dragon: uiVacio() };
+let uiCfg = { alien: uiVacio(), viltrum: uiVacio(), dragon: uiVacio(), maquina: uiVacio(), mago: uiVacio() };
 function uiFor(h){
   const k = normHeroe(h);
   // Red de seguridad: un guardado dañado no debe tumbar la interfaz.
@@ -8167,6 +9705,8 @@ async function loadUICfg(){
       mezclaUI(uiCfg.alien,   p.alien);
       mezclaUI(uiCfg.viltrum, p.viltrum);
       mezclaUI(uiCfg.dragon,  p.dragon);
+      mezclaUI(uiCfg.maquina, p.maquina);
+      mezclaUI(uiCfg.mago,    p.mago);
     } else {                                   // guardado antiguo: vale para los dos
       mezclaUI(uiCfg.alien,   p);
       mezclaUI(uiCfg.viltrum, JSON.parse(JSON.stringify(p)));
@@ -8188,9 +9728,11 @@ function uiPos(id, quien, modo){
 // solo tiene sentido en el duelo.
 function piezasDe(h, modo){
   return UI_PIEZAS.filter(p => {
-    if (p.id === 'act')   return modo !== 'ej';          // el ejército no maneja al invasor
+    if (p.id === 'act')   return modo !== 'ej' && h !== 'maquina' && h !== 'mago';   // ellos usan los suyos
     if (p.id === 'punch') return modo !== 'ej' && h === 'viltrum';
     if (p.id.startsWith('dra')) return modo !== 'ej' && h === 'dragon';
+    if (p.id.startsWith('maq')) return modo !== 'ej' && h === 'maquina';
+    if (p.id.startsWith('mag')) return modo !== 'ej' && h === 'mago';
     if (p.id === 'p2cam') return modo === 'ej';
     if (p.id.startsWith('p2')) return modo === 'vs' || modo === 'ej';
     return true;
@@ -8352,6 +9894,7 @@ const ACT_LONG_MS = 330;
 let actTimer = null, actLongFired = false;
 
 function actionPressStart(){
+  if (isMaq() || isMag()) return;                 // tienen sus propios botones
   if (isDra()){ const b = document.getElementById('btnAction'); if (b) b.classList.add('pressed'); return; }
   actLongFired = false;
   clearTimeout(actTimer);
@@ -8368,6 +9911,7 @@ function actionPressStart(){
 }
 function actionPressEnd(conDedo){
   clearTimeout(actTimer);
+  if (isMaq() || isMag()) return;
   const btn = document.getElementById('btnAction');
   if (btn){ btn.classList.remove('pressed'); btn.classList.remove('charging'); }
   if (isDra()){
@@ -8420,8 +9964,9 @@ function soltarDraJoy(){
   if (draJoyBase) hideJoy(draJoyBase, draJoyKnob);
 }
 // Un botón que, al mantenerlo, se convierte en joystick centrado en él.
-function joystickBoton(id, tipo, alEmpezar, alSoltar){
+function joystickBoton(id, tipo, alEmpezar, alSoltar, suyo){
   const b = document.getElementById(id); if (!b) return;
+  const esSuyo = suyo || isDra;
   const mover = (x, y)=>{
     let dx = (x - draJoy.cx) / JOY_R, dy = (y - draJoy.cy) / JOY_R;
     const m = Math.hypot(dx, dy); if (m > 1){ dx /= m; dy /= m; }
@@ -8429,7 +9974,7 @@ function joystickBoton(id, tipo, alEmpezar, alSoltar){
     if (draJoyKnob) knob(draJoyKnob, dx, dy);
   };
   const empieza = (x, y, idToque)=>{
-    if (!isDra() || !running || draJoy.tipo) return false;
+    if (!esSuyo() || !running || draJoy.tipo) return false;
     const r = b.getBoundingClientRect();
     draJoy.tipo = tipo; draJoy.id = idToque;
     draJoy.cx = r.left + r.width/2; draJoy.cy = r.top + r.height/2;
@@ -8441,7 +9986,7 @@ function joystickBoton(id, tipo, alEmpezar, alSoltar){
   const acaba = (cancelado)=>{
     if (draJoy.tipo !== tipo) return;
     soltarDraJoy();
-    if (isDra()) alSoltar(!!cancelado || !running);
+    if (esSuyo()) alSoltar(!!cancelado || !running);
   };
   b.addEventListener('touchstart', e=>{
     e.preventDefault(); e.stopPropagation();
@@ -8467,6 +10012,31 @@ function joystickBoton(id, tipo, alEmpezar, alSoltar){
   });
 }
 bindDragonBtns();
+
+// Botones de la máquina y del mago: los de apuntar son joysticks, como los
+// del dragón; con un toque sin arrastrar apuntan solos a lo más cercano.
+function bindHeroesBtns(){
+  const toca = (id, quien, fn)=>{
+    const b = document.getElementById(id); if (!b) return;
+    const abajo = e=>{ e.preventDefault(); e.stopPropagation(); if (quien() && running) fn(); };
+    b.addEventListener('touchstart', abajo, {passive:false});
+    b.addEventListener('mousedown', abajo);
+  };
+  joystickBoton('btnDisparo', 'disparo', ()=>{ if (!vil.intro){ maq.gatillo = true; maq.pulso = true; } },
+                ()=>{ maq.gatillo = false; }, isMaq);
+  toca('btnArma', isMaq, maqCambiaArma);
+  joystickBoton('btnSierras', 'sierra', ()=> maqSierraApunta(), (cancelado)=>{
+    if (cancelado) maq.sierraApunta = false; else maqSierraSuelta();
+  }, isMaq);
+  joystickBoton('btnRayoMag', 'rayomag', ()=>{ if (!vil.intro){ mag.lanzando = true; mag.pulso = true; } },
+                ()=>{ mag.lanzando = false; }, isMag);
+  joystickBoton('btnTK', 'tk', ()=> magTKEmpieza(), (cancelado)=>{
+    if (mag.tkOn) magSueltaTK(!!cancelado);
+  }, isMag);
+  toca('btnHielo', isMag, magHielo);
+  toca('btnEscudoMag', isMag, magEscudo);
+}
+bindHeroesBtns();
 
 // Botón de golpe del viltrumita: toque = puñetazo, mantenido = golpe cargado.
 function bindPunchBtn(){
@@ -8560,9 +10130,23 @@ function refreshActionBtn(){
   // botón de acción sigue mordiendo
   const apaga = dragon && dra.rayos && draJoy.tipo !== 'rayo';
   const sig = (holding ? 'h' : 'e') + (dragon ? (apaga ? 'R' : 'D') : '') + (dragon && dra.colaApunta ? 'C' : '')
-            + (dragon && dra.rayos ? 'r' : '');
+            + (dragon && dra.rayos ? 'r' : '')
+            + (isMaq() ? 'M' + maq.arma + (maq.gatillo ? 'g' : '') + (maq.sierraApunta ? 's' : '') : '')
+            + (isMag() ? 'W' + (mag.lanzando ? 'l' : '') + (mag.tkOn ? 't' : '') + (mag.escudoT > 0 ? 'e' : '') : '');
   if (sig === actSig) return;
   actSig = sig;
+  if (isMaq()){
+    const l = document.getElementById('maqArmaLbl'); if (l) l.textContent = MAQ_ARMAS[maq.arma];
+    const bd = document.getElementById('btnDisparo'); if (bd) bd.classList.toggle('on', maq.gatillo);
+    const bs = document.getElementById('btnSierras'); if (bs) bs.classList.toggle('charging', maq.sierraApunta);
+    return;
+  }
+  if (isMag()){
+    const br = document.getElementById('btnRayoMag'); if (br) br.classList.toggle('on', mag.lanzando);
+    const bt = document.getElementById('btnTK'); if (bt) bt.classList.toggle('on', mag.tkOn);
+    const be = document.getElementById('btnEscudoMag'); if (be) be.classList.toggle('on', mag.escudoT > 0);
+    return;
+  }
   const lab = document.getElementById('actlabel');
   const hint = document.getElementById('acthint');
   const btn = document.getElementById('btnAction');
@@ -8607,6 +10191,10 @@ function tentacleTip(){
     const av = aimVector();
     return { x:p.x, y:p.y, angle:Math.atan2(av.dy, av.dx), reach:VIL_ARM };
   }
+  // La máquina no agarra nada (la punta es la boca del arma) y el mago
+  // sostiene con la mente: su "punta" es el centro de la telequinesis.
+  if (isMaq()){ const m = maqBoca(maq.mirA); return { x:m.x, y:m.y, angle:maq.mirA, reach:30 }; }
+  if (isMag()){ return { x:mag.tkX || player.x, y:mag.tkY || player.y, angle:mag.mirA, reach:MAG_TK_ALC }; }
   const av = aimVector(), rd = av.mag * F().reach, ang = Math.atan2(av.dy, av.dx);
   return { x: player.x + Math.cos(ang)*rd, y: player.y + Math.sin(ang)*rd, angle:ang, reach:rd };
 }
@@ -8814,6 +10402,8 @@ function onGrab(){
   if (Online.caidoYo && esDoble()) return;
   if (isVil()) return vilGrab();
   if (isDra()) return draMordisco();
+  if (isMaq()){ if (!vil.intro) maq.pulso = true; return; }        // E: una ráfaga o un disparo
+  if (isMag()){ if (!vil.intro) mag.pulso = true; return; }        // E: un rayo
   const tip = tentacleTip(), R = F().grab;
 
   if (!heldObject){
@@ -8875,6 +10465,8 @@ function onGrab(){
 }
 
 function onThrow(){
+  if (running && isMaq()){ maqCambiaArma(); return; }             // Q: cambia de arma
+  if (running && isMag()){ if (mag.tk.length) magSueltaTK(false); return; }   // Q: lanza lo que sostiene
   if (!running || !heldObject) return;
   if (Online.caidoYo && esDoble()) return;
   const tip = tentacleTip(), o = heldObject.ref, ang = tip.angle;
@@ -9106,6 +10698,8 @@ function updatePlayer(dt){
   if (Online.caidoYo && esDoble()) return;
   if (isVil()) return updateViltrum(dt);
   if (isDra()) return updateDragon(dt);
+  if (isMaq()) return updateMaquina(dt);
+  if (isMag()) return updateMago(dt);
   let dx=0, dy=0, mag=1;
   if (moveJoy.active){
     dx = moveJoy.dx; dy = moveJoy.dy; mag = clamp(Math.hypot(dx,dy),0,1);
@@ -9589,9 +11183,10 @@ function updateCivilians(dt){
   const tip = tentacleTip();
   for (const c of civilians){
     if (c.dead) continue;
-    if (c.held){ { const pt = c.heldInv ? Online.tipInv : tip; c.x = pt.x; c.y = pt.y; } continue; }
+    if (c.held){ { const pt = puntoAgarre(c, tip); c.x = pt.x; c.y = pt.y; } continue; }
     if (c.thrown) continue;
     if (enPresa(c)) continue;                    // en el tentáculo de un trípode
+    if (c.hieloT > 0) continue;                  // congelado por el mago
     const dP = dist(c.x,c.y,player.x,player.y);
     if (dP < 280){
       const a = Math.atan2(c.y-player.y, c.x-player.x);
@@ -9611,9 +11206,10 @@ function updateCars(dt){
   const tip = tentacleTip();
   for (const c of cars){
     if (c.dead) continue;
-    if (c.held){ { const pt = c.heldInv ? Online.tipInv : tip; c.x = pt.x; c.y = pt.y; } continue; }
+    if (c.held){ { const pt = puntoAgarre(c, tip); c.x = pt.x; c.y = pt.y; } continue; }
     if (c.thrown) continue;
     if (enPresa(c)) continue;                    // en el tentáculo de un trípode
+    if (c.hieloT > 0) continue;                  // congelado por el mago
     if (isWreck(c)){
       c.vx = 0; c.vy = 0;
       // Chatarra abandonada en plena calzada: echa humo y acaba estallando.
@@ -9659,24 +11255,24 @@ function updateTrees(dt){
   const tip = tentacleTip();
   for (const t of trees){
     if (t.dead || t.thrown) continue;
-    if (t.held){ { const pt = t.heldInv ? Online.tipInv : tip; t.x = pt.x; t.y = pt.y; } }
+    if (t.held){ { const pt = puntoAgarre(t, tip); t.x = pt.x; t.y = pt.y; } }
   }
   runStats.trees += trees.reduce((n,t)=>n+(t.dead?1:0),0);
   trees = trees.filter(t=>!t.dead);
   for (const l of lamps){
     if (l.dead || l.thrown) continue;
-    if (l.held){ { const pt = l.heldInv ? Online.tipInv : tip; l.x = pt.x; l.y = pt.y; } }
+    if (l.held){ { const pt = puntoAgarre(l, tip); l.x = pt.x; l.y = pt.y; } }
   }
   runStats.lamps += lamps.reduce((n,l)=>n+(l.dead?1:0),0);
   lamps = lamps.filter(l=>!l.dead);
   for (const b of trash){
     if (b.dead || b.thrown) continue;
-    if (b.held){ { const pt = b.heldInv ? Online.tipInv : tip; b.x = pt.x; b.y = pt.y; } }
+    if (b.held){ { const pt = puntoAgarre(b, tip); b.x = pt.x; b.y = pt.y; } }
   }
   trash = trash.filter(b=>!b.dead);
   for (const b of benches){
     if (b.dead || b.thrown) continue;
-    if (b.held){ { const pt = b.heldInv ? Online.tipInv : tip; b.x = pt.x; b.y = pt.y; } }
+    if (b.held){ { const pt = puntoAgarre(b, tip); b.x = pt.x; b.y = pt.y; } }
   }
   benches = benches.filter(b=>!b.dead);
 }
@@ -9879,7 +11475,7 @@ function updateEnemies(dt){
   const tip = tentacleTip();
   for (const e of enemies){
     if (e.dead) continue;
-    if (e.held){ { const pt = e.heldInv ? Online.tipInv : tip; e.x = pt.x; e.y = pt.y; } continue; }
+    if (e.held){ { const pt = puntoAgarre(e, tip); e.x = pt.x; e.y = pt.y; } continue; }
     if (e.thrown) continue;
     if (enPresa(e)) continue;                    // en el tentáculo de un trípode
 
@@ -10100,6 +11696,7 @@ function updateBullets(dt){
       continue;
     }
     if (hr && !heldObject) hr = null;
+    if (!b.artillery && escudoParaBala(b)){ b.life = 0; continue; }
     // standing buildings stop bullets too
     let blocked = false;
     if (!b.artillery && !b.pierce) for (const bl of buildings){
@@ -10738,6 +12335,14 @@ function lucesJefes(L, k, mx, Mx, my, My, tinta){
     }
   }
   for (const f of fuegos) luz(f.x, f.y, f.r*1.7, luzFuego, clamp(f.t / f.max, 0, 1)*(0.8 + Math.random()*0.2));
+  // la máquina y el mago: fogonazos, cohetes, el haz, la burbuja y los rayos
+  for (const p of proyJ) if (p.k === 'cohete') luz(p.x, p.y, 60, luzFuego, 0.8);
+  if (isMaq()){
+    if (maq.rayoT > 0){ const a = maq.rayoA; for (const f of [0.3, 0.65, 1]) luz(maq.rayoX + Math.cos(a)*maq.rayoL*f, maq.rayoY + Math.sin(a)*maq.rayoL*f, 110, luzFuego, 0.9); }
+    if (maq.fogon > 0) luz(player.x + Math.cos(maq.mirA)*26, player.y - 16, 50, luzFuego, 0.7);
+  }
+  if (isMag() && mag.escudoT > 0) luz(player.x, player.y - 12, 90, luzAzul, 0.7);
+  for (const r of relampagos) luz(r.x, r.y, 130, luzBlanca, clamp(r.t / r.max, 0, 1));
   for (const b of booms){
     if (b.ring) continue;
     const a = clamp(b.life / b.maxlife, 0, 1);
@@ -11248,7 +12853,8 @@ function hpBar(x,y,w,cur,max,color){
   ctx.fillStyle=color;  ctx.fillRect(x-w/2, y, w*clamp(cur/max,0,1), 4);
 }
 
-function drawCivilian(c){
+function drawCivilian(c){ drawCivilianBase(c); if (c.hieloT > 0) drawHieloSobre(c); }
+function drawCivilianBase(c){
   const s = S(c.x,c.y);
   const piel = c.piel || '#e8c39e';
   const pelo = c.pelo || '#2b1d12';
@@ -11295,7 +12901,8 @@ function drawCivilian(c){
   hpBar(s.x, s.y-24, 24, c.hp, c.maxhp, '#e33');
 }
 
-function drawCar(c){
+function drawCar(c){ drawCarBase(c); if (c.hieloT > 0) drawHieloSobre(c); }
+function drawCarBase(c){
   const s = S(c.x,c.y);
   // En una calle vertical el coche se gira para ir de morro hacia donde
   // circula. El sprite es de perfil, así que basta un cuarto de vuelta: hacia
@@ -11328,7 +12935,9 @@ function drawCar(c){
   }
 }
 
-function drawEnemy(e){
+// Encima de cualquier unidad congelada, su bloque de hielo.
+function drawEnemy(e){ drawEnemyBase(e); if (e.hieloT > 0) drawHieloSobre(e); }
+function drawEnemyBase(e){
   const s = S(e.x, e.y);
   // El Omnidroide se pinta entero por código: sale antes de la sombra y del
   // relleno genérico, que al no encontrar sprite dibujaba un cuadro detrás.
@@ -11351,7 +12960,7 @@ function drawEnemy(e){
   if (e.type==='police' || e.type==='military' || e.type==='minigun'){
     const grabbed = e.held;                     // en el tentáculo: patalea y grita
     const flying  = e.thrown;                   // volando tras el lanzamiento
-    const stunned = !grabbed && !flying && e.stunT > 0;   // derribado en el suelo
+    const stunned = !grabbed && !flying && e.stunT > 0 && !(e.hieloT > 0);   // derribado (congelado, de pie)
     const pol = e.type==='police', mg = e.type==='minigun';
     const key = grabbed ? (mg ? 'grabMg' : pol ? 'grabPol' : 'grabMil')
               : flying  ? (mg ? 'heldMg' : pol ? 'heldPol' : 'heldMil')
@@ -11369,7 +12978,7 @@ function drawEnemy(e){
       ctx.fillStyle = e.type==='police' ? '#3b5c9e' : '#5a6a3a';
       ctx.fillRect(s.x-dim.w/2, dy-dim.h/2, dim.w, dim.h);
     }
-    if (e.stunT > 0) drawStun(s.x, dy - dim.h*0.62 - (stunned ? 10 : 0), e.stunT);
+    if (e.stunT > 0 && !(e.hieloT > 0)) drawStun(s.x, dy - dim.h*0.62 - (stunned ? 10 : 0), e.stunT);
   } else {
     if (e.type === 'superx'){
       // La sombra ya la pinta el dibujado general para todo lo que vuela:
@@ -11418,6 +13027,8 @@ function drawEnemy(e){
 function drawPlayer(){
   if (isVil()) return drawViltrum();
   if (isDra()) return drawDragon();
+  if (isMaq()) return drawMaquina();
+  if (isMag()) return drawMago();
   const s = S(player.x, player.y);
   const tip = tentacleTip(), t = S(tip.x, tip.y);
   const R = drawR, f = F(), SK = skin();
@@ -11657,7 +13268,7 @@ function draw(){
   drawBuildings(); drawPlanters(); drawLamps();
   // Las zonas marcadas del Artillero van DESPUÉS de los edificios: si no, los
   // escombros las tapaban justo donde más falta hace verlas.
-  drawFuegos(); drawArtAvisos(); drawTriAvisos(); drawDragonAvisos(); drawMbtRayos();
+  drawFuegos(); drawArtAvisos(); drawTriAvisos(); drawDragonAvisos(); drawMaquinaAvisos(); drawMbtRayos();
 
   // Solo se encolan los objetos visibles: con ~200 props fuera de pantalla,
   // esto evita cientos de entradas y llamadas de dibujo por fotograma.
@@ -11688,6 +13299,7 @@ function draw(){
     const vuela = (e.type==='heli'||e.type==='gunship'||e.type==='plane');
     dlPush(vuela ? e.y+900 : e.y + (e.h||34)*0.32, 6, e);
   }
+  for (const z of zombis) if (vis(z)) dlPush(z.y + 10, 9, z);
   dlPush(player.y + F().r*0.5, 7, null);      // el alien, también por los pies
   if (esDoble()){ const cp = datosCompanero(); if (cp && cp.pl) dlPush(cp.pl.y + 12, 8, null); }
 
@@ -11706,6 +13318,7 @@ function draw(){
       case 5: drawLampProp(d.o); break;
       case 6: drawEnemy(d.o); break;
       case 8: dibujaCompanero(); break;
+      case 9: drawZombi(d.o); break;
       default:
         if (esDoble() && Online.caidoYo){ const a0 = ctx.globalAlpha; ctx.globalAlpha = 0.35; drawPlayer(); ctx.globalAlpha = a0; }
         else drawPlayer();
@@ -11713,7 +13326,10 @@ function draw(){
     }
   }
 
-  drawBullets(); drawTriRayos(); drawDragonRayos(); drawRelampagos(); drawHumos(); drawSonic(); drawWind(); drawRayosOjos(); drawFX(); drawAura(); drawP2Cursor();
+  drawBullets(); drawTriRayos(); drawDragonRayos(); drawProyJ(proyJ); drawProyJ(proyRed);
+  if (dobleAnf() && Online.av && Online.av.pj) drawProyJ(Online.av.pj);
+  drawMaquinaEfectos(); drawMagoEfectos();
+  drawRelampagos(); drawHumos(); drawSonic(); drawWind(); drawRayosOjos(); drawFX(); drawAura(); drawP2Cursor();
   ctx.restore();
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   drawLighting();                                  // en píxeles del lienzo
@@ -11737,7 +13353,10 @@ function cleanName(n){
   return String(n||'').trim().replace(/[ \t]+/g,' ').slice(0,14).toUpperCase();
 }
 
-function scoreKey(){ return isVil() ? 'invasion_scores_vil' : isDra() ? 'invasion_scores_dra' : 'invasion_scores'; }
+function scoreKey(){
+  return isVil() ? 'invasion_scores_vil' : isDra() ? 'invasion_scores_dra'
+       : isMaq() ? 'invasion_scores_maq' : isMag() ? 'invasion_scores_mag' : 'invasion_scores';
+}
 async function loadScores(){
   const v = await storeGet(scoreKey());
   try { return v ? (JSON.parse(v) || []) : []; } catch(e){ return []; }
@@ -11948,11 +13567,12 @@ function loop(t){
     updateViento(dt); updateBuff(dt); updateOvniSpawn(dt); updateRayosOjos(dt); updateAura(dt);
     // Mientras cae en la entrada nada puede tocarle: se anota la vida antes
     // y se restaura después, en vez de parchear las cinco vías de daño.
-    const vidaIntro = ((isVil() || isDra()) && vil.intro) ? hp : -1;
-    updatePlayer(dt); updateCivilians(dt); updateCars(dt); updateTrees(dt); updateRam(dt); updateThrown(dt);
+    const vidaIntro = (usaVil() && vil.intro) ? hp : -1;
+    updatePlayer(dt); updateProyJ(dt); updateCongelados(dt);
+    updateCivilians(dt); updateCars(dt); updateTrees(dt); updateRam(dt); updateThrown(dt);
     Online.culpaInv = false;
     updateVS(dt);
-    updateEnemiesDoble(dt); updateBullets(dt); updateFX(dt); updateSpawns(dt);
+    updateEnemiesDoble(dt); updateZombis(dt); updateBullets(dt); updateFX(dt); updateSpawns(dt);
     if (shakeTime>0){ shakeTime-=dt; if (shakeTime<=0) shakeMag=0; }
 
     if (vidaIntro >= 0) hp = vidaIntro;      // intocable mientras aterriza
@@ -11994,10 +13614,14 @@ function pctCss(f){ return (Math.round(clamp(f, 0, 1)*1000)/10) + '%'; }
 // Marcador, reloj, panel del J2… Lo usan el anfitrión y el invitado.
 function pintaHUD(){
     hudCss('hpfill', 'width', pctCss(hp/maxHp()));
-    if (isVil() || isDra()){
-      hudTxt('formname', heroName(hero));
+    if (usaVil()){
+      hudTxt('formname', isMaq() ? 'MÁQUINA' : isMag() ? 'MAGO' : heroName(hero));   // corto: cabe en el móvil
       hudCss('stamwrap', 'display', '');
-      hudCss('stamfill', 'width', pctCss(vil.stam/vil.maxStam));
+      // la máquina muestra su impulso; el mago, su maná; los demás, estamina
+      hudCss('stamfill', 'width', pctCss(isMaq() ? maq.impulso : vil.stam/vil.maxStam));
+      hudCss('stamfill', 'background', isMaq() ? 'linear-gradient(90deg,#ff8a2b,#ffd84a)'
+                                     : isMag() ? 'linear-gradient(90deg,#7a3fb0,#d6a8ff)'
+                                     : 'linear-gradient(90deg,#3aa7ff,#9fd6ff)');
       hudCss('evofill', 'width', '0%');
       hudCss('evowrap', 'display', 'none');        // sin barra de evolución
     } else {
@@ -12067,6 +13691,8 @@ function startGame(mode){
   ab.classList.add('playing');
   ab.classList.toggle('vil', isVil());          // el botón de golpe solo con el viltrumita
   ab.classList.toggle('dra', isDra());          // y los tres del dragón, solo con él
+  ab.classList.toggle('maq', isMaq());
+  ab.classList.toggle('mag', isMag());
   const p2t = document.getElementById('p2touch');
   if (p2t) p2t.classList.toggle('playing', gameMode === 'vs');
   try { document.body.classList.toggle('duelo', gameMode === 'vs'); } catch(e){}
@@ -12484,6 +14110,9 @@ function uiEdRender(){
   if (bv2) bv2.classList.toggle('off', uiEdHero !== 'viltrum');
   const bd = document.getElementById('uiEdDra');
   if (bd) bd.classList.toggle('off', uiEdHero !== 'dragon');
+  for (const [id, v] of [['uiEdMaq', 'maquina'], ['uiEdMag', 'mago']]){
+    const b = document.getElementById(id); if (b) b.classList.toggle('off', uiEdHero !== v);
+  }
   const bi = document.getElementById('uiEdInv'), bvs = document.getElementById('uiEdVs');
   const bej = document.getElementById('uiEdEj');
   if (bi)  bi.classList.toggle('off',  uiEdModo !== 'invasion');
@@ -12585,6 +14214,10 @@ function refreshVilHelp(){
   if (h) h.style.display = isVil() ? '' : 'none';
   const hd = document.getElementById('drahelp');
   if (hd) hd.style.display = isDra() ? '' : 'none';
+  const hq = document.getElementById('maqhelp');
+  if (hq) hq.style.display = isMaq() ? '' : 'none';
+  const hm = document.getElementById('maghelp');
+  if (hm) hm.style.display = isMag() ? '' : 'none';
 }
 function refreshHpUI(){
   const b = document.getElementById('tgHp');
@@ -12664,6 +14297,10 @@ const _edVil = document.getElementById('uiEdVil');
 if (_edVil) _edVil.addEventListener('click', ()=>{ uiEdHero='viltrum'; uiEdRender(); sfx('ui'); });
 const _edDra = document.getElementById('uiEdDra');
 if (_edDra) _edDra.addEventListener('click', ()=>{ uiEdHero='dragon'; uiEdRender(); sfx('ui'); });
+for (const [id, v] of [['uiEdMaq', 'maquina'], ['uiEdMag', 'mago']]){
+  const b = document.getElementById(id);
+  if (b) b.addEventListener('click', ()=>{ uiEdHero = v; uiEdRender(); sfx('ui'); });
+}
 const _tgFull = document.getElementById('tgFull');
 if (_tgFull) _tgFull.addEventListener('click', ()=>{ alternarPantallaCompleta(); sfx('ui'); });
 document.addEventListener('fullscreenchange', ()=>{ resize(); refreshFullUI(); });
@@ -12804,7 +14441,35 @@ function refreshModeText(){
     descInvOrig = d.innerHTML; descVsOrig = v.innerHTML;
   }
 
-  if (isDra()){
+  if (isMaq()){
+    d.innerHTML = 'La ciudad entera contra ti. Eres la <b>Máquina Aberrante</b>: un endoesqueleto de metal '+
+      'con poca vida, pero que se recompone con cada víctima. Coge carrerilla, cambia de arma sobre la '+
+      'marcha y no te pares nunca.<br>'+
+      '<span class="moderec">Recomendado: <b>WASD</b> (mantener una dirección acelera). <b>Click</b> dispara, '+
+      '<b>click der.</b> cambia de arma (ráfaga, incinerador, lanzacohetes) y <b>mantener C</b> marca dónde '+
+      'saltar con las motosierras: al soltar, cae sobre esa zona.</span>';
+    v.innerHTML = 'Dos jugadores en el mismo teclado. La <b>Máquina Aberrante</b> debe aguantar 2:30 mientras '+
+      'el <b>Jugador 2</b> gasta materiales desplegando tropas donde quiera. Tiene poca vida: cura acabando '+
+      'con lo que se le ponga delante.<br>'+
+      '<span class="moderec"><b class="tipmovil">En móvil funciona, pero este modo se disfruta mucho más en ordenador.</b>'+
+      'J1: <b>WASD</b> + ratón y <b>C</b> · J2: <b>flechas</b> para mover la mira, '+
+      '<b>Start (Intro)</b> para desplegar, <b>AvPág/RePág</b> para cambiar de unidad y '+
+      '<b>Inicio</b> para traer la mira junto a la máquina si te pierdes.</span>';
+  } else if (isMag()){
+    d.innerHTML = 'La ciudad entera contra ti. Eres el <b>Mago Aberrante</b>: flotas despacio bajo tu '+
+      'capucha, pero haces caer rayos del cielo, levantas coches y soldados con la mente, congelas '+
+      'calles enteras y te escudas de todo. Cada hechizo gasta maná.<br>'+
+      '<span class="moderec">Recomendado: <b>WASD</b> para flotar. <b>Click</b> lanza rayos, <b>mantener click der.</b> '+
+      'levanta lo que toques con la mente (suelta para lanzarlo), <b>Z</b> congela a tu alrededor y '+
+      '<b>C</b> activa el escudo.</span>';
+    v.innerHTML = 'Dos jugadores en el mismo teclado. El <b>Mago Aberrante</b> debe aguantar 2:30 mientras '+
+      'el <b>Jugador 2</b> gasta materiales desplegando tropas donde quiera. Flotas despacio: congela y '+
+      'escúdate antes de que te rodeen.<br>'+
+      '<span class="moderec"><b class="tipmovil">En móvil funciona, pero este modo se disfruta mucho más en ordenador.</b>'+
+      'J1: <b>WASD</b> + ratón, <b>Z</b> y <b>C</b> · J2: <b>flechas</b> para mover la mira, '+
+      '<b>Start (Intro)</b> para desplegar, <b>AvPág/RePág</b> para cambiar de unidad y '+
+      '<b>Inicio</b> para traer la mira junto al mago si te pierdes.</span>';
+  } else if (isDra()){
     d.innerHTML = 'La ciudad entera contra ti. Eres el <b>dragón de tres cabezas</b>: no evolucionas, '+
       'pero vuelas por encima de los tejados, muerdes, barres calles con tus alas y escupes rayos por '+
       'tres bocas a la vez. Todo gasta estamina: adminístrala.<br>'+
@@ -12866,8 +14531,10 @@ function crackAndStart(btnId, fn){
 function refreshLogos(){
   const a = document.getElementById('gamelogo');
   const b = document.getElementById('gamelogo2');
-  const src = isDra() ? UI_ART.logoDra : isVil() ? UI_ART.logoVil : UI_ART.logo;
-  const src2 = isDra() ? UI_ART.logoDra : isVil() ? UI_ART.logoVil : UI_ART.logo2;
+  // la máquina y el mago: el emblema de la cría con ellos dentro (se genera una vez)
+  const propio = (isMaq() || isMag()) ? logoHeroe(hero, UI_ART.logo) : '';
+  const src = propio || (isDra() ? UI_ART.logoDra : isVil() ? UI_ART.logoVil : UI_ART.logo);
+  const src2 = propio || (isDra() ? UI_ART.logoDra : isVil() ? UI_ART.logoVil : UI_ART.logo2);
   if (a && src)  a.src = src;
   if (b && src2) b.src = src2;
 }
@@ -12883,7 +14550,7 @@ function refreshHeroUI(){
 }
 const btnHero = document.getElementById('btnHero');
 if (btnHero) btnHero.addEventListener('click', async ()=>{
-  hero = hero === 'alien' ? 'viltrum' : hero === 'viltrum' ? 'dragon' : 'alien';   // cría → viltrumita → dragón
+  hero = HEROES[(HEROES.indexOf(hero) + 1) % HEROES.length];   // cría → viltrumita → dragón → máquina → mago
   saveHero(); refreshHeroUI(); sfx('ui');
   refreshModeText(); refreshBtnFx(); refreshLogos();
   layoutUI(); refreshUiSize();          // cada personaje tiene sus mandos
@@ -12979,7 +14646,9 @@ function cambiaRolSala(r){
 function marcaHeroeSala(h){
   Sala.heroe = normHeroe(h);
   for (const [id, v] of [['salaHeroeAlien','alien'],['salaHeroeVil','viltrum'],['salaHeroeDra','dragon'],
-                         ['salaHeroeAlien2','alien'],['salaHeroeVil2','viltrum'],['salaHeroeDra2','dragon']]){
+                         ['salaHeroeMaq','maquina'],['salaHeroeMag','mago'],
+                         ['salaHeroeAlien2','alien'],['salaHeroeVil2','viltrum'],['salaHeroeDra2','dragon'],
+                         ['salaHeroeMaq2','maquina'],['salaHeroeMag2','mago']]){
     const b = document.getElementById(id); if (b) b.classList.toggle('on', Sala.heroe === v);
   }
 }
@@ -13310,8 +14979,13 @@ function instantaneaAnfitrion(){
     at: auraTxts.map(a => _prim(a)),
     fx: _fxRed ? _fxRed.splice(0, _fxRed.length) : []
   };
-  if (isVil() || isDra()) i.vil = _prim(vil);
-  if (isDra()){ i.dra = _prim(dra); i.rl = relampagos.map(r => _prim(r)); }
+  if (usaVil()) i.vil = _prim(vil);
+  if (isDra()) i.dra = _prim(dra);
+  if (isMaq()) i.maq = _prim(maq);
+  if (isMag()) i.mag = _prim(mag);
+  if (relampagos.length) i.rl = relampagos.map(r => _prim(r));
+  if (proyJ.length) i.pj = proyJ.filter(_dentro).map(p => _prim(p));
+  if (zombis.length) i.zb = zombis.filter(_dentro).map(z => _prim(z));
   if (Online.modo === 'doble'){
     i.caido = Online.caidoYo ? 1 : 0;
     const E = Online.estInv;
@@ -13412,7 +15086,8 @@ function aplicaInstantanea(i){
   comboN = i.cb[0]; comboT = i.cb[1]; comboFase = i.cb[2]; comboBonus = i.cb[3]; comboFlash = i.cb[4];
   if (doble){
     // tu invasor es tuyo: del anfitrión solo se guarda cómo es el suyo
-    Online.companero = { pl:i.pl, hero:i.hero, form:i.form, dr:i.dr, sk:skinDeRed(i.sk), vil:i.vil || null, dra:i.dra || null, ry: i.rayos ? 1 : 0,
+    Online.companero = { pl:i.pl, hero:i.hero, form:i.form, dr:i.dr, sk:skinDeRed(i.sk), vil:i.vil || null, dra:i.dra || null,
+                         maq:i.maq || null, mag:i.mag || null, ry: i.rayos ? 1 : 0,
                          ap:i.ap, bT:i.buff[0], bP:i.buff[1], caido: !!i.caido };
     aplicaMundo(i);
     if (i.hi){                                     // lo que te han hecho
@@ -13421,8 +15096,8 @@ function aplicaInstantanea(i){
       if (i.hi.q) quemar(); if (i.hi.h) congelar(); if (i.hi.v) envenenar();
     }
     if (i.pv){                                     // y lo que te has ganado
-      if (i.pv.h) hp = clamp(hp + Math.round(i.pv.h * ((isVil() || isDra()) ? 1.45 : 1)), 0, maxHp());
-      if (i.pv.k){ kills += i.pv.k; checkEvolve(); }
+      if (i.pv.h) hp = clamp(hp + Math.round(i.pv.h * curaPorBaja()), 0, maxHp());
+      if (i.pv.k){ kills += i.pv.k; checkEvolve(); if (isMaq()) maqRegenera(); }
       if (i.pv.o) ovniRecompensa();
     }
     // lo que llevas en el tentáculo sigue siendo tuyo (salvo que ya no exista)
@@ -13445,6 +15120,8 @@ function aplicaInstantanea(i){
   _apRed = i.ap;
   if (i.vil) Object.assign(vil, i.vil);
   if (i.dra) Object.assign(dra, i.dra);
+  if (i.maq) Object.assign(maq, i.maq);
+  if (i.mag) Object.assign(mag, i.mag);
   relampagos.length = 0; if (i.rl) for (const r of i.rl) relampagos.push(r);
   // La mira se predice en local (ver loopInvitado) y aquí solo se corrige hacia
   // la del anfitrión; si la diferencia es grande (volvió junto al alien), se salta.
@@ -13474,6 +15151,9 @@ function aplicaMundo(i){
   booms = i.bo;
   fuegos.length = 0; for (const f of i.fu) fuegos.push(f);
   humosNegros.length = 0; if (i.hn) for (const h of i.hn) humosNegros.push(h);
+  proyRed.length = 0; if (i.pj) for (const p of i.pj) proyRed.push(p);
+  zombis.length = 0; if (i.zb) for (const z of i.zb) zombis.push(z);
+  if (Online.modo === 'doble'){ relRed.length = 0; if (i.rl) for (const r of i.rl) relRed.push(r); }
   rayos.length = 0;  for (const r of i.ra) rayos.push(r);
   sonicRings.length = 0; for (const r of i.sr) sonicRings.push(r);
   windRings.length = 0;  for (const r of i.wr) windRings.push(r);
@@ -13547,7 +15227,7 @@ function loopInvitado(dt){
       p2.x += (Online.p2Obj.x - p2.x)*k; p2.y += (Online.p2Obj.y - p2.y)*k;
     }
   }
-  updateFX(dt); updateZoom(dt); updateRelampagos(dt);
+  updateFX(dt); updateZoom(dt); updateRelampagos(dt); avanzaProyRed(dt);
   if (shakeTime > 0){ shakeTime -= dt; if (shakeTime <= 0) shakeMag = 0; }
   const foco = camaraEnMira() ? p2 : player;         // según Ajustes: el invasor o tu mira
   camX = clamp(foco.x - VW/2, 0, Math.max(0, WORLD_W - VW));
@@ -13641,6 +15321,10 @@ function buscaRef(r){
   return lista ? lista.find(o => o._nid === r.id) : null;
 }
 function enviaAccion(m){ salaEnviar(Online.otro, m); }
+// Entre instantáneas, los disparos que llegan por la red siguen su trayectoria.
+function avanzaProyRed(dt){
+  for (const p of proyRed) if (p.vx){ p.x += p.vx*dt; p.y += p.vy*dt; }
+}
 
 // ---- anfitrión: aplicar lo que hace el invitado ----
 function accionInvitado(m){
@@ -13670,11 +15354,26 @@ function accionInvitado(m){
       }
     }
     else if (m.t === 'suelta'){ if (o && o.heldInv){ o.held = false; o.heldInv = false; } }
+    // cohetes de la máquina, hogueras del incinerador y el hielo del mago
+    else if (m.t === 'expl'){
+      const x = +m.x, y = +m.y;
+      if (isFinite(x) && isFinite(y)) porJugador(()=> explode(x, y, clamp(+m.R || 0, 20, 200), clamp(+m.dmg || 0, 0, 220), +m.R > 110, false));
+    }
+    else if (m.t === 'fuego'){
+      const x = +m.x, y = +m.y, tt = clamp(+m.tt || 0, 0.5, 6);
+      if (isFinite(x) && isFinite(y) && fuegos.length < 80) fuegos.push({ x, y, r: clamp(+m.r || 0, 10, 90), t:tt, max:tt, amigo:true });
+    }
+    else if (m.t === 'hielo'){
+      const d = clamp(+m.d || 0, 0, 6);
+      for (const r of (Array.isArray(m.rs) ? m.rs.slice(0, 40) : [])){ const u = buscaRef(r); if (u) congelaUnidad(u, d); }
+    }
   } finally { Online.culpaInv = false; }
 }
 function recibeAvatar(m){
   const primera = !Online.av;
   Online.av = m;
+  // sus relámpagos se ven aquí también (solo dibujo)
+  relRed.length = 0; if (Array.isArray(m.rl)) for (const r of m.rl.slice(0, 20)) relRed.push(r);
   Online.tipInv = m.tip || { x:m.pl.x, y:m.pl.y };
   Online.proxy.x = m.pl.x; Online.proxy.y = m.pl.y;
   Online.proxy.vx = m.pl.vx || 0; Online.proxy.vy = m.pl.vy || 0;
@@ -13687,6 +15386,8 @@ function gestionaCaida(dt, companeroCaido, posCompanero){
   if (!Online.caidoYo && hp <= 0){
     Online.caidoYo = true; Online.reviveT = DOBLE_REVIVE;
     if (heldObject){ heldObject.ref.held = false; if (dobleInv()) enviaAccion({ t:'suelta', r: refDe(heldObject.ref) }); heldObject = null; }
+    if (mag.tk.length) magSueltaTK(true);             // lo que sostenía con la mente cae
+    maq.gatillo = false; maq.sierraApunta = false; mag.lanzando = false;
     toast('¡CAÍSTE! VUELVES EN ' + DOBLE_REVIVE + ' s SI TU COMPAÑERO AGUANTA');
   }
   if (!Online.caidoYo) return null;
@@ -13706,7 +15407,8 @@ function gestionaCaida(dt, companeroCaido, posCompanero){
 function datosCompanero(){
   if (Online.rol === 'anfitrion'){
     const a = Online.av; if (!a) return null;
-    return { pl:a.pl, hero:a.hero, form:a.form, dr:a.dr, sk:skinDeRed(a.sk), vil:a.vil, dra:a.dra, ap:a.ap, bT:a.bT, bP:a.bP, caido:a.caido, ry:a.ry };
+    return { pl:a.pl, hero:a.hero, form:a.form, dr:a.dr, sk:skinDeRed(a.sk), vil:a.vil, dra:a.dra, maq:a.maq, mag:a.mag,
+             ap:a.ap, bT:a.bT, bP:a.bP, caido:a.caido, ry:a.ry };
   }
   return Online.companero || null;
 }
@@ -13723,11 +15425,14 @@ function companeroDibujo(){
 }
 function dibujaCompanero(){
   const c = companeroDibujo(); if (!c) return;
-  const g = { player, hero, form, drawR, activeSkin, buffT, buffTipo, heldObject, vil: Object.assign({}, vil), dra: Object.assign({}, dra) };
+  const g = { player, hero, form, drawR, activeSkin, buffT, buffTipo, heldObject, vil: Object.assign({}, vil), dra: Object.assign({}, dra),
+             maq: Object.assign({}, maq), mag: Object.assign({}, mag) };
   player = c.pl; hero = c.hero; form = c.form; drawR = c.dr || drawR; activeSkin = c.sk;
   buffT = c.bT || 0; buffTipo = c.bP || null; heldObject = null;
   if (c.vil) Object.assign(vil, c.vil);
   if (c.dra) Object.assign(dra, c.dra);
+  if (c.maq) Object.assign(maq, c.maq);
+  if (c.mag) Object.assign(mag, c.mag);
   _apCompa = c.ap || null;
   const a0 = ctx.globalAlpha, rayos0 = rayosOn;
   if (c.caido) ctx.globalAlpha = 0.35;
@@ -13736,6 +15441,7 @@ function dibujaCompanero(){
     // su visión calórica, con su puntería (antes no se dibujaba)
     if (c.ry && verRayosOtro && !c.caido){ rayosOn = true; drawRayosOjos(); }
     if (hero === 'dragon' && verRayosOtro && !c.caido) drawDragonRayos();   // los de sus tres bocas
+    if (!c.caido){ drawMaquinaEfectos(); drawMagoEfectos(); }            // haz del incinerador, telequinesis
   }
   finally {
     rayosOn = rayos0;
@@ -13744,6 +15450,8 @@ function dibujaCompanero(){
     buffT = g.buffT; buffTipo = g.buffTipo; heldObject = g.heldObject;
     Object.assign(vil, g.vil);
     Object.assign(dra, g.dra);
+    Object.assign(maq, g.maq);
+    Object.assign(mag, g.mag);
   }
   // su nombre encima, para no confundirse
   const otro = Sala.jugadores.find(j => j.id === Online.otro);
@@ -13765,7 +15473,11 @@ function enviaAvatar(dt){
   Online.avAcum = 0;
   const tp = tentacleTip();
   salaEnviar(Online.otro, { t:'av', pl:_prim(player), hero, form, dr:drawR, sk:skinRed(), ry: rayosOn ? 1 : 0,
-    vil: (isVil() || isDra()) ? _prim(vil) : null, dra: isDra() ? _prim(dra) : null, ap: aimVector(), tip:{ x:tp.x, y:tp.y }, r: F().r,
+    vil: usaVil() ? _prim(vil) : null, dra: isDra() ? _prim(dra) : null,
+    maq: isMaq() ? _prim(maq) : null, mag: isMag() ? _prim(mag) : null,
+    pj: proyJ.length ? proyJ.slice(0, 40).map(p => _prim(p)) : null,
+    rl: relampagos.length ? relampagos.map(r => _prim(r)) : null,
+    ap: aimVector(), tip:{ x:tp.x, y:tp.y }, r: F().r,
     caido: Online.caidoYo ? 1 : 0, bT: buffT, bP: buffTipo, hp, mhp: maxHp() });
 }
 function loopInvitadoDoble(dt){
@@ -13776,6 +15488,7 @@ function loopInvitadoDoble(dt){
   if (!Online.caidoYo){
     updatePlayer(dt); updateSonic(dt); updateWind(dt); updateRam(dt); updateRayosOjos(dt);
   }
+  updateProyJ(dt);
   updateBuff(dt); updateEstados(dt); updateVeneno(dt); updateAura(dt); updateViento(dt); updateRelampagos(dt);
   if (heldObject && heldObject.ref){                 // lo que llevas, en tu tentáculo
     const tp = tentacleTip(); heldObject.ref.x = tp.x; heldObject.ref.y = tp.y; heldObject.ref.held = true;
@@ -13923,7 +15636,7 @@ function recibeMensaje(otro, m){
   else if (m.t === 'i'){ if (enLineaInvitado()) Online.cola.push(m); }
   else if (m.t === 'mv'){ if (enLineaAnfitrion()){ Online.p2in = { x:+m.x||0, y:+m.y||0, r:!!m.r }; Online.camInv = !!m.c; Online.tP2in = performance.now(); } }
   else if (m.t === 'av'){ if (dobleAnf()) recibeAvatar(m); }
-  else if (['dano','edif','prop','auto','agarra','lanza','suelta'].includes(m.t)){ if (dobleAnf()) accionInvitado(m); }
+  else if (['dano','edif','prop','auto','agarra','lanza','suelta','expl','fuego','hielo'].includes(m.t)){ if (dobleAnf()) accionInvitado(m); }
   else if (m.t === 'acc' && enLineaAnfitrion()){
     Online.desdeRed = true;
     try {
@@ -13963,6 +15676,8 @@ document.getElementById('salaHeroeAlien2').addEventListener('click', ()=> cambia
 document.getElementById('salaHeroeVil2').addEventListener('click', ()=> cambiaHeroeSala('viltrum'));
 document.getElementById('salaHeroeDra').addEventListener('click', ()=> cambiaHeroeSala('dragon'));
 document.getElementById('salaHeroeDra2').addEventListener('click', ()=> cambiaHeroeSala('dragon'));
+for (const [id, v] of [['salaHeroeMaq','maquina'],['salaHeroeMag','mago'],['salaHeroeMaq2','maquina'],['salaHeroeMag2','mago']])
+  document.getElementById(id).addEventListener('click', ()=> cambiaHeroeSala(v));
 function cambiaHeroeSala(h){
   marcaHeroeSala(h); sfx('ui');
   enviaPerfil(); pintaSala();

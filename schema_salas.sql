@@ -5,8 +5,8 @@
 -- las tablas ya existen, solo añade lo que falte.
 --
 -- El servidor NO transmite la partida: solo presenta a los jugadores. Guarda
--- la sala, quién está dentro (y con qué personaje: cría, viltrumita o
--- dragón) y los mensajes de "señalización" que los dos navegadores necesitan
+-- la sala, quién está dentro (y con qué personaje: cría, viltrumita, dragón,
+-- máquina o mago) y los mensajes de "señalización" que los dos navegadores necesitan
 -- intercambiar para conectarse directamente entre sí (WebRTC). Una vez
 -- conectados, el juego viaja de un dispositivo al otro sin pasar por aquí.
 
@@ -22,18 +22,18 @@ CREATE TABLE IF NOT EXISTS sala_jugadores (
   codigo     VARCHAR(6)   NOT NULL REFERENCES salas(codigo) ON DELETE CASCADE,
   token      VARCHAR(40)  NOT NULL,                   -- secreto de ese jugador
   nombre     VARCHAR(14)  NOT NULL,
-  heroe      VARCHAR(16)  NOT NULL DEFAULT 'alien',   -- 'alien' | 'viltrum' | 'dragon'
+  heroe      VARCHAR(16)  NOT NULL DEFAULT 'alien',   -- 'alien' | 'viltrum' | 'dragon' | 'maquina' | 'mago'
   anfitrion  BOOLEAN      NOT NULL DEFAULT FALSE,
   unido      TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
   visto      TIMESTAMPTZ  NOT NULL DEFAULT NOW()      -- última vez que dio señales de vida
 );
 CREATE INDEX IF NOT EXISTS sala_jugadores_codigo_idx ON sala_jugadores (codigo);
 
--- Solo los tres personajes del juego. NOT VALID: no revisa lo que ya hubiera
+-- Solo los cinco personajes del juego. NOT VALID: no revisa lo que ya hubiera
 -- guardado, así que nunca falla sobre una base existente.
 ALTER TABLE sala_jugadores DROP CONSTRAINT IF EXISTS sala_jugadores_heroe_valido;
 ALTER TABLE sala_jugadores ADD CONSTRAINT sala_jugadores_heroe_valido
-  CHECK (heroe IN ('alien', 'viltrum', 'dragon')) NOT VALID;
+  CHECK (heroe IN ('alien', 'viltrum', 'dragon', 'maquina', 'mago')) NOT VALID;
 
 CREATE TABLE IF NOT EXISTS sala_senales (
   id       BIGSERIAL    PRIMARY KEY,
