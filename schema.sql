@@ -1,28 +1,29 @@
--- Ranking global de Invasión Tentacular: CRÍA, VILTRUMITA y DRAGÓN.
+-- Ranking global de Invasión Tentacular: CRÍA, VILTRUMITA, DRAGÓN,
+-- MÁQUINA ABERRANTE y MAGO ABERRANTE.
 --
 -- Cómo usarlo: pega TODO este archivo en el SQL Editor de Neon y pulsa Run.
 -- Se puede ejecutar tantas veces como quieras. Si ya tenías la tabla creada,
 -- solo añade lo que falte: no borra ni cambia ningún puntaje.
 --
 -- Cada jugador tiene UN registro por personaje: el de su mejor partida. Los
--- tres personajes comparten la tabla `scores`, pero cada uno tiene su propio
+-- cinco personajes comparten la tabla `scores`, pero cada uno tiene su propio
 -- ranking (se separan por la columna `hero`), igual que en el juego.
 
 CREATE TABLE IF NOT EXISTS scores (
   id          BIGSERIAL PRIMARY KEY,
   player_name VARCHAR(14)  NOT NULL,
   score       INTEGER      NOT NULL CHECK (score >= 0 AND score <= 5000000),
-  hero        VARCHAR(16)  NOT NULL DEFAULT 'alien',   -- 'alien' | 'viltrum' | 'dragon'
+  hero        VARCHAR(16)  NOT NULL DEFAULT 'alien',   -- 'alien' | 'viltrum' | 'dragon' | 'maquina' | 'mago'
   device      VARCHAR(8)   NOT NULL DEFAULT 'pc',
   created_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
--- Solo se aceptan los tres personajes del juego. NOT VALID: se exige a todo
+-- Solo se aceptan los cinco personajes del juego. NOT VALID: se exige a todo
 -- lo que se guarde a partir de ahora sin revisar lo antiguo, así que nunca
 -- falla sobre una base que ya tenga puntajes.
 ALTER TABLE scores DROP CONSTRAINT IF EXISTS scores_hero_valido;
 ALTER TABLE scores ADD CONSTRAINT scores_hero_valido
-  CHECK (hero IN ('alien', 'viltrum', 'dragon')) NOT VALID;
+  CHECK (hero IN ('alien', 'viltrum', 'dragon', 'maquina', 'mago')) NOT VALID;
 
 -- Un solo puntaje por jugador y personaje. Sin esto, el ON CONFLICT del
 -- endpoint no tendría contra qué comparar.
@@ -60,6 +61,18 @@ CREATE OR REPLACE VIEW ranking_dragon AS
   SELECT RANK() OVER (ORDER BY score DESC) AS puesto,
          player_name AS jugador, score AS puntaje, device AS dispositivo, created_at AS fecha
   FROM scores WHERE hero = 'dragon'
+  ORDER BY score DESC, created_at ASC;
+
+CREATE OR REPLACE VIEW ranking_maquina AS
+  SELECT RANK() OVER (ORDER BY score DESC) AS puesto,
+         player_name AS jugador, score AS puntaje, device AS dispositivo, created_at AS fecha
+  FROM scores WHERE hero = 'maquina'
+  ORDER BY score DESC, created_at ASC;
+
+CREATE OR REPLACE VIEW ranking_mago AS
+  SELECT RANK() OVER (ORDER BY score DESC) AS puesto,
+         player_name AS jugador, score AS puntaje, device AS dispositivo, created_at AS fecha
+  FROM scores WHERE hero = 'mago'
   ORDER BY score DESC, created_at ASC;
 
 

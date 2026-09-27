@@ -34,28 +34,29 @@ automáticamente en endpoints: `api/scores.js` se publica como `/api/scores`.
 
 Guarda esa cadena: es la que usarás como `DATABASE_URL`.
 
-### Si ya tenías la base creada (añadir al dragón)
+### Si ya tenías la base creada (añadir al dragón, la máquina y el mago)
 
 Vuelve a pegar y ejecutar **los dos** archivos, `schema.sql` y
 `schema_salas.sql`, en el SQL Editor de Neon. Están hechos para ejecutarse
 sobre una base existente: no borran ni cambian ningún puntaje, solo añaden lo
 que falte:
 
-- el control de que solo se guarden los tres personajes (`alien`, `viltrum`
-  y `dragon`), tanto en el ranking como en las salas;
-- tres vistas de solo lectura, una por personaje: `ranking_alien`,
-  `ranking_viltrum` y `ranking_dragon`. Sirven para ver cada tabla de
-  puntajes desde Neon (`SELECT * FROM ranking_dragon;`); el juego no las
-  necesita.
+- el control de que solo se guarden los cinco personajes (`alien`,
+  `viltrum`, `dragon`, `maquina` y `mago`), tanto en el ranking como en las
+  salas;
+- cinco vistas de solo lectura, una por personaje: `ranking_alien`,
+  `ranking_viltrum`, `ranking_dragon`, `ranking_maquina` y `ranking_mago`.
+  Sirven para ver cada tabla de puntajes desde Neon
+  (`SELECT * FROM ranking_mago;`); el juego no las necesita.
 
 Después haz **Redeploy** en Vercel para que `api/scores.js` y `api/salas.js`
-acepten al dragón. Hasta entonces el servidor antiguo guardaba lo del dragón
-como si fuera la cría.
+acepten a los personajes nuevos. Hasta entonces el servidor antiguo guardaba
+lo suyo como si fuera la cría.
 
-Cada personaje tiene su propio ranking: los tres comparten la tabla `scores`
+Cada personaje tiene su propio ranking: los cinco comparten la tabla `scores`
 y se separan por la columna `hero`. En el navegador, los puntajes locales
-también van por separado (`invasion_scores`, `invasion_scores_vil` e
-`invasion_scores_dra`).
+también van por separado (`invasion_scores`, `invasion_scores_vil`,
+`invasion_scores_dra`, `invasion_scores_maq` e `invasion_scores_mag`).
 
 ## 2. Subir el proyecto a GitHub
 
@@ -118,7 +119,8 @@ juego solo conoce la ruta `/api/scores`.
 ### `GET /api/scores?limit=25&hero=alien`
 
 Hay **una tabla por personaje**, igual que en el ranking local. `hero` acepta
-`alien`, `viltrum` o `dragon`; si se omite, devuelve el ranking conjunto.
+`alien`, `viltrum`, `dragon`, `maquina` o `mago`; si se omite, devuelve el
+ranking conjunto.
 
 ```json
 { "ok": true, "scores": [
