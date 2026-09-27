@@ -1952,12 +1952,15 @@ function resetGame(){
   if (typeof draReset === 'function') draReset();
   maqReset(); magReset();
   proyJ.length = 0; zombis.length = 0; congelados.clear(); proyRed.length = 0;
-  if (typeof isVil === 'function' && usaVil()){
+  if (typeof isVil === 'function' && (isVil() || isDra())){
     vil.intro = 1; vil.introY = player.y;
     player.y -= VIL_INTRO_ALTO;
     vil.flying = true; vil.fx = 0; vil.fy = 1;
     vil.charge = 0; vil.holding = false;
-  } else if (typeof vil === 'object'){ vil.intro = 0; }
+  } else if (typeof vil === 'object'){
+    // máquina (portal rojo del suelo), mago (portal) y cría (humo verde)
+    vil.intro = 1; vil.introY = player.y; vil.introT = 0; vil.flying = false;
+  }
   for (let i=0;i<10;i++) spawnCar();
   for (let i=0;i<8;i++) spawnCivilian();
 }
@@ -3325,7 +3328,7 @@ function artAplasta(e, dt, dps){
 
 // Intenta arrancar el edificio que tengas delante. Devuelve true si lo cogió.
 function agarraEdificio(){
-  if (dobleInv()) return false;          // arrancar edificios, solo al anfitrión (por ahora)
+  if (dobleInv() || vil.intro) return false;          // arrancar edificios, solo al anfitrión (por ahora)
   // La condición vive aquí y no en quien llama: así no hay forma de levantar
   // un edificio sin el regalo, venga la orden de donde venga.
   if (!buffActivo('gigante') || heldObject) return false;
@@ -5502,6 +5505,8 @@ const SFX = {
   conjuro:()=> { tone(880, 0.18, 'triangle', 0.07, 1320); tone(440, 0.22, 'sine', 0.06, 660); },
   telequinesis:()=> tone(300, 0.35, 'sine', 0.1, 520),
   cargaFuego:()=> { noise(0.6, 0.12, 400, 0.8); tone(110, 0.6, 'sawtooth', 0.06, 220); },
+  portalRojo:()=> { tone(55, 1.2, 'sawtooth', 0.14, 110); noise(1.1, 0.16, 500, 0.9); },
+  humoVerde:()=> { noise(1.0, 0.18, 1400, 0.7); tone(180, 0.6, 'sine', 0.06, 90); },
   teleporte:()=> { tone(1200, 0.18, 'sine', 0.1, 300); tone(300, 0.22, 'triangle', 0.07, 1500); },
   hielo:  ()=> { noise(0.5, 0.22, 5200, 3); tone(1400, 0.4, 'triangle', 0.06, 700); },
   escudoMag:()=> { tone(330, 0.4, 'sine', 0.12, 660); tone(495, 0.4, 'sine', 0.07, 990); },
@@ -5521,7 +5526,7 @@ const SFX_GAP = { sonicboom:0.30, dash:0.10, crack:0.20,
                   ulla:1.2, cargaM:0.25, rayoM:0.12, escudoM:0.2, comeM:0.15,
                   mordisco:0.08, aleteo:0.2, rayoDra:0.16, coletazo:0.2, trueno:0.18,
                   rafaga:0.045, cohete:0.15, cargaInc:0.3, incinera:0.2, sierra:0.11, recarga:0.1,
-                  aterriza:0.3, conjuro:0.08, telequinesis:0.3, hielo:0.3, escudoMag:0.3, cargaFuego:0.2, teleporte:0.2 };
+                  aterriza:0.3, conjuro:0.08, telequinesis:0.3, hielo:0.3, escudoMag:0.3, cargaFuego:0.2, teleporte:0.2, portalRojo:0.5, humoVerde:0.5 };
 const sfxLast = {};
 let sfxVoices = 0;
 const SFX_MAX_VOICES = 14;
@@ -8776,16 +8781,16 @@ function maqSierrasGiran(){
 
 function updateMaquina(dt){
   vil.capa += dt;
-  if (vil.intro){                              // cae del cielo y aterriza de rodillas
-    player.vx = 0; player.vy = VIL_INTRO_VEL;
-    player.y = Math.min(vil.introY, player.y + player.vy*dt);
-    if (player.y >= vil.introY - 0.5){
-      player.y = vil.introY; vil.intro = 0; player.vy = 0; vil.flying = false;
+  if (vil.intro){                              // sube desde un portal rojo abierto en el suelo
+    const t0 = vil.introT || 0;
+    if (t0 > 0.3 && t0 < 1.1 && Math.random() < 0.7)
+      addParticles(player.x + rand(-26, 26), player.y + 20 + rand(-6, 6), Math.random() < 0.5 ? '#ff2a1a' : '#ffb03a', 2, 90);
+    if (avanzaEntrada(dt)){
       draDanaArea(player.x, player.y, 120, 50, 220, 0.8);
       sacudeArboles(player.x, player.y, 240, 0.4);
-      addParticles(player.x, player.y, '#9aa6ad', 24, 240);
-      addParticles(player.x, player.y, '#8fd7ff', 14, 200);
-      shake(14, 0.35); sfx('aterriza');
+      addParticles(player.x, player.y + 16, '#ff3a1a', 22, 240);
+      addParticles(player.x, player.y, '#9aa6ad', 14, 200);
+      shake(12, 0.3); sfx('aterriza');
     }
     return;
   }
@@ -8901,8 +8906,130 @@ function maqPaleta(){
   const h = c => /^#[0-9a-f]{6}$/i.test(c) ? c : '#2f64c8';
   return { pl:h(SK.c[0]), plO:shade(h(SK.c[0]), 0.5), plC:shade(h(SK.c[0]), 1.45), ojo:'#ff2a1a', ala:h(SK.tip) };
 }
+// ================= ENTRADAS EN ESCENA =================
+// Cuánto dura cada una; mientras tanto el personaje no se mueve ni recibe daño.
+const ENTRADA_T = { maquina:1.5, mago:1.6, alien:1.35 };
+function avanzaEntrada(dt){
+  if (!vil.introT){                                   // primer fotograma: su sonido
+    vil.introT = 0;
+    sfx(isMaq() ? 'portalRojo' : isMag() ? 'teleporte' : 'humoVerde');
+  }
+  vil.introT += dt;
+  player.vx = 0; player.vy = 0;
+  if (vil.introT < (ENTRADA_T[hero] || 1.3)) return false;
+  vil.intro = 0; vil.introT = 0;
+  return true;                                        // acaba de terminar
+}
+function tramo(t, a, b){ return clamp((t - a)/(b - a), 0, 1); }
+function suave(k){ return k*k*(3 - 2*k); }
+// El portal del mago se abre detrás de él.
+function portalMago(){ return { x: player.x - (player.facing || 1)*38, y: player.y - 22 }; }
+
+// La máquina: un portal rojo se abre en el suelo y sube por él.
+function drawEntradaMaquina(st){
+  const t = vil.introT || 0, s = S(player.x, player.y);
+  const abre = suave(tramo(t, 0, 0.35)) * (1 - suave(tramo(t, 1.15, 1.5)));
+  const sube = suave(tramo(t, 0.35, 1.1));
+  const gy = s.y + 22, R = 34*abre;
+  if (R > 0.5){
+    ctx.save();
+    // resplandor, boca negra y remolinos rojos
+    ctx.globalAlpha = 0.35*abre; ctx.fillStyle = '#ff2a1a';
+    ctx.beginPath(); ctx.ellipse(s.x, gy, R*1.5, R*0.6, 0, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 1; ctx.fillStyle = '#140202';
+    ctx.beginPath(); ctx.ellipse(s.x, gy, R, R*0.38, 0, 0, Math.PI*2); ctx.fill();
+    ctx.lineWidth = 2;
+    for (let i = 0; i < 3; i++){
+      const a0 = gameTime*(5 + i*2)*(i % 2 ? -1 : 1) + i*2;
+      ctx.strokeStyle = i === 1 ? '#ffb03a' : '#ff3a1a'; ctx.globalAlpha = 0.9*abre;
+      ctx.beginPath(); ctx.ellipse(s.x, gy, R*(0.45 + i*0.25), R*0.38*(0.45 + i*0.25), 0, a0, a0 + 3.6); ctx.stroke();
+    }
+    // haces de luz roja que suben
+    ctx.globalAlpha = 0.18*abre; ctx.fillStyle = '#ff5a3a';
+    ctx.beginPath(); ctx.moveTo(s.x - R, gy); ctx.lineTo(s.x - R*0.6, gy - 90*abre);
+    ctx.lineTo(s.x + R*0.6, gy - 90*abre); ctx.lineTo(s.x + R, gy); ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+  if (sube <= 0) return;
+  // la figura, por encima del borde del portal (lo de abajo aún está "dentro")
+  ctx.save();
+  ctx.beginPath(); ctx.rect(s.x - 90, s.y - 200, 180, 200 + 22 + (sube >= 1 ? 30 : 0)); ctx.clip();
+  dibujaMaquina(ctx, s.x, s.y + (1 - sube)*62, 1, Object.assign({}, st, { vel:0, imp:0.3 + sube*0.5 }));
+  // brillo rojo sobre el metal mientras sale (recortado igual que la figura)
+  if (sube < 1){
+    ctx.globalAlpha = 0.25*(1 - sube); ctx.fillStyle = '#ff3a1a';
+    ctx.beginPath(); ctx.ellipse(s.x, s.y - 14 + (1 - sube)*62, 16, 30, 0, 0, Math.PI*2); ctx.fill();
+  }
+  ctx.restore();
+}
+// El mago: un portal morado se abre a su espalda y él sale de dentro.
+function drawEntradaMago(st){
+  const t = vil.introT || 0, s = S(player.x, player.y), P = portalMago(), sp = S(P.x, P.y);
+  const abre = suave(tramo(t, 0, 0.45)) * (1 - suave(tramo(t, 1.2, 1.6)));
+  const sale = suave(tramo(t, 0.45, 1.15));
+  const rx = 22*abre, ry = 46*abre;
+  const col = st.arc ? '#8dff6a' : '#c77dff';
+  if (ry > 0.5){
+    ctx.save();
+    ctx.globalAlpha = 0.3*abre; ctx.fillStyle = col;
+    ctx.beginPath(); ctx.ellipse(sp.x, sp.y, rx*1.6, ry*1.25, 0, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 1; ctx.fillStyle = '#0b0414';
+    ctx.beginPath(); ctx.ellipse(sp.x, sp.y, rx, ry, 0, 0, Math.PI*2); ctx.fill();
+    ctx.lineWidth = 2.2;
+    for (let i = 0; i < 4; i++){
+      const a0 = gameTime*(4 + i)*(i % 2 ? -1 : 1) + i*1.5, k = 0.35 + i*0.2;
+      ctx.globalAlpha = (0.9 - i*0.15)*abre; ctx.strokeStyle = i % 2 ? '#e6c8ff' : col;
+      ctx.beginPath(); ctx.ellipse(sp.x, sp.y, rx*k, ry*k, 0, a0, a0 + 4); ctx.stroke();
+    }
+    ctx.globalAlpha = abre; ctx.strokeStyle = col; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.ellipse(sp.x, sp.y, rx, ry, 0, 0, Math.PI*2); ctx.stroke();
+    ctx.restore();
+  }
+  if (sale <= 0) return;
+  // sale desde el centro del portal hasta su sitio, creciendo y volviéndose sólido
+  const x = sp.x + (s.x - sp.x)*sale, y = (sp.y + 22) + (s.y - (sp.y + 22))*sale;
+  ctx.save(); ctx.globalAlpha = Math.min(1, 0.2 + sale);
+  dibujaMago(ctx, x, y, 0.55 + 0.45*sale, st);
+  ctx.restore();
+}
+// La cría: una nube de humo verde brota del suelo y ella aparece dentro.
+const HUMO_ENTRADA = Array.from({ length:14 }, (_, i)=>({ a: i*2.39, r: 6 + (i*7) % 20, v: 0.7 + (i % 5)*0.12, t0: (i % 7)*0.06 }));
+function drawEntradaHumo(dibuja){
+  const t = vil.introT || 0, s = S(player.x, player.y);
+  const aparece = suave(tramo(t, 0.35, 1.05));
+  const puff = (delante)=>{
+    for (let i = 0; i < HUMO_ENTRADA.length; i++){
+      const p = HUMO_ENTRADA[i];
+      if ((i % 2 === 0) !== delante) continue;
+      const k = tramo(t, p.t0, p.t0 + 1.1);
+      if (k <= 0 || k >= 1) continue;
+      const r = (10 + 26*k)*(0.8 + p.v*0.3);
+      const x = s.x + Math.cos(p.a + k*1.5)*(p.r + 22*k);
+      const y = s.y + 14 - k*48*p.v + Math.sin(p.a)*6;
+      const al = Math.sin(k*Math.PI)*(delante ? 0.5*(1 - aparece*0.6) : 0.55);
+      ctx.globalAlpha = al; ctx.fillStyle = i % 3 === 0 ? '#7bffa0' : i % 3 === 1 ? '#3fbf6a' : '#2a7a45';
+      ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  };
+  ctx.save();
+  puff(false);                                          // el humo de detrás
+  if (aparece > 0){
+    ctx.save();
+    ctx.globalAlpha = aparece;
+    ctx.translate(s.x, s.y); ctx.scale(0.55 + 0.45*aparece, 0.55 + 0.45*aparece); ctx.translate(-s.x, -s.y);
+    dibuja();
+    ctx.restore();
+  }
+  puff(true);                                           // y el de delante, que la envuelve
+  ctx.restore();
+}
 function drawMaquina(){
   const s = S(player.x, player.y);
+  if (vil.intro){
+    return drawEntradaMaquina({ t: vil.capa || 0, f: player.facing || 1, a: 0, arma: maq.arma, paso: 0, vel: 0, imp: 0.4,
+      sierras:false, giro:false, salto:false, ret:0, fogon:0, carga:0, sob:false, escudo:0, intro:true, pal: maqPaleta() });
+  }
   dibujaMaquina(ctx, s.x, s.y, 1, {
     t: vil.capa || 0, f: player.facing || 1, a: maq.mirA, arma: maq.arma, paso: maq.paso,
     vel: Math.hypot(player.vx || 0, player.vy || 0), imp: maq.impulso,
@@ -9414,16 +9541,14 @@ function escudoParaBala(b){
 function updateMago(dt){
   vil.capa += dt;
   mag.flota = Math.sin(vil.capa*2.1)*4;
-  if (vil.intro){                              // desciende despacio envuelto en humo morado
-    player.vx = 0; player.vy = VIL_INTRO_VEL*0.55;
-    player.y = Math.min(vil.introY, player.y + player.vy*dt);
-    if (Math.random() < 0.6) addParticles(player.x + rand(-14, 14), player.y + rand(-10, 20), '#7a3fb0', 2, 60);
-    if (player.y >= vil.introY - 0.5){
-      player.y = vil.introY; vil.intro = 0; player.vy = 0; vil.flying = false;
+  if (vil.intro){                              // sale de un portal que se abre a su espalda
+    const t0 = vil.introT || 0, P = portalMago();
+    if (t0 < 1.3 && Math.random() < 0.6) addParticles(P.x + rand(-18, 18), P.y + rand(-40, 40), Math.random() < 0.5 ? '#c77dff' : '#7a3fb0', 1, 70);
+    if (avanzaEntrada(dt)){
       draDanaArea(player.x, player.y, 130, 40, 200, 0.8);
-      addParticles(player.x, player.y, '#c77dff', 26, 220);
+      addParticles(player.x, player.y, '#c77dff', 22, 220);
       windRings.push({ x:player.x, y:player.y, ang:0, r:20, life:0.5, max:0.5 });
-      shake(8, 0.25); sfx('conjuro');
+      shake(6, 0.2); sfx('conjuro');
     }
     return;
   }
@@ -9525,6 +9650,10 @@ function magPaleta(){
 }
 function drawMago(){
   const s = S(player.x, player.y);
+  if (vil.intro){
+    return drawEntradaMago({ t: vil.capa || 0, f: player.facing || 1, a: 0, cast: 0, tk: false, hielo: 0, esc: 0,
+      arc: buffActivo('arcano'), intro: true, pal: magPaleta() });
+  }
   dibujaMago(ctx, s.x, s.y, 1, {
     t: vil.capa || 0, f: player.facing || 1, a: mag.mirA, cast: mag.castT, tk: mag.tkOn || mag.tkN > 0,
     hielo: mag.hieloT, esc: mag.escudoT, arc: buffActivo('arcano'), intro: !!vil.intro, pal: magPaleta()
@@ -10675,7 +10804,7 @@ function objThrowDmg(o){
 }
 
 function onGrab(){
-  if (!running) return;
+  if (!running || vil.intro) return;
   if (Online.caidoYo && esDoble()) return;
   if (isVil()) return vilGrab();
   if (isDra()) return draMordisco();
@@ -10742,6 +10871,7 @@ function onGrab(){
 }
 
 function onThrow(){
+  if (vil.intro) return;
   if (running && isMaq()){ maqCambiaArma(); return; }             // Q: cambia de arma
   if (running && isMag()){ if (mag.tk.length) magSueltaTK(false); return; }   // Q: lanza lo que sostiene
   if (!running || !heldObject) return;
@@ -10977,6 +11107,16 @@ function updatePlayer(dt){
   if (isDra()) return updateDragon(dt);
   if (isMaq()) return updateMaquina(dt);
   if (isMag()) return updateMago(dt);
+  if (vil.intro){                              // la cría surge de una nube de humo verde
+    player.tentaclePhase += dt*6;
+    if (Math.random() < 0.5) addParticles(player.x + rand(-24, 24), player.y + rand(-10, 20), '#5fce7f', 1, 50);
+    if (avanzaEntrada(dt)){
+      addParticles(player.x, player.y, '#7bffa0', 20, 170);
+      for (let k = 0; k < 4; k++) addSmoke(player.x + rand(-20, 20), player.y + rand(-6, 6));
+      shake(4, 0.12);
+    }
+    return;
+  }
   let dx=0, dy=0, mag=1;
   if (moveJoy.active){
     dx = moveJoy.dx; dy = moveJoy.dy; mag = clamp(Math.hypot(dx,dy),0,1);
@@ -12633,6 +12773,8 @@ function lucesJefes(L, k, mx, Mx, my, My, tinta){
     if (maq.fogon > 0) luz(player.x + Math.cos(maq.mirA)*26, player.y - 16, 50, luzFuego, 0.7);
   }
   if (isMag() && mag.escudoT > 0) luz(player.x, player.y - 12, 90, luzAzul, 0.7);
+  if (vil.intro && isMaq()) luz(player.x, player.y + 22, 110, luzFuego, 0.9);
+  if (vil.intro && isMag()){ const P = portalMago(); luz(P.x, P.y, 100, luzAzul, 0.8); }
   for (const r of relampagos) luz(r.x, r.y, 130, luzBlanca, clamp(r.t / r.max, 0, 1));
   for (const b of booms){
     if (b.ring) continue;
@@ -13320,6 +13462,10 @@ function drawPlayer(){
   if (isDra()) return drawDragon();
   if (isMaq()) return drawMaquina();
   if (isMag()) return drawMago();
+  if (vil.intro) return drawEntradaHumo(drawAlien);
+  drawAlien();
+}
+function drawAlien(){
   const s = S(player.x, player.y);
   const tip = tentacleTip(), t = S(tip.x, tip.y);
   const R = drawR, f = F(), SK = skin();
@@ -13858,7 +14004,7 @@ function loop(t){
     updateViento(dt); updateBuff(dt); updateOvniSpawn(dt); updateRayosOjos(dt); updateAura(dt);
     // Mientras cae en la entrada nada puede tocarle: se anota la vida antes
     // y se restaura después, en vez de parchear las cinco vías de daño.
-    const vidaIntro = (usaVil() && vil.intro) ? hp : -1;
+    const vidaIntro = vil.intro ? hp : -1;          // cualquier personaje, mientras entra
     updatePlayer(dt); updateProyJ(dt); updateCongelados(dt);
     updateCivilians(dt); updateCars(dt); updateTrees(dt); updateRam(dt); updateThrown(dt);
     Online.culpaInv = false;
@@ -15270,7 +15416,7 @@ function instantaneaAnfitrion(){
     at: auraTxts.map(a => _prim(a)),
     fx: _fxRed ? _fxRed.splice(0, _fxRed.length) : []
   };
-  if (usaVil()) i.vil = _prim(vil);
+  i.vil = _prim(vil);                         // también la cría: su entrada va en vil
   if (isDra()) i.dra = _prim(dra);
   if (isMaq()) i.maq = _prim(maq);
   if (isMag()) i.mag = _prim(mag);
@@ -15381,7 +15527,7 @@ function aplicaInstantanea(i){
                          maq:i.maq || null, mag:i.mag || null, ry: i.rayos ? 1 : 0,
                          ap:i.ap, bT:i.buff[0], bP:i.buff[1], caido: !!i.caido };
     aplicaMundo(i);
-    if (i.hi){                                     // lo que te han hecho
+    if (i.hi && !vil.intro){                       // lo que te han hecho (mientras entras, nada)
       hp = clamp(hp - recibe(i.hi.d), 0, maxHp());
       if (i.hi.d > 0){ sfx('hurt'); shake(4, 0.1); }
       if (i.hi.q) quemar(); if (i.hi.h) congelar(); if (i.hi.v) envenenar();
@@ -15764,7 +15910,7 @@ function enviaAvatar(dt){
   Online.avAcum = 0;
   const tp = tentacleTip();
   salaEnviar(Online.otro, { t:'av', pl:_prim(player), hero, form, dr:drawR, sk:skinRed(), ry: rayosOn ? 1 : 0,
-    vil: usaVil() ? _prim(vil) : null, dra: isDra() ? _prim(dra) : null,
+    vil: _prim(vil), dra: isDra() ? _prim(dra) : null,
     maq: isMaq() ? _prim(maq) : null, mag: isMag() ? _prim(mag) : null,
     pj: proyJ.length ? proyJ.slice(0, 40).map(p => _prim(p)) : null,
     rl: relampagos.length ? relampagos.map(r => _prim(r)) : null,
