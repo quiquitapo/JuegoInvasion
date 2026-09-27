@@ -641,6 +641,10 @@
   #btnHielo    { background:radial-gradient(circle at 35% 30%, #effcff, #3a8ab8); color:#08202e; }
   #btnEscudoMag { background:radial-gradient(circle at 35% 30%, #f3e0ff, #6a3f96); }
   #btnEscudoMag.on { box-shadow:0 0 0 5px rgba(214,176,255,0.75), 0 4px 12px rgba(0,0,0,0.45); }
+  #btnFuegoMag { background:radial-gradient(circle at 35% 30%, #ffc27a, #a0320f); }
+  #btnFuegoMag.charging { box-shadow:0 0 0 5px rgba(255,138,43,0.7); }
+  #btnTele     { background:radial-gradient(circle at 35% 30%, #d8c8ff, #2a1a5e); }
+  #btnTele.charging { box-shadow:0 0 0 5px rgba(199,125,255,0.7); }
   /* Mando táctil del Jugador 2 */
   /* Ocupa TODA la pantalla (sin recibir toques; sus mandos sí). Los mandos se
      colocan con top/left en proporción al alto de la pantalla, así que el
@@ -814,6 +818,14 @@
     <div class="actbtn magbtn" id="btnEscudoMag">
       <span class="actlabel">ESCUDO</span>
       <span class="acthint">toca</span>
+    </div>
+    <div class="actbtn magbtn" id="btnFuegoMag">
+      <span class="actlabel">FUEGO</span>
+      <span class="acthint">mantén, apunta, suelta</span>
+    </div>
+    <div class="actbtn magbtn" id="btnTele">
+      <span class="actlabel">SALTO</span>
+      <span class="acthint">mantén, apunta, suelta</span>
     </div>
   </div>
 
@@ -1296,7 +1308,7 @@
         <b>Click</b>: dispara el arma elegida (mantenido, sigue disparando). <b>Click derecho</b>: cambia
         de arma: <b>ráfaga</b> → <b>incinerador</b> (marca una zona y la calcina) → <b>lanzacohetes</b>.<br>
         <b>Mantén C</b>: los brazos se vuelven motosierras y marcas con el ratón dónde caer. Al
-        <b>soltar</b>, salta y lo destroza todo en esa zona.<br>
+        <b>soltar</b>, salta arrollando lo que haya por el camino y lo destroza todo en esa zona.<br>
         Tiene poca vida, pero cada baja le cura mucho y le deja un rato regenerándose. El regalo del
         OVNI lo <b>sobrecarga</b>: más daño, más cadencia y un escudo que convierte el daño en vida.
       </div>
@@ -1309,9 +1321,11 @@
         <b>Click derecho</b>: telequinesis. Mantenlo y pasa el ratón sobre las cosas para levantar
         varias a la vez; al <b>soltar</b>, salen disparadas (en la dirección en que muevas el ratón).<br>
         <b>Z</b>: congela todo lo que te rodea. <b>C</b>: escudo que para cualquier daño unos segundos.<br>
+        <b>X</b>: marca un círculo donde apuntas y, al momento, brota del suelo una <b>columna de fuego</b>.
+        <b>R</b>: te <b>teletransportas</b> al último sitio donde hiciste click (la runa del suelo).<br>
         Todo gasta maná (barra morada), que se recupera solo. El regalo del OVNI le da el
-        <b>poder arcano</b>: hechizos más fuertes, y los policías y soldados que mates vuelven como
-        zombis a luchar a tu lado.
+        <b>poder arcano</b> mientras dura: hechizos más fuertes, y los policías y soldados que mates vuelven
+        como zombis a luchar a tu lado (el ejército les dispara, y se deshacen al acabarse el regalo).
       </div>
       <div class="bindrow">
         <span class="bindname">Efectos</span>
@@ -3056,6 +3070,9 @@ function explode(x, y, radius, dmg, big, hurtPlayer){
     }
   }
   if (gameMode === 'vs' && dmg > 0 && dist(x,y,player.x,player.y) < radius) p2Gain(dmg*0.5);
+  if (dmg > 0 && culpaJug <= 0 && zombis.length){
+    for (const z of zombis) if (z.sube <= 0 && dist(x, y, z.x, z.y) < radius) z.hp -= dmg;
+  }
   if (chainDepth === 0) sfx(big ? 'bigboom' : 'boom');
   booms.push({x,y,r:6,max:radius,life:0.42,maxlife:0.42});
   // Onda de choque: anillo fino que se abre más allá de la bola de fuego.
@@ -5484,6 +5501,8 @@ const SFX = {
   // Mago: conjuro, telequinesis, hielo y escudo.
   conjuro:()=> { tone(880, 0.18, 'triangle', 0.07, 1320); tone(440, 0.22, 'sine', 0.06, 660); },
   telequinesis:()=> tone(300, 0.35, 'sine', 0.1, 520),
+  cargaFuego:()=> { noise(0.6, 0.12, 400, 0.8); tone(110, 0.6, 'sawtooth', 0.06, 220); },
+  teleporte:()=> { tone(1200, 0.18, 'sine', 0.1, 300); tone(300, 0.22, 'triangle', 0.07, 1500); },
   hielo:  ()=> { noise(0.5, 0.22, 5200, 3); tone(1400, 0.4, 'triangle', 0.06, 700); },
   escudoMag:()=> { tone(330, 0.4, 'sine', 0.12, 660); tone(495, 0.4, 'sine', 0.07, 990); },
   // Trípodes: bocina grave al llegar, carga que sube, descarga seca, escudo y comida.
@@ -5502,7 +5521,7 @@ const SFX_GAP = { sonicboom:0.30, dash:0.10, crack:0.20,
                   ulla:1.2, cargaM:0.25, rayoM:0.12, escudoM:0.2, comeM:0.15,
                   mordisco:0.08, aleteo:0.2, rayoDra:0.16, coletazo:0.2, trueno:0.18,
                   rafaga:0.045, cohete:0.15, cargaInc:0.3, incinera:0.2, sierra:0.11, recarga:0.1,
-                  aterriza:0.3, conjuro:0.08, telequinesis:0.3, hielo:0.3, escudoMag:0.3 };
+                  aterriza:0.3, conjuro:0.08, telequinesis:0.3, hielo:0.3, escudoMag:0.3, cargaFuego:0.2, teleporte:0.2 };
 const sfxLast = {};
 let sfxVoices = 0;
 const SFX_MAX_VOICES = 14;
@@ -5947,12 +5966,13 @@ function dirOfKey(k){
 
 // ================= CONTROLES (rebindable) =================
 const DEFAULT_BINDS = { up:'w', down:'s', left:'a', right:'d', grab:'e', throw:'q', pausa:'p',
-                        draAle:'z', draRay:'', draCola:'c' };   // rayos: clic derecho (tecla opcional)
+                        draAle:'z', draRay:'', draCola:'c', magFue:'x', magTel:'r' };   // rayos: clic derecho (tecla opcional)
 const BIND_LABELS = { up:'Mover arriba', down:'Mover abajo', left:'Mover izquierda',
                       right:'Mover derecha', grab:'Agarrar / Golpear', throw:'Lanzar',
                       pausa:'Pausa (o Escape)', draAle:'Z · Aletazo (dragón) · Congelar (mago)',
                       draRay:'Rayos del dragón · Cambiar arma de la máquina (además del clic derecho)',
-                      draCola:'C · Coletazo (dragón) · Motosierras (máquina) · Escudo (mago)' };
+                      draCola:'C · Coletazo (dragón) · Motosierras (máquina) · Escudo (mago)',
+                      magFue:'Mago · Columna de fuego', magTel:'Mago · Teletransporte (al último click)' };
 let binds = Object.assign({}, DEFAULT_BINDS);
 
 async function loadBinds(){
@@ -5961,7 +5981,7 @@ async function loadBinds(){
 }
 function saveBinds(){ storeSet('invasion_binds', JSON.stringify(binds)); }
 
-const BIND_ORDER = ['up','left','down','right','grab','throw','pausa','draAle','draRay','draCola'];
+const BIND_ORDER = ['up','left','down','right','grab','throw','pausa','draAle','draRay','draCola','magFue','magTel'];
 
 // --- Jugador 2 (modo VS) ---
 const DEFAULT_BINDS_P2 = { p2Up:'arrowup', p2Down:'arrowdown', p2Left:'arrowleft',
@@ -7082,9 +7102,11 @@ window.addEventListener('keydown', e=>{
     } else if (isMaq()){                        // la máquina: motosierras y cambio de arma
       if (k === binds.draCola) maqSierraApunta();
       if (binds.draRay && k === binds.draRay) maqCambiaArma();
-    } else if (isMag()){                        // el mago: hielo y escudo
+    } else if (isMag()){                        // el mago: hielo, escudo, fuego y teletransporte
       if (k === binds.draAle)  magHielo();
       if (k === binds.draCola) magEscudo();
+      if (k === binds.magFue)  magFuego();
+      if (k === binds.magTel)  magTeleClic();
     }
   }
   keys[k] = true;
@@ -7126,7 +7148,11 @@ canvas.addEventListener('mousedown', e=>{
   }
   if (isMag()){
     // Izquierdo: rayos (mantenido, sigue). Derecho: telequinesis mientras se mantiene.
-    if (e.button === 0){ if (!vil.intro){ mag.lanzando = true; mag.pulso = true; } }
+    if (e.button === 0){
+      const w = { x: mouse.x / ZOOM + camX, y: mouse.y / ZOOM + camY };
+      mag.clicX = w.x; mag.clicY = w.y; mag.clicOk = true;           // destino del teletransporte (R)
+      if (!vil.intro){ mag.lanzando = true; mag.pulso = true; }
+    }
     else if (e.button === 2) magTKEmpieza();
     return;
   }
@@ -8411,6 +8437,15 @@ function updateProyJ(dt){
       if (p.t <= 0){ proyJ.splice(i, 1); magImpacto(p.x, p.y, !!p.arc); }
       continue;
     }
+    if (p.k === 'pilar'){                          // columna de fuego a punto de brotar
+      if (Math.random() < 0.3) addParticles(p.x + rand(-p.R*0.6, p.R*0.6), p.y + rand(-p.R*0.3, p.R*0.3), '#ff8a2b', 1, 40);
+      if (p.t <= 0){ proyJ.splice(i, 1); magErupcion(p.x, p.y, !!p.arc); }
+      continue;
+    }
+    if (p.k === 'erupcion' || p.k === 'tele'){     // solo se ven
+      if (p.t <= 0) proyJ.splice(i, 1);
+      continue;
+    }
     if (p.k === 'cohete' && Math.random() < 0.8) addSmoke(p.x - p.vx*0.02, p.y - p.vy*0.02);
     // pasos cortos: a 900 px/s una bala atravesaría a un soldado de un salto
     const n = Math.max(1, Math.ceil(Math.hypot(p.vx, p.vy)*dt / 14));
@@ -8461,6 +8496,56 @@ function drawProyJ(lista){
       ctx.fillStyle = '#d23a2a'; ctx.beginPath(); ctx.moveTo(7, -3.5); ctx.lineTo(13, 0); ctx.lineTo(7, 3.5); ctx.fill();
       ctx.fillStyle = '#2a3038'; ctx.fillRect(-15, -6, 5, 3); ctx.fillRect(-15, 3, 5, 3);
       ctx.restore();
+    } else if (p.k === 'pilar'){
+      // el círculo se llena y la tierra se agrieta antes de que brote
+      const k = clamp(1 - p.t / p.max, 0, 1), R = p.R;
+      const col = p.arc ? '#8dff6a' : '#ff6a1f';
+      ctx.globalAlpha = 0.18 + k*0.3; ctx.fillStyle = col;
+      ctx.beginPath(); ctx.ellipse(s.x, s.y, R*k, R*0.6*k, 0, 0, Math.PI*2); ctx.fill();
+      ctx.globalAlpha = 0.6 + Math.sin(gameTime*24)*0.3; ctx.strokeStyle = p.arc ? '#d8ffb8' : '#ffd257'; ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.ellipse(s.x, s.y, R, R*0.6, 0, 0, Math.PI*2); ctx.stroke();
+      ctx.globalAlpha = 0.8*k; ctx.strokeStyle = '#2a0f06'; ctx.lineWidth = 2;
+      for (let j = 0; j < 6; j++){
+        const a = j*Math.PI/3 + 0.4;
+        ctx.beginPath(); ctx.moveTo(s.x, s.y);
+        ctx.lineTo(s.x + Math.cos(a)*R*0.45*k, s.y + Math.sin(a)*R*0.27*k);
+        ctx.lineTo(s.x + Math.cos(a + 0.3)*R*0.8*k, s.y + Math.sin(a + 0.3)*R*0.48*k);
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+    } else if (p.k === 'erupcion'){
+      // la columna de fuego sube desde el suelo y se apaga
+      const k = clamp(p.t / p.max, 0, 1), R = p.R, alto = R*2.6*(1 - k*0.35);
+      const c1 = p.arc ? '#5dff4a' : '#ff5a1f', c2 = p.arc ? '#d8ffb8' : '#ffb03a';
+      ctx.save();
+      ctx.globalAlpha = 0.35*k; ctx.fillStyle = c1;
+      ctx.beginPath(); ctx.ellipse(s.x, s.y, R, R*0.6, 0, 0, Math.PI*2); ctx.fill();
+      for (let j = 0; j < 7; j++){
+        const ox = (j - 3)*R*0.2 + Math.sin(gameTime*20 + j)*4;
+        const hh = alto*(0.55 + 0.45*Math.abs(Math.sin(j*1.7 + gameTime*9)));
+        const w = R*0.28;
+        ctx.globalAlpha = (0.55 + (j % 2)*0.25)*k; ctx.fillStyle = j % 2 ? c2 : c1;
+        ctx.beginPath(); ctx.moveTo(s.x + ox - w, s.y);
+        ctx.quadraticCurveTo(s.x + ox - w*0.3, s.y - hh*0.6, s.x + ox + Math.sin(gameTime*14 + j)*6, s.y - hh);
+        ctx.quadraticCurveTo(s.x + ox + w*0.3, s.y - hh*0.6, s.x + ox + w, s.y);
+        ctx.closePath(); ctx.fill();
+      }
+      ctx.globalAlpha = 0.9*k; ctx.fillStyle = '#fff6d0';
+      ctx.beginPath(); ctx.ellipse(s.x, s.y - 4, R*0.35, R*0.18, 0, 0, Math.PI*2); ctx.fill();
+      ctx.restore();
+    } else if (p.k === 'tele'){
+      // remolino morado: se cierra al irse y se abre al llegar
+      const k = clamp(p.t / p.max, 0, 1), f = p.llega ? k : 1 - k;
+      ctx.save(); ctx.strokeStyle = '#c77dff'; ctx.lineWidth = 2.5;
+      for (let j = 0; j < 3; j++){
+        ctx.globalAlpha = k*(0.8 - j*0.2);
+        const r = (10 + j*9)*(p.llega ? 1 + (1 - k)*1.6 : 1 + k);
+        const a0 = gameTime*9*(j % 2 ? -1 : 1) + j;
+        ctx.beginPath(); ctx.ellipse(s.x, s.y - 14, r, r*0.8, 0, a0, a0 + 4.2); ctx.stroke();
+      }
+      ctx.globalAlpha = 0.5*k*(1 - f*0.5); ctx.fillStyle = '#e6c8ff';
+      ctx.beginPath(); ctx.ellipse(s.x, s.y - 14, 9, 22*k, 0, 0, Math.PI*2); ctx.fill();
+      ctx.restore();
     } else if (p.k === 'marca'){
       const k = clamp(1 - p.t / p.max, 0, 1), R = p.R;
       const col = p.arc ? '#8dff6a' : '#c77dff';
@@ -8498,6 +8583,8 @@ const MAQ_COH_V = 720, MAQ_COH_CD = 0.8, MAQ_COH_R = 96, MAQ_COH_DMG = 80, MAQ_C
 const MAQ_SIE_MIN = 90, MAQ_SIE_MAX = 360, MAQ_SIE_R = 96, MAQ_SIE_VEL = 1050, MAQ_SIE_T = 0.6,
       MAQ_SIE_TICK = 0.1, MAQ_SIE_DMG = 30, MAQ_SIE_CD = 2.0;
 const MAQ_SOB = 1.6;                          // daño con la sobrecarga del OVNI
+const MAQ_SIE_PASO = 45;                      // lo que arrollan las motosierras de camino a la zona
+let maqGolpeados = null;
 const MAQ_ESCUDO = 160;                       // cuánto daño convierte en vida el escudo
 const maq = { arma:0, gatillo:false, pulso:false, rafN:0, rafT:0, disCd:0, mirA:0,
               incCarga:0, incA:0, incL:MAQ_INC_LEN, rayoT:0, rayoA:0, rayoL:0, rayoX:0, rayoY:0,
@@ -8629,7 +8716,40 @@ function maqSierraSuelta(){
   maq.sierraX = clamp(player.x + Math.cos(maq.sierraA)*maq.sierraL, 30, WORLD_W - 30);
   maq.sierraY = clamp(player.y + Math.sin(maq.sierraA)*maq.sierraL, 30, WORLD_H - 30);
   maq.sierraCd = MAQ_SIE_CD*(maqSob() ? 0.65 : 1);
+  maqGolpeados = new Set();
   sfx('sierra');
+}
+// De camino a la zona, lo que pilla por delante se lleva un tajo (una vez cada uno).
+function maqArrolla(){
+  const sob = maqSob(), dmg = MAQ_SIE_PASO*(sob ? MAQ_SOB : 1), R = MAQ_R + 24;
+  if (!maqGolpeados) maqGolpeados = new Set();
+  for (const pool of [civilians, enemies]){
+    for (const t of pool){
+      if (t.dead || t.held || t.thrown || maqGolpeados.has(t)) continue;
+      if (distCuerpo(player.x, player.y, t) > R + (t.w || 26)*0.25) continue;
+      maqGolpeados.add(t);
+      const jf = JEFES[t.type] ? 0.6 : 1;
+      porJugador(()=> damageEnemy(t, dmg*jf, t.x, t.y));
+      if (!t.dead && t.person){
+        const a2 = Math.atan2(t.y - player.y, t.x - player.x);
+        t.stunT = Math.max(t.stunT || 0, 0.8); t.stunVx = Math.cos(a2)*200; t.stunVy = Math.sin(a2)*200;
+      }
+      addParticles(t.x, t.y - 10, '#c33', 8, 130);
+      sfx('sierra');
+    }
+  }
+  for (const c of cars){
+    if (c.dead || c.held || c.thrown || maqGolpeados.has(c) || dist(c.x, c.y, player.x, player.y) > R + 10) continue;
+    maqGolpeados.add(c); danaAuto(c, dmg);
+    addParticles(c.x, c.y, '#ffe07a', 8, 140);
+  }
+  for (const pool of [trees, benches, trash, lamps]){
+    for (const pr of pool){
+      if (pr.dead || pr.held || pr.thrown || dist(pr.x, pr.y, player.x, player.y) > R) continue;
+      porJugador(()=> propAbatido(pr));
+      addParticles(pr.x, pr.y, '#c8a060', 6, 110);
+    }
+  }
 }
 function maqSierrasGiran(){
   const sob = maqSob();
@@ -8695,7 +8815,9 @@ function updateMaquina(dt){
       player.vx = dx/d*MAQ_SIE_VEL; player.vy = dy/d*MAQ_SIE_VEL;
       if (player.vx) player.facing = player.vx > 0 ? 1 : -1;
     }
+    maqArrolla();
     if (Math.random() < 0.6) addParticles(player.x, player.y + 8, '#8fd7ff', 2, 80);
+    if (Math.random() < 0.5) addParticles(player.x + player.facing*14, player.y - 16, '#ffe07a', 2, 120);   // chispas de las sierras
     drawR = lerp(drawR, MAQ_R, 0.1);
     return;
   }
@@ -9022,16 +9144,90 @@ const MAG_RAYO_MANA = 7, MAG_RAYO_CD = 0.38, MAG_RAYO_DMG = 78, MAG_RAYO_R = 62,
 const MAG_TK_MANA = 4, MAG_TK_USO = 6, MAG_TK_MAX = 4, MAG_TK_R = 120, MAG_TK_ALC = 380, MAG_TK_VEL = 640;
 const MAG_HIELO_MANA = 24, MAG_HIELO_CD = 1.3, MAG_HIELO_R = 200, MAG_HIELO_T = 3.0, MAG_HIELO_DMG = 18;
 const MAG_ESC_MANA = 30, MAG_ESC_T = 4.5, MAG_ESC_CD = 2.0, MAG_ESC_R = 46;
+const MAG_FUEGO_MANA = 18, MAG_FUEGO_CD = 0.9, MAG_FUEGO_AVISO = 0.75, MAG_FUEGO_R = 80, MAG_FUEGO_DMG = 95, MAG_FUEGO_MAX = 560;
+const MAG_TELE_MANA = 22, MAG_TELE_CD = 1.0, MAG_TELE_MAX = 620;
 const mag = { mirA:0, lanzando:false, pulso:false, rayoCd:0, castT:0,
+              fuegoCd:0, fuegoApunta:false, fuegoX:0, fuegoY:0,
+              teleCd:0, teleApunta:false, teleJoy:false, teleX:0, teleY:0, clicX:0, clicY:0, clicOk:false,
               tk:[], tkOn:false, tkX:0, tkY:0, tkCd:0, tkPX:0, tkPY:0, tkVX:0, tkVY:0, tkN:0,
               hieloCd:0, hieloT:0, escudoT:0, escudoCd:0, flota:0 };
 function magReset(){
   magSueltaTK(true);
   mag.lanzando = false; mag.pulso = false; mag.rayoCd = 0; mag.castT = 0; mag.tkOn = false; mag.tkCd = 0;
   mag.hieloCd = 0; mag.hieloT = 0; mag.escudoT = 0; mag.escudoCd = 0; mag.tkN = 0;
+  mag.fuegoCd = 0; mag.fuegoApunta = false; mag.teleCd = 0; mag.teleApunta = false; mag.clicOk = false;
+}
+// ---- columna de fuego (X): marca el sitio y, al momento, brota del suelo ----
+function magFuego(x, y){
+  if (vil.intro || mag.fuegoCd > 0) return;
+  const arc = magArc();
+  const coste = MAG_FUEGO_MANA*(arc ? 0.8 : 1);
+  if (vil.stam < coste){ sinMana(); return; }
+  if (x === undefined){                                  // teclado: donde apunta el ratón
+    const ap = magApunta(), d = clamp(ap.d, 40, MAG_FUEGO_MAX);
+    x = player.x + Math.cos(ap.a)*d; y = player.y - 8 + Math.sin(ap.a)*d;
+  }
+  x = clamp(x, 20, WORLD_W - 20); y = clamp(y, 20, WORLD_H - 20);
+  vil.stam -= coste;
+  mag.fuegoCd = MAG_FUEGO_CD*(arc ? 0.7 : 1); mag.castT = 0.3;
+  const R = MAG_FUEGO_R*(arc ? 1.35 : 1);
+  proyJ.push({ k:'pilar', x, y, t:MAG_FUEGO_AVISO, max:MAG_FUEGO_AVISO, R, arc: arc ? 1 : 0 });
+  sfx('cargaFuego');
+}
+function magErupcion(x, y, arc){
+  const R = MAG_FUEGO_R*(arc ? 1.35 : 1), dmg = MAG_FUEGO_DMG*(arc ? 1.5 : 1);
+  draDanaArea(x, y, R, dmg, 170, 0.7);
+  for (const b of buildings){
+    if (b.stage >= 2) continue;
+    const cx = clamp(x, b.x, b.x + b.w), cy = clamp(y, b.y, b.y + b.h);
+    if (dist(x, y, cx, cy) < R*0.6) porJugador(()=> damageBuilding(b, dmg*0.7));
+  }
+  for (const pool of [trees, benches, trash]){
+    for (const pr of pool){
+      if (pr.dead || pr.held || pr.thrown || dist(pr.x, pr.y, x, y) > R*0.8) continue;
+      porJugador(()=> propAbatido(pr));
+    }
+  }
+  fuegoPropio(x, y, R*0.8, 3);                            // el suelo queda ardiendo
+  proyJ.push({ k:'erupcion', x, y, t:0.7, max:0.7, R, arc: arc ? 1 : 0 });
+  addParticles(x, y, arc ? '#8dff6a' : '#ffb03a', 22, 260);
+  addParticles(x, y, '#ff5a1f', 14, 200);
+  shake(8, 0.2);
+  sfx('incinera');
+}
+// ---- teletransporte (R): al último sitio donde hizo click ----
+function magTeleClic(){
+  if (mag.clicOk) return magTeleporta(mag.clicX, mag.clicY);
+  const w = lastInputTouch ? { x: player.x + Math.cos(mag.mirA)*220, y: player.y + Math.sin(mag.mirA)*220 }
+                           : { x: mouse.x / ZOOM + camX, y: mouse.y / ZOOM + camY };
+  magTeleporta(w.x, w.y);
+}
+function magTeleporta(x, y){
+  if (vil.intro || mag.teleCd > 0) return;
+  if (vil.stam < MAG_TELE_MANA){ sinMana(); return; }
+  // no más lejos del alcance: si el sitio queda lejos, llega hasta el límite
+  let dx = x - player.x, dy = y - player.y;
+  const d = Math.hypot(dx, dy);
+  if (d < 12) return;
+  if (d > MAG_TELE_MAX){ dx *= MAG_TELE_MAX/d; dy *= MAG_TELE_MAX/d; }
+  vil.stam -= MAG_TELE_MANA;
+  mag.teleCd = MAG_TELE_CD*(magArc() ? 0.6 : 1);
+  proyJ.push({ k:'tele', x:player.x, y:player.y, t:0.45, max:0.45 });
+  addParticles(player.x, player.y - 12, '#c77dff', 16, 160);
+  const x0 = player.x, y0 = player.y;
+  player.x = clamp(player.x + dx, 30, WORLD_W - 30);
+  player.y = clamp(player.y + dy, 30, WORLD_H - 30);
+  player.vx = 0; player.vy = 0;
+  desatascar(MAG_R);                                   // nunca dentro de un edificio
+  mag.tkX += player.x - x0; mag.tkY += player.y - y0;  // lo que sostiene viaja contigo
+  proyJ.push({ k:'tele', x:player.x, y:player.y, t:0.45, max:0.45, llega:1 });
+  addParticles(player.x, player.y - 12, magArc() ? '#8dff6a' : '#e6c8ff', 18, 180);
+  if (magArc()) draDanaArea(player.x, player.y, 110, 45, 200, 0.7);   // con el poder arcano, llega de golpe
+  shake(4, 0.1);
+  sfx('teleporte');
 }
 function magArc(){ return buffActivo('arcano'); }
-function magApunta(){ return apuntaHeroe(['rayomag', 'tk'], -8, joyPropio('tk') ? MAG_TK_ALC : MAG_RAYO_MAX, MAG_RAYO_MAX); }
+function magApunta(){ return apuntaHeroe(['rayomag', 'tk', 'fuegomag'], -8, joyPropio('tk') ? MAG_TK_ALC : MAG_RAYO_MAX, MAG_RAYO_MAX); }
 function magMano(){
   const f = Math.cos(mag.mirA) >= 0 ? 1 : -1;
   return { x: player.x + f*14, y: player.y - 28 - Math.sin((vil.capa||0)*2)*3 };
@@ -9051,6 +9247,7 @@ function magLanzaRayo(ap){
   const y = clamp(player.y - 8 + Math.sin(ap.a)*d, 20, WORLD_H - 20);
   const R = MAG_RAYO_R*(arc ? 1.4 : 1);
   proyJ.push({ k:'marca', x, y, t:MAG_RAYO_AVISO, max:MAG_RAYO_AVISO, R, arc: arc ? 1 : 0 });
+  if (lastInputTouch){ mag.clicX = x; mag.clicY = y; mag.clicOk = true; }
   addParticles(magMano().x, magMano().y, arc ? '#8dff6a' : '#c77dff', 6, 90);
   sfx('conjuro');
 }
@@ -9245,8 +9442,20 @@ function updateMago(dt){
       }
     }
   } else if (mag.escudoCd > 0) mag.escudoCd -= dt;
+  if (mag.fuegoCd > 0) mag.fuegoCd -= dt;
+  if (mag.teleCd > 0) mag.teleCd -= dt;
   const ap = magApunta();
   mag.mirA = ap.a;
+  // mientras se mantienen FUEGO o SALTO en el móvil, se ve dónde caerán
+  if (joyPropio('fuegomag')){
+    const d = clamp(ap.d, 40, MAG_FUEGO_MAX);
+    mag.fuegoX = player.x + Math.cos(ap.a)*d; mag.fuegoY = player.y - 8 + Math.sin(ap.a)*d;
+  }
+  if (joyPropio('tele')){
+    if (draJoy.m >= 0.2) mag.teleJoy = true;
+    const d = clamp(draJoy.m, 0.2, 1)*MAG_TELE_MAX;
+    mag.teleX = player.x + draJoy.dx/(draJoy.m || 1)*d; mag.teleY = player.y + draJoy.dy/(draJoy.m || 1)*d;
+  }
 
   // ---- flota despacio (no corre ni vuela) ----
   let dx = 0, dy = 0, m = 1;
@@ -9439,6 +9648,27 @@ function dibujaMago(g, x, y, esc, st){
   }
   g.restore();
 }
+// La runa del último click (destino de R) y, en el móvil, dónde caerán el
+// fuego o el salto mientras se mantienen sus botones.
+function drawMagoAvisos(){
+  if (!isMag() || esVisorVs()) return;
+  const runa = (x, y, col, R, lleno)=>{
+    const s = S(x, y);
+    ctx.save();
+    ctx.globalAlpha = 0.55; ctx.strokeStyle = col; ctx.lineWidth = 1.6;
+    ctx.beginPath(); ctx.ellipse(s.x, s.y, R, R*0.55, 0, 0, Math.PI*2); ctx.stroke();
+    if (lleno){ ctx.globalAlpha = 0.14; ctx.fillStyle = col; ctx.fill(); }
+    ctx.globalAlpha = 0.7;
+    for (let j = 0; j < 3; j++){
+      const a = gameTime*1.5 + j*Math.PI*2/3;
+      ctx.fillStyle = col; ctx.fillRect(s.x + Math.cos(a)*R - 1.5, s.y + Math.sin(a)*R*0.55 - 1.5, 3, 3);
+    }
+    ctx.restore();
+  };
+  if (mag.clicOk && !mag.teleApunta) runa(mag.clicX, mag.clicY, mag.teleCd > 0 ? '#6a5a80' : '#c77dff', 14, false);
+  if (mag.teleApunta && mag.teleJoy) runa(mag.teleX, mag.teleY, '#e6c8ff', 22, true);
+  if (mag.fuegoApunta) runa(mag.fuegoX, mag.fuegoY, '#ff8a2b', MAG_FUEGO_R*(magArc() ? 1.35 : 1), true);
+}
 // Hilo de energía desde la mano hasta lo que levanta con la mente.
 function drawMagoEfectos(){
   if (!isMag() || !(mag.tkOn || mag.tkN > 0)) return;
@@ -9462,12 +9692,14 @@ function drawMagoEfectos(){
 // Los policías y soldados que mata el mago con el poder arcano se levantan y
 // atacan a sus antiguos compañeros. Nadie les dispara, pero se deshacen al
 // cabo de un rato.
-const ZOMBI_MAX = 10, ZOMBI_VIDA = 26, ZOMBI_VEL = 92, ZOMBI_DMG = 18, ZOMBI_CD = 0.7, ZOMBI_ALC = 28;
+const ZOMBI_MAX = 10, ZOMBI_VIDA = 26, ZOMBI_VEL = 92, ZOMBI_DMG = 18, ZOMBI_CD = 0.7, ZOMBI_ALC = 28, ZOMBI_HP = 80;
 const zombis = [];
 const ZOMBI_TINTE = [ null, { id:'zombi', r:120, g:205, b:105, o:10, modo:'todo' } ];
 function levantaZombi(e){
   if (zombis.length >= ZOMBI_MAX) zombis.shift();
-  zombis.push({ x:e.x, y:e.y, tipo:e.type, t:ZOMBI_VIDA, sube:0.9, cd:0, facing:e.facing || 1, bob:Math.random()*6 });
+  // dueño: quién lo levantó ('inv' = el compañero en Doble Invasión); se deshace cuando a él se le acaba el regalo
+  zombis.push({ x:e.x, y:e.y, tipo:e.type, t:ZOMBI_VIDA, sube:0.9, cd:0, facing:e.facing || 1, bob:Math.random()*6,
+                hp:ZOMBI_HP, maxhp:ZOMBI_HP, dueno: Online.culpaInv ? 'inv' : 'yo' });
   addParticles(e.x, e.y, '#8dff6a', 10, 80);
 }
 // ¿La baja la ha causado un mago con el poder arcano? (tú o, en Doble
@@ -9477,11 +9709,18 @@ function bajaArcana(){
   if (Online.culpaInv){ const a = Online.av; return !!(a && a.hero === 'mago' && a.bP === 'arcano' && a.bT > 0); }
   return isMag() && buffActivo('arcano');
 }
+// ¿Sigue activo el regalo de quien lo levantó?
+function arcanoDe(z){
+  if (z.dueno === 'inv'){ const a = Online.av; return !!(a && a.hero === 'mago' && a.bP === 'arcano' && a.bT > 0); }
+  return isMag() && buffActivo('arcano');
+}
 function updateZombis(dt){
   for (let i = zombis.length - 1; i >= 0; i--){
     const z = zombis[i];
+    // el regalo del OVNI es temporal: al acabarse, sus zombis se deshacen
+    if (!arcanoDe(z) && z.t > 0.8) z.t = 0.8;
     z.t -= dt; z.bob += dt*6;
-    if (z.t <= 0){ addParticles(z.x, z.y, '#5a7a4a', 12, 90); zombis.splice(i, 1); continue; }
+    if (z.hp <= 0 || z.t <= 0){ addParticles(z.x, z.y, '#5a7a4a', 14, 100); zombis.splice(i, 1); continue; }
     if (z.sube > 0){ z.sube -= dt; continue; }
     z.cd -= dt;
     // al enemigo de a pie más cercano; si no hay, junto al mago
@@ -9528,8 +9767,32 @@ function drawZombi(z){
   ctx.globalAlpha = fade*(0.7 + Math.sin(z.bob)*0.3);
   ctx.fillRect(s.x + z.facing*3 - 1, dy - dim.h*0.36, 2, 2);
   ctx.restore();
+  if (showHpBars && z.hp < z.maxhp && sube >= 1) hpBar(s.x, dy - dim.h*0.62, 36, z.hp, z.maxhp, '#5dcf4a');
 }
 
+// Los enemigos normales se defienden del zombi que tengan más cerca que al
+// invasor (los jefes siguen a lo suyo).
+function zombiObjetivo(e, dJug){
+  let mejor = null, md = Math.min(dJug, 650);
+  for (const z of zombis){
+    if (z.sube > 0 || z.hp <= 0 || z.t <= 0.8) continue;
+    const d = dist(e.x, e.y, z.x, z.y);
+    if (d < md){ md = d; mejor = z; }
+  }
+  return mejor;
+}
+// Una bala enemiga que da en un zombi.
+function balaEnZombi(b){
+  for (const z of zombis){
+    if (z.sube > 0 || z.hp <= 0) continue;
+    if (Math.abs(b.x - z.x) > 15 || b.y < z.y - 28 || b.y > z.y + 14) continue;
+    z.hp -= b.dmg;
+    addParticles(b.x, b.y, '#6a8a3a', 6, 80);
+    if (b.blast || b.shell) explode(b.x, b.y, b.blast || 70, 0, false);
+    return true;
+  }
+  return false;
+}
 // Relámpagos: los del dragón son azules; los del mago, morados o, con el
 // poder arcano, verdes.
 const RELAMPAGO_COL = [
@@ -9636,6 +9899,8 @@ const UI_PIEZAS = [
   { id:'magTK',  el:'btnTK',       nombre:'MENTE',   def:{ v:[0.84,0.42], h:[0.92,0.42] } },
   { id:'magHie', el:'btnHielo',    nombre:'HIELO',   def:{ v:[0.64,0.72], h:[0.78,0.56] } },
   { id:'magEsc', el:'btnEscudoMag',nombre:'ESCUDO',  def:{ v:[0.84,0.82], h:[0.78,0.84] } },
+  { id:'magFue', el:'btnFuegoMag', nombre:'FUEGO',   def:{ v:[0.64,0.54], h:[0.66,0.70] } },
+  { id:'magTel', el:'btnTele',     nombre:'SALTO',   def:{ v:[0.64,0.90], h:[0.66,0.88] } },
   // en vertical, un poco más arriba: en un móvil estrecho no caben joystick y
   // botones a la misma altura y el joystick pisaba el botón ◀
   { id:'p2joy', el:'p2JoyBase',  nombre:'MANDO J2', def:{ v:[0.16,0.79], h:[0.10,0.80] } },
@@ -10035,6 +10300,15 @@ function bindHeroesBtns(){
   }, isMag);
   toca('btnHielo', isMag, magHielo);
   toca('btnEscudoMag', isMag, magEscudo);
+  // FUEGO y SALTO: mientras se mantienen se ve dónde caerán; al soltar, se lanzan
+  joystickBoton('btnFuegoMag', 'fuegomag', ()=>{ mag.fuegoApunta = true; }, (cancelado)=>{
+    mag.fuegoApunta = false; if (!cancelado) magFuego(mag.fuegoX, mag.fuegoY);
+  }, isMag);
+  joystickBoton('btnTele', 'tele', ()=>{ mag.teleApunta = true; mag.teleJoy = false; }, (cancelado)=>{
+    mag.teleApunta = false;
+    if (cancelado) return;
+    if (mag.teleJoy) magTeleporta(mag.teleX, mag.teleY); else magTeleClic();   // un toque: al último rayo
+  }, isMag);
 }
 bindHeroesBtns();
 
@@ -10132,7 +10406,8 @@ function refreshActionBtn(){
   const sig = (holding ? 'h' : 'e') + (dragon ? (apaga ? 'R' : 'D') : '') + (dragon && dra.colaApunta ? 'C' : '')
             + (dragon && dra.rayos ? 'r' : '')
             + (isMaq() ? 'M' + maq.arma + (maq.gatillo ? 'g' : '') + (maq.sierraApunta ? 's' : '') : '')
-            + (isMag() ? 'W' + (mag.lanzando ? 'l' : '') + (mag.tkOn ? 't' : '') + (mag.escudoT > 0 ? 'e' : '') : '');
+            + (isMag() ? 'W' + (mag.lanzando ? 'l' : '') + (mag.tkOn ? 't' : '') + (mag.escudoT > 0 ? 'e' : '')
+                       + (mag.fuegoApunta ? 'f' : '') + (mag.teleApunta ? 'p' : '') : '');
   if (sig === actSig) return;
   actSig = sig;
   if (isMaq()){
@@ -10145,6 +10420,8 @@ function refreshActionBtn(){
     const br = document.getElementById('btnRayoMag'); if (br) br.classList.toggle('on', mag.lanzando);
     const bt = document.getElementById('btnTK'); if (bt) bt.classList.toggle('on', mag.tkOn);
     const be = document.getElementById('btnEscudoMag'); if (be) be.classList.toggle('on', mag.escudoT > 0);
+    const bf = document.getElementById('btnFuegoMag'); if (bf) bf.classList.toggle('charging', !!mag.fuegoApunta);
+    const bt2 = document.getElementById('btnTele'); if (bt2) bt2.classList.toggle('charging', !!mag.teleApunta);
     return;
   }
   const lab = document.getElementById('actlabel');
@@ -11494,8 +11771,8 @@ function updateEnemies(dt){
       continue;
     }
     if (Online.modo === 'doble' && Online.jugando) apuntaEnemigo(e);   // al invasor más cercano
-    const a = dist(e.x,e.y,player.x,player.y);
-    const ang = Math.atan2(player.y-e.y, player.x-e.x);
+    let a = dist(e.x,e.y,player.x,player.y);
+    let ang = Math.atan2(player.y-e.y, player.x-e.x);
     e.facing = Math.cos(ang) >= 0 ? 1 : -1;
 
     if (e.type === 'ovni'){
@@ -11558,8 +11835,15 @@ function updateEnemies(dt){
       }
       continue;
     }
+    // si un zombi está más cerca que el invasor, van a por él
+    let blanco = player;
+    if (zombis.length && !e.pacifico){
+      const z = zombiObjetivo(e, a);
+      if (z){ blanco = z; a = dist(e.x, e.y, z.x, z.y); ang = Math.atan2(z.y - e.y, z.x - e.x); e.facing = Math.cos(ang) >= 0 ? 1 : -1; }
+    }
     let keepDist = 180, r = 14;
-    if (e.type==='military') keepDist = 220;
+    if (blanco !== player) keepDist = 110;       // al zombi se le acercan más
+    if (e.type==='military') keepDist = blanco !== player ? 140 : 220;
     if (e.type==='tank'){ keepDist = 260; r = 30; }
     if (e.type==='heli'){ keepDist = 230; r = 0; e.bob += dt; }
     if (e.type==='gunship'){ keepDist = 300; r = 0; e.bob += dt; }
@@ -11606,6 +11890,7 @@ function updateEnemies(dt){
           m.sprite = 'missile';
           m.life = 5.5;
           m.blast = 70;
+          if (blanco !== player) m._objZ = blanco;   // el misil persigue al zombi
           bullets.push(m);
         }
       } else if (e.type==='minigun' && a < 640){
@@ -11614,7 +11899,7 @@ function updateEnemies(dt){
       } else if (e.type==='siege' && a < 1100){
         // artillería: memoriza tu posición y el obús cae exactamente ahí
         e.shootCd = rand(4.6,6.0);
-        const tx = player.x, ty = player.y;
+        const tx = blanco.x, ty = blanco.y;
         // bastante lento: da tiempo real a salir del círculo si te mueves
         const sh = mkBullet(e, Math.atan2(ty-e.y, tx-e.x), 210, 0, '#cfd6e6', 9, true);
         sh.artillery = true;
@@ -11650,7 +11935,8 @@ function updateBullets(dt){
     if (b.homing){
       if (b.homeTime > 0){
         b.homeTime -= dt;
-        const want = Math.atan2(player.y - b.y, player.x - b.x);
+        const Z = b._objZ && b._objZ.hp > 0 && zombis.includes(b._objZ) ? b._objZ : player;
+        const want = Math.atan2(Z.y - b.y, Z.x - b.x);
         let cur = Math.atan2(b.vy, b.vx);
         let d = want - cur;
         while (d >  Math.PI) d -= Math.PI*2;
@@ -11697,6 +11983,7 @@ function updateBullets(dt){
     }
     if (hr && !heldObject) hr = null;
     if (!b.artillery && escudoParaBala(b)){ b.life = 0; continue; }
+    if (!b.artillery && zombis.length && balaEnZombi(b)){ b.life = 0; continue; }
     // standing buildings stop bullets too
     let blocked = false;
     if (!b.artillery && !b.pierce) for (const bl of buildings){
@@ -12336,7 +12623,11 @@ function lucesJefes(L, k, mx, Mx, my, My, tinta){
   }
   for (const f of fuegos) luz(f.x, f.y, f.r*1.7, luzFuego, clamp(f.t / f.max, 0, 1)*(0.8 + Math.random()*0.2));
   // la máquina y el mago: fogonazos, cohetes, el haz, la burbuja y los rayos
-  for (const p of proyJ) if (p.k === 'cohete') luz(p.x, p.y, 60, luzFuego, 0.8);
+  for (const p of proyJ){
+    if (p.k === 'cohete') luz(p.x, p.y, 60, luzFuego, 0.8);
+    else if (p.k === 'erupcion') luz(p.x, p.y - p.R, p.R*2.4, luzFuego, clamp(p.t / p.max, 0, 1));
+    else if (p.k === 'pilar') luz(p.x, p.y, p.R*1.2, luzFuego, 0.4*clamp(1 - p.t / p.max, 0, 1));
+  }
   if (isMaq()){
     if (maq.rayoT > 0){ const a = maq.rayoA; for (const f of [0.3, 0.65, 1]) luz(maq.rayoX + Math.cos(a)*maq.rayoL*f, maq.rayoY + Math.sin(a)*maq.rayoL*f, 110, luzFuego, 0.9); }
     if (maq.fogon > 0) luz(player.x + Math.cos(maq.mirA)*26, player.y - 16, 50, luzFuego, 0.7);
@@ -13268,7 +13559,7 @@ function draw(){
   drawBuildings(); drawPlanters(); drawLamps();
   // Las zonas marcadas del Artillero van DESPUÉS de los edificios: si no, los
   // escombros las tapaban justo donde más falta hace verlas.
-  drawFuegos(); drawArtAvisos(); drawTriAvisos(); drawDragonAvisos(); drawMaquinaAvisos(); drawMbtRayos();
+  drawFuegos(); drawArtAvisos(); drawTriAvisos(); drawDragonAvisos(); drawMaquinaAvisos(); drawMagoAvisos(); drawMbtRayos();
 
   // Solo se encolan los objetos visibles: con ~200 props fuera de pantalla,
   // esto evita cientos de entradas y llamadas de dibujo por fotograma.
@@ -14461,7 +14752,7 @@ function refreshModeText(){
       'calles enteras y te escudas de todo. Cada hechizo gasta maná.<br>'+
       '<span class="moderec">Recomendado: <b>WASD</b> para flotar. <b>Click</b> lanza rayos, <b>mantener click der.</b> '+
       'levanta lo que toques con la mente (suelta para lanzarlo), <b>Z</b> congela a tu alrededor y '+
-      '<b>C</b> activa el escudo.</span>';
+      '<b>C</b> activa el escudo, <b>X</b> hace brotar fuego del suelo y <b>R</b> te teletransporta a tu último click.</span>';
     v.innerHTML = 'Dos jugadores en el mismo teclado. El <b>Mago Aberrante</b> debe aguantar 2:30 mientras '+
       'el <b>Jugador 2</b> gasta materiales desplegando tropas donde quiera. Flotas despacio: congela y '+
       'escúdate antes de que te rodeen.<br>'+
