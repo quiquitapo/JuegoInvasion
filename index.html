@@ -1388,7 +1388,7 @@
         <b>Mantén C</b>: los brazos se vuelven motosierras y marcas con el ratón dónde caer. Al
         <b>soltar</b>, salta arrollando lo que haya por el camino y lo destroza todo en esa zona.<br>
         Tiene poca vida, pero cada baja le cura mucho y le deja un rato regenerándose. El regalo del
-        OVNI lo <b>sobrecarga</b>: más daño, el hacha se vuelve <b>motosierra</b> (corta mientras mantienes), la ráfaga una <b>minigun</b> sin pausas y un escudo convierte el daño en vida.
+        OVNI lo <b>sobrecarga</b>: más daño, el hacha se vuelve una <b>espada láser</b> de largo alcance (corta mientras mantienes), la ráfaga una <b>minigun</b> sin pausas y un escudo convierte el daño en vida.
       </div>
       <div class="bindrow">
         <span class="bindname">Efectos</span>
@@ -7036,6 +7036,7 @@ const SFX = {
   rayoM:  ()=> { noise(0.35, 0.32, 5200, 0.8); tone(1400, 0.35, 'sine', 0.16, 300); tone(90, 0.4, 'sine', 0.22, 40); },
   escudoM:()=> tone(520, 0.25, 'sine', 0.10, 900),
   comeM:  ()=> { noise(0.25, 0.2, 500, 1.2); tone(140, 0.25, 'square', 0.12, 70); },
+  sable:  ()=> { tone(92, 0.16, 'sawtooth', 0.045, 118); tone(184, 0.12, 'sine', 0.025, 150); },
   over:   ()=> { [440,330,262,196].forEach((f,i)=> setTimeout(()=>tone(f,0.3,'triangle',0.2), i*160)); }
 };
 // Cortafuegos: un mismo efecto no puede repetirse más rápido que su cooldown,
@@ -7046,7 +7047,7 @@ const SFX_GAP = { sonicboom:0.30, dash:0.10, crack:0.20,
                   ulla:1.2, cargaM:0.25, rayoM:0.12, escudoM:0.2, comeM:0.15,
                   mordisco:0.08, aleteo:0.2, rayoDra:0.16, coletazo:0.2, trueno:0.18,
                   rafaga:0.045, hachazo:0.08, silbido:0.08, cohete:0.15, cargaInc:0.3, incinera:0.2, sierra:0.11, recarga:0.1,
-                  aterriza:0.3, conjuro:0.08, telequinesis:0.3, hielo:0.3, escudoMag:0.3, cargaFuego:0.2, teleporte:0.2, portalRojo:0.5, humoVerde:0.5 };
+                  aterriza:0.3, sable:0.14, conjuro:0.08, telequinesis:0.3, hielo:0.3, escudoMag:0.3, cargaFuego:0.2, teleporte:0.2, portalRojo:0.5, humoVerde:0.5 };
 const sfxLast = {};
 let sfxVoices = 0;
 const SFX_MAX_VOICES = 14;
@@ -7079,17 +7080,24 @@ const BOSS_TRACKS = {
   // flotante, como una máquina que no termina de posarse.
   superx:    { scale:[110.00,123.47,138.59,155.56,174.61,196.00,220.00,246.94],
                bass:[55.00,61.74,69.30,61.74], tempo:146, name:'ARMA A MEDIDA', style:'omni' },
+  // Artillero: marcha militar con caja, redobles, bombo y una corneta.
   artillero: { scale:[98.00,110.00,116.54,130.81,146.83,155.56,185.00,196.00],
-               bass:[49.00,49.00,58.27,55.00], tempo:158, name:'VIEJO CAÑÓN', style:'omni' },
+               bass:[49.00,49.00,58.27,55.00], tempo:150, name:'VIEJO CAÑÓN', style:'militar',
+               mel:[0,-1,0,2, 4,-1,4,-1, 7,-1,4,2, 4,-1,-1,-1, 0,0,2,4, 7,-1,4,-1, 5,4,2,1, 0,-1,-1,-1] },
   // Omnidroide: octatónica (tono-semitono). Suena mecánica y sin centro tonal,
   // como algo que orbita sin rumbo. Lleva un bajo que se desliza y un pulso doble.
-  omni:      { scale:[110.00,123.47,130.81,146.83,155.56,174.61,185.00,207.65],
-               bass:[55.00,58.27,55.00,49.00], tempo:132, name:'ÓRBITA MUERTA',
-               style:'omni' },
+  // Omnidroide: tema de villano. Acordes de órgano menores sobre un bajo que
+  // baja por semitonos, un motivo con el tritono y campanadas.
+  omni:      { scale:[110.00,123.47,130.81,146.83,164.81,174.61,207.65,220.00],
+               bass:[110.00,103.83,98.00,92.50], tempo:175, name:'ÓRBITA MUERTA', style:'villano',
+               mel:[0,-1,-1,2, 1,-1,0,-1, 5,-1,4,-1, 6,-1,-1,-1, 0,-1,-1,2, 3,-1,2,-1, 1,-1,6,-1, 7,-1,-1,-1] },
   // Trípodes: frigio dominante, con la segunda menor pegada a la tónica.
   // Suena ajeno y ceremonial, como algo que no es de este planeta.
+  // Trípodes: frigio dominante con un theremín que se desliza entre notas,
+  // pitidos y chisporroteos. Suena a platillo volante de película antigua.
   tripode:   { scale:[103.83,110.00,138.59,146.83,155.56,207.65,220.00,277.18],
-               bass:[51.91,51.91,55.00,46.25], tempo:150, name:'LA COSECHA', style:'omni' },
+               bass:[51.91,51.91,55.00,46.25], tempo:150, name:'LA COSECHA', style:'alien',
+               mel:[0,4,6,2,7,3,5,1, 0,6,4,7,2,5,3,0] },
   // Héroe Mágico: marcha épica de espada y brujería en re dórico, con tambor
   // de guerra y una melodía propia que va subiendo por grados.
   heroe:     { scale:[146.83,164.81,174.61,196.00,220.00,246.94,261.63,293.66],
@@ -7097,8 +7105,11 @@ const BOSS_TRACKS = {
                mel:[4,-1,4,5, 6,-1,5,4, 3,-1,3,4, 5,-1,4,3, 2,-1,2,3, 4,-1,3,2, 1,2,3,-1, 4,-1,-1,-1,
                     7,-1,6,5, 6,-1,5,4, 5,-1,4,3, 4,-1,3,2, 3,4,5,-1, 4,3,2,1, 0,-1,2,-1, 0,-1,-1,-1] },
   // Kaiyin: frigio grave, como un trueno que no termina de irse.
+  // Kaiyin: como la música de fondo de las películas de monstruos gigantes:
+  // ostinato grave de metales, timbales pesados y golpes de orquesta.
   kaiyin:    { scale:[82.41,87.31,98.00,110.00,123.47,130.81,146.83,164.81],
-               bass:[41.20,43.65,41.20,36.71], tempo:140, name:'TRES CABEZAS', style:'omni' }
+               bass:[41.20,43.65,41.20,36.71], tempo:185, name:'TRES CABEZAS', style:'kaiju',
+               ost:[0,1,2,-1, 0,1,2,-1, 0,1,3,2, 1,-1,-1,-1, 0,1,2,-1, 0,1,2,-1, 4,3,2,1, 0,-1,-1,-1] }
 };
 let bossTrack = null;              // el que suena ahora, si hay jefe en pie
 let previewTrack = null, previewT = 0;
@@ -7180,6 +7191,60 @@ function musicStep(){
     if (s % 16 === 14) mk(sc[7]*3, 0.36, 'triangle', 0.055);       // brillo lejano
     if (s % 4 === 0) noise(0.05, 0.09, 2600);                      // chasquido metálico
     if (s % 8 === 4) noise(0.10, 0.16, 520);                       // golpe sordo
+    return;
+  }
+  if (bt && bt.style === 'militar'){
+    // VIEJO CAÑÓN: bombo y bajo en cada tiempo, caja en el 2 y el 4 con
+    // redoble al cerrar la frase, y la corneta con arpegios.
+    const bass = bt.bass;
+    if (s % 4 === 0){ mk(bass[(s/4 | 0) % bass.length], 0.3, 'sawtooth', 0.22); noise(0.12, 0.2, 180); }
+    if (s % 4 === 2) mk(bass[(s/4 | 0) % bass.length]*1.5, 0.18, 'triangle', 0.12);
+    if (s % 8 === 4 || s % 16 >= 13) noise(0.05, 0.13, 3200);          // caja y redoble
+    if (s % 2 === 1 && s % 16 >= 12) noise(0.03, 0.08, 4200);
+    const n = bt.mel[s % bt.mel.length];
+    if (n >= 0) mk(sc[n]*2, 0.22, 'square', 0.065);                    // corneta
+    return;
+  }
+  if (bt && bt.style === 'villano'){
+    // ÓRBITA MUERTA: acorde menor sostenido (como un órgano) sobre un bajo que
+    // desciende por semitonos, el motivo con el tritono y alguna campanada.
+    const b = bt.bass[(s/8 | 0) % bt.bass.length];
+    if (s % 8 === 0){ mk(b, 1.6, 'sawtooth', 0.15); mk(b*1.5, 1.6, 'triangle', 0.08); mk(b*2.378, 1.6, 'triangle', 0.06); }
+    const n = bt.mel[s % bt.mel.length];
+    if (n >= 0) mk(sc[n]*2, 0.5, 'square', 0.06);
+    if (s % 16 === 12) mk(sc[1]*4, 0.9, 'sine', 0.05);
+    if (s % 8 === 4) noise(0.12, 0.1, 400);
+    return;
+  }
+  if (bt && bt.style === 'kaiju'){
+    // TRES CABEZAS: ostinato grave de metales, timbales y golpes de orquesta.
+    const o = bt.ost[s % bt.ost.length];
+    if (o >= 0){ mk(sc[o]/2, 0.26, 'sawtooth', 0.2); mk(sc[o], 0.26, 'square', 0.07); }
+    if (s % 8 === 0 || s % 8 === 3){ mk(sc[0]/4, 0.5, 'sine', 0.32); noise(0.18, 0.18, 160); }
+    if (s % 32 === 16){ mk(sc[4], 1.2, 'sawtooth', 0.1); mk(sc[6], 1.2, 'sawtooth', 0.07); mk(sc[0], 1.2, 'sawtooth', 0.08); }
+    if (s % 32 === 28) mk(sc[3], 0.8, 'sawtooth', 0.09);
+    return;
+  }
+  if (bt && bt.style === 'alien'){
+    // LA COSECHA: un theremín que se desliza entre notas con vibrato, un bajo
+    // hueco, pitidos agudos y chisporroteo de estática.
+    if (s % 4 === 0){
+      const m = bt.mel, i = (s/4 | 0);
+      const f0 = sc[m[(i + m.length - 1) % m.length]]*2, f1 = sc[m[i % m.length]]*2;
+      const o = audio.ctx.createOscillator(), g = audio.ctx.createGain();
+      const lfo = audio.ctx.createOscillator(), lg = audio.ctx.createGain();
+      o.type = 'sine'; o.frequency.setValueAtTime(f0, t0); o.frequency.exponentialRampToValueAtTime(f1, t0 + 0.28);
+      lfo.frequency.value = 6.2; lg.gain.value = f1*0.018;
+      lfo.connect(lg); lg.connect(o.frequency);
+      g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.085, t0 + 0.08);
+      g.gain.setValueAtTime(0.085, t0 + 0.6); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.95);
+      o.connect(g); g.connect(audio.musGain);
+      o.start(t0); lfo.start(t0); o.stop(t0 + 1); lfo.stop(t0 + 1);
+      o.onended = ()=>{ try { o.disconnect(); g.disconnect(); lfo.disconnect(); lg.disconnect(); } catch(e){} };
+    }
+    if (s % 8 === 0) mk(bt.bass[(s/8 | 0) % bt.bass.length], 1.2, 'sine', 0.2);
+    if (s % 3 === 0) mk(sc[(s*5) % sc.length]*4, 0.08, 'sine', 0.03);
+    if (s % 16 === 8) noise(0.4, 0.05, 6000);
     return;
   }
   if (bt && bt.style === 'epica'){
@@ -7709,7 +7774,7 @@ const ACHIEVEMENTS = [
   { id:'tormenta',  icon:'\u{26A1}', name:'SEÑOR DE LA TORMENTA', goal:1,
     desc:'Derriba un OVNI siendo el dragón de tres cabezas y desata su regalo: una tormenta eléctrica cuyos relámpagos fulminan a los enemigos que te rodean.' },
   { id:'sobrecarga', icon:'\u{1F916}', name:'SOBRECARGA', goal:1,
-    desc:'Derriba un OVNI siendo la Máquina Aberrante: sus armas se sobrecargan (motosierra y minigun) y un escudo convierte en vida el daño que recibes.' },
+    desc:'Derriba un OVNI siendo la Máquina Aberrante: sus armas se sobrecargan (espada láser y minigun) y un escudo convierte en vida el daño que recibes.' },
   { id:'nigromante', icon:'\u{1F9DF}', name:'NIGROMANTE', goal:1,
     desc:'Derriba un OVNI siendo el Mago Aberrante: sus hechizos se desatan y los policías y soldados que caen vuelven como zombis a pelear a tu lado.' },
 
@@ -10969,12 +11034,13 @@ const MAQ_COH_V = 720, MAQ_COH_CD = 0.8, MAQ_COH_R = 96, MAQ_COH_DMG = 80, MAQ_C
 const MAQ_SIE_MIN = 90, MAQ_SIE_MAX = 360, MAQ_SIE_R = 96, MAQ_SIE_VEL = 1050, MAQ_SIE_T = 0.6,
       MAQ_SIE_TICK = 0.1, MAQ_SIE_DMG = 30, MAQ_SIE_CD = 2.0;
 const MAQ_SOB = 1.6;                          // daño con la sobrecarga del OVNI
-// Con la sobrecarga el hacha se vuelve motosierra (corta mientras se mantenga
-// pulsado) y la ráfaga, minigun (fuego continuo, sin pausas).
-const MAQ_MOTO_TICK = 0.09, MAQ_MOTO_DMG = 24, MAQ_MOTO_ALC = 60, MAQ_MOTO_ARCO = 0.85;
+// Con la sobrecarga el hacha se vuelve una espada láser de largo alcance
+// (corta mientras se mantenga pulsado, también al barrer con la mira) y la
+// ráfaga, minigun (fuego continuo, sin pausas).
+const MAQ_SABLE_TICK = 0.09, MAQ_SABLE_DMG = 26, MAQ_SABLE_L = 165, MAQ_SABLE_W = 22;   // espada láser de largo alcance
 const MAQ_MINI_GAP = 0.05, MAQ_MINI_DMG = 0.85;
 function maqNombreArma(i){
-  if (maqSob()){ if (i === 0) return 'MOTOSIERRA'; if (i === 1) return 'MINIGUN'; }
+  if (maqSob()){ if (i === 0) return 'ESPADA LÁSER'; if (i === 1) return 'MINIGUN'; }
   return MAQ_ARMAS[i];
 }
 const MAQ_SIE_PASO = 45;                      // lo que arrollan las motosierras de camino a la zona
@@ -11001,7 +11067,7 @@ function maqBoca(a){
 function maqCambiaArma(){
   if (vil.intro) return;
   maq.arma = (maq.arma + 1) % MAQ_ARMAS.length;
-  maq.incCarga = 0; maq.rafN = 0; maq.armaT = 0.9;
+  maq.incCarga = 0; maq.incApunta = false; maq.rafN = 0; maq.armaT = 0.9; maq.sableAnt = undefined;
   toast('ARMA: ' + maqNombreArma(maq.arma));
   sfx('recarga');
 }
@@ -11012,12 +11078,12 @@ function maqDisparo(dt, ap){
   maq.disCd -= dt;
   const quiere = maq.gatillo || maq.pulso;
   const sob = maqSob();
-  if (maq.arma === 0 && sob){                            // --- motosierra ---
+  if (maq.arma === 0 && sob){                            // --- espada láser ---
     if (quiere){
       maq.pulso = false; maq.corta = 0.12;
       maq.motoTick = (maq.motoTick || 0) - dt;
-      if (maq.motoTick <= 0){ maq.motoTick += MAQ_MOTO_TICK; maqHachazo(ap, true); }
-    } else maq.motoTick = 0;
+      if (maq.motoTick <= 0){ maq.motoTick += MAQ_SABLE_TICK; maqSable(ap); }
+    } else { maq.motoTick = 0; maq.sableAnt = undefined; }
   } else if (maq.arma === 0){                            // --- hacha ---
     if (quiere && maq.disCd <= 0){ maq.pulso = false; maqHachazo(ap); }
   } else if (maq.arma === 1 && sob){                     // --- minigun: sin pausas ---
@@ -11050,15 +11116,15 @@ function maqDisparo(dt, ap){
       maq.rafN = MAQ_RAF_N + (sob ? 2 : 0); maq.rafT = 0; maq.pulso = false;
     }
   } else if (maq.arma === 2){                            // --- incinerador ---
-    if (maq.incCarga > 0){
-      maq.incCarga -= dt;
-      // la zona sigue a la mira mientras calcula; el último instante queda fija
-      if (maq.incCarga > 0.12){ maq.incA = ap.a; maq.incL = clamp(ap.d, 150, MAQ_INC_LEN); }
-      if (maq.incCarga <= 0){ maq.incCarga = 0; maqIncinera(); }
-    } else if (quiere && maq.disCd <= 0){
-      maq.incCarga = MAQ_INC_CARGA*(sob ? 0.65 : 1); maq.pulso = false;
+    // Mientras se mantiene pulsado marca la zona, que sigue a la mira; al
+    // soltar, la calcina.
+    if (quiere && maq.disCd <= 0){
+      if (!maq.incApunta){ maq.incApunta = true; sfx('cargaInc'); }
+      maq.pulso = false; maq.incCarga = 1;
       maq.incA = ap.a; maq.incL = clamp(ap.d, 150, MAQ_INC_LEN);
-      sfx('cargaInc');
+    } else if (maq.incApunta){
+      maq.incApunta = false; maq.incCarga = 0;
+      maqIncinera();
     }
   } else {                                               // --- lanzacohetes ---
     if (quiere && maq.disCd <= 0){
@@ -11076,6 +11142,40 @@ function maqDisparo(dt, ap){
   }
 }
 // Un hachazo en arco hacia donde apunta: tajo a todo lo que alcance.
+// Un corte de la espada láser: la hoja alcanza lejos y, si se barre con la
+// mira, corta todo lo que cruza entre el ángulo anterior y el actual.
+function maqSable(ap){
+  const ox = player.x, oy = player.y - 16, a1 = ap.a;
+  const a0 = maq.sableAnt === undefined ? a1 : maq.sableAnt;
+  maq.sableAnt = a1;
+  let da = a1 - a0; while (da > Math.PI) da -= Math.PI*2; while (da < -Math.PI) da += Math.PI*2;
+  const pasos = Math.min(6, 1 + Math.ceil(Math.abs(da)/0.18));
+  const tocados = new Set();
+  const corta = (x, y)=>{ for (let k = 0; k < pasos; k++){ if (enLinea(x, y, ox, oy, a0 + da*(k + 1)/pasos, MAQ_SABLE_L, MAQ_SABLE_W)) return true; } return false; };
+  let dio = false;
+  for (const pool of [civilians, enemies]){
+    for (const t of pool){
+      if (t.dead || t.held || t.thrown || tocados.has(t)) continue;
+      const b = blancoRayo(t);
+      if (!corta(b.x, b.y)) continue;
+      tocados.add(t);
+      porJugador(()=> damageEnemy(t, MAQ_SABLE_DMG*(JEFES[t.type] ? 0.75 : 1)*(1 + maq.impulso*0.4), b.x, b.y));
+      dio = true;
+    }
+  }
+  for (const c of cars){ if (!c.dead && !c.held && !c.thrown && corta(c.x, c.y)){ danaAuto(c, MAQ_SABLE_DMG); dio = true; } }
+  for (const pool of [trees, benches, trash, lamps]){
+    for (const pr of pool){ if (!pr.dead && !pr.held && !pr.thrown && corta(pr.x, pr.y)){ porJugador(()=> propAbatido(pr)); dio = true; } }
+  }
+  // la punta raja los muros
+  const px = ox + Math.cos(a1)*MAQ_SABLE_L*0.9, py = oy + Math.sin(a1)*MAQ_SABLE_L*0.9;
+  for (const b of buildings){
+    if (b.stage >= 2 || px < b.x || px > b.x + b.w || py < b.y || py > b.y + b.h) continue;
+    porJugador(()=> damageBuilding(b, MAQ_SABLE_DMG*0.8)); addParticles(px, py, '#ff7a6a', 3, 120); dio = true; break;
+  }
+  if (dio){ addParticles(px, py, '#ff5a4a', 3, 120); shake(2, 0.05); }
+  sfx('sable');
+}
 // moto: un corte de la motosierra (se repite mientras se mantenga pulsado).
 function maqHachazo(ap, moto){
   const sob = maqSob();
@@ -11638,17 +11738,18 @@ function dibujaMaquina(g, x, y, esc, st){
     g.beginPath(); g.moveTo(0, 0); g.lineTo(10, 2); g.stroke();
     g.strokeStyle = '#c9d2dc'; g.lineWidth = 1.8;
     g.beginPath(); g.moveTo(0, 0); g.lineTo(10, 2); g.stroke();
-    if (st.arma === 0 && st.sob){                                  // motosierra
-      const vib = st.corta > 0 ? (Math.random() - 0.5)*1.4 : 0;
-      g.translate(0, vib);
-      g.fillStyle = '#3a4048'; g.fillRect(5, -4.5, 11, 9);                         // motor
-      g.fillStyle = '#ff7a2a'; g.fillRect(6, -3.5, 8, 7);
-      g.fillStyle = '#1a1f24'; g.fillRect(7, -5.5, 5, 1.5);
-      g.fillStyle = '#cfd6dd'; g.beginPath(); g.roundRect ? g.roundRect(15, -3, 20, 6, 3) : g.rect(15, -3, 20, 6); g.fill();   // espada
-      g.fillStyle = '#2a2f36';
-      const off = st.corta > 0 ? (t*160) % 4 : 0;
-      for (let k = 0; k < 6; k++){ g.fillRect(16 + ((k*4 + off) % 19), -4.1, 2, 1.4); g.fillRect(16 + ((k*4 + 2 + off) % 19), 2.7, 2, 1.4); }
-      if (st.corta > 0){ g.fillStyle = '#ffe07a'; g.fillRect(34 + Math.random()*3, -2 + Math.random()*4, 2, 1); }
+    if (st.arma === 0 && st.sob){                                  // espada láser
+      g.fillStyle = '#2a2f36'; g.fillRect(6, -2.2, 10, 4.4);                       // empuñadura
+      g.fillStyle = '#9aa4ae'; g.fillRect(8, -2.2, 1.5, 4.4); g.fillRect(12, -2.2, 1.5, 4.4);
+      g.fillStyle = '#c33'; g.fillRect(14.5, -1, 1.5, 2);
+      const L = MAQ_SABLE_L - 18, vib = 0.85 + Math.random()*0.15 + (st.corta > 0 ? 0.2 : 0);
+      g.lineCap = 'round';
+      g.globalAlpha = 0.28*vib; g.strokeStyle = '#ff3a2a'; g.lineWidth = 11;
+      g.beginPath(); g.moveTo(17, 0); g.lineTo(17 + L, 0); g.stroke();
+      g.globalAlpha = 0.75; g.strokeStyle = '#ff5a4a'; g.lineWidth = 5;
+      g.beginPath(); g.moveTo(17, 0); g.lineTo(17 + L, 0); g.stroke();
+      g.globalAlpha = 1; g.strokeStyle = '#fff0ec'; g.lineWidth = 2;
+      g.beginPath(); g.moveTo(17, 0); g.lineTo(17 + L, 0); g.stroke();
     } else if (st.arma === 1 && st.sob){                           // minigun
       g.fillStyle = '#20252c'; g.fillRect(6, -4, 10, 8);
       g.fillStyle = '#ff7a2a'; g.fillRect(7, -3, 5, 2);
@@ -13355,6 +13456,9 @@ function meleeDmg(e){
   if (e.type === 'omni')      return 58;
   if (e.type === 'tripode')   return 62;    // ~11 golpes, como el asedio
   if (e.type === 'flametank') return 60;
+  if (e.type === 'kaiyin')    return 60;    // ~45 golpes: el gigante aguanta
+  if (e.type === 'heroe')     return 58;    // ~23 golpes
+  if (e.type === 'golem')     return 110;   // la roca aguanta tres
   if (e.type === 'siege')   return 65;    // ~10 golpes
   if (e.type === 'gunship') return 130;
   if (e.type === 'tank')    return 160;
@@ -18160,7 +18264,7 @@ function fichaHeroe(h){
           ['Click izq. / ' + K('grab'), 'Usar el arma (mantenido, sigue atacando)'],
           ['Click der. / ' + K('throw'), 'Cambiar de arma: hacha → ráfaga → incinerador → lanzacohetes'],
           ['Mantén ' + K('draCola'), 'Motosierras: marca la zona y, al soltar, salta arrollando lo que haya en el camino'],
-          ['OVNI', 'Sobrecarga: el hacha es una motosierra, la ráfaga una minigun sin pausas, más daño y un escudo que convierte el daño en vida']],
+          ['OVNI', 'Sobrecarga: el hacha es una espada láser, la ráfaga una minigun sin pausas, más daño y un escudo que convierte el daño en vida']],
       m: 'DISPARO es un joystick (mantén y apunta; con un toque ataca a lo más cercano), ARMA cambia de arma y SIERRAS se mantiene, apunta y suelta.' },
     mago: {
       desc: 'Hechicero encapuchado que flota despacio. Rayos, telequinesis, hielo y fuego: todo gasta maná, que se recupera solo.',
