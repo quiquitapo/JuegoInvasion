@@ -2376,6 +2376,22 @@ const EDIF_PISO = 20;
 function edifBajo(b){ return 'CTPKBE'.includes(b.set) ? 42 : b.set === 'F' ? 32 : b.set === 'A' ? 26 : 28; }
 function edifFachada(b){ return Math.min(Math.round(b.h*0.62), edifBajo(b) + (edifPisos(b) - 1)*EDIF_PISO); }
 
+// Baja la saturación y el brillo de un lienzo ya pintado, para que la
+// ciudad no compita con los personajes.
+const EDIF_SAT = 0.72, EDIF_LUZ = 0.9;
+function apagaColores(c){
+  try {
+    const g = c.getContext('2d'), d = g.getImageData(0, 0, c.width, c.height), p = d.data;
+    for (let i = 0; i < p.length; i += 4){
+      if (!p[i + 3]) continue;
+      const l = p[i]*0.3 + p[i + 1]*0.59 + p[i + 2]*0.11;
+      p[i]     = (l + (p[i]     - l)*EDIF_SAT)*EDIF_LUZ;
+      p[i + 1] = (l + (p[i + 1] - l)*EDIF_SAT)*EDIF_LUZ;
+      p[i + 2] = (l + (p[i + 2] - l)*EDIF_SAT)*EDIF_LUZ;
+    }
+    g.putImageData(d, 0, 0);
+  } catch(e){}
+}
 function eR(g, c, x, y, w, h){ g.fillStyle = c; g.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); }
 function eMez(hex, k){ return civMezcla(hex, k); }
 // Ventana con marco, cristal y reflejo; se apunta para encenderla de noche.
@@ -2715,7 +2731,7 @@ function edifCanvas(b, etapa, forzar){
   const c = document.createElement('canvas'); c.width = b.w; c.height = b.h;
   const g = c.getContext('2d');
   const P = EDIF_PAL[b.set] || EDIF_PAL.G;
-  if (etapa === 2){ edifEscombros(g, b, P, R); b._cv[2] = c; return c; }
+  if (etapa === 2){ edifEscombros(g, b, P, R); apagaColores(c); b._cv[2] = c; return c; }
   const fh = edifFachada(b), rh = b.h - fh;
   if (etapa === 1 && b._cv[0]){ g.drawImage(b._cv[0], 0, 0); }
   else {
@@ -2726,6 +2742,7 @@ function edifCanvas(b, etapa, forzar){
     edifEntradaLateral(g, b, P, rh);
     eR(g, 'rgba(0,0,0,0.35)', 0, rh, b.w, 1);
     b._win = ventanas; b._humos = humos; b._neon = edifNeonTmp;
+    apagaColores(c);                                   // la etapa 1 parte de esta ya apagada
     if (etapa === 0){ b._cv[0] = c; return c; }
   }
   // etapa 1: grietas, ventanas rotas, hollín y agujeros en la azotea
@@ -2847,6 +2864,7 @@ function edifInterior(b){
     if (R() < 0.5){ const px = x + 6 + R()*(ww - 14), py = y + 6 + R()*(hh - 14); g.fillStyle = '#3a7a3a'; g.beginPath(); g.arc(px, py, 4, 0, Math.PI*2); g.fill(); g.fillStyle = '#5aa04a'; g.beginPath(); g.arc(px - 1, py - 1, 2, 0, Math.PI*2); g.fill(); }   // planta
   }
   eR(g, '#5a5048', 0, 0, w, 3); eR(g, '#5a5048', 0, h - 3, w, 3); eR(g, '#5a5048', 0, 0, 3, h); eR(g, '#5a5048', w - 3, 0, 3, h);   // muros de carga
+  apagaColores(c);
   b._int = c;
   return c;
 }
@@ -3264,6 +3282,7 @@ function maxHp(){ return isVil() ? VIL_HP : isDra() ? DRA_HP : isMaq() ? MAQ_HP 
 let player = { x: WORLD_W/2, y: WORLD_H/2, vx:0, vy:0, tentaclePhase:0 };
 let civilians=[], enemies=[], cars=[], trees=[], planters=[], trash=[], benches=[], bullets=[], particles=[], booms=[], heldObject=null;
 let score=0, kills=0, demolished=0, hp=100, gameTime=0, running=false, stage=1;
+let temblorX = 0, temblorY = 0;          // el temblor aplicado en este fotograma
 let spawnTimers = {}, shakeTime=0, shakeMag=0, finalAnnounced=false, lastT=0;
 let coinsBanco = 0;                      // botín acumulado en la partida
 let bossRest = 0, bossRoll = 0;
@@ -4752,6 +4771,7 @@ function arrancaEdificio(b){
   // que si lo arrancas dañado, dañado lo verás en el tentáculo.
   const set = b.set, etapa = b.stage;
   porJugador(()=> demolish(b));
+  b._arrancado = true; b._etAnt = 2; b.caeT = undefined;   // se lo lleva entero: no hay derrumbe
   const trozo = {
     kind:'edificio', set, etapa, x: b.x + b.w/2, y: b.y + b.h/2,
     w: b.w, h: b.h, seed: b.seed, cat: b.cat, frente: b.frente,
@@ -14777,6 +14797,7 @@ function parqueCanvas(p){
     g.fillStyle = '#6a4a2e'; g.beginPath(); g.ellipse(px, py, 20, 12, 0, 0, Math.PI*2); g.fill();
     for (let i = 0; i < 40; i++){ const a = R()*Math.PI*2, r = R(); eR(g, flores[(R()*flores.length) | 0], px + Math.cos(a)*r*17, py + Math.sin(a)*r*9, 2, 2); }
   }
+  apagaColores(c);
   p._cv = c;
   return c;
 }
@@ -14871,7 +14892,7 @@ function drawVentanasNoche(oscuro){
   ctx.globalCompositeOperation = 'lighter';
   for (const b of buildings){
     if (b.stage >= 2 || !b._win || b.x > x1 || b.x + b.w < x0 || b.y > y1 || b.y + b.h < y0) continue;
-    const bx = (b.x - camX)*Z, by = (b.y - camY)*Z, sd = (b.seed|0);
+    const bx = (b.x - camX + temblorX)*Z, by = (b.y - camY + temblorY)*Z, sd = (b.seed|0);
     for (let i = 0; i < b._win.length; i++){
       const v = b._win[i];
       let n = ((sd*131 + i*977) % 100 + 100) % 100;
@@ -14948,6 +14969,20 @@ function drawHumoEdif(){
   ctx.globalAlpha = 1;
 }
 
+// Solar de un edificio arrancado de cuajo: el foso de los cimientos.
+function drawCimientos(b, s2){
+  const m = 6;
+  ctx.fillStyle = '#4a4238'; ctx.fillRect(s2.x + m, s2.y + m, b.w - m*2, b.h - m*2);
+  ctx.fillStyle = '#2e2822'; ctx.fillRect(s2.x + m, s2.y + m, b.w - m*2, 6);
+  ctx.fillStyle = '#2e2822'; ctx.fillRect(s2.x + m, s2.y + m, 5, b.h - m*2);
+  ctx.fillStyle = '#6a6258';
+  ctx.fillRect(s2.x + m, s2.y + b.h - m - 3, b.w - m*2, 3); ctx.fillRect(s2.x + b.w - m - 3, s2.y + m, 3, b.h - m*2);
+  // tubos arrancados y restos de pilares
+  ctx.fillStyle = '#7a7e84';
+  for (let i = 1; i < 4; i++){ const x = s2.x + b.w*i/4; ctx.fillRect(x - 3, s2.y + b.h*0.45, 6, 6); ctx.fillRect(x - 3, s2.y + b.h*0.75, 6, 6); }
+  ctx.strokeStyle = '#8a6a3a'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(s2.x + b.w*0.3, s2.y + m + 6); ctx.lineTo(s2.x + b.w*0.34, s2.y + m + 16); ctx.stroke();
+}
 // ---------- derrumbe ----------
 const EDIF_CAE = 0.9;
 function drawDerrumbe(b, s2){
@@ -14979,7 +15014,13 @@ function drawBuildings(){
   }
   for (const b of buildings){
     // el paso a escombros se anima (sirve también para el invitado, que lo recibe por red)
-    if (b._etAnt !== undefined && b._etAnt < 2 && b.stage >= 2) b.caeT = gameTime;
+    if (b._etAnt !== undefined && b._etAnt < 2 && b.stage >= 2){
+      // Si en ese momento hay un trozo suyo en un tentáculo es que lo han
+      // arrancado (también le llega así al invitado): no se derrumba.
+      if (trash.some(t=> t.kind === 'edificio' && !t.dead && t.set === b.set && t.w === b.w && t.h === b.h)) b._arrancado = true;
+      else b.caeT = gameTime;
+    }
+    if (b.stage < 2) b._arrancado = false;
     b._etAnt = b.stage;
     if (b.x+b.w<camX || b.x>camX+VW || b.y+b.h<camY || b.y>camY+VH) continue;
     const s2 = S(b.x, b.y);
@@ -15007,6 +15048,7 @@ function drawBuildings(){
 
     if (b.stage >= 2){
       // escombros: transitable
+      if (b._arrancado){ drawCimientos(b, s2); continue; }
       const cvR = edifCanvas(b, 2);
       if (cvR) ctx.drawImage(cvR, s2.x, s2.y);
       else { ctx.fillStyle = '#4a4f52'; ctx.fillRect(s2.x, s2.y, b.w, b.h); }
@@ -15030,7 +15072,7 @@ function drawBuildings(){
       if (b.stage === 1) ctx.drawImage(edifInterior(b), s2.x, s2.y);   // asoma por los agujeros
       ctx.drawImage(cv, s2.x, s2.y);
       if (b.stage === 1 && b._rotas) llamasVentanas(b, s2);
-      if (dentroDeEste(b)) drawRayosX(b, s2);
+      if (isVil() && dentroDeEste(b)) drawRayosX(b, s2);
     } else {
       ctx.fillStyle = b.color || '#5a5f66'; ctx.fillRect(s2.x, s2.y, b.w, b.h);
       ctx.strokeStyle = b.edge || '#6a7078'; ctx.lineWidth = 2; ctx.strokeRect(s2.x, s2.y, b.w, b.h);
@@ -15547,7 +15589,8 @@ function dlCmp(a, b){ return a.y - b.y; }
 function draw(){
   ctx.setTransform(ZOOM*DPR, 0, 0, ZOOM*DPR, 0, 0);   // todo el mundo se dibuja escalado
   ctx.save();
-  if (shakeTime>0) ctx.translate(rand(-shakeMag,shakeMag), rand(-shakeMag,shakeMag));
+  temblorX = temblorY = 0;
+  if (shakeTime>0){ temblorX = rand(-shakeMag,shakeMag); temblorY = rand(-shakeMag,shakeMag); ctx.translate(temblorX, temblorY); }
   actualizaSol();
   drawBackground(); drawRoads();
   drawManchasLuz();                    // profundidad del suelo, un solo relleno
