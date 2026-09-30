@@ -334,7 +334,40 @@
   .p2res { text-align:center; color:#ffe066; font-size:0.95rem; font-weight:900; }
   .p2res .p2resicon { color:#8fd7ff; }
   .p2res .p2reslbl { display:block; color:#6fa382; font-size:0.5rem; letter-spacing:2px; font-weight:400; }
-  .p2seeds { display:flex; flex-direction:column; gap:5px; overflow:hidden; }
+  /* Todas las semillas: si no caben, la lista se desliza (rueda, dedo o al
+     cambiar de semilla con el teclado, que la trae a la vista). */
+  .p2seeds { display:flex; flex-direction:column; gap:5px; overflow-y:auto; overflow-x:hidden;
+             flex:1 1 auto; min-height:0; overscroll-behavior:contain; scroll-behavior:smooth;
+             scrollbar-width:thin; scrollbar-color:#24506b transparent; padding-right:2px; }
+  .p2seeds::-webkit-scrollbar { width:4px; }
+  .p2seeds::-webkit-scrollbar-thumb { background:#24506b; border-radius:2px; }
+  #p2seeds { pointer-events:auto; touch-action:pan-y; }
+  .seed { flex:0 0 auto; }
+  /* Pantalla baja: dos semillas por fila, más compactas, sin textos de ayuda. */
+  @media (max-height: 560px){
+    #p2panel { width:min(200px, 30vw); padding:6px 5px; gap:5px; }
+    .p2seeds { display:grid; grid-template-columns:1fr 1fr; gap:4px; align-content:start; }
+    .seed { flex-direction:column; gap:1px; padding:3px 2px; text-align:center; }
+    .seed img { width:26px; height:20px; flex:0 0 auto; }
+    .seedinfo { align-items:center; max-width:100%; }
+    .seedname { font-size:0.4rem; letter-spacing:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
+    .seedcost { font-size:0.55rem; }
+    .p2hint { display:none; }
+    .p2title { font-size:0.55rem; letter-spacing:1px; padding-bottom:3px; }
+    .p2res { font-size:0.8rem; }
+  }
+  /* Muy pequeña o muy estrecha: solo icono y precio, y el panel más fino. */
+  @media (max-height: 380px), (max-width: 560px){
+    #p2panel { width:min(132px, 26vw); padding:5px 4px; }
+    .p2seeds { display:grid; grid-template-columns:1fr 1fr; gap:3px; align-content:start; }
+    .seed { flex-direction:column; gap:0; padding:2px 1px; }
+    .seed img { width:22px; height:17px; flex:0 0 auto; }
+    .seedinfo { align-items:center; }
+    .seedname { display:none; }
+    .seedcost { font-size:0.5rem; }
+    .p2hint { display:none; }
+    .p2res .p2reslbl { display:none; }
+  }
   .seed { display:flex; align-items:center; gap:6px; padding:4px 5px; border-radius:4px;
           background:rgba(10,22,16,0.75); border:1px solid #24506b; }
   .seed.sel { border-color:#ffe066; background:rgba(58,42,8,0.75); }
@@ -959,7 +992,7 @@
 
   <div id="menu" class="overlay hidden">
     <img id="gamelogo" class="gamelogo" alt="Invasión">
-    <div class="subtitle">La ciudad es tuya. Devórala.</div>
+    <div class="subtitle" id="menuLema">La ciudad es tuya. Devórala.</div>
     <div class="panel">
       <h3>Mejores Puntajes</h3>
       <div class="tabrow">
@@ -1355,7 +1388,7 @@
         <b>Mantén C</b>: los brazos se vuelven motosierras y marcas con el ratón dónde caer. Al
         <b>soltar</b>, salta arrollando lo que haya por el camino y lo destroza todo en esa zona.<br>
         Tiene poca vida, pero cada baja le cura mucho y le deja un rato regenerándose. El regalo del
-        OVNI lo <b>sobrecarga</b>: más daño, más cadencia y un escudo que convierte el daño en vida.
+        OVNI lo <b>sobrecarga</b>: más daño, el hacha se vuelve <b>motosierra</b> (corta mientras mantienes), la ráfaga una <b>minigun</b> sin pausas y un escudo convierte el daño en vida.
       </div>
       <div class="bindrow">
         <span class="bindname">Efectos</span>
@@ -5857,7 +5890,7 @@ function buildCustom(body, tent){
 }
 
 const SKINS = [
-  { id:'verde',    name:'VERDE ORIGINAL', cost:0,   c:['#5fce7f','#2f7a45','#123d1f'], limb:'#2e6b3f', tip:'#45c46b' },
+  { id:'verde',    name:'COLOR ORIGINAL', cost:0,   c:['#5fce7f','#2f7a45','#123d1f'], limb:'#2e6b3f', tip:'#45c46b' },
   { id:'carmesi',  name:'CARMESÍ',        cost:25,  c:['#ff8a7a','#b3231f','#4a0d0d'], limb:'#8e2b22', tip:'#e04a35' },
   { id:'abisal',   name:'AZUL ABISAL',    cost:40,  c:['#7fd0ff','#1f5f9e','#0d2340'], limb:'#245f8a', tip:'#3ba0e0' },
   { id:'violeta',  name:'VIOLETA TÓXICO', cost:60,  c:['#d79bff','#6b28a8','#2a0d45'], limb:'#5c2b85', tip:'#a755e0' },
@@ -6473,6 +6506,12 @@ function renderAuraCard(){
   };
 }
 
+function colorOriginal(){
+  if (isDra()) return [DRA_ORO.cl, DRA_ORO.cm, DRA_ORO.co];
+  if (isMaq()) return [MAQ_AZUL.plC, MAQ_AZUL.pl, MAQ_AZUL.plO];
+  if (isMag()) return [MAG_TUNICA.tC, MAG_TUNICA.t, MAG_TUNICA.tO];
+  return skinById('verde').c;
+}
 function renderShop(){
   document.getElementById('coincount').textContent = coins;
   renderAuraCard();
@@ -6483,8 +6522,11 @@ function renderShop(){
     const btn = active ? `<span class="skinbtn on">EN USO</span>`
       : owned ? `<button class="skinbtn own" data-use="${k.id}">USAR</button>`
       : `<button class="skinbtn buy${coins>=k.cost?'':' poor'}" data-buy="${k.id}">${k.cost} ⬤</button>`;
+    // el color original es el de cada personaje: verde la cría y el viltrumita,
+    // dorado el dragón, azul la máquina y morado el mago
+    const c = k.id === 'verde' ? colorOriginal() : k.c;
     return `<div class="skincard${active?' active':''}${uniq?' uniq':''}">
-      <span class="swatch" style="background:${k.muestra || `radial-gradient(circle at 34% 30%, ${k.c[0]}, ${k.c[1]} 60%, ${k.c[2]})`}"></span>
+      <span class="swatch" style="background:${k.muestra || `radial-gradient(circle at 34% 30%, ${c[0]}, ${c[1]} 60%, ${c[2]})`}"></span>
       <span class="skinname">${k.name}</span>${btn}</div>`;
   };
   const lk = document.getElementById('imgLock');
@@ -7667,7 +7709,7 @@ const ACHIEVEMENTS = [
   { id:'tormenta',  icon:'\u{26A1}', name:'SEÑOR DE LA TORMENTA', goal:1,
     desc:'Derriba un OVNI siendo el dragón de tres cabezas y desata su regalo: una tormenta eléctrica cuyos relámpagos fulminan a los enemigos que te rodean.' },
   { id:'sobrecarga', icon:'\u{1F916}', name:'SOBRECARGA', goal:1,
-    desc:'Derriba un OVNI siendo la Máquina Aberrante: sus armas se sobrecargan y un escudo convierte en vida el daño que recibes.' },
+    desc:'Derriba un OVNI siendo la Máquina Aberrante: sus armas se sobrecargan (motosierra y minigun) y un escudo convierte en vida el daño que recibes.' },
   { id:'nigromante', icon:'\u{1F9DF}', name:'NIGROMANTE', goal:1,
     desc:'Derriba un OVNI siendo el Mago Aberrante: sus hechizos se desatan y los policías y soldados que caen vuelven como zombis a pelear a tu lado.' },
 
@@ -8492,7 +8534,21 @@ function p2Select(i){
       if (p2AutoColoca()) p2ColocaCerca();
     }
   };
-  cont.addEventListener('touchstart', elige, {passive:false});
+  let toque = null;
+  cont.addEventListener('touchstart', e=>{
+    const t = e.touches && e.touches[0];
+    toque = t ? { x:t.clientX, y:t.clientY, el:e.target, sy:cont.scrollTop } : null;
+  }, {passive:true});
+  cont.addEventListener('touchend', e=>{
+    if (!toque) return;
+    const t = e.changedTouches && e.changedTouches[0];
+    const mov = t ? Math.hypot(t.clientX - toque.x, t.clientY - toque.y) : 99;
+    if (mov < 12 && Math.abs(cont.scrollTop - toque.sy) < 6){
+      e.preventDefault();                     // sin el clic de ratón emulado detrás
+      elige({ target: toque.el });
+    }
+    toque = null;
+  }, {passive:false});
   cont.addEventListener('mousedown', elige);
 })();
 
@@ -8522,6 +8578,14 @@ function construyeP2Seeds(sigImgs){
   }));
   p2SeedsSig = sigImgs;
 }
+// Desliza la lista lo justo para que la semilla elegida quede entera a la vista.
+function p2VerSemilla(el){
+  const c = el.parentNode;
+  if (!c || c.scrollHeight <= c.clientHeight + 1) return;
+  const top = el.offsetTop - c.offsetTop, bot = top + el.offsetHeight;
+  if (top < c.scrollTop + 2) c.scrollTop = Math.max(0, top - 4);
+  else if (bot > c.scrollTop + c.clientHeight - 2) c.scrollTop = bot - c.clientHeight + 4;
+}
 function renderP2Panel(){
   const mat = Math.floor(p2.mat);
   let sigImgs = '';
@@ -8535,7 +8599,7 @@ function renderP2Panel(){
     const s = p2Seeds[i], u = P2_UNITS[i];
     const sel = i === p2.sel, poor = mat < u.cost, cd = p2.cool[i] > 0;
     const n = cd ? Math.ceil(p2.cool[i]) : 0;
-    if (sel  !== s.sel ){ s.sel  = sel;  s.el.classList.toggle('sel', sel); }
+    if (sel  !== s.sel ){ s.sel  = sel;  s.el.classList.toggle('sel', sel); if (sel) p2VerSemilla(s.el); }
     if (poor !== s.poor){ s.poor = poor; s.el.classList.toggle('poor', poor); }
     if (cd   !== s.cd  ){ s.cd   = cd;   s.el.classList.toggle('cool', cd); s.cool.style.display = cd ? '' : 'none'; }
     if (n !== s.n){ s.n = n; if (cd) s.cool.textContent = n; }
@@ -10905,6 +10969,14 @@ const MAQ_COH_V = 720, MAQ_COH_CD = 0.8, MAQ_COH_R = 96, MAQ_COH_DMG = 80, MAQ_C
 const MAQ_SIE_MIN = 90, MAQ_SIE_MAX = 360, MAQ_SIE_R = 96, MAQ_SIE_VEL = 1050, MAQ_SIE_T = 0.6,
       MAQ_SIE_TICK = 0.1, MAQ_SIE_DMG = 30, MAQ_SIE_CD = 2.0;
 const MAQ_SOB = 1.6;                          // daño con la sobrecarga del OVNI
+// Con la sobrecarga el hacha se vuelve motosierra (corta mientras se mantenga
+// pulsado) y la ráfaga, minigun (fuego continuo, sin pausas).
+const MAQ_MOTO_TICK = 0.09, MAQ_MOTO_DMG = 24, MAQ_MOTO_ALC = 60, MAQ_MOTO_ARCO = 0.85;
+const MAQ_MINI_GAP = 0.05, MAQ_MINI_DMG = 0.85;
+function maqNombreArma(i){
+  if (maqSob()){ if (i === 0) return 'MOTOSIERRA'; if (i === 1) return 'MINIGUN'; }
+  return MAQ_ARMAS[i];
+}
 const MAQ_SIE_PASO = 45;                      // lo que arrollan las motosierras de camino a la zona
 let maqGolpeados = null;
 const MAQ_ESCUDO = 160;                       // cuánto daño convierte en vida el escudo
@@ -10930,7 +11002,7 @@ function maqCambiaArma(){
   if (vil.intro) return;
   maq.arma = (maq.arma + 1) % MAQ_ARMAS.length;
   maq.incCarga = 0; maq.rafN = 0; maq.armaT = 0.9;
-  toast('ARMA: ' + MAQ_ARMAS[maq.arma]);
+  toast('ARMA: ' + maqNombreArma(maq.arma));
   sfx('recarga');
 }
 function maqRegenera(){
@@ -10940,8 +11012,28 @@ function maqDisparo(dt, ap){
   maq.disCd -= dt;
   const quiere = maq.gatillo || maq.pulso;
   const sob = maqSob();
-  if (maq.arma === 0){                                   // --- hacha ---
+  if (maq.arma === 0 && sob){                            // --- motosierra ---
+    if (quiere){
+      maq.pulso = false; maq.corta = 0.12;
+      maq.motoTick = (maq.motoTick || 0) - dt;
+      if (maq.motoTick <= 0){ maq.motoTick += MAQ_MOTO_TICK; maqHachazo(ap, true); }
+    } else maq.motoTick = 0;
+  } else if (maq.arma === 0){                            // --- hacha ---
     if (quiere && maq.disCd <= 0){ maq.pulso = false; maqHachazo(ap); }
+  } else if (maq.arma === 1 && sob){                     // --- minigun: sin pausas ---
+    maq.rafN = 0;
+    if (quiere){
+      maq.pulso = false; maq.giraCanon = (maq.giraCanon || 0) + dt;
+      maq.rafT -= dt;
+      while (maq.rafT <= 0){
+        maq.rafT += MAQ_MINI_GAP;
+        const a = ap.a + rand(-0.07, 0.07), m = maqBoca(ap.a);
+        proyJ.push({ k:'bala', x:m.x, y:m.y, vx:Math.cos(a)*MAQ_BALA_V, vy:Math.sin(a)*MAQ_BALA_V,
+                     t:MAQ_BALA_T, dmg: MAQ_BALA_DMG*MAQ_SOB*MAQ_MINI_DMG, sob:1 });
+        maq.retroceso = 0.7; maq.fogon = 0.05;
+        sfx('rafaga');
+      }
+    } else maq.rafT = 0;
   } else if (maq.arma === 1){                            // --- ráfaga ---
     if (maq.rafN > 0){
       maq.rafT -= dt;
@@ -10984,19 +11076,23 @@ function maqDisparo(dt, ap){
   }
 }
 // Un hachazo en arco hacia donde apunta: tajo a todo lo que alcance.
-function maqHachazo(ap){
+// moto: un corte de la motosierra (se repite mientras se mantenga pulsado).
+function maqHachazo(ap, moto){
   const sob = maqSob();
-  maq.disCd = MAQ_HACHA_CD*(sob ? 0.7 : 1);
-  maq.hachaT = MAQ_HACHA_T; maq.hachaLado = -maq.hachaLado || 1;       // alterna el lado del tajo
-  const a = ap.a, R = MAQ_HACHA_ALC*(sob ? 1.25 : 1);
-  const dmg = MAQ_HACHA_DMG*(sob ? MAQ_SOB : 1)*(1 + maq.impulso*0.6);
+  if (!moto){
+    maq.disCd = MAQ_HACHA_CD*(sob ? 0.7 : 1);
+    maq.hachaT = MAQ_HACHA_T; maq.hachaLado = -maq.hachaLado || 1;     // alterna el lado del tajo
+  }
+  const a = ap.a, R = moto ? MAQ_MOTO_ALC : MAQ_HACHA_ALC*(sob ? 1.25 : 1);
+  const ARCO = moto ? MAQ_MOTO_ARCO : MAQ_HACHA_ARCO;
+  const dmg = (moto ? MAQ_MOTO_DMG : MAQ_HACHA_DMG*(sob ? MAQ_SOB : 1))*(1 + maq.impulso*(moto ? 0.4 : 0.6));
   const ox = player.x, oy = player.y - 16;
   const enArco = (x, y, r)=>{
     const d = dist(ox, oy, x, y) - r;
     if (d > R) return false;
     if (d < 14) return true;                                          // pegado a él: siempre
     let da = Math.abs(Math.atan2(y - oy, x - ox) - a); if (da > Math.PI) da = Math.PI*2 - da;
-    return da <= MAQ_HACHA_ARCO;
+    return da <= ARCO;
   };
   let dio = false;
   for (const pool of [civilians, enemies]){
@@ -11008,8 +11104,8 @@ function maqHachazo(ap){
       porJugador(()=> damageEnemy(t, dmg*jf, b.x, b.y));
       dio = true;
       if (!t.dead && t.person){                                       // lo tambalea, sin sacarlo del alcance
-        const a2 = Math.atan2(t.y - player.y, t.x - player.x);
-        t.stunT = Math.max(t.stunT || 0, 0.35); t.stunVx = Math.cos(a2)*60; t.stunVy = Math.sin(a2)*60;
+        const a2 = Math.atan2(t.y - player.y, t.x - player.x), emp = moto ? 0 : 60;
+        t.stunT = Math.max(t.stunT || 0, moto ? 0.15 : 0.35); t.stunVx = Math.cos(a2)*emp; t.stunVy = Math.sin(a2)*emp;
       }
     }
   }
@@ -11030,8 +11126,14 @@ function maqHachazo(ap){
     if (b.stage >= 2) continue;
     if (px < b.x - 6 || px > b.x + b.w + 6 || py < b.y - 6 || py > b.y + b.h + 6) continue;
     porJugador(()=> damageBuilding(b, dmg*0.8)); dio = true;
-    addParticles(px, py, '#9aa6ad', 8, 110);
+    addParticles(px, py, '#9aa6ad', moto ? 3 : 8, 110);
     break;
+  }
+  if (moto){
+    addParticles(px, py, dio ? '#c33' : '#ffe07a', dio ? 4 : 2, 120);
+    if (dio) shake(2, 0.05);
+    sfx('sierra');
+    return;
   }
   if (dio){ addParticles(px, py, '#c33', 8, 140); shake(4, 0.08); }
   sfx(dio ? 'hachazo' : 'silbido');
@@ -11172,6 +11274,7 @@ function updateMaquina(dt){
   if (maq.rayoT > 0) maq.rayoT -= dt;
   if (maq.fogon > 0) maq.fogon -= dt;
   if (maq.hachaT > 0) maq.hachaT -= dt;
+  if (maq.corta > 0) maq.corta -= dt;
   maq.retroceso = Math.max(0, maq.retroceso - dt*8);
   // regeneración tras las bajas (y, con la sobrecarga, un poco siempre)
   if (maq.regenT > 0){ maq.regenT -= dt; hp = Math.min(maxHp(), hp + MAQ_REGEN*dt); }
@@ -11405,7 +11508,7 @@ function drawMaquina(){
   }
   dibujaMaquina(ctx, s.x, s.y, 1, {
     t: vil.capa || 0, f: player.facing || 1, a: maq.mirA, arma: maq.arma, paso: maq.paso,
-    hacha: maq.hachaT, lado: maq.hachaLado,
+    hacha: maq.hachaT, lado: maq.hachaLado, corta: maq.corta || 0, canon: maq.giraCanon || 0,
     vel: Math.hypot(player.vx || 0, player.vy || 0), imp: maq.impulso,
     sierras: maq.sierraApunta || !!maq.sierraFase, giro: maq.sierraFase === 'giro', salto: maq.sierraFase === 'salto',
     ret: maq.retroceso, fogon: maq.fogon, carga: maq.incCarga, sob: buffActivo('sobrecarga'), escudo: maq.escudo,
@@ -11535,7 +11638,29 @@ function dibujaMaquina(g, x, y, esc, st){
     g.beginPath(); g.moveTo(0, 0); g.lineTo(10, 2); g.stroke();
     g.strokeStyle = '#c9d2dc'; g.lineWidth = 1.8;
     g.beginPath(); g.moveTo(0, 0); g.lineTo(10, 2); g.stroke();
-    if (st.arma === 0){                                            // hacha
+    if (st.arma === 0 && st.sob){                                  // motosierra
+      const vib = st.corta > 0 ? (Math.random() - 0.5)*1.4 : 0;
+      g.translate(0, vib);
+      g.fillStyle = '#3a4048'; g.fillRect(5, -4.5, 11, 9);                         // motor
+      g.fillStyle = '#ff7a2a'; g.fillRect(6, -3.5, 8, 7);
+      g.fillStyle = '#1a1f24'; g.fillRect(7, -5.5, 5, 1.5);
+      g.fillStyle = '#cfd6dd'; g.beginPath(); g.roundRect ? g.roundRect(15, -3, 20, 6, 3) : g.rect(15, -3, 20, 6); g.fill();   // espada
+      g.fillStyle = '#2a2f36';
+      const off = st.corta > 0 ? (t*160) % 4 : 0;
+      for (let k = 0; k < 6; k++){ g.fillRect(16 + ((k*4 + off) % 19), -4.1, 2, 1.4); g.fillRect(16 + ((k*4 + 2 + off) % 19), 2.7, 2, 1.4); }
+      if (st.corta > 0){ g.fillStyle = '#ffe07a'; g.fillRect(34 + Math.random()*3, -2 + Math.random()*4, 2, 1); }
+    } else if (st.arma === 1 && st.sob){                           // minigun
+      g.fillStyle = '#20252c'; g.fillRect(6, -4, 10, 8);
+      g.fillStyle = '#ff7a2a'; g.fillRect(7, -3, 5, 2);
+      const gira = st.canon*40;
+      for (let k = 0; k < 3; k++){
+        const yy = Math.sin(gira + k*2.1)*2.4;
+        g.fillStyle = Math.cos(gira + k*2.1) > 0 ? '#8a939c' : '#4a525a';
+        g.fillRect(15, yy - 0.8, 15, 1.6);
+      }
+      g.fillStyle = '#2a2f36'; g.fillRect(28, -3.4, 3, 6.8); g.fillRect(19, -3.4, 1.4, 6.8);
+      g.fillStyle = '#d8b43e'; g.fillRect(9, 4, 2, 4); g.fillRect(12, 5, 2, 4);   // cinta de balas
+    } else if (st.arma === 0){                                     // hacha
       g.strokeStyle = '#3a2412'; g.lineWidth = 3.4;
       g.beginPath(); g.moveTo(6, 1); g.lineTo(27, 1); g.stroke();
       g.strokeStyle = '#8a5a2e'; g.lineWidth = 1.8;
@@ -11567,6 +11692,7 @@ function dibujaMaquina(g, x, y, esc, st){
     if (st.fogon > 0){                                             // fogonazo
       g.fillStyle = st.arma === 2 ? '#ff8a2b' : '#ffe07a';
       g.globalAlpha = 0.9;
+      if (st.arma === 1 && st.sob) g.translate(3, 0);                 // la boca de la minigun queda más adelante
       g.beginPath(); g.moveTo(29, 0); g.lineTo(38 + Math.random()*6, -3); g.lineTo(36, 0.5); g.lineTo(38 + Math.random()*6, 4); g.closePath(); g.fill();
       g.globalAlpha = 1;
     }
@@ -13040,13 +13166,13 @@ function refreshActionBtn(){
   const apaga = dragon && dra.rayos && draJoy.tipo !== 'rayo';
   const sig = (holding ? 'h' : 'e') + (dragon ? (apaga ? 'R' : 'D') : '') + (dragon && dra.colaApunta ? 'C' : '')
             + (dragon && dra.rayos ? 'r' : '')
-            + (isMaq() ? 'M' + maq.arma + (maq.gatillo ? 'g' : '') + (maq.sierraApunta ? 's' : '') : '')
+            + (isMaq() ? 'M' + maq.arma + (maq.gatillo ? 'g' : '') + (maq.sierraApunta ? 's' : '') + (maqSob() ? 'o' : '') : '')
             + (isMag() ? 'W' + (mag.lanzando ? 'l' : '') + (mag.tkOn ? 't' : '') + (mag.escudoT > 0 ? 'e' : '')
                        + (mag.fuegoApunta ? 'f' : '') + (mag.teleApunta ? 'p' : '') : '');
   if (sig === actSig) return;
   actSig = sig;
   if (isMaq()){
-    const l = document.getElementById('maqArmaLbl'); if (l) l.textContent = MAQ_ARMAS[maq.arma];
+    const l = document.getElementById('maqArmaLbl'); if (l) l.textContent = maqNombreArma(maq.arma);
     const bd = document.getElementById('btnDisparo'); if (bd) bd.classList.toggle('on', maq.gatillo);
     const bs = document.getElementById('btnSierras'); if (bs) bs.classList.toggle('charging', maq.sierraApunta);
     return;
@@ -17998,6 +18124,9 @@ function refreshHeroUI(){
   const u = heroIconURL(hero);
   if (img && u) img.src = u;
   if (nm) nm.textContent = heroName(hero);
+  // la cría y el dragón la devoran; el viltrumita, la máquina y el mago la destruyen
+  const lema = document.getElementById('menuLema');
+  if (lema) lema.textContent = 'La ciudad es tuya. ' + ((isVil() || isMaq() || isMag()) ? 'Destrúyela.' : 'Devórala.');
   const hdr = document.getElementById('scoreheader');
   if (hdr) hdr.textContent = 'JUGANDO COMO: ' + heroName(hero);
 }
@@ -18031,7 +18160,7 @@ function fichaHeroe(h){
           ['Click izq. / ' + K('grab'), 'Usar el arma (mantenido, sigue atacando)'],
           ['Click der. / ' + K('throw'), 'Cambiar de arma: hacha → ráfaga → incinerador → lanzacohetes'],
           ['Mantén ' + K('draCola'), 'Motosierras: marca la zona y, al soltar, salta arrollando lo que haya en el camino'],
-          ['OVNI', 'Sobrecarga: más daño y un escudo que convierte el daño en vida']],
+          ['OVNI', 'Sobrecarga: el hacha es una motosierra, la ráfaga una minigun sin pausas, más daño y un escudo que convierte el daño en vida']],
       m: 'DISPARO es un joystick (mantén y apunta; con un toque ataca a lo más cercano), ARMA cambia de arma y SIERRAS se mantiene, apunta y suelta.' },
     mago: {
       desc: 'Hechicero encapuchado que flota despacio. Rayos, telequinesis, hielo y fuego: todo gasta maná, que se recupera solo.',
