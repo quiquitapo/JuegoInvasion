@@ -1860,6 +1860,217 @@ function pintaTropa(c, sx, dy, facing, rot){
   ctx.imageSmoothingEnabled = suave;
   ctx.restore();
 }
+// ================= CIVILES DIBUJADOS POR CÓDIGO =================
+// Cada vecino tiene su aspecto (edad, piel, pelo y peinado, ropa, gafas y lo
+// que lleve en la mano) y se le dibuja UNA hoja con todas sus posturas: andar,
+// huir con los brazos en alto, quieto, pataleando en el tentáculo y volando.
+// La hoja se cachea por aspecto: en partida cuesta un drawImage.
+const CIV_ROPA_COL = ['#d8443a','#3a7ad8','#3ab86a','#e8b83a','#8a4ad8','#e87a3a','#2ab8b8','#e85a9a','#ecece2','#4a4a54','#9a6a44','#6a8a3a'];
+const CIV_PANT_COL = ['#2e4a78','#34343c','#6a5a4a','#1e2a44','#8a8272','#4a3a2e','#5a2a2a'];
+const CIV_CANAS    = ['#8a8a8a','#b8b8b2','#e8e4de'];
+const CIV_W = 40, CIV_H = 46, CIV_PIE = 43, CIV_CX = 20, CIV_NF = 12;   // 0-3 anda, 4-7 huye, 8 quieto, 9-10 agarrado, 11 lanzado
+const civHojas = new Map();
+function civMezcla(hex, k){
+  const n = parseInt(hex.slice(1), 16);
+  let r = n >> 16, g = (n >> 8) & 255, b = n & 255;
+  const t = k < 0 ? 0 : 255, a = Math.abs(k);
+  r = Math.round(r + (t - r)*a); g = Math.round(g + (t - g)*a); b = Math.round(b + (t - b)*a);
+  return '#' + ((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1);
+}
+function civAspecto(c){
+  return (c.edad|0) + '|' + (c.piel || '#e8c39e') + '|' + (c.pelo || '#2b1d12') + '|' + (c.corte|0) + '|' +
+         (c.gafas ? (c.gafasCol || '#2b2f36') : '') + '|' + (c.ropa|0) + '|' + (c.tono|0) + '|' + (c.pant|0) + '|' + (c.acc|0);
+}
+let civNuevasT = -1, civNuevas = 0;
+function civHoja(c){
+  const k = civAspecto(c);
+  let h = civHojas.get(k);
+  if (h) return h;
+  let ahora = 0;
+  try { ahora = gameTime; } catch(e){}              // aún sin declarar al generar las fichas
+  if (civNuevasT !== ahora){ civNuevasT = ahora; civNuevas = 0; }
+  if (++civNuevas > 4 && civHojas.size) return civHojas.values().next().value;   // el resto, al siguiente
+  if (civHojas.size > 160) civHojas.delete(civHojas.keys().next().value);   // las más antiguas fuera
+  h = document.createElement('canvas'); h.width = CIV_W*CIV_NF; h.height = CIV_H;
+  const g = h.getContext('2d');
+  g.lineCap = 'round'; g.lineJoin = 'round';
+  // si el pelo se confunde con la piel, se oscurece para que la cara se lea
+  let pelo = c.pelo || '#2b1d12';
+  const lum = x => { const n = parseInt(x.slice(1), 16); return (n >> 16)*0.3 + ((n >> 8) & 255)*0.55 + (n & 255)*0.15; };
+  if (Math.abs(lum(pelo) - lum(c.piel || '#e8c39e')) < 40) pelo = civMezcla(pelo, lum(pelo) > 120 ? 0.45 : -0.55);
+  const L = { edad:c.edad|0, piel:c.piel || '#e8c39e', pelo, corte:c.corte|0,
+              gafas:c.gafas ? (c.gafasCol || '#2b2f36') : null, ropa:c.ropa|0,
+              tono:CIV_ROPA_COL[(c.tono|0) % CIV_ROPA_COL.length], pant:CIV_PANT_COL[(c.pant|0) % CIV_PANT_COL.length], acc:c.acc|0 };
+  for (let i = 0; i < CIV_NF; i++){
+    const pose = i < 4 ? 'anda' : i < 8 ? 'huye' : i === 8 ? 'quieto' : i < 11 ? 'agarra' : 'lanzado';
+    g.save(); g.translate(i*CIV_W + CIV_CX, CIV_PIE);
+    const esc = L.edad === 1 ? 0.76 : L.edad === 2 ? 1.02 : 1.08;
+    g.scale(esc, esc);
+    civCuerpo(g, L, pose, i < 8 ? i % 4 : i - 9);
+    g.restore();
+  }
+  pixelArte(h, '#1a120c');
+  civHojas.set(k, h);
+  return h;
+}
+function cpx(g, c, x, y, w, h){ g.fillStyle = c; g.fillRect(x, y, w, h); }
+function clin(g, c, w, x0, y0, x1, y1){ g.strokeStyle = c; g.lineWidth = w; g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); }
+// Un brazo desde el hombro: ángulos medidos desde la vertical hacia abajo
+// (positivo = hacia delante).
+function civBrazo(g, sx, sy, a1, a2, manga, piel, largo){
+  const L = largo || 5.6;
+  const ex = sx + Math.sin(a1)*L, ey = sy + Math.cos(a1)*L;
+  const hx = ex + Math.sin(a2)*L, hy = ey + Math.cos(a2)*L;
+  clin(g, manga, 3.2, sx, sy, ex, ey);
+  clin(g, manga, 2.8, ex, ey, ex + Math.sin(a2)*L*0.45, ey + Math.cos(a2)*L*0.45);
+  clin(g, piel, 2.4, ex + Math.sin(a2)*L*0.45, ey + Math.cos(a2)*L*0.45, hx, hy);
+  g.fillStyle = piel; g.beginPath(); g.arc(hx, hy, 1.5, 0, Math.PI*2); g.fill();
+  return [hx, hy];
+}
+function civPierna(g, hx, hy, fx, fy, col, zapato, lejos, desnuda, piel){
+  const kx = (hx + fx)/2 + 1.2, ky = (hy + fy)/2;
+  clin(g, col, 3.4, hx, hy, kx, ky);
+  clin(g, desnuda ? piel : col, desnuda ? 2.4 : 3.1, kx, ky, fx, fy - 1);
+  cpx(g, zapato, Math.round(fx - 1.5), Math.round(fy - 2), 4.5, 2);
+  if (!lejos) cpx(g, civMezcla(zapato, 0.3), Math.round(fx), Math.round(fy - 2), 2, 1);
+}
+function civCuerpo(g, L, pose, f){
+  const piel = L.piel, pielO = civMezcla(piel, -0.22), pielL = civMezcla(piel, 0.15);
+  const viejo = L.edad === 2, nino = L.edad === 1;
+  // colores de la ropa según el tipo
+  const traje = L.ropa === 5, chaleco = L.ropa === 6, abrigo = L.ropa === 7, vestido = L.ropa === 2;
+  const torso = traje ? '#2a2e3a' : abrigo ? civMezcla(L.tono, -0.35) : L.tono;
+  const torsoO = civMezcla(torso, -0.3), torsoL = civMezcla(torso, 0.22);
+  const manga = (L.ropa === 1 || L.ropa === 0 || vestido) ? torso : torso;
+  const pant = traje ? '#2a2e3a' : L.pant, pantO = civMezcla(pant, -0.3);
+  const zap = traje || L.ropa === 1 ? '#1a1410' : viejo ? '#4a3424' : L.edad === 1 ? '#e8e8e8' : '#3a2a1e';
+  const hipY = -15, shY = -25.5;
+  // ---- piernas ----
+  let fA, fB;                                      // pie de delante y de atrás
+  const ph = f/4*Math.PI*2, sn = Math.sin(ph), cs = Math.cos(ph);
+  if (pose === 'anda'){
+    const st = viejo ? 2.8 : 4;
+    fA = [sn*st, -Math.max(0, cs)*2]; fB = [-sn*st, -Math.max(0, -cs)*2];
+  } else if (pose === 'huye'){
+    fA = [sn*6.5, -Math.max(0, cs)*4]; fB = [-sn*6.5, -Math.max(0, -cs)*4];
+  } else if (pose === 'agarra'){
+    fA = f ? [5, -4] : [2, -1]; fB = f ? [-3, 0] : [-6, -3];
+  } else if (pose === 'lanzado'){
+    fA = [7, -3]; fB = [-7, -2];
+  } else { fA = [2, 0]; fB = [-2, 0]; }
+  const piernaDesnuda = vestido;
+  civPierna(g, -0.5, hipY, fB[0], fB[1], pantO, civMezcla(zap, -0.2), true, piernaDesnuda, pielO);
+  civPierna(g, 0.5, hipY, fA[0], fA[1], pant, zap, false, piernaDesnuda, piel);
+  // ---- parte de arriba, inclinada al correr o por la edad ----
+  const incl = pose === 'huye' ? 0.2 : viejo ? 0.2 : pose === 'anda' ? 0.04 : pose === 'lanzado' ? -0.15 : 0;
+  g.save(); g.translate(0, hipY); g.rotate(incl); g.translate(0, -hipY);
+  // brazos: posiciones según la postura
+  let aN, aF;                                      // [hombro, codo] del brazo cercano y del lejano
+  if (pose === 'anda'){ aN = [-sn*0.55, -sn*0.55 + 0.35]; aF = [sn*0.55, sn*0.55 + 0.35]; }
+  else if (pose === 'huye'){ const k = f % 2; aN = [2.5 + (k ? 0.35 : -0.15), 2.9 + (k ? 0.3 : -0.2)]; aF = [2.8 + (k ? -0.3 : 0.25), 3.2 + (k ? -0.2 : 0.3)]; }
+  else if (pose === 'agarra'){ aN = f ? [2.3, 2.9] : [2.8, 3.4]; aF = f ? [-2.7, -3.2] : [-2.2, -2.8]; }
+  else if (pose === 'lanzado'){ aN = [1.9, 2.3]; aF = [-2.0, -2.4]; }
+  else { aN = [0.08, 0.25]; aF = [-0.05, 0.15]; }
+  if (viejo && (pose === 'anda' || pose === 'quieto')) aN = [0.5, 0.9];          // apoyado en el bastón
+  if (L.acc === 3 && (pose === 'anda' || pose === 'quieto')) aN = [0.4, 2.6];   // mirando el móvil
+  // mochila y capucha, detrás
+  if (L.acc === 5){ cpx(g, civMezcla(L.tono === '#3ab86a' ? '#d8443a' : '#3ab86a', -0.1), -7, shY + 1, 4, 8); cpx(g, '#00000030', -7, shY + 6, 4, 1); }
+  if (L.ropa === 3){ g.fillStyle = torsoO; g.beginPath(); g.ellipse(-3.5, shY - 1.5, 3, 3.2, 0, 0, Math.PI*2); g.fill(); }
+  // pelo largo por detrás de la espalda
+  if (L.corte === 2){ cpx(g, civMezcla(L.pelo, -0.15), -4.6, -35, 4, 13); }
+  // brazo lejano
+  civBrazo(g, -0.5, shY + 0.5, aF[0], aF[1], torsoO, pielO);
+  // torso
+  const tb = abrigo ? -7 : vestido ? -8 : hipY + 1;
+  g.fillStyle = torso;
+  g.beginPath(); g.moveTo(-3.8, shY - 1); g.lineTo(3.4, shY - 1); g.lineTo(vestido || abrigo ? 5 : 3.8, tb);
+  g.lineTo(vestido || abrigo ? -5.2 : -4, tb); g.closePath(); g.fill();
+  cpx(g, torsoO, -4.2, shY, 2, tb - shY);                        // espalda en sombra
+  cpx(g, torsoL, 1.5, shY, 2, 5);                                // pecho con luz
+  if (vestido){ cpx(g, torsoO, -4.5, -10, 9.5, 1); cpx(g, torsoL, 2, -14, 2, 5); }
+  if (!vestido && !abrigo) cpx(g, pant, -4, hipY - 1, 8, 2);     // cintura del pantalón
+  // detalles de cada prenda
+  if (L.ropa === 0){ cpx(g, torsoL, -0.5, shY + 3, 3, 3); }                                        // estampado
+  if (L.ropa === 1){ cpx(g, '#f4f4ee', 0.5, shY - 1, 3, 2); cpx(g, civMezcla(L.tono, -0.5), 1.5, shY, 1, 7); }   // cuello y corbata
+  if (L.ropa === 3){ clin(g, '#f0f0f0', 0.8, 1.5, shY + 1, 1.5, shY + 4); cpx(g, torsoO, -1, -19, 5, 3); }         // cordones y bolsillo
+  if (L.ropa === 4){ cpx(g, '#f0f0e8', 1.5, shY, 2, 9); cpx(g, civMezcla(L.tono, -0.4), 0.5, shY, 1, 10); }       // chaqueta abierta
+  if (traje){ g.fillStyle = '#f4f4ee'; g.beginPath(); g.moveTo(0.5, shY - 1); g.lineTo(3.5, shY - 1); g.lineTo(2, shY + 4); g.fill();
+              cpx(g, L.tono, 1.5, shY, 1, 6); cpx(g, '#4a4e5a', -1, shY + 6, 1, 4); }                               // camisa y corbata
+  if (chaleco){ cpx(g, '#f07a1a', -3.8, shY, 7.6, 9); cpx(g, '#f0f080', -3.8, shY + 5, 7.6, 1.2); cpx(g, '#f0f080', 0.5, shY, 1.2, 9); }
+  if (abrigo){ cpx(g, torsoL, 1.5, shY + 5, 1, 12); cpx(g, '#d8c070', 2.5, shY + 7, 1, 1); cpx(g, '#d8c070', 2.5, shY + 11, 1, 1); }
+  // bolso colgado del hombro
+  if (L.acc === 1){ clin(g, '#5a3a22', 0.9, -1, shY, -4, -17); cpx(g, '#8a4a2a', -6.5, -18, 5, 4); cpx(g, '#a86040', -6, -18, 4, 1); }
+  // ---- cabeza ----
+  const hk = nino ? 1.18 : 1;
+  const hx = 1, hy = -31;
+  g.save(); g.translate(hx, hy); g.scale(hk, hk);
+  cpx(g, pielO, -1.2, 2.5, 2.6, 3);                              // cuello
+  g.fillStyle = pielO; g.beginPath(); g.ellipse(-0.3, 0.2, 4.6, 4.9, 0, 0, Math.PI*2); g.fill();
+  g.fillStyle = piel;  g.beginPath(); g.ellipse(0.3, 0, 4.2, 4.6, 0, 0, Math.PI*2); g.fill();
+  cpx(g, pielL, 1.5, -3, 2, 1);
+  cpx(g, pielO, -1.8, -0.5, 1.6, 2.2);                           // oreja
+  cpx(g, piel, 4, -0.5, 1.3, 2);                                 // nariz
+  const susto = pose === 'huye' || pose === 'agarra' || pose === 'lanzado';
+  if (susto){
+    cpx(g, '#ffffff', 1.5, -2.2, 2, 2); cpx(g, '#101010', 2.5, -1.7, 1, 1);
+    cpx(g, '#3a0a06', 1.8, 1.6, 2.4, 2.2);                        // grita
+  } else {
+    cpx(g, '#f4f0e8', 1.6, -1.8, 1, 1.2); cpx(g, '#1a1410', 2.6, -1.8, 1, 1.4);
+    cpx(g, civMezcla(L.pelo, -0.1), 1.6, -3, 2.2, 0.8);                // ceja
+    cpx(g, pielO, 2, 2.3, 2, 0.8);
+  }
+  if (viejo){ cpx(g, pielO, 1, 0.8, 2, 0.6); cpx(g, pielO, -0.5, -2.5, 1, 0.6); }                 // arrugas
+  if (L.gafas){ g.strokeStyle = L.gafas; g.lineWidth = 0.9; g.strokeRect(1.4, -2.6, 2.8, 2.2); clin(g, L.gafas, 0.8, 1.4, -1.8, -1.5, -1.2); }
+  // peinados
+  const pel = L.pelo, pelO = civMezcla(L.pelo, -0.25);
+  g.fillStyle = pel;
+  const corte = L.corte;
+  if (corte === 0){                                              // corto
+    g.beginPath(); g.ellipse(-0.3, -1.6, 4.7, 3.6, 0, Math.PI*0.95, Math.PI*2.02); g.fill();
+    cpx(g, pel, -4.5, -2, 2.5, 3.5);
+  } else if (corte === 1){                                       // media melena
+    g.beginPath(); g.ellipse(-0.3, -1.4, 5, 4, 0, Math.PI*0.9, Math.PI*2.05); g.fill();
+    cpx(g, pel, -5, -2, 3.5, 6.5); cpx(g, pelO, -5, 3, 3, 1.5);
+  } else if (corte === 2){                                       // larga
+    g.beginPath(); g.ellipse(-0.3, -1.4, 5.1, 4.1, 0, Math.PI*0.88, Math.PI*2.06); g.fill();
+    cpx(g, pel, -5.2, -2, 3.8, 7);
+  } else if (corte === 3){                                       // cresta
+    g.beginPath(); g.ellipse(-0.3, -2.2, 4.4, 2.8, 0, Math.PI*1.05, Math.PI*1.95); g.fill();
+    for (let i = 0; i < 4; i++) cpx(g, i % 2 ? pel : pelO, -3 + i*1.6, -7 - (i % 2), 1.5, 3);
+  } else if (corte === 4){                                       // calvo con entradas
+    cpx(g, pel, -4.4, -1.5, 2.2, 3.5); cpx(g, pelO, -2.2, -1.2, 1, 1);
+  } else if (corte === 5){                                       // coleta
+    g.beginPath(); g.ellipse(-0.3, -1.6, 4.8, 3.7, 0, Math.PI*0.95, Math.PI*2.02); g.fill();
+    g.beginPath(); g.ellipse(-5.6, -0.5, 1.8, 3, 0.4, 0, Math.PI*2); g.fill();
+    cpx(g, '#e84a6a', -4.6, -2.6, 1.4, 1.4);
+  } else {                                                       // gorra
+    cpx(g, pel, -4.4, -1.5, 2.2, 3);
+    g.fillStyle = L.tono === '#ecece2' ? '#d8443a' : civMezcla(L.tono, -0.15);
+    g.beginPath(); g.ellipse(-0.3, -2, 4.8, 3.6, 0, Math.PI, 0); g.fill();
+    cpx(g, g.fillStyle, 3, -2.4, 3.8, 1.2);                      // visera
+  }
+  g.restore();
+  // ---- brazo cercano y lo que lleve en la mano ----
+  const mano = civBrazo(g, 0.5, shY + 0.5, aN[0], aN[1], torso, piel);
+  const tranquilo = pose === 'anda' || pose === 'quieto';
+  if (tranquilo){
+    if (viejo){ clin(g, '#6a4a2a', 1.3, mano[0], mano[1] - 1, mano[0] + 2.5, -1); cpx(g, '#6a4a2a', mano[0] - 1, mano[1] - 2, 2, 1.2); }   // bastón
+    else if (L.acc === 2){ cpx(g, '#5a3a1e', mano[0] - 3, mano[1] + 1, 6, 4.5); cpx(g, '#7a5230', mano[0] - 3, mano[1] + 1, 6, 1); }     // maletín
+    else if (L.acc === 3){ cpx(g, '#1a1a22', mano[0] - 0.5, mano[1] - 3, 2, 3.4); cpx(g, '#7ad0ff', mano[0], mano[1] - 2.5, 1, 2); }   // móvil
+    else if (L.acc === 4){ cpx(g, '#c8a060', mano[0] - 2.5, mano[1] + 1, 5, 5.5); cpx(g, '#6ab04a', mano[0] - 1.5, mano[1], 1, 1.5); }  // bolsa de la compra
+  }
+  g.restore();
+}
+// Fichas del civil para el bestiario.
+const CIV_FICHA = { edad:0, piel:'#e8c39e', pelo:'#4a2f1d', corte:1, gafas:false, ropa:4, tono:1, pant:0, acc:2 };
+for (const [k, fr] of [['civ', 8], ['civHuye', 5], ['civAgarra', 9], ['civLanza', 11]]){
+  const hoja = civHoja(CIV_FICHA), c = document.createElement('canvas');
+  c.width = CIV_W*2; c.height = CIV_H*2;
+  const g = c.getContext('2d'); g.imageSmoothingEnabled = false;
+  g.drawImage(hoja, fr*CIV_W, 0, CIV_W, CIV_H, 0, 0, c.width, c.height);
+  const img = new Image(); img.src = c.toDataURL();
+  sprites[k] = { img, face:1 };
+}
 // Un soldado, policía o minigunero con la postura de lo que está haciendo.
 function drawTropa(e, sx, dy, pose){
   // anda si se ha movido hace nada; el paso sigue la distancia recorrida
@@ -2290,16 +2501,24 @@ const CIV_PELOS  = ['#1b1410','#2b1d12','#4a2f1d','#6b4423','#8d5524','#b07d3a',
 
 function spawnCivilian(){
   const r = roads[Math.floor(rand(0,roads.length))];
+  // niños, adultos y ancianos, cada uno con su ropa y lo que lleve encima
+  const tirada = Math.random(), edad = tirada < 0.14 ? 1 : tirada < 0.27 ? 2 : 0;
+  const tono = Math.floor(rand(0, CIV_ROPA_COL.length));
   let x,y;
   if (r.dir==='h'){ x = rand(r.x+20, r.x+r.w-20); y = r.y + (Math.random()<0.5 ? -16 : r.h+16); }
   else { y = rand(r.y+20, r.y+r.h-20); x = r.x + (Math.random()<0.5 ? -16 : r.w+16); }
   civilians.push({ kind:'civ', x, y, vx:0, vy:0, hp:15, maxhp:15, dir:rand(0,Math.PI*2),
-    speed:rand(30,52), color:`hsl(${Math.floor(rand(0,360))},55%,55%)`,
+    speed: edad === 2 ? rand(22,32) : edad === 1 ? rand(40,58) : rand(30,52), color: CIV_ROPA_COL[tono],
+    edad, tono, pant: Math.floor(rand(0, CIV_PANT_COL.length)),
+    // 0 camiseta, 1 camisa y corbata, 2 vestido, 3 sudadera, 4 chaqueta, 5 traje, 6 chaleco de obra, 7 abrigo
+    ropa: edad === 2 ? (Math.random() < 0.6 ? 7 : Math.floor(rand(0, 6))) : edad === 1 ? [0, 2, 3, 0][Math.floor(rand(0, 4))] : Math.floor(rand(0, 8)),
+    // 0 nada, 1 bolso, 2 maletín, 3 móvil, 4 bolsa de la compra, 5 mochila
+    acc: edad === 1 ? (Math.random() < 0.6 ? 5 : 0) : edad === 2 ? 0 : Math.floor(rand(0, 6)),
     w:20, h:30, held:false, thrown:false, dead:false, rot:0,
     // Cada vecino es distinto: tono de piel, peinado, pelo y gafas.
     piel:  CIV_PIELES[Math.floor(rand(0, CIV_PIELES.length))],
-    pelo:  CIV_PELOS[Math.floor(rand(0, CIV_PELOS.length))],
-    corte: Math.floor(rand(0, 5)),
+    pelo:  edad === 2 ? CIV_CANAS[Math.floor(rand(0, CIV_CANAS.length))] : CIV_PELOS[Math.floor(rand(0, CIV_PELOS.length))],
+    corte: edad === 2 ? [0, 1, 4, 4][Math.floor(rand(0, 4))] : Math.floor(rand(0, 7)),
     gafas: Math.random() < 0.28,
     gafasCol: Math.random() < 0.5 ? '#2b2f36' : '#8a5a2b' });
 }
@@ -6105,7 +6324,8 @@ const BESTIARY = [
   { id:'ovni', name:'OVNI', hp:60, dmg:'—', sprite:'ovni', verb:'DERRIBADOS',
     desc:'Visitante despistado. Cruza la ciudad en línea recta sin atacar a nadie y se marcha por donde salga; el ejército ni siquiera le dispara. Aparece muy de vez en cuando, así que si lo ves conviene dejar lo que estés haciendo. Derribarlo deja un regalo que dura poco: la cría se vuelve colosal y arranca edificios enteros para usarlos de maza o de escudo, y el viltrumita estrena visión calórica.',
     states:[['ovni','De paso']] },
-  { id:'civ', name:'CIVIL', hp:15, dmg:'—', sprite:null,
+  { id:'civ', name:'CIVIL', hp:15, dmg:'—', sprite:'civ',
+    states:[['civ','De paseo'],['civHuye','Huyendo'],['civAgarra','Atrapado'],['civLanza','Lanzado']],
     desc:'Habitante corriente. Huye en cuanto te acerca. Inofensivo, pero es tu principal fuente de alimento al inicio.' },
   { id:'police', name:'POLICÍA', hp:35, dmg:'5 por disparo', sprite:'police',
     states:[['police','En patrulla'],['grabPol','Atrapado'],['heldPol','Lanzado'],['stunPol','Aturdido']],
@@ -13846,50 +14066,31 @@ function hpBar(x,y,w,cur,max,color){
 
 function drawCivilian(c){ drawCivilianBase(c); if (c.hieloT > 0) drawHieloSobre(c); }
 function drawCivilianBase(c){
-  const s = S(c.x,c.y);
-  const piel = c.piel || '#e8c39e';
-  const pelo = c.pelo || '#2b1d12';
-  ctx.save(); ctx.translate(s.x,s.y);
+  const s = S(c.x, c.y);
+  // anda si se ha movido hace nada; el paso sigue la distancia recorrida
+  if (c._lx === undefined){ c._lx = c.x; c._ly = c.y; c._paso = 0; c._movT = -9; c._f = 1; }
+  const d = Math.hypot(c.x - c._lx, c.y - c._ly);
+  c._lx = c.x; c._ly = c.y;
+  if (d > 0.03 && d < 40){ c._paso += d; c._movT = gameTime; }
+  if (!c.held && !c.thrown && Math.abs(c.vx) > 1) c._f = c.vx > 0 ? 1 : -1;
+  let fr;
+  if (c.held) fr = 9 + (Math.floor(gameTime*8) % 2);           // patalea en el tentáculo
+  else if (c.thrown) fr = 11;                                   // brazos y piernas abiertos
+  else if (c.hieloT > 0 || gameTime - c._movT > 0.15) fr = 8;
+  else {
+    const huye = Math.hypot(c.vx, c.vy) > c.speed*1.2;          // huye con los brazos en alto
+    fr = (huye ? 4 : 0) + Math.floor(c._paso/(huye ? 8 : 4)) % 4;
+  }
+  sombra(s.x, s.y + 10, c.edad === 1 ? 17 : 22, 10, 0.95);
+  ctx.save(); ctx.translate(s.x, s.y);
   if (c.rot) ctx.rotate(c.rot);
-  sombra(0, 10, 24, 11, 0.95);
-  // ropa y brazos
-  ctx.fillStyle=c.color; ctx.fillRect(-6,-4,12,16);
-  ctx.fillStyle=piel; ctx.fillRect(-8,-2,2,7); ctx.fillRect(6,-2,2,7);
-  // cabeza
-  ctx.beginPath(); ctx.arc(0,-10,7,0,Math.PI*2); ctx.fill();
-  // peinado: cinco cortes distintos
-  ctx.fillStyle=pelo;
-  const corte = c.corte|0;
-  if (corte === 0){                                  // corto
-    ctx.beginPath(); ctx.arc(0,-11,7, Math.PI, 0); ctx.fill();
-  } else if (corte === 1){                           // media melena
-    ctx.beginPath(); ctx.arc(0,-11,7.4, Math.PI, 0); ctx.fill();
-    ctx.fillRect(-7.4,-11,2.6,9); ctx.fillRect(4.8,-11,2.6,9);
-  } else if (corte === 2){                           // melena larga
-    ctx.beginPath(); ctx.arc(0,-11,7.6, Math.PI*0.92, Math.PI*0.08); ctx.fill();
-    ctx.fillRect(-7.6,-11,3,13); ctx.fillRect(4.6,-11,3,13);
-  } else if (corte === 3){                           // cresta
-    ctx.fillRect(-1.6,-19,3.2,9);
-    ctx.beginPath(); ctx.arc(0,-11,7, Math.PI*1.15, Math.PI*1.85); ctx.fill();
-  } else {                                           // entradas / calvo
-    ctx.beginPath(); ctx.arc(0,-11.5,6.6, Math.PI*1.06, Math.PI*1.94); ctx.fill();
-  }
-  // gafas
-  if (c.gafas){
-    ctx.strokeStyle = c.gafasCol || '#2b2f36';
-    ctx.lineWidth = 1.1;
-    ctx.beginPath(); ctx.arc(-2.6,-10,2.2,0,Math.PI*2); ctx.stroke();
-    ctx.beginPath(); ctx.arc( 2.6,-10,2.2,0,Math.PI*2); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(-0.4,-10); ctx.lineTo(0.4,-10); ctx.stroke();
-    ctx.fillStyle='rgba(180,220,255,0.30)';
-    ctx.beginPath(); ctx.arc(-2.6,-10,2.0,0,Math.PI*2); ctx.fill();
-    ctx.beginPath(); ctx.arc( 2.6,-10,2.0,0,Math.PI*2); ctx.fill();
-  } else {
-    ctx.fillStyle='#2b2f36';
-    ctx.fillRect(-3.2,-10.8,1.4,1.4); ctx.fillRect(1.8,-10.8,1.4,1.4);
-  }
+  if (c._f < 0) ctx.scale(-1, 1);
+  const suave = ctx.imageSmoothingEnabled;
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(civHoja(c), fr*CIV_W, 0, CIV_W, CIV_H, -CIV_CX, 12 - CIV_PIE, CIV_W, CIV_H);
+  ctx.imageSmoothingEnabled = suave;
   ctx.restore();
-  hpBar(s.x, s.y-24, 24, c.hp, c.maxhp, '#e33');
+  hpBar(s.x, s.y - (c.edad === 1 ? 22 : 32), 24, c.hp, c.maxhp, '#e33');
 }
 
 function drawCar(c){ drawCarBase(c); if (c.hieloT > 0) drawHieloSobre(c); }
