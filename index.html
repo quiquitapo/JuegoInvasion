@@ -3336,7 +3336,7 @@ function resetGame(){
   if (typeof vil === 'object'){ vil.stam = vil.maxStam; vil.flying = false; vil.joyFly = false; }
   if (typeof draReset === 'function') draReset();
   maqReset(); magReset();
-  proyJ.length = 0; zombis.length = 0; congelados.clear(); proyRed.length = 0;
+  proyJ.length = 0; zombis.length = 0; congelados.clear(); proyRed.length = 0; limpiaJefes2();
   if (typeof isVil === 'function' && (isVil() || isDra())){
     vil.intro = 1; vil.introY = player.y;
     player.y -= VIL_INTRO_ALTO;
@@ -3464,12 +3464,14 @@ function edgeSpawnPos(dmin, dmax, vuela){
            y: clamp(cen.y, M, WORLD_H - M) };
 }
 
-const ENEMY_TYPES = { police:1, military:1, minigun:1, tank:1, heli:1, gunship:1, siege:1, flametank:1, plane:1, omni:1, artillero:1, superx:1, mbt:1, mbtFrio:1, ovni:1, tripode:1 };
+const ENEMY_TYPES = { police:1, military:1, minigun:1, tank:1, heli:1, gunship:1, siege:1, flametank:1, plane:1, omni:1, artillero:1, superx:1, mbt:1, mbtFrio:1, ovni:1, tripode:1,
+                      heroe:1, arquero:1, caballero:1, golem:1, kaiyin:1 };
 function spawnEnemy(type, atX, atY){
   if (!ENEMY_TYPES[type]) return;      // ignora tipos retirados o mal escritos
   // Lo que vuela puede aparecer sobre un tejado; el resto, no.
   const vuela = (type === 'heli' || type === 'gunship' || type === 'plane' ||
-                 type === 'ovni' || type === 'superx' || type === 'tripode');   // el trípode pasa por encima
+                 type === 'ovni' || type === 'superx' || type === 'tripode' ||   // el trípode pasa por encima
+                 type === 'heroe' || type === 'kaiyin' || !!FANT_TIPOS[type]);   // almas y dragón: por encima de todo
   const p = (atX != null && atY != null) ? {x:atX, y:atY} : edgeSpawnPos(460, 620, vuela);
   const base = { x:p.x, y:p.y, type, dead:false, facing:1, shootCd:rand(0.3,1.6), rot:0,
                  held:false, thrown:false, alt:0, stunT:0, stunVx:0, stunVy:0, person:false };
@@ -3501,6 +3503,19 @@ function spawnEnemy(type, atX, atY){
                             rayoAng:0, frio: type==='mbtFrio'});
   // OVNI: visitante despistado. No ataca ni te persigue, solo cruza la ciudad.
   // Se puede agarrar como el caza: es liviano, así que no hace falta ser COLOSO.
+  // El Héroe Mágico: no pelea, invoca, escuda y cura; su ejército son almas.
+  if (type==='heroe')     Object.assign(base, {hp:HEROE_HP, maxhp:HEROE_HP, speed:58, w:44, h:58, grabbable:false,
+                            fase:'', ft:0, invCd:1.2, escCd:5, curaCd:4, deriva: Math.random() < 0.5 ? 1 : -1});
+  if (type==='arquero')   Object.assign(base, {hp:55, maxhp:55, speed:52, w:24, h:36, grabbable:true, person:true,
+                            fase:'', ft:0, disCd:rand(1, 2), nace:0.6});
+  if (type==='caballero') Object.assign(base, {hp:140, maxhp:140, speed:95, w:52, h:44, grabbable:true,
+                            fase:'trota', ft:0, cargaCd:rand(1.5, 3), nace:0.6});
+  if (type==='golem')     Object.assign(base, {hp:320, maxhp:320, speed:40, w:46, h:52, grabbable:true,
+                            fase:'', ft:0, golpeCd:1, nace:0.6});
+  // Kaiyin: el dragón de tres cabezas en tamaño colosal.
+  if (type==='kaiyin')    Object.assign(base, {hp:KAI_HP, maxhp:KAI_HP, speed:62, w:170, h:140, grabbable:false,
+                            fase:'entra', ft:2.4, cd:3, vuela:1, lift:80, mirA:0, tormT:8, tormCd:24, strikeCd:0.8,
+                            rayTick:0, rayOn:0, colaA:0, mordT:0, aleT:0, rtx:0, rty:0, paso:0});
   if (type==='ovni')      Object.assign(base, {hp:60,maxhp:60,speed:150, w:96,h:56,
                             alt:150, bob:rand(0,6), rumbo:0, pacifico:true,
                             fase:'llegada', grabbable:true});
@@ -4239,7 +4254,7 @@ let bossAlive = false;
 // el de antes sale con la mitad de probabilidad; a partir del tercero, todo
 // vuelve a la normalidad.
 // 'marciana' no es una unidad: es el evento que trae a los trípodes.
-const TIPOS_JEFE = ['flametank', 'omni', 'artillero', 'superx', 'marciana'];
+const TIPOS_JEFE = ['flametank', 'omni', 'artillero', 'superx', 'marciana', 'heroe', 'kaiyin'];
 const PESO_PENULTIMO = 0.5;
 let ultimoJefe = null, penultimoJefe = null;
 
@@ -5461,7 +5476,12 @@ const REWARD = {
   artillero:{ pts:2600, heal:80 },
   flametank:{ pts:2000, heal:70 },
   omni:     { pts:1800, heal:65 },  // lo que valen 10 tanques (200 c/u)
-  tripode:  { pts:900,  heal:60 }   // llegan varios: cada uno algo más que un asedio
+  tripode:  { pts:900,  heal:60 },  // llegan varios: cada uno algo más que un asedio
+  heroe:    { pts:2400, heal:76 },
+  kaiyin:   { pts:3200, heal:90 },
+  arquero:  { pts:60,   heal:10 },
+  caballero:{ pts:110,  heal:16 },
+  golem:    { pts:180,  heal:24 }
 };
 
 // ---- ¿Quién causó esta muerte? ----
@@ -5548,6 +5568,8 @@ function damageEnemy(e, dmg, fx, fy){
     addParticles(fx, fy, '#7bffa0', 4, 70);
     return;
   }
+  // Escudo dorado del Héroe Mágico: deja pasar solo un 30%.
+  if (e.escMag > 0 && dmg > 0){ dmg *= 0.3; addParticles(fx, fy, '#ffe8a0', 4, 70); }
   // El Artillero deja de repararse en cuanto le entra un golpe.
   if (e.type === 'artillero' && dmg > 0) e.golpeadoT = ART_CURA_PAUSA;
   // Recibir daño le hace saltar lejos si tiene el impulso listo.
@@ -5574,10 +5596,16 @@ function damageEnemy(e, dmg, fx, fy){
   if (!Online.culpaInv && culpaJug > 0 && isMaq()) maqRegenera();
   // con el poder arcano del mago, los agentes caídos se levantan como zombis
   if ((k === 'police' || k === 'military' || k === 'minigun') && bajaArcana()) levantaZombi(e);
+  // el mago convierte los tanques en ogros y los helicópteros en dragones
+  if (k === 'tank' && bajaDelMago()) levantaAliado(e, 'ogro');
+  if ((k === 'heli' || k === 'gunship') && bajaDelMago()) levantaAliado(e, 'dragoncito');
+  if (k === 'heroe') heroeCae(e);
+  if (FANT_TIPOS[k]){ addParticles(e.x, e.y - 14, '#bfe8ff', 14, 120); }
   addParticles(e.x, e.y, '#ffd27b', 16, 150);
   sfx('kill');
   // El estallido de su caída se queda; el logro ahora es del Registro completo.
   if (k === 'flametank' || k === 'omni'){ explode(e.x, e.y, 190, 70, true); }
+  else if (k === 'kaiyin'){ explode(e.x, e.y, 260, 80, true); humoNegro(e.x, e.y); shake(24, 0.8); e.tormT = 0; }
   else if (k === 'tripode'){ explode(e.x, e.y - 30, 150, 55, true); addParticles(e.x, e.y - 44, '#dff6ff', 20, 220); humoNegro(e.x, e.y); }
   else if (k === 'tank' || k === 'heli') explode(e.x, e.y, 100, 40, true);
   shake(6, 0.15);
@@ -7018,7 +7046,16 @@ const BOSS_TRACKS = {
   // Trípodes: frigio dominante, con la segunda menor pegada a la tónica.
   // Suena ajeno y ceremonial, como algo que no es de este planeta.
   tripode:   { scale:[103.83,110.00,138.59,146.83,155.56,207.65,220.00,277.18],
-               bass:[51.91,51.91,55.00,46.25], tempo:150, name:'LA COSECHA', style:'omni' }
+               bass:[51.91,51.91,55.00,46.25], tempo:150, name:'LA COSECHA', style:'omni' },
+  // Héroe Mágico: marcha épica de espada y brujería en re dórico, con tambor
+  // de guerra y una melodía propia que va subiendo por grados.
+  heroe:     { scale:[146.83,164.81,174.61,196.00,220.00,246.94,261.63,293.66],
+               bass:[73.42,73.42,65.41,87.31], tempo:150, name:'LA ESPADA ENCANTADA', style:'epica',
+               mel:[4,-1,4,5, 6,-1,5,4, 3,-1,3,4, 5,-1,4,3, 2,-1,2,3, 4,-1,3,2, 1,2,3,-1, 4,-1,-1,-1,
+                    7,-1,6,5, 6,-1,5,4, 5,-1,4,3, 4,-1,3,2, 3,4,5,-1, 4,3,2,1, 0,-1,2,-1, 0,-1,-1,-1] },
+  // Kaiyin: frigio grave, como un trueno que no termina de irse.
+  kaiyin:    { scale:[82.41,87.31,98.00,110.00,123.47,130.81,146.83,164.81],
+               bass:[41.20,43.65,41.20,36.71], tempo:140, name:'TRES CABEZAS', style:'omni' }
 };
 let bossTrack = null;              // el que suena ahora, si hay jefe en pie
 let previewTrack = null, previewT = 0;
@@ -7102,6 +7139,20 @@ function musicStep(){
     if (s % 8 === 4) noise(0.10, 0.16, 520);                       // golpe sordo
     return;
   }
+  if (bt && bt.style === 'epica'){
+    // LA ESPADA ENCANTADA: bajo de marcha, melodía que avanza por grados,
+    // colchón de cuerda y tambor de guerra.
+    const bass = bt.bass;
+    if (s % 4 === 0) mk(bass[(s/4 | 0) % bass.length], 0.5, 'sawtooth', 0.2);
+    if (s % 4 === 2) mk(bass[(s/4 | 0) % bass.length]*1.5, 0.25, 'triangle', 0.12);
+    const n = bt.mel[s % bt.mel.length];
+    if (n >= 0) mk(sc[n]*2, 0.34, 'square', 0.07);
+    if (s % 8 === 0) mk(sc[0], 0.9, 'triangle', 0.08);
+    if (s % 16 === 8) mk(sc[4], 0.9, 'triangle', 0.06);
+    if (s % 4 === 0) noise(0.08, 0.12, 900);                        // tambor de guerra
+    if (s % 8 === 6) noise(0.05, 0.06, 2400);
+    return;
+  }
   if (bt && bt.style === 'menu'){
     // CIUDAD DORMIDA: notas sueltas y sostenidas, un bajo muy espaciado y
     // algún destello agudo. Sin percusión y a la mitad de volumen.
@@ -7150,6 +7201,8 @@ function updateBossMusic(dt){
     if (e.type === 'flametank'){ cual = 'flametank'; break; }
     if (e.type === 'omni'){ cual = 'omni'; break; }
     if (e.type === 'tripode'){ cual = 'tripode'; break; }
+    if (e.type === 'kaiyin'){ cual = 'kaiyin'; break; }
+    if (e.type === 'heroe'){ cual = 'heroe'; break; }
   }
   const nuevo = cual ? BOSS_TRACKS[cual] : null;
   if (nuevo !== bossTrack){ bossTrack = nuevo; retuneMusic(); }
@@ -7254,6 +7307,16 @@ const BESTIARY = [
     desc:'Esfera acorazada con cuatro patas y un único ojo rojo. Calcula dónde estás y rueda en línea recta hasta ese punto, arrollando lo que pille; al llegar se detiene y camina. Andando te arroja el mobiliario de la calle y carga un rayo desde su ojo: primero marca la línea, luego dispara y barre muy despacio, así que se esquiva moviéndose de lado. El rayo también achicharra a sus propias tropas.' },
   { id:'tripode', name:'TRÍPODE MARCIANO', hp:TRI_HP, dmg:'72 + quemadura (rayo)', sprite:null, verb:'DERRIBADOS',
     desc:'Al parecer no eres el único que quiere el planeta. Llegan de dos en dos (de tres en tres pasado el asedio) y, mientras quede uno en pie, el ejército humano no se atreve a salir. Caminan por encima de los edificios y con sus tentáculos atrapan autos, farolas y soldados para lanzártelos; si están heridos, se comen a los humanos para recuperar algo de vida. A ratos se cubren con un escudo pequeño que no deja pasar nada, y marcan en blanco un área del suelo donde descargan un rayo que arrasa y deja quemadura: sal de ella antes de que dispare.' },
+  { id:'heroe', name:'HÉROE MÁGICO', hp:1350, dmg:'invoca, escuda y cura', sprite:'heroeF', verb:'DERROTADOS',
+    desc:'Un rey guerrero que volvió de entre los muertos con su ejército. No pelea: se aleja despacio y rodea al invasor mientras, con su cetro, invoca almas de arqueros, caballeros a caballo y gólems de piedra. Cada pocos segundos lanza escudos dorados que dejan pasar solo un tercio del daño y cura a todos sus aliados cercanos. Mientras él siga en pie, su ejército no deja de crecer: ve a por él. Al caer, sus almas se desvanecen.' },
+  { id:'arquero', name:'ARQUERO FANTASMA', hp:55, dmg:'8 por flecha', sprite:'arqueroF', verb:'DISIPADOS',
+    desc:'Alma de arquero al servicio del Héroe Mágico. Guarda la distancia, tensa el arco medio segundo y dispara. Como todas las almas, atraviesa los edificios, pero sus flechas no.' },
+  { id:'caballero', name:'CABALLERO FANTASMA', hp:140, dmg:'22 en la carga', sprite:'caballeroF', verb:'DISIPADOS',
+    desc:'Jinete espectral con lanza. Trota a tu alrededor, se detiene un instante para apuntar y carga en línea recta a toda velocidad: apártate de su trayectoria.' },
+  { id:'golem', name:'GÓLEM FANTASMA', hp:320, dmg:'28 en área', sprite:'golemF', verb:'DISIPADOS',
+    desc:'Mole de roca animada por runas. Lento y duro; al tenerte cerca alza los puños y golpea el suelo alrededor. Solo el COLOSO puede levantarlo.' },
+  { id:'kaiyin', name:'KAIYIN', hp:2700, dmg:'rayos, aletazo, embestida y mordisco', sprite:'kaiyinF', verb:'DERROTADOS',
+    desc:'El dragón de tres cabezas en tamaño colosal. Llega volando y desata una tormenta: los rayos caen donde se marca el suelo. Camina aplastando edificios y alterna ataques: aletazo que lo barre todo alrededor, embestida marcada que arrasa lo que hay en la línea, vuelo en picado con mordisco antes de aterrizar y, sobre todo, sus tres rayos. De esos rayos solo te salva un escudo: ponte detrás de un edificio, interpón un auto o lo que lleves agarrado, o usa la burbuja o los objetos del mago.' },
   { id:'truck', name:'CAMIÓN CISTERNA', hp:60, dmg:'200 en área al detonar', sprite:'truck',
     desc:'Aparición rara en el tráfico. No te ataca, pero lanzarlo provoca la mayor explosión del juego y encadena con otras cisternas.' }
 ];
@@ -9732,6 +9795,800 @@ function drawDragonAvisos(){
   ctx.beginPath(); ctx.ellipse(s1.x, s1.y, DRA_COLA_R, DRA_COLA_R*0.6, 0, 0, Math.PI*2); ctx.stroke();
   ctx.restore();
 }
+// ================= HÉROE MÁGICO, SU EJÉRCITO FANTASMA Y LOS ALIADOS DEL MAGO =================
+// Figuras en pixel art dibujadas una vez por fotograma y guardadas. Las del
+// ejército del Héroe se pasan a tonos espectrales (azul pálido) y en partida
+// se pintan semitransparentes con un halo: parecen almas en pena.
+const FANT_TAM = { arquero:[40,46,20,43], caballero:[70,58,34,55], golem:[60,62,30,59], heroe:[52,64,26,61],
+                   ogro:[58,60,29,57], dragoncito:[56,44,28,30] };
+const fantCache = new Map();
+function jR(g, c, x, y, w, h){ g.fillStyle = c; g.fillRect(x, y, w, h); }
+function jL(g, c, w, x0, y0, x1, y1){ g.strokeStyle = c; g.lineWidth = w; g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); }
+function jO(g, c, x, y, rx, ry){ g.fillStyle = c; g.beginPath(); g.ellipse(x, y, rx, ry, 0, 0, Math.PI*2); g.fill(); }
+// Pasa un lienzo a tonos de fantasma, conservando el volumen (la luz de cada píxel).
+function aFantasma(c, fuerza){
+  const g = c.getContext('2d'), d = g.getImageData(0, 0, c.width, c.height), p = d.data;
+  for (let i = 0; i < p.length; i += 4){
+    if (!p[i + 3]) continue;
+    const l = (p[i]*0.3 + p[i + 1]*0.59 + p[i + 2]*0.11)/255;
+    const r = 70 + 170*l, gg = 130 + 120*l, b = 190 + 65*l;
+    p[i] = p[i] + (r - p[i])*fuerza; p[i + 1] = p[i + 1] + (gg - p[i + 1])*fuerza; p[i + 2] = p[i + 2] + (b - p[i + 2])*fuerza;
+  }
+  g.putImageData(d, 0, 0);
+}
+// pose: 'anda' (f 0-3), 'ataca' (f 0-1), 'quieto'
+function fantFrame(tipo, pose, f){
+  const k = tipo + pose + f;
+  let c = fantCache.get(k);
+  if (c) return c;
+  const [W, H, cx, py] = FANT_TAM[tipo];
+  c = document.createElement('canvas'); c.width = W; c.height = H;
+  const g = c.getContext('2d'); g.lineCap = 'round'; g.lineJoin = 'round';
+  g.translate(cx, py);
+  ({ arquero:dibArquero, caballero:dibCaballero, golem:dibGolem, heroe:dibHeroe, ogro:dibOgro, dragoncito:dibDragoncito })[tipo](g, pose, f);
+  if (tipo === 'heroe') aFantasma(c, 0.45);
+  else if (tipo !== 'ogro' && tipo !== 'dragoncito') aFantasma(c, 0.85);
+  pixelArte(c, tipo === 'ogro' || tipo === 'dragoncito' ? '#140e08' : '#0e1a36');
+  fantCache.set(k, c);
+  return c;
+}
+function piernasAnda(g, f, hipY, col, colO, largo, paso, bota){
+  const ph = f/4*Math.PI*2, s = Math.sin(ph), cs = Math.cos(ph);
+  const fA = [s*paso, -Math.max(0, cs)*2.5], fB = [-s*paso, -Math.max(0, -cs)*2.5];
+  jL(g, colO, 3.6, -0.5, hipY, fB[0], fB[1] - 1); jR(g, bota, fB[0] - 2, fB[1] - 2, 5, 2);
+  jL(g, col, 3.8, 0.5, hipY, fA[0], fA[1] - 1); jR(g, bota, fA[0] - 2, fA[1] - 2, 5, 2);
+}
+// Arquero: capucha, túnica y arco largo.
+function dibArquero(g, pose, f){
+  const tens = pose === 'ataca';
+  piernasAnda(g, pose === 'anda' ? f : 0, -15, '#5a6a3a', '#3a4a26', 16, 4, '#3a2a1a');
+  jL(g, '#4a3a2a', 3, -1, -26, -6, -14);                     // carcaj a la espalda
+  jR(g, '#6a5a3a', -8, -30, 4, 12); jR(g, '#e8e0c8', -8, -33, 1, 4); jR(g, '#e8e0c8', -6, -33, 1, 4);
+  g.fillStyle = '#4a6a3a'; g.beginPath(); g.moveTo(-5, -27); g.lineTo(4, -27); g.lineTo(6, -12); g.lineTo(-6, -12); g.closePath(); g.fill();   // túnica
+  jR(g, '#2e4424', -6, -27, 2, 15); jR(g, '#6a4a2a', -5, -17, 11, 2);   // cinturón
+  jO(g, '#d8a878', 1.5, -32, 3.8, 4.2);                      // cara
+  g.fillStyle = '#3a5a2e'; g.beginPath(); g.moveTo(-5, -30); g.lineTo(-2, -39); g.lineTo(5, -37); g.lineTo(6, -33); g.lineTo(2, -35); g.lineTo(-1, -28); g.closePath(); g.fill();   // capucha
+  jR(g, '#1a1410', 3, -33, 1, 1.5);
+  // brazos y arco
+  const bx = tens ? 9 : 8, by = -24;
+  jL(g, '#3a5a2e', 3, 0, -25, bx, by);                       // brazo del arco
+  g.strokeStyle = '#8a5a2a'; g.lineWidth = 2; g.beginPath(); g.arc(bx - 4, by, 12, -1.1, 1.1); g.stroke();
+  const cuerda = tens ? bx - 12 : bx - 4 + Math.cos(1.1)*12;
+  jL(g, '#e8e0c8', 0.8, bx - 4 + Math.cos(-1.1)*12, by + Math.sin(-1.1)*12, cuerda, by);
+  jL(g, '#e8e0c8', 0.8, cuerda, by, bx - 4 + Math.cos(1.1)*12, by + Math.sin(1.1)*12);
+  if (tens){ jL(g, '#c8b890', 1.2, cuerda, by, bx + 8, by); jR(g, '#d8d8d8', bx + 7, by - 1, 3, 2); jL(g, '#3a5a2e', 3, -1, -24, cuerda, by); }
+  else jL(g, '#3a5a2e', 3, -1, -24, 2, -16);
+}
+// Caballero a caballo: armadura, yelmo con penacho y lanza.
+function dibCaballero(g, pose, f){
+  const ph = f/4*Math.PI*2, carga = pose === 'ataca';
+  const sube = Math.sin(ph*2)*1.2;
+  g.translate(0, sube);
+  // patas del caballo (galope)
+  const pata = (x, fase, lejos)=>{
+    const a = Math.sin(ph + fase)*0.7;
+    const kx = x + Math.sin(a)*6, ky = -14, fx = x + Math.sin(a)*10 + Math.sin(a*1.4)*3, fy = -2 - Math.max(0, Math.cos(ph + fase))*4;
+    jL(g, lejos ? '#3a3440' : '#5a5260', 3.4, x, -20, kx, ky); jL(g, lejos ? '#3a3440' : '#5a5260', 2.8, kx, ky, fx, fy);
+    jR(g, '#1a1a1e', fx - 2, fy - 1, 4, 2);
+  };
+  pata(-14, 1.6, true); pata(14, 0, true);
+  // cola
+  g.strokeStyle = '#2a2430'; g.lineWidth = 3; g.beginPath(); g.moveTo(-22, -26); g.quadraticCurveTo(-32, -22 + Math.sin(ph)*3, -30, -10); g.stroke();
+  jO(g, '#4a4250', 0, -26, 23, 9);                             // cuerpo
+  jO(g, '#6a6272', 2, -29, 19, 5);
+  // cuello y cabeza
+  g.fillStyle = '#4a4250'; g.beginPath(); g.moveTo(14, -32); g.lineTo(24, -44); g.lineTo(31, -42); g.lineTo(22, -24); g.closePath(); g.fill();
+  g.fillStyle = '#5a5260'; g.beginPath(); g.moveTo(24, -45); g.lineTo(33, -40); g.lineTo(34, -36); g.lineTo(27, -37); g.closePath(); g.fill();
+  jR(g, '#1a1a1e', 28, -42, 1.5, 1.5); jL(g, '#2a2430', 3, 17, -40, 22, -46);   // ojo y crin
+  jR(g, '#8a2a2a', -8, -32, 16, 6); jR(g, '#c8a040', -8, -32, 16, 1);          // gualdrapa
+  pata(-10, 0.8, false); pata(16, 2.4, false);
+  // jinete
+  jL(g, '#7a7e88', 4, 2, -32, 2, -40);
+  g.fillStyle = '#8a8e98'; g.beginPath(); g.moveTo(-3, -48); g.lineTo(6, -48); g.lineTo(6, -35); g.lineTo(-3, -35); g.closePath(); g.fill();   // coraza
+  jR(g, '#b8bcc6', 1, -47, 3, 10); jR(g, '#5a5e68', -3, -38, 9, 2);
+  jO(g, '#8a8e98', 2, -53, 4.5, 5);                            // yelmo
+  jR(g, '#1a1a1e', 3, -54, 4, 1.5);                            // visera
+  g.fillStyle = '#c83a3a'; g.beginPath(); g.moveTo(0, -57); g.quadraticCurveTo(-8, -62, -12, -52); g.lineTo(-6, -54); g.closePath(); g.fill();   // penacho
+  // escudo en el costado y lanza
+  jO(g, '#6a4a2a', -4, -40, 4, 6); jO(g, '#c8a040', -4, -40, 1.5, 2.5);
+  const la = carga ? 0 : -0.5;
+  const lx = 6, ly = -42;
+  jL(g, '#6a4a2a', 2, lx - Math.cos(la)*8, ly - Math.sin(la)*8, lx + Math.cos(la)*30, ly + Math.sin(la)*30);
+  jL(g, '#d8dce4', 2, lx + Math.cos(la)*28, ly + Math.sin(la)*28, lx + Math.cos(la)*34, ly + Math.sin(la)*34);
+  jL(g, '#7a7e88', 3, 2, -44, lx, ly);
+}
+// Gólem de roca con ojos encendidos.
+function dibGolem(g, pose, f){
+  const ph = f/4*Math.PI*2, alza = pose === 'ataca' && f === 0, golpe = pose === 'ataca' && f === 1;
+  const s = pose === 'anda' ? Math.sin(ph) : 0;
+  const roca = (x, y, rx, ry, c)=>{ jO(g, '#4a4640', x + 1, y + 1, rx, ry); jO(g, c, x, y, rx, ry); jO(g, '#8a847a', x - rx*0.3, y - ry*0.35, rx*0.35, ry*0.3); };
+  roca(-8 - s*3, -8, 7, 8, '#6a6458'); roca(8 + s*3, -8, 7, 8, '#6a6458');      // piernas
+  roca(0, -28, 17, 15, '#7a7468');                                              // cuerpo
+  jR(g, '#3a5a2a', -10, -36, 5, 2); jR(g, '#3a5a2a', 6, -22, 6, 2);           // musgo
+  roca(0, -46, 8, 7, '#7a7468');                                                // cabeza
+  jR(g, '#7affd8', -4, -48, 3, 2); jR(g, '#7affd8', 2, -48, 3, 2);            // ojos
+  const bY = alza ? -46 : golpe ? -16 : -30 + s*2;
+  roca(-20, bY, 7, 9, '#6a6458'); roca(20, bY, 7, 9, '#6a6458');               // brazos
+  roca(-21, bY + (alza ? -7 : 9), 8, 7, '#5e584e'); roca(21, bY + (alza ? -7 : 9), 8, 7, '#5e584e');   // puños
+  // runas que brillan
+  jR(g, '#7affd8', -3, -30, 6, 1); jR(g, '#7affd8', 0, -33, 1, 7);
+}
+// El Héroe Mágico: armadura dorada, capa, corona y cetro con un orbe.
+function dibHeroe(g, pose, f){
+  const inv = pose === 'ataca' && f === 0, cura = pose === 'ataca' && f === 1;
+  // capa ondeando
+  g.fillStyle = '#3a4ab8'; g.beginPath(); g.moveTo(-5, -40); g.quadraticCurveTo(-18, -24 + (f % 2)*2, -14, -2); g.lineTo(-2, -4); g.lineTo(2, -38); g.closePath(); g.fill();
+  jR(g, '#2a3488', -12, -12, 6, 8);
+  // piernas con grebas
+  jL(g, '#b89a3a', 4, -2, -20, -4, -3); jL(g, '#d8ba4a', 4, 2, -20, 4, -3);
+  jR(g, '#6a4a2a', -6, -4, 5, 3); jR(g, '#6a4a2a', 2, -4, 5, 3);
+  // coraza
+  g.fillStyle = '#d8b84a'; g.beginPath(); g.moveTo(-6, -40); g.lineTo(6, -40); g.lineTo(7, -20); g.lineTo(-7, -20); g.closePath(); g.fill();
+  jR(g, '#f4e08a', 0, -39, 3, 16); jR(g, '#9a7a2a', -7, -24, 14, 3); jO(g, '#3a6ac8', 0, -32, 2.5, 2.5);
+  jO(g, '#e8c870', -7, -38, 4, 3); jO(g, '#e8c870', 7, -38, 4, 3);        // hombreras
+  // cabeza, barba y corona
+  jO(g, '#e8c09a', 1, -46, 4.5, 5);
+  g.fillStyle = '#c8c8c0'; g.beginPath(); g.moveTo(-2, -44); g.lineTo(6, -44); g.lineTo(3, -38); g.lineTo(0, -39); g.closePath(); g.fill();   // barba
+  jR(g, '#1a1410', 3, -48, 1.5, 1.5);
+  jR(g, '#f0d050', -3, -53, 9, 3); for (const x of [-3, 0.5, 4]) { g.fillStyle = '#f0d050'; g.beginPath(); g.moveTo(x, -53); g.lineTo(x + 1.5, -57); g.lineTo(x + 3, -53); g.fill(); }
+  jR(g, '#e84a6a', 1, -52, 2, 1.5);
+  // brazo y cetro
+  const ang = inv ? -1.9 : cura ? -0.3 : -1.2;
+  const hx = 5 + Math.cos(ang)*10, hy = -36 + Math.sin(ang)*10;
+  jL(g, '#d8b84a', 3.4, 5, -36, hx, hy);
+  const cx2 = hx + Math.cos(ang)*14, cy2 = hy + Math.sin(ang)*14;
+  jL(g, '#8a6a2a', 2, hx - Math.cos(ang)*8, hy - Math.sin(ang)*8, cx2, cy2);
+  jO(g, '#f0d050', cx2, cy2, 3, 3);
+  jO(g, inv ? '#aaf0ff' : cura ? '#9aff8a' : '#7ac8ff', cx2 + Math.cos(ang)*3, cy2 + Math.sin(ang)*3, 3.5, 3.5);
+  jL(g, '#d8b84a', 3.2, -5, -36, -8, -26);                                 // otro brazo
+}
+// Ogro aliado del mago: grande, verde y con garrote.
+function dibOgro(g, pose, f){
+  const golpe = pose === 'ataca';
+  piernasAnda(g, pose === 'anda' ? f : 0, -16, '#6a8a3a', '#4a6a26', 16, 5, '#4a3020');
+  jR(g, '#6a4a2a', -9, -20, 18, 7); jR(g, '#8a6a3a', -9, -20, 18, 2);        // taparrabos
+  jO(g, '#5a8a3a', 0, -30, 13, 12);                                          // barriga
+  jO(g, '#7aaa4a', 3, -33, 8, 7);
+  jO(g, '#5a8a3a', 1, -45, 7, 6);                                            // cabeza
+  jR(g, '#ffe070', 3, -47, 2, 2); jR(g, '#1a1410', 4, -47, 1, 1);
+  jR(g, '#f0f0e0', 3, -41, 1.5, 2.5); jR(g, '#f0f0e0', 6, -41, 1.5, 2.5);    // colmillos
+  jL(g, '#4a6a26', 5, -10, -34, -15, -22);                                   // brazo lejano
+  const a = golpe ? (f ? 0.5 : -2.3) : -0.9;
+  const hx = 10 + Math.cos(a)*9, hy = -34 + Math.sin(a)*9;
+  jL(g, '#5a8a3a', 5.5, 10, -34, hx, hy);
+  const kx = hx + Math.cos(a)*18, ky = hy + Math.sin(a)*18;
+  jL(g, '#6a4a2a', 4, hx, hy, kx, ky); jO(g, '#7a5a34', kx, ky, 5, 5);      // garrote
+  jR(g, '#a8a8a0', kx - 1, ky - 6, 2, 2); jR(g, '#a8a8a0', kx + 3, ky - 2, 2, 2);
+}
+// Dragoncito aliado del mago: vuela y escupe fuego.
+function dibDragoncito(g, pose, f){
+  const flap = Math.sin(f/4*Math.PI*2), fuego = pose === 'ataca';
+  const ala = (lado)=>{
+    g.fillStyle = lado > 0 ? '#a8382a' : '#7a2a20';
+    g.beginPath(); g.moveTo(-2, -2); g.lineTo(-8 + lado*2, -16 - flap*9); g.lineTo(-18, -10 - flap*6); g.lineTo(-14, 0); g.closePath(); g.fill();
+  };
+  ala(-1);
+  g.strokeStyle = '#8a2a20'; g.lineWidth = 4; g.beginPath(); g.moveTo(-8, 2); g.quadraticCurveTo(-18, 6, -24, 0); g.stroke();   // cola
+  jO(g, '#c84a32', 0, 0, 11, 6); jO(g, '#f0a060', 2, 3, 7, 3);             // cuerpo y vientre
+  g.fillStyle = '#c84a32'; g.beginPath(); g.moveTo(6, -3); g.lineTo(14, -8); g.lineTo(18, -4); g.lineTo(9, 3); g.closePath(); g.fill();   // cuello
+  jO(g, '#c84a32', 17, -7, 5, 4);                                          // cabeza
+  jR(g, '#ffe070', 17, -9, 2, 2); g.fillStyle = '#f0d0a0'; g.beginPath(); g.moveTo(14, -10); g.lineTo(11, -15); g.lineTo(16, -11); g.fill();
+  if (fuego){ jR(g, '#3a0a06', 20, -6, 3, 2); }
+  ala(1);
+}
+// ---------- constantes ----------
+const FANT_TIPOS = { arquero:1, caballero:1, golem:1 };
+const FANT_MAX = 8;                        // unidades fantasma a la vez
+const HEROE_HP = 1350, KAI_HP = 2700;
+const KAI_ESC = 2.3;                       // el dragón del jugador, pero gigante
+const KAI_RAYO_DPS = 16, KAI_RAYO_TICK = 0.1, KAI_RAYO_LARGO = 720;
+const KAI_PAL = { cl:'#e0b83a', cm:'#9a7414', co:'#3e2c06', mem:'#6a4e12', memO:'#221804',
+                  vientre:'#ecd276', cuerno:'#fff0a0', ojo:'#ff2a1a' };
+const kaiAvisos = [], kaiOndas = [], heroeOrbes = [], heroeAnillos = [], fuegoAliado = [];
+
+// ---------- el ejército fantasma ----------
+function golpeFantasma(T, dmg){
+  if (T === player){ hp = clamp(hp - recibe(dmg), 0, maxHp()); p2Gain(dmg); shake(5, 0.12); sfx('hurt'); }
+  else T.hp -= dmg;
+  addParticles(T.x, T.y - 10, '#bfe8ff', 10, 120);
+}
+function golemGolpe(e){
+  const R = 95;
+  if (dist(e.x, e.y, player.x, player.y) < R + F().r) golpeFantasma(player, 28);
+  for (const z of zombis) if (z.sube <= 0 && dist(e.x, e.y, z.x, z.y) < R) z.hp -= 28;
+  for (const c of cars) if (!c.dead && !c.held && dist(e.x, e.y, c.x, c.y) < R){ c.hp -= 20; if (c.hp <= 0) autoAbatido(c); }
+  kaiOndas.push({ x:e.x, y:e.y, t:0, max:0.35, R, col:'#bfe8ff' });
+  addParticles(e.x, e.y, '#9ad8ff', 16, 170); shake(7, 0.18); sfx('boom');
+}
+function updateFantasma(e, dt, a, ang){
+  e.anim = (e.anim || 0) + dt;
+  if (e.nace > 0){ e.nace -= dt; return; }
+  if (e.hieloT > 0) return;
+  // a por el zombi o el aliado del mago que tenga más cerca que al invasor
+  let T = player, d = a, an = ang;
+  if (zombis.length){ const z = zombiObjetivo(e, a); if (z){ T = z; d = dist(e.x, e.y, z.x, z.y); an = Math.atan2(z.y - e.y, z.x - e.x); } }
+  e.facing = Math.cos(an) >= 0 ? 1 : -1;
+  e.ft -= dt;
+  if (e.type === 'arquero'){
+    if (e.fase !== 'tensa'){
+      const mv = d > 340 ? 1 : d < 220 ? -1 : 0;
+      e.x += Math.cos(an)*e.speed*mv*dt; e.y += Math.sin(an)*e.speed*mv*dt;
+      e.anda = mv !== 0 ? 1 : 0;
+      e.disCd -= dt;
+      if (e.disCd <= 0 && d < 560){ e.fase = 'tensa'; e.ft = 0.55; e.anda = 0; }
+    } else if (e.ft <= 0){
+      e.fase = ''; e.disCd = rand(1.4, 2.2);
+      const b = mkBullet(e, an, 380, 8, '#d8f0ff', 3);
+      b.flecha = true; b.rot = an; b.y = e.y - 22; b.life = 1.8;
+      if (T !== player) b._objZ = T;
+      bullets.push(b); sfx('silbido');
+    }
+  } else if (e.type === 'caballero'){
+    if (e.fase === 'apunta'){
+      e.anda = 0; e.cA = an;
+      if (e.ft <= 0){ e.fase = 'carga'; e.ft = Math.min(1.6, (d + 160)/330); e.golpeo = 0; sfx('dash'); }
+    } else if (e.fase === 'carga'){
+      e.anda = 1; e.facing = Math.cos(e.cA) >= 0 ? 1 : -1;
+      e.x += Math.cos(e.cA)*330*dt; e.y += Math.sin(e.cA)*330*dt;
+      if (!e.golpeo && dist(e.x, e.y, T.x, T.y) < 38){ e.golpeo = 1; golpeFantasma(T, 22); }
+      if (e.ft <= 0){ e.fase = 'trota'; e.cargaCd = rand(2.2, 3.4); }
+    } else {
+      e.fase = 'trota'; e.anda = 1;
+      const mv = d > 300 ? 1 : d < 180 ? -0.6 : 0.25;
+      e.x += Math.cos(an)*e.speed*mv*dt; e.y += Math.sin(an)*e.speed*mv*dt;
+      e.cargaCd -= dt;
+      if (e.cargaCd <= 0 && d < 520){ e.fase = 'apunta'; e.ft = 0.5; e.cA = an; }
+    }
+  } else if (e.type === 'golem'){
+    if (e.fase === 'alza'){ e.anda = 0; if (e.ft <= 0){ e.fase = 'golpe'; e.ft = 0.35; golemGolpe(e); } }
+    else if (e.fase === 'golpe'){ if (e.ft <= 0){ e.fase = ''; e.golpeCd = 1.4; } }
+    else {
+      e.golpeCd -= dt;
+      if (d > 70){ e.x += Math.cos(an)*e.speed*dt; e.y += Math.sin(an)*e.speed*dt; e.anda = 1; }
+      else { e.anda = 0; if (e.golpeCd <= 0){ e.fase = 'alza'; e.ft = 0.65; } }
+    }
+  }
+  // son almas: atraviesan los edificios
+  e.x = clamp(e.x, 30, WORLD_W - 30); e.y = clamp(e.y, 30, WORLD_H - 30);
+}
+
+// ---------- el Héroe Mágico ----------
+function cuentaFantasmas(){ let n = 0; for (const o of enemies) if (!o.dead && FANT_TIPOS[o.type]) n++; return n; }
+function aliadosHeroe(e, R){
+  const L = [];
+  for (const o of enemies){
+    if (o.dead || o === e || o.held || o.thrown || o.pacifico || o.type === 'ovni') continue;
+    if (dist(o.x, o.y, e.x, e.y) < R) L.push(o);
+  }
+  return L;
+}
+function updateHeroe(e, dt, a, ang){
+  e.anim = (e.anim || 0) + dt;
+  if (e.hieloT > 0) return;
+  e.facing = Math.cos(ang) >= 0 ? 1 : -1;
+  e.ft -= dt; e.invCd -= dt; e.escCd -= dt; e.curaCd -= dt;
+  // se aleja despacio del invasor y lo rodea; si se queda muy lejos, vuelve un poco
+  let mx = 0, my = 0;
+  if (a < 430){ mx = -Math.cos(ang); my = -Math.sin(ang); }
+  else if (a > 680){ mx = Math.cos(ang); my = Math.sin(ang); }
+  mx += -Math.sin(ang)*0.45*e.deriva; my += Math.cos(ang)*0.45*e.deriva;
+  const l = Math.hypot(mx, my) || 1, v = e.fase ? e.speed*0.35 : e.speed;
+  e.x += mx/l*v*dt; e.y += my/l*v*dt;
+  if (e.x < 90 || e.x > WORLD_W - 90 || e.y < 90 || e.y > WORLD_H - 90){ e.giraCd = (e.giraCd || 0) - dt; if (e.giraCd <= 0){ e.deriva = -e.deriva; e.giraCd = 2; } }
+  e.x = clamp(e.x, 70, WORLD_W - 70); e.y = clamp(e.y, 70, WORLD_H - 70);
+  if (e.fase && e.ft <= 0){
+    if (e.fase === 'invoca') heroeInvoca(e);
+    else if (e.fase === 'escuda') heroeEscuda(e);
+    else if (e.fase === 'cura') heroeCura(e);
+    e.fase = '';
+  }
+  if (!e.fase){
+    if (e.invCd <= 0 && cuentaFantasmas() < FANT_MAX){ e.fase = 'invoca'; e.ft = 0.9; e.invCd = rand(6, 8); sfx('conjuro'); }
+    else if (e.curaCd <= 0 && (e.hp < e.maxhp*0.9 || aliadosHeroe(e, 380).some(o=> o.hp < o.maxhp*0.85))){ e.fase = 'cura'; e.ft = 0.6; e.curaCd = rand(4.5, 6); }
+    else if (e.escCd <= 0 && aliadosHeroe(e, 460).length){ e.fase = 'escuda'; e.ft = 0.6; e.escCd = rand(6, 8); }
+  }
+}
+function heroeInvoca(e){
+  const n = 2 + (Math.random() < 0.45 ? 1 : 0);
+  let golems = 0; for (const o of enemies) if (!o.dead && o.type === 'golem') golems++;
+  for (let i = 0; i < n && cuentaFantasmas() < FANT_MAX; i++){
+    const r = Math.random();
+    const t = r < 0.45 ? 'arquero' : (r < 0.8 || golems >= 2) ? 'caballero' : 'golem';
+    if (t === 'golem') golems++;
+    const a2 = Math.random()*Math.PI*2, d = 60 + Math.random()*50;
+    const x = clamp(e.x + Math.cos(a2)*d, 40, WORLD_W - 40), y = clamp(e.y + Math.sin(a2)*d*0.7, 40, WORLD_H - 40);
+    spawnEnemy(t, x, y);
+    const u = enemies[enemies.length - 1];
+    if (u && u.type === t){ u.oleada = true; u.deHeroe = 1; }
+    addParticles(x, y, '#bfe8ff', 14, 140);
+  }
+  e.circT = gameTime;
+  heroeAnillos.push({ x:e.x, y:e.y, t:0, max:0.7, col:'#aaf0ff' });
+}
+function heroeEscuda(e){
+  const L = aliadosHeroe(e, 460).sort((p, q)=> dist(p.x, p.y, e.x, e.y) - dist(q.x, q.y, e.x, e.y)).slice(0, 4);
+  if (e.hp < e.maxhp*0.5) L.push(e);
+  for (const o of L){
+    o.escMag = 5;
+    heroeOrbes.push({ x0:e.x, y0:e.y - 50, o, t:0 });
+  }
+  sfx('escudoMag');
+}
+function heroeCura(e){
+  for (const o of aliadosHeroe(e, 380)){ o.hp = Math.min(o.maxhp, o.hp + o.maxhp*0.3); addParticles(o.x, o.y - 12, '#9aff8a', 8, 90); }
+  e.hp = Math.min(e.maxhp, e.hp + e.maxhp*0.08);
+  heroeAnillos.push({ x:e.x, y:e.y, t:0, max:0.8, col:'#9aff8a', R:380 });
+  sfx('escudoMag');
+}
+// Al caer el Héroe su ejército se deshace en niebla.
+function heroeCae(e){
+  for (const o of enemies){
+    if (o.dead || !o.deHeroe) continue;
+    o.dead = true;
+    addParticles(o.x, o.y - 14, '#bfe8ff', 14, 120);
+  }
+  heroeAnillos.push({ x:e.x, y:e.y, t:0, max:1.2, col:'#fff0a0', R:420 });
+  toast('EL EJÉRCITO FANTASMA SE DESVANECE');
+}
+
+// ---------- el Kaiyin gigante ----------
+// Toma prestado el esqueleto del dragón del jugador: se cambian un momento las
+// variables que usa para girar las cabezas y se restauran enseguida.
+function conDragon(e, fn){
+  const m = dra.mirA, mt = dra.mordT, mc = dra.mordCab, ml = dra.mordL, cp = vil.capa;
+  dra.mirA = e.mirA || 0; dra.mordT = e.mordT || 0; dra.mordCab = 1; dra.mordL = 22; vil.capa = e.anim || 0;
+  try { return fn(); } finally { dra.mirA = m; dra.mordT = mt; dra.mordCab = mc; dra.mordL = ml; vil.capa = cp; }
+}
+function kaiBoca(e, i){
+  const h = conDragon(e, ()=> draCabeza(i, 0));
+  return { x: e.x + (h.x + Math.cos(h.a)*15)*KAI_ESC, y: e.y - (e.lift || 0) + (h.y + Math.sin(h.a)*9)*KAI_ESC };
+}
+function giraHacia(a, b, max){
+  let d = b - a;
+  while (d > Math.PI) d -= Math.PI*2;
+  while (d < -Math.PI) d += Math.PI*2;
+  return a + clamp(d, -max, max);
+}
+function updateKaiyin(e, dt, a, ang){
+  e.anim = (e.anim || 0) + dt;
+  if (e.hieloT > 0) return;
+  e.ft -= dt;
+  if (e.mordT > 0) e.mordT = Math.max(0, e.mordT - dt);
+  if (e.aleT > 0) e.aleT = Math.max(0, e.aleT - dt);
+  // la tormenta vuelve cada rato
+  e.tormCd -= dt;
+  if (e.tormCd <= 0){ e.tormT = 8; e.tormCd = rand(20, 26); toast('¡TORMENTA!'); sfx('trueno'); }
+  if (e.tormT > 0){ e.tormT -= dt; kaiTormenta(e, dt); }
+  const angC = Math.atan2(player.y - (e.y - (e.lift || 0)), player.x - e.x);
+  switch (e.fase){
+    case 'entra':
+      e.vuela = 1; e.lift = lerp(e.lift, 80, Math.min(1, dt*3));
+      e.mirA = giraHacia(e.mirA, angC, 3*dt);
+      if (a > 300){ e.x += Math.cos(ang)*260*dt; e.y += Math.sin(ang)*260*dt; }
+      if (e.ft <= 0 || a <= 300){ e.fase = 'aterriza'; e.ft = 0.6; }
+      break;
+    case 'anda':
+      e.vuela = 0; e.lift = lerp(e.lift, 0, Math.min(1, dt*6));
+      e.mirA = giraHacia(e.mirA, angC, 2.5*dt);
+      e.andando = a > 230 ? 1 : 0;
+      if (e.andando){ e.x += Math.cos(ang)*e.speed*dt; e.y += Math.sin(ang)*e.speed*dt; e.paso = (e.paso || 0) + dt*5; }
+      collideBuildings(e, 64, dt, 240);                  // lo que pisa, lo aplasta
+      e.cd -= dt;
+      if (e.cd <= 0) kaiEligeAtaque(e, a, ang);
+      break;
+    case 'rayos': {
+      // el punto al que apunta persigue al invasor sin alcanzarlo del todo
+      const dd = dist(e.rtx, e.rty, player.x, player.y) || 1, k = Math.min(1, 150*dt/dd);
+      e.rtx += (player.x - e.rtx)*k; e.rty += (player.y - e.rty)*k;
+      e.mirA = giraHacia(e.mirA, Math.atan2(e.rty - (e.y - e.lift), e.rtx - e.x), 3*dt);
+      e.rayOn = e.ft < 2.5 ? 1 : 0;
+      if (e.rayOn){ e.rayTick -= dt; if (e.rayTick <= 0){ e.rayTick = KAI_RAYO_TICK; kaiRayos(e); } }
+      if (e.ft <= 0){ e.fase = 'anda'; e.rayOn = 0; e.cd = rand(2.2, 3.5); }
+      break;
+    }
+    case 'aleteo':
+      if (!e.aleHecho && e.ft <= 0.45){ e.aleHecho = 1; e.aleT = DRA_ALE_T; kaiAleteo(e); }
+      if (e.ft <= 0){ e.fase = 'anda'; e.cd = rand(1.8, 3); }
+      break;
+    case 'colaApunta':
+      if (e.ft > 0.45) e.colaA = giraHacia(e.colaA, ang, 1.5*dt);
+      e.mirA = giraHacia(e.mirA, e.colaA, 3*dt);
+      if (e.ft <= 0){ e.fase = 'cola'; e.colaRest = 470; e.colaId = (e.colaId || 0) + 1; e.colaGolpeo = 0; sfx('coletazo'); }
+      break;
+    case 'cola': {
+      const paso = 900*dt;
+      e.x = clamp(e.x + Math.cos(e.colaA)*paso, 60, WORLD_W - 60); e.y = clamp(e.y + Math.sin(e.colaA)*paso, 60, WORLD_H - 60);
+      e.colaRest -= paso;
+      kaiArrasa(e, dt);
+      if (e.colaRest <= 0){
+        if (dist(e.x, e.y, player.x, player.y) < 200 + F().r) golpeFantasma(player, 26);
+        kaiOndas.push({ x:e.x, y:e.y, t:0, max:0.45, R:200, col:'#ffe07a' });
+        shake(12, 0.3); sfx('bigboom');
+        e.fase = 'anda'; e.cd = rand(2, 3);
+      }
+      break;
+    }
+    case 'vuela':
+      e.vuela = 1; e.lift = lerp(e.lift, 80, Math.min(1, dt*4));
+      e.mirA = giraHacia(e.mirA, angC, 4*dt);
+      if (a > 140){ e.x += Math.cos(ang)*250*dt; e.y += Math.sin(ang)*250*dt; }
+      if (e.ft <= 0 || a <= 140){ e.fase = 'muerde'; e.ft = 0.4; e.mA = ang; e.mordHecho = 0; e.mordT = DRA_MORD_T; sfx('mordisco'); }
+      break;
+    case 'muerde':
+      e.x = clamp(e.x + Math.cos(e.mA)*420*dt, 60, WORLD_W - 60); e.y = clamp(e.y + Math.sin(e.mA)*420*dt, 60, WORLD_H - 60);
+      e.mirA = e.mA;
+      if (!e.mordHecho && e.ft <= 0.22){
+        e.mordHecho = 1;
+        const bx = e.x + Math.cos(e.mA)*70, by = e.y + Math.sin(e.mA)*50;
+        if (dist(bx, by, player.x, player.y) < 90 + F().r) golpeFantasma(player, 34);
+        for (const z of zombis) if (dist(bx, by, z.x, z.y) < 80) z.hp -= 60;
+      }
+      if (e.ft <= 0){ e.fase = 'aterriza'; e.ft = 0.6; }
+      break;
+    case 'aterriza':
+      e.lift = lerp(e.lift, 0, Math.min(1, dt*7));
+      if (e.ft <= 0){
+        e.vuela = 0; e.lift = 0;
+        if (dist(e.x, e.y, player.x, player.y) < 160 + F().r) golpeFantasma(player, 16);
+        kaiOndas.push({ x:e.x, y:e.y, t:0, max:0.4, R:160, col:'#e8dcc0' });
+        shake(12, 0.3); sfx('aterriza');
+        e.fase = 'anda'; e.cd = rand(1.5, 2.5);
+      }
+      break;
+  }
+  e.alt = e.vuela ? Math.round(e.lift) : 0;
+  e.facing = Math.cos(e.mirA) >= 0 ? 1 : -1;
+  e.x = clamp(e.x, 60, WORLD_W - 60); e.y = clamp(e.y, 60, WORLD_H - 60);
+}
+function kaiEligeAtaque(e, a, ang){
+  const r = Math.random();
+  const f = a < 260 ? (r < 0.55 ? 'aleteo' : r < 0.8 ? 'colaApunta' : 'rayos')
+          : a > 520 ? (r < 0.45 ? 'vuela' : r < 0.8 ? 'rayos' : 'colaApunta')
+          : (r < 0.4 ? 'rayos' : r < 0.68 ? 'colaApunta' : r < 0.85 ? 'vuela' : 'aleteo');
+  e.fase = f; e.andando = 0;
+  if (f === 'rayos'){ e.ft = 3.2; e.rtx = player.x + rand(-80, 80); e.rty = player.y + rand(-80, 80); e.rayTick = 0; sfx('cargaM'); }
+  else if (f === 'aleteo'){ e.ft = 0.9; e.aleHecho = 0; }
+  else if (f === 'colaApunta'){ e.ft = 1.1; e.colaA = ang; }
+  else { e.ft = 2.2; sfx('aleteo'); }
+}
+// Tres rayos: los para lo primero que se cruce (edificio, lo que lleves
+// agarrado, lo que el mago levite o su burbuja). Si no, te alcanzan.
+function kaiImpacto(ox, oy, tx, ty, px, py){
+  const dx = tx - ox, dy = ty - oy, L = Math.min(KAI_RAYO_LARGO, Math.hypot(dx, dy) + 40) || 1;
+  const ux = dx/(Math.hypot(dx, dy) || 1), uy = dy/(Math.hypot(dx, dy) || 1);
+  const ex = ox + ux*L, ey = oy + uy*L;
+  const x0 = Math.min(ox, ex) - 4, x1 = Math.max(ox, ex) + 4, y0 = Math.min(oy, ey) - 4, y1 = Math.max(oy, ey) + 4;
+  const edif = [];
+  // la cabeza del gigante asoma por encima de los tejados: ni el edificio sobre el
+  // que está su boca ni el que está pisando le tapan el disparo
+  for (const b of buildings){ if (b.stage < 2 && b.x < x1 && b.x + b.w > x0 && b.y < y1 && b.y + b.h > y0 &&
+                                  !(ox > b.x && ox < b.x + b.w && oy > b.y && oy < b.y + b.h) &&
+                                  !(px > b.x - 40 && px < b.x + b.w + 40 && py > b.y - 40 && py < b.y + b.h + 40)) edif.push(b); }
+  const hr = heldObject ? heldRect() : null;
+  const pr = F().r + 6;
+  const escMag = isMag() && mag.escudoT > 0;
+  for (let s = 24; s <= L; s += 10){
+    const x = ox + ux*s, y = oy + uy*s;
+    if (escMag && dist(x, y, player.x, player.y - 10) < MAG_ESC_R + 4) return { x, y, que:'mago' };
+    if (hr && x > hr.x && x < hr.x + hr.w && y > hr.y && y < hr.y + hr.h) return { x, y, que:'escudo' };
+    if (isMag() && mag.tk.length){
+      for (const o of mag.tk){
+        if (o.dead) continue;
+        const rr = Math.max(16, Math.min(o.w || 30, o.h || 30)*0.55);
+        if (Math.abs(x - o.x) < rr && Math.abs(y - o.y) < rr) return { x, y, que:'tk', ref:o };
+      }
+    }
+    for (const b of edif){ if (x > b.x && x < b.x + b.w && y > b.y && y < b.y + b.h) return { x, y, que:'edif', ref:b }; }
+    if (dist(x, y, player.x, player.y) < pr) return { x, y, que:'jugador' };
+    for (const z of zombis){ if (z.sube <= 0 && dist(x, y, z.x, z.y) < 16) return { x, y, que:'zombi', ref:z }; }
+  }
+  return { x:ex, y:ey, que:null };
+}
+function kaiRayos(e){
+  const nx = -Math.sin(e.mirA), ny = Math.cos(e.mirA);
+  const golpe = KAI_RAYO_DPS*KAI_RAYO_TICK;
+  for (let i = 0; i < 3; i++){
+    const m = kaiBoca(e, i);
+    const imp = kaiImpacto(m.x, m.y, e.rtx + nx*(i - 1)*16, e.rty + ny*(i - 1)*16, e.x, e.y);
+    e['r' + i + 'x'] = Math.round(imp.x); e['r' + i + 'y'] = Math.round(imp.y);
+    if (imp.que === 'jugador'){ hp = clamp(hp - recibe(golpe), 0, maxHp()); p2Gain(golpe); if (Math.random() < 0.3) addParticles(imp.x, imp.y, '#fff3a0', 3, 80); }
+    else if (imp.que === 'edif') damageBuilding(imp.ref, 12*KAI_RAYO_TICK*3);
+    else if (imp.que === 'escudo'){ damageHeld(0.04); runStats.blocks += 0.02; }
+    else if (imp.que === 'tk'){ const o = imp.ref; if (o.tkDur === undefined) o.tkDur = objDurability(o); o.tkDur -= 0.04; if (o.tkDur <= 0){ const j = mag.tk.indexOf(o); if (j >= 0) mag.tk.splice(j, 1); rompeTK(o); } }
+    else if (imp.que === 'zombi') imp.ref.hp -= golpe*2;
+    if (imp.que && imp.que !== 'jugador' && Math.random() < 0.35) addParticles(imp.x, imp.y, '#fff3a0', 3, 90);
+  }
+  if (Math.random() < 0.25) sfx('rayoDra');
+}
+function kaiAleteo(e){
+  const R = 280;
+  const d = dist(e.x, e.y, player.x, player.y);
+  if (d < R + F().r){
+    golpeFantasma(player, 18);
+    const a2 = Math.atan2(player.y - e.y, player.x - e.x), emp = 110*(1 - d/(R + 40));
+    player.x = clamp(player.x + Math.cos(a2)*emp, 30, WORLD_W - 30); player.y = clamp(player.y + Math.sin(a2)*emp, 30, WORLD_H - 30);
+    if (!(isVil() && vil.flying)) desatascar(F().r);
+  }
+  for (const t of civilians) if (!t.dead && !t.held && dist(e.x, e.y, t.x, t.y) < R){ t.hp -= 20; if (t.hp <= 0) t.dead = true; }
+  for (const t of enemies){
+    if (t.dead || t === e || t.held || !t.person || dist(e.x, e.y, t.x, t.y) > R) continue;
+    const a2 = Math.atan2(t.y - e.y, t.x - e.x);
+    t.stunT = Math.max(t.stunT || 0, 1.2); t.stunVx = Math.cos(a2)*260; t.stunVy = Math.sin(a2)*260;
+  }
+  for (const c of cars){ if (c.dead || c.held || dist(e.x, e.y, c.x, c.y) > R) continue; const a2 = Math.atan2(c.y - e.y, c.x - e.x); c.x += Math.cos(a2)*50; c.y += Math.sin(a2)*50; c.hp -= 12; if (c.hp <= 0) autoAbatido(c); }
+  sacudeArboles(e.x, e.y, R + 60, 0.5);
+  kaiOndas.push({ x:e.x, y:e.y, t:0, max:0.5, R, col:'#e8f4ff' });
+  shake(9, 0.25); sfx('aleteo');
+}
+// Embestida: arrasa todo a su paso, edificios incluidos.
+function kaiArrasa(e, dt){
+  const R = 72;
+  for (const b of buildings){
+    if (b.stage >= 2) continue;
+    const cx = clamp(e.x, b.x, b.x + b.w), cy = clamp(e.y, b.y, b.y + b.h);
+    if (dist(cx, cy, e.x, e.y) < R) damageBuilding(b, 900*dt);
+  }
+  for (const pool of [civilians, enemies]){
+    for (const t of pool){
+      if (t.dead || t.held || t === e || JEFES[t.type] || t._kaiG === e.colaId) continue;
+      if (dist(t.x, t.y, e.x, e.y) > R) continue;
+      t._kaiG = e.colaId; damageEnemy(t, 90, t.x, t.y);
+    }
+  }
+  for (const c of cars){ if (!c.dead && !c.held && dist(c.x, c.y, e.x, e.y) < R){ c.hp -= 60; if (c.hp <= 0) autoAbatido(c); } }
+  if (!e.colaGolpeo && dist(player.x, player.y, e.x, e.y) < R + F().r){ e.colaGolpeo = 1; golpeFantasma(player, 30); }
+  if (Math.random() < 0.5) addParticles(e.x, e.y, '#b8a888', 4, 140);
+}
+function kaiTormenta(e, dt){
+  e.strikeCd -= dt;
+  if (e.strikeCd > 0) return;
+  e.strikeCd = rand(0.55, 1.1);
+  const junto = Math.random() < 0.4, a2 = Math.random()*Math.PI*2, d = junto ? 0 : 60 + Math.random()*240;
+  kaiAvisos.push({ x: player.x + Math.cos(a2)*d, y: player.y + Math.sin(a2)*d, t:0.8, max:0.8 });
+}
+// Tormenta, ondas y orbes: se actualizan aunque el jefe ya no esté.
+function updateJefes2(dt){
+  for (let i = kaiAvisos.length - 1; i >= 0; i--){
+    const k = kaiAvisos[i];
+    k.t -= dt;
+    if (k.t > 0) continue;
+    kaiAvisos.splice(i, 1);
+    relampagos.push({ x:k.x, y:k.y, t:0.35, max:0.35, sem:Math.random()*1000 });
+    if (dist(k.x, k.y, player.x, player.y) < 58 + F().r) golpeFantasma(player, 24);
+    for (const c of cars) if (!c.dead && !c.held && dist(k.x, k.y, c.x, c.y) < 60){ c.hp -= 30; if (c.hp <= 0) autoAbatido(c); }
+    for (const t of civilians) if (!t.dead && !t.held && dist(k.x, k.y, t.x, t.y) < 50) t.dead = true;
+    addParticles(k.x, k.y, '#cfe8ff', 14, 200); shake(5, 0.1); sfx('trueno');
+  }
+  for (const L of [kaiOndas, heroeAnillos]){
+    for (let i = L.length - 1; i >= 0; i--){ L[i].t += dt; if (L[i].t >= L[i].max) L.splice(i, 1); }
+  }
+  for (let i = heroeOrbes.length - 1; i >= 0; i--){ heroeOrbes[i].t += dt*2.5; if (heroeOrbes[i].t >= 1) heroeOrbes.splice(i, 1); }
+  for (let i = fuegoAliado.length - 1; i >= 0; i--){ fuegoAliado[i].t -= dt; if (fuegoAliado[i].t <= 0) fuegoAliado.splice(i, 1); }
+  // con el Kaiyin llamando a la tormenta, llueve
+  for (const e of enemies){ if (!e.dead && e.type === 'kaiyin' && e.tormT > 0){ clima = 'lluvia'; break; } }
+}
+function limpiaJefes2(){ kaiAvisos.length = 0; kaiOndas.length = 0; heroeOrbes.length = 0; heroeAnillos.length = 0; fuegoAliado.length = 0; }
+
+// ---------- aliados del mago: ogros y dragones ----------
+// Al destruir un tanque, el mago levanta un ogro; al derribar un helicóptero,
+// un dragón que escupe fuego. Se deshacen al cabo de un rato, como los zombis.
+const ALIADO_STATS = {
+  ogro:       { hp:240, vel:78,  dmg:44, cd:1.2, alc:34,  vida:30 },
+  dragoncito: { hp:150, vel:125, dmg:24, cd:0.6, alc:190, vida:30 }
+};
+function bajaDelMago(){
+  if (culpaJug <= 0) return false;
+  if (Online.culpaInv){ const a = Online.av; return !!(a && a.hero === 'mago'); }
+  return isMag();
+}
+function levantaAliado(e, tipo){
+  if (zombis.length >= ZOMBI_MAX) zombis.shift();
+  const S0 = ALIADO_STATS[tipo];
+  zombis.push({ x:e.x, y:e.y, tipo, t:S0.vida, sube:0.7, cd:0, facing:e.facing || 1, bob:Math.random()*6,
+                hp:S0.hp, maxhp:S0.hp, libre:1, dueno: Online.culpaInv ? 'inv' : 'yo' });
+  addParticles(e.x, e.y, tipo === 'ogro' ? '#8dff6a' : '#ff9a4a', 16, 120);
+  toast(tipo === 'ogro' ? '¡UN OGRO SE UNE AL MAGO!' : '¡UN DRAGÓN SE UNE AL MAGO!');
+}
+// ---------- dibujo ----------
+let _auraFant = null;
+function auraFant(){
+  if (_auraFant) return _auraFant;
+  const c = document.createElement('canvas'); c.width = c.height = 64;
+  const g = c.getContext('2d'), gr = g.createRadialGradient(32, 32, 2, 32, 32, 32);
+  gr.addColorStop(0, 'rgba(170,225,255,0.55)'); gr.addColorStop(0.5, 'rgba(120,190,255,0.18)'); gr.addColorStop(1, 'rgba(90,160,255,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
+  _auraFant = c; return c;
+}
+function pintaFrame(c, tipo, sx, sy, facing, rot, esc, alfa){
+  const [W, H, cx, py] = FANT_TAM[tipo];
+  ctx.save(); ctx.translate(sx, sy);
+  if (rot) ctx.rotate(rot);
+  ctx.scale(facing < 0 ? -esc : esc, esc);
+  const suave = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = false;
+  if (alfa < 1) ctx.globalAlpha = alfa;
+  ctx.drawImage(c, -cx, -py);
+  ctx.globalAlpha = 1; ctx.imageSmoothingEnabled = suave;
+  ctx.restore();
+}
+function drawFantasmaUnidad(e){
+  const s = S(e.x, e.y), t = e.anim || 0;
+  const aparece = e.nace > 0 ? clamp(1 - e.nace/0.6, 0, 1) : 1;
+  let pose = 'anda', f = 0;
+  if (e.type === 'arquero'){ if (e.fase === 'tensa') pose = 'ataca'; else if (e.anda) f = Math.floor(t*8) % 4; }
+  else if (e.type === 'caballero'){ pose = e.fase === 'carga' || e.fase === 'apunta' ? 'ataca' : 'anda'; f = Math.floor(t*(e.fase === 'carga' ? 14 : 8)) % 4; }
+  else { if (e.fase === 'alza') { pose = 'ataca'; f = 0; } else if (e.fase === 'golpe'){ pose = 'ataca'; f = 1; } else if (e.anda) f = Math.floor(t*5) % 4; }
+  const W = FANT_TAM[e.type][0];
+  const flota = e.held || e.thrown ? 0 : Math.sin(t*3 + e.x*0.01)*2;
+  // halo y sombra tenue
+  ctx.globalAlpha = 0.5*aparece; ctx.drawImage(auraFant(), s.x - W*0.8, s.y - W*1.1 + flota, W*1.6, W*1.6); ctx.globalAlpha = 1;
+  sombra(s.x, s.y + 10, W*0.7, 10, 0.4*aparece);
+  const alfa = (0.74 + Math.sin(t*5 + e.x)*0.08)*aparece;
+  pintaFrame(fantFrame(e.type, pose, f), e.type, s.x, s.y + 10 + flota, e.facing, e.rot, 1, alfa);
+  if (e.stunT > 0 && !(e.hieloT > 0)) drawStun(s.x, s.y - 30, e.stunT);
+  if (showHpBars && e.hp < e.maxhp) hpBar(s.x, s.y - FANT_TAM[e.type][3] + 4, 32, e.hp, e.maxhp, '#8ad0ff');
+}
+function drawHeroe(e){
+  const s = S(e.x, e.y), t = e.anim || 0;
+  const flota = Math.sin(t*2)*3;
+  // círculo mágico al invocar
+  if (e.fase === 'invoca'){
+    const k = clamp(1 - e.ft/0.9, 0, 1);
+    ctx.save(); ctx.translate(s.x, s.y + 12); ctx.scale(1, 0.55); ctx.rotate(t*2);
+    ctx.globalAlpha = 0.7*k; ctx.strokeStyle = '#aaf0ff'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(0, 0, 60*k + 10, 0, Math.PI*2); ctx.stroke();
+    ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(0, 0, 44*k + 6, 0, Math.PI*2); ctx.stroke();
+    for (let i = 0; i < 6; i++){ const a = i*Math.PI/3; ctx.fillStyle = '#e8fbff'; ctx.fillRect(Math.cos(a)*(52*k + 8) - 2, Math.sin(a)*(52*k + 8) - 2, 4, 4); }
+    ctx.restore(); ctx.globalAlpha = 1;
+  }
+  ctx.globalAlpha = 0.6; ctx.drawImage(auraFant(), s.x - 55, s.y - 90 + flota, 110, 110); ctx.globalAlpha = 1;
+  sombra(s.x, s.y + 10, 40, 12, 0.6);
+  const pose = e.fase === 'invoca' ? ['ataca', 0] : e.fase ? ['ataca', 1] : ['anda', 0];
+  pintaFrame(fantFrame('heroe', pose[0], pose[1]), 'heroe', s.x, s.y + 10 + flota, e.facing, e.rot, 1.3, 0.92);
+  // el orbe del cetro brilla
+  ctx.globalAlpha = 0.35 + Math.sin(t*6)*0.15;
+  ctx.fillStyle = e.fase === 'cura' ? '#9aff8a' : '#aaf0ff';
+  ctx.beginPath(); ctx.arc(s.x + e.facing*18, s.y - 58 + flota, 7, 0, Math.PI*2); ctx.fill();
+  ctx.globalAlpha = 1;
+  if (showHpBars) hpBar(s.x, s.y - 88, 76, e.hp, e.maxhp, '#c81f1f');
+}
+function drawKaiyin(e){
+  const s = S(e.x, e.y);
+  const st = { t: e.anim || 0, vol: !!e.vuela, lift: (e.lift || 0)/KAI_ESC, aleteoT: e.aleT || 0,
+               colaFase: e.fase === 'cola' ? 'golpe' : '', colaT: e.fase === 'cola' ? DRA_COLA_T*clamp((e.colaRest || 0)/470, 0, 1) : 0,
+               rayos: e.fase === 'rayos', mordT: e.mordT || 0, mordCab: 1, pal: KAI_PAL, paso: e.paso || 0, incl: 0, anda: !!e.andando };
+  conDragon(e, ()=> dibujaDragon(ctx, s.x, s.y, KAI_ESC, st));
+  if (showHpBars) hpBar(s.x, s.y - 210 - (e.lift || 0), 120, e.hp, e.maxhp, '#c81f1f');
+}
+// Rayos del Kaiyin, por encima de todo.
+function drawJefes2Rayos(){
+  for (const e of enemies){
+    if (e.dead || e.type !== 'kaiyin' || e.fase !== 'rayos') continue;
+    for (let i = 0; i < 3; i++){
+      const m = kaiBoca(e, i), o = S(m.x, m.y);
+      if (!e.rayOn){                                        // cargando: bocas encendidas
+        ctx.globalAlpha = 0.5 + Math.random()*0.3; ctx.fillStyle = '#fff3a0';
+        ctx.beginPath(); ctx.arc(o.x, o.y, 8 + (1 - e.ft/3.2)*14, 0, Math.PI*2); ctx.fill();
+        ctx.globalAlpha = 1;
+        continue;
+      }
+      if (e['r' + i + 'x'] === undefined) continue;
+      const d = S(e['r' + i + 'x'], e['r' + i + 'y']);
+      ctx.lineCap = 'round';
+      ctx.globalAlpha = 0.3; ctx.strokeStyle = '#ffd84a'; ctx.lineWidth = 18;
+      ctx.beginPath(); ctx.moveTo(o.x, o.y); ctx.lineTo(d.x, d.y); ctx.stroke();
+      const px = -(d.y - o.y), py = d.x - o.x, pl = Math.hypot(px, py) || 1;
+      ctx.globalAlpha = 0.95; ctx.strokeStyle = '#fff3a0'; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.moveTo(o.x, o.y);
+      for (let k = 1; k < 9; k++){ const f = k/9, j = (Math.random() - 0.5)*14; ctx.lineTo(o.x + (d.x - o.x)*f + px/pl*j, o.y + (d.y - o.y)*f + py/pl*j); }
+      ctx.lineTo(d.x, d.y); ctx.stroke();
+      ctx.globalAlpha = 1; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(o.x, o.y); ctx.lineTo(d.x, d.y); ctx.stroke();
+      ctx.globalAlpha = 0.6 + Math.random()*0.3; ctx.fillStyle = '#fff3a0';
+      ctx.beginPath(); ctx.arc(d.x, d.y, 10 + Math.random()*5, 0, Math.PI*2); ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+  }
+  // orbes de escudo que el Héroe lanza a sus aliados
+  for (const b of heroeOrbes){
+    if (!b.o || b.o.dead) continue;
+    const k = b.t, x = b.x0 + (b.o.x - b.x0)*k, y = b.y0 + (b.o.y - 20 - b.y0)*k - Math.sin(k*Math.PI)*40;
+    const s = S(x, y);
+    ctx.fillStyle = '#ffe8a0'; ctx.globalAlpha = 0.9;
+    ctx.beginPath(); ctx.moveTo(s.x, s.y - 7); ctx.lineTo(s.x + 6, s.y - 4); ctx.lineTo(s.x + 5, s.y + 3); ctx.lineTo(s.x, s.y + 7); ctx.lineTo(s.x - 5, s.y + 3); ctx.lineTo(s.x - 6, s.y - 4); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = '#8a6a1a'; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+  // fuego de los dragones del mago
+  for (const f of fuegoAliado){
+    const a = S(f.x0, f.y0), b = S(f.x1, f.y1);
+    ctx.globalAlpha = 0.8*(f.t/0.25);
+    ctx.strokeStyle = '#ff7a2a'; ctx.lineWidth = 8; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+    ctx.strokeStyle = '#ffe07a'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+}
+// Avisos en el suelo: rayos de la tormenta, línea de la embestida, ondas y anillos.
+function drawJefes2Avisos(){
+  for (const k of kaiAvisos){
+    const s = S(k.x, k.y), p = 1 - k.t/k.max;
+    ctx.globalAlpha = 0.25 + p*0.5; ctx.strokeStyle = '#cfe8ff'; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.ellipse(s.x, s.y, 58, 36, 0, 0, Math.PI*2); ctx.stroke();
+    ctx.globalAlpha = 0.18*p; ctx.fillStyle = '#cfe8ff';
+    ctx.beginPath(); ctx.ellipse(s.x, s.y, 58*p, 36*p, 0, 0, Math.PI*2); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  for (const e of enemies){
+    if (e.dead || e.type !== 'kaiyin' || e.fase !== 'colaApunta') continue;
+    const s0 = S(e.x, e.y), s1 = S(e.x + Math.cos(e.colaA)*470, e.y + Math.sin(e.colaA)*470);
+    ctx.save();
+    ctx.globalAlpha = 0.85; ctx.strokeStyle = '#ff6a3a'; ctx.lineWidth = 5; ctx.setLineDash([16, 10]); ctx.lineDashOffset = -gameTime*80;
+    ctx.beginPath(); ctx.moveTo(s0.x, s0.y); ctx.lineTo(s1.x, s1.y); ctx.stroke(); ctx.setLineDash([]);
+    ctx.globalAlpha = 0.16 + Math.sin(gameTime*9)*0.06; ctx.fillStyle = '#ff6a3a';
+    ctx.beginPath(); ctx.ellipse(s1.x, s1.y, 200, 120, 0, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 0.7; ctx.lineWidth = 2; ctx.strokeStyle = '#ff6a3a';
+    ctx.beginPath(); ctx.ellipse(s1.x, s1.y, 200, 120, 0, 0, Math.PI*2); ctx.stroke();
+    ctx.restore();
+  }
+  for (const o of kaiOndas){
+    const s = S(o.x, o.y), p = o.t/o.max;
+    ctx.globalAlpha = (1 - p)*0.7; ctx.strokeStyle = o.col; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.ellipse(s.x, s.y, o.R*p, o.R*p*0.6, 0, 0, Math.PI*2); ctx.stroke();
+  }
+  for (const o of heroeAnillos){
+    const s = S(o.x, o.y), p = o.t/o.max, R = o.R || 90;
+    ctx.globalAlpha = (1 - p)*0.6; ctx.strokeStyle = o.col; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.ellipse(s.x, s.y + 10, R*p, R*p*0.55, 0, 0, Math.PI*2); ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+}
+// Burbuja dorada del escudo que pone el Héroe.
+function drawEscMag(e){
+  const s = S(e.x, e.y - alturaVisible(e)), r = Math.max(22, (e.w || 30)*0.7);
+  const p = 0.5 + Math.sin(gameTime*6 + e.x)*0.2;
+  ctx.globalAlpha = 0.16 + p*0.1; ctx.fillStyle = '#ffe8a0';
+  ctx.beginPath(); ctx.ellipse(s.x, s.y - (e.h || 30)*0.3, r, r*0.9, 0, 0, Math.PI*2); ctx.fill();
+  ctx.globalAlpha = 0.55 + p*0.3; ctx.strokeStyle = '#ffd860'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.ellipse(s.x, s.y - (e.h || 30)*0.3, r, r*0.9, 0, 0, Math.PI*2); ctx.stroke();
+  ctx.globalAlpha = 1;
+}
+function drawFlecha(b, s){
+  const a = Math.atan2(b.vy, b.vx);
+  ctx.save(); ctx.translate(s.x, s.y); ctx.rotate(a);
+  ctx.globalAlpha = 0.9;
+  ctx.strokeStyle = '#d8f0ff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(-12, 0); ctx.lineTo(8, 0); ctx.stroke();
+  ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.moveTo(12, 0); ctx.lineTo(6, -3); ctx.lineTo(6, 3); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#9ad8ff'; ctx.fillRect(-13, -3, 4, 2); ctx.fillRect(-13, 1, 4, 2);
+  ctx.restore(); ctx.globalAlpha = 1;
+}
+// Ogros y dragones del mago.
+function drawAliadoMago(z){
+  const s = S(z.x, z.y), fade = clamp(z.t/1.5, 0, 1), sube = clamp(1 - z.sube/0.7, 0, 1);
+  const volador = z.tipo === 'dragoncito';
+  const ataca = z.atT > 0;
+  const f = ataca ? (volador ? Math.floor(z.bob*2) % 4 : Math.floor(z.bob) % 2) : Math.floor(z.bob*(volador ? 1.4 : 0.8)) % 4;
+  const alt = volador ? 34 + Math.sin(z.bob*0.8)*4 : 0;
+  sombra(s.x, s.y + 10, volador ? 34 : 44, 12, 0.7*fade);
+  ctx.save(); ctx.globalAlpha = fade*(volador ? 1 : sube);
+  pintaFrame(fantFrame(z.tipo, ataca ? 'ataca' : 'anda', f), z.tipo, s.x, s.y + (volador ? -alt : 10) + (1 - sube)*20, z.facing, 0, 1, 1);
+  ctx.restore();
+  ctx.globalAlpha = 1;
+  if (showHpBars && z.hp < z.maxhp && sube >= 1) hpBar(s.x, s.y - 56 - alt, 36, z.hp, z.maxhp, '#5dcf4a');
+}
+// Fichas del bestiario de lo nuevo.
+{
+  const ficha = (k, c, esc)=>{ const o = document.createElement('canvas'); o.width = c.width*esc; o.height = c.height*esc;
+    const g = o.getContext('2d'); g.imageSmoothingEnabled = false; g.drawImage(c, 0, 0, o.width, o.height);
+    const img = new Image(); img.src = o.toDataURL(); sprites[k] = { img, face:1 }; };
+  ficha('heroeF', fantFrame('heroe', 'ataca', 0), 2); ficha('arqueroF', fantFrame('arquero', 'ataca', 0), 2);
+  ficha('caballeroF', fantFrame('caballero', 'ataca', 0), 1.5); ficha('golemF', fantFrame('golem', 'ataca', 0), 1.5);
+  ficha('ogroF', fantFrame('ogro', 'anda', 0), 1.5); ficha('dragoncitoF', fantFrame('dragoncito', 'ataca', 0), 1.6);
+  const k = document.createElement('canvas'); k.width = 170; k.height = 140;
+  conDragon({ mirA:-0.2, anim:0.4 }, ()=> dibujaDragon(k.getContext('2d'), 85, 100, 0.9,
+    { t:0.4, vol:false, lift:0, aleteoT:0, colaFase:'', colaT:0, rayos:true, mordT:0, mordCab:1, pal:KAI_PAL, paso:0, incl:0, anda:false }));
+  const img = new Image(); img.src = k.toDataURL(); sprites.kaiyinF = { img, face:1 };
+}
 // Relámpagos de la tormenta: caen desde lo alto de la pantalla.
 function drawRelampagos(){
   if (buffActivo('tormenta') && isDra()){                    // cielo cargado
@@ -10825,6 +11682,7 @@ function drawMaquinaEfectos(){
 // policías y soldados que mata vuelven como zombis a luchar a su lado.
 const MAG_HP = 200, MAG_R = 17, MAG_SPEED = 138, MAG_REG = 13;
 const MAG_RAYO_MANA = 7, MAG_RAYO_CD = 0.38, MAG_RAYO_DMG = 78, MAG_RAYO_R = 62, MAG_RAYO_AVISO = 0.3, MAG_RAYO_MAX = 600;
+const MAG_TK_POR = 1.5, MAG_TK_COGE = 2;   // maná por cosa sostenida (por segundo) y por cada una que levanta
 const MAG_TK_MANA = 4, MAG_TK_USO = 6, MAG_TK_MAX = 4, MAG_TK_R = 120, MAG_TK_ALC = 380, MAG_TK_VEL = 640;
 const MAG_HIELO_MANA = 24, MAG_HIELO_CD = 1.3, MAG_HIELO_R = 200, MAG_HIELO_T = 3.0, MAG_HIELO_DMG = 18;
 const MAG_ESC_MANA = 30, MAG_ESC_T = 4.5, MAG_ESC_CD = 2.0, MAG_ESC_R = 46;
@@ -10993,6 +11851,8 @@ function magAgarraCerca(){
     }
   }
   if (!mejor) return;
+  if (vil.stam < MAG_TK_COGE) return;              // sin maná no levanta nada más
+  vil.stam -= MAG_TK_COGE;
   const g = mejor;
   if (g.kind === 'lamp' && !g.uprooted){ g.uprooted = true; addParticles(g.x, g.y, '#ffe9a8', 12, 130); }
   if (g.kind === 'tree' && !g.uprooted){ g.uprooted = true; planters.push({ x:g.x, y:g.y, w:44, h:20 }); addParticles(g.x, g.y, '#6b4a2a', 10, 110); }
@@ -11193,7 +12053,7 @@ function updateMago(dt){
   collideBuildings(player, MAG_R, dt, 0);
   drawR = lerp(drawR, MAG_R, 0.1);
   // maná: se recupera siempre, algo más despacio mientras sostiene cosas
-  vil.stam = Math.min(vil.maxStam, vil.stam + MAG_REG*(arc ? 1.6 : 1)*(mag.tk.length ? 0.2 : 1)*dt);
+  vil.stam = Math.min(vil.maxStam, vil.stam + MAG_REG*(arc ? 1.6 : 1)*(mag.tk.length ? 0 : 1)*dt);
 
   // ---- rayos ----
   if (mag.lanzando || mag.pulso) magLanzaRayo(ap);
@@ -11209,7 +12069,7 @@ function updateMago(dt){
     mag.tkVY = lerp(mag.tkVY, (mag.tkY - py0)/Math.max(dt, 0.001), 0.3);
     mag.tkCd -= dt;
     if (mag.tkCd <= 0){ mag.tkCd = 0.1; magAgarraCerca(); }
-    if (mag.tk.length) vil.stam -= MAG_TK_USO*dt;
+    if (mag.tk.length) vil.stam -= (MAG_TK_USO*0.5 + MAG_TK_POR*mag.tk.length)*dt;
     if (vil.stam <= 0){ vil.stam = 0; magSueltaTK(false); }
   }
   // lo sostenido gira alrededor del punto
@@ -11437,7 +12297,9 @@ function updateZombis(dt){
   for (let i = zombis.length - 1; i >= 0; i--){
     const z = zombis[i];
     // el regalo del OVNI es temporal: al acabarse, sus zombis se deshacen
-    if (!arcanoDe(z) && z.t > 0.8) z.t = 0.8;
+    if (!z.libre && !arcanoDe(z) && z.t > 0.8) z.t = 0.8;   // ogros y dragones duran su tiempo
+    if (z.atT > 0) z.atT -= dt;
+    const SZ = ALIADO_STATS[z.tipo], vuela = z.tipo === 'dragoncito';
     z.t -= dt; z.bob += dt*6;
     if (z.hp <= 0 || z.t <= 0){ addParticles(z.x, z.y, '#5a7a4a', 14, 100); zombis.splice(i, 1); continue; }
     if (z.sube > 0){ z.sube -= dt; continue; }
@@ -11445,27 +12307,36 @@ function updateZombis(dt){
     // al enemigo de a pie más cercano; si no hay, junto al mago
     let obj = null, md = 700*700;
     for (const e of enemies){
-      if (e.dead || e.held || e.thrown || e.pacifico || e.type === 'ovni' || alturaVisible(e) > 0) continue;
+      if (e.dead || e.held || e.thrown || e.pacifico || e.type === 'ovni' || (!vuela && alturaVisible(e) > 0)) continue;
       const d2 = (e.x - z.x)*(e.x - z.x) + (e.y - z.y)*(e.y - z.y);
       if (d2 < md){ md = d2; obj = e; }
     }
     let tx = obj ? obj.x : player.x + (i % 2 ? 50 : -50), ty = obj ? obj.y : player.y + 30;
     const d = Math.hypot(tx - z.x, ty - z.y);
-    const alc = obj ? ZOMBI_ALC + (obj.w || 26)*0.35 : 40;
+    const alc = obj ? (SZ ? SZ.alc : ZOMBI_ALC) + (obj.w || 26)*0.35 : 40;
     if (d > alc){
-      const v = ZOMBI_VEL*(obj ? 1 : 1.3);
+      const v = (SZ ? SZ.vel : ZOMBI_VEL)*(obj ? 1 : 1.3);
       z.x += (tx - z.x)/d*v*dt; z.y += (ty - z.y)/d*v*dt;
       z.facing = tx > z.x ? 1 : -1;
-      collideBuildings(z, 11, dt, 0);
+      if (!vuela) collideBuildings(z, SZ ? 18 : 11, dt, 0);     // el dragón vuela por encima
     } else if (obj && z.cd <= 0){
-      z.cd = ZOMBI_CD;
-      porJugador(()=> damageEnemy(obj, ZOMBI_DMG*(JEFES[obj.type] ? 0.6 : 1), obj.x, obj.y));
-      addParticles(obj.x, obj.y - 10, '#7a1a1a', 4, 70);
-      if (Math.random() < 0.3) sfx('mordisco');
+      z.cd = SZ ? SZ.cd : ZOMBI_CD; z.atT = 0.3;
+      z.facing = obj.x > z.x ? 1 : -1;
+      const dmg = (SZ ? SZ.dmg : ZOMBI_DMG)*(JEFES[obj.type] ? 0.6 : 1);
+      porJugador(()=> damageEnemy(obj, dmg, obj.x, obj.y));
+      if (z.tipo === 'ogro'){                                     // el garrotazo alcanza a los de al lado
+        for (const o of enemies){ if (o !== obj && !o.dead && !o.held && alturaVisible(o) <= 0 && dist(o.x, o.y, obj.x, obj.y) < 60) porJugador(()=> damageEnemy(o, dmg*0.5, o.x, o.y)); }
+        shake(4, 0.1); sfx('hachazo');
+      } else if (vuela){
+        fuegoAliado.push({ x0:z.x + z.facing*16, y0:z.y - 40, x1:obj.x, y1:obj.y - alturaVisible(obj) - 8, t:0.25 });
+        sfx('cargaFuego');
+      } else if (Math.random() < 0.3) sfx('mordisco');
+      addParticles(obj.x, obj.y - 10, vuela ? '#ff9a3a' : '#7a1a1a', 4, 70);
     }
   }
 }
 function drawZombi(z){
+  if (ALIADO_STATS[z.tipo]){ drawAliadoMago(z); return; }
   const s = S(z.x, z.y);
   const tipo = TROPA_PAL[z.tipo] ? z.tipo : 'military';
   const dim = { w:40, h:48 };
@@ -12537,7 +13408,7 @@ function isScenery(o){ return !!SCENERY[o.kind]; }
 // Unidades que no se revientan de una pasada: hay que insistir.
 const BLINDADOS = { tank:1, siege:1, gunship:1, heli:1, flametank:1, omni:1, artillero:1, superx:1, mbt:1, mbtFrio:1, tripode:1 };
 // Mini jefes: el viltrumita les hace más daño con lo que les arroja.
-const JEFES = { flametank:1, omni:1, artillero:1, superx:1, tripode:1 };
+const JEFES = { flametank:1, omni:1, artillero:1, superx:1, tripode:1, heroe:1, kaiyin:1 };
 const VIL_BOSS_MULT = 1.40;
 function throwDmgOn(o, tgt){
   const base = o.throwDmg;
@@ -13538,6 +14409,7 @@ function updateEnemies(dt){
   const tip = tentacleTip();
   for (const e of enemies){
     if (e.dead) continue;
+    if (e.escMag > 0) e.escMag -= dt;            // escudo que pone el Héroe Mágico
     if (e.held){ { const pt = puntoAgarre(e, tip); e.x = pt.x; e.y = pt.y; } continue; }
     if (e.thrown) continue;
     if (enPresa(e)) continue;                    // en el tentáculo de un trípode
@@ -13581,6 +14453,9 @@ function updateEnemies(dt){
       updateTripode(e, dt, a, ang);
       continue;
     }
+    if (e.type === 'heroe'){ updateHeroe(e, dt, a, ang); continue; }
+    if (e.type === 'kaiyin'){ updateKaiyin(e, dt, a, ang); continue; }
+    if (FANT_TIPOS[e.type]){ updateFantasma(e, dt, a, ang); continue; }
     if (e.type === 'omni'){
       const angP = Math.atan2(player.y-e.y, player.x-e.x);
       updateOmni(e, dt, dist(e.x,e.y,player.x,player.y), angP);
@@ -13912,6 +14787,7 @@ function updateSpawns(dt){
   achProgress();
   updateRegen(dt);
   updateHumoEdif(dt);
+  updateJefes2(dt);
   updateBossMusic(dt);
   if (gameMode === 'vs'){
     // en el duelo solo el Jugador 2 despliega tropas; el resto de la ciudad sigue viva
@@ -13981,7 +14857,9 @@ function updateSpawns(dt){
         else {
           spawnEnemy(cual);
           toast(cual === 'omni' ? '¡OMNIDROIDE!' : cual === 'artillero' ? '¡EL ARTILLERO!'
-              : cual === 'superx' ? '¡SUPER X2!' : '¡TANQUE DE FUEGO!');
+              : cual === 'superx' ? '¡SUPER X2!' : cual === 'heroe' ? '¡EL HÉROE MÁGICO!'
+              : cual === 'kaiyin' ? '¡KAIYIN! EL CIELO SE OSCURECE' : '¡TANQUE DE FUEGO!');
+          if (cual === 'kaiyin') sfx('trueno');
           shake(24, 0.8);
         }
         bossAlive = true;
@@ -14429,6 +15307,16 @@ function lucesJefes(L, k, mx, Mx, my, My, tinta){
     if (maq.fogon > 0) luz(player.x + Math.cos(maq.mirA)*26, player.y - 16, 50, luzFuego, 0.7);
   }
   if (isMag() && mag.escudoT > 0) luz(player.x, player.y - 12, 90, luzAzul, 0.7);
+  for (const e of enemies){
+    if (e.dead) continue;
+    if (e.type === 'heroe') luz(e.x, e.y - 30, 110, luzAzul, 0.6);
+    else if (FANT_TIPOS[e.type]) luz(e.x, e.y - 16, 50, luzAzul, 0.35);
+    else if (e.type === 'kaiyin' && e.rayOn){
+      for (let i = 0; i < 3; i++) if (e['r' + i + 'x'] !== undefined) luz(e['r' + i + 'x'], e['r' + i + 'y'], 70, luzAmarilla, 0.7);
+      luz(e.x, e.y - 120 - (e.lift || 0), 90, luzAmarilla, 0.6);
+    }
+  }
+  for (const k of kaiAvisos) luz(k.x, k.y, 60, luzBlanca, 0.25*(1 - k.t/k.max));
   if (vil.intro && isMaq()) luz(player.x, player.y + 22, 110, luzFuego, 0.9);
   if (vil.intro && isMag()){ const P = portalMago(); luz(P.x, P.y, 100, luzAzul, 0.8); }
   for (const r of relampagos) luz(r.x, r.y, 130, luzBlanca, clamp(r.t / r.max, 0, 1));
@@ -15290,7 +16178,7 @@ function drawCarBase(c){
 }
 
 // Encima de cualquier unidad congelada, su bloque de hielo.
-function drawEnemy(e){ drawEnemyBase(e); if (e.hieloT > 0) drawHieloSobre(e); }
+function drawEnemy(e){ drawEnemyBase(e); if (e.escMag > 0) drawEscMag(e); if (e.hieloT > 0) drawHieloSobre(e); }
 function drawEnemyBase(e){
   const s = S(e.x, e.y);
   // El Omnidroide se pinta entero por código: sale antes de la sombra y del
@@ -15302,6 +16190,9 @@ function drawEnemyBase(e){
     return;
   }
   if (e.type === 'tripode'){ drawTripode(e); return; }
+  if (e.type === 'kaiyin'){ drawKaiyin(e); return; }
+  if (e.type === 'heroe'){ drawHeroe(e); return; }
+  if (FANT_TIPOS[e.type]){ drawFantasmaUnidad(e); return; }
   // Agarrado o lanzado ya no vuela: se dibuja en la mano / donde va de verdad.
   // Antes conservaba su altura y el OVNI flotaba 150 px por encima del tentáculo.
   const alt = (e.alt && !e.held && !e.thrown) ? e.alt + Math.sin(e.bob*3)*4 : 0;
@@ -15476,6 +16367,7 @@ function drawBullets(){
     const s = S(b.x,b.y);
     // se pasa su propia orientación para que NO se espeje: la rotación ya lo apunta
     if (b.sprite === 'pmissile'){ drawMisilCaza(b, s); continue; }   // el del caza, propio
+    if (b.flecha){ drawFlecha(b, s); continue; }                        // arquero fantasma
     if (b.sprite && sprites[b.sprite] &&
         drawSprite(b.sprite, s.x, s.y, 34, 12, sprites[b.sprite].face, b.rot||0)) continue;
     ctx.fillStyle=b.color;
@@ -15614,7 +16506,7 @@ function draw(){
   drawBuildings(); drawPlanters(); drawLamps();
   // Las zonas marcadas del Artillero van DESPUÉS de los edificios: si no, los
   // escombros las tapaban justo donde más falta hace verlas.
-  drawFuegos(); drawArtAvisos(); drawTriAvisos(); drawDragonAvisos(); drawMaquinaAvisos(); drawMagoAvisos(); drawMbtRayos();
+  drawFuegos(); drawArtAvisos(); drawTriAvisos(); drawDragonAvisos(); drawMaquinaAvisos(); drawMagoAvisos(); drawMbtRayos(); drawJefes2Avisos();
 
   // Solo se encolan los objetos visibles: con ~200 props fuera de pantalla,
   // esto evita cientos de entradas y llamadas de dibujo por fotograma.
@@ -15672,7 +16564,7 @@ function draw(){
     }
   }
 
-  drawBullets(); drawTriRayos(); drawDragonRayos(); drawProyJ(proyJ); drawProyJ(proyRed);
+  drawBullets(); drawTriRayos(); drawDragonRayos(); drawJefes2Rayos(); drawProyJ(proyJ); drawProyJ(proyRed);
   if (dobleAnf() && Online.av && Online.av.pj) drawProyJ(Online.av.pj);
   drawMaquinaEfectos(); drawMagoEfectos();
   drawRelampagos(); drawHumos(); drawHumoEdif(); drawSonic(); drawWind(); drawRayosOjos(); drawFX(); drawAura(); drawP2Cursor();
@@ -15684,7 +16576,8 @@ function draw(){
 
 // Si un jefe queda fuera de la pantalla, una flecha en el borde señala
 // hacia dónde está (en píxeles del lienzo, encima de la noche).
-const JEFE_NOMBRE = { flametank:'TANQUE DE FUEGO', omni:'OMNIDROIDE', artillero:'ARTILLERO', superx:'SUPER X', tripode:'TRÍPODE' };
+const JEFE_NOMBRE = { flametank:'TANQUE DE FUEGO', omni:'OMNIDROIDE', artillero:'ARTILLERO', superx:'SUPER X', tripode:'TRÍPODE',
+                      heroe:'HÉROE MÁGICO', kaiyin:'KAIYIN' };
 function drawFlechasJefe(){
   if (!running || esVisorVs()) return;
   const M = 30, cx = CW/2, cy = CH/2;
