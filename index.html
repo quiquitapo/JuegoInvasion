@@ -1388,7 +1388,7 @@
         <b>Mantén C</b>: los brazos se vuelven motosierras y marcas con el ratón dónde caer. Al
         <b>soltar</b>, salta arrollando lo que haya por el camino y lo destroza todo en esa zona.<br>
         Tiene poca vida, pero cada baja le cura mucho y le deja un rato regenerándose. El regalo del
-        OVNI lo <b>sobrecarga</b>: más daño, el hacha se vuelve una <b>espada láser</b> de largo alcance (corta mientras mantienes), la ráfaga una <b>minigun</b> sin pausas y un escudo convierte el daño en vida.
+        OVNI lo <b>sobrecarga</b>: más daño, el hacha se vuelve un <b>hacha de plasma</b> (más alcance, un tajo a cada clic y brilla), la ráfaga una <b>minigun</b> sin pausas y un escudo convierte el daño en vida.
       </div>
       <div class="bindrow">
         <span class="bindname">Efectos</span>
@@ -7036,7 +7036,7 @@ const SFX = {
   rayoM:  ()=> { noise(0.35, 0.32, 5200, 0.8); tone(1400, 0.35, 'sine', 0.16, 300); tone(90, 0.4, 'sine', 0.22, 40); },
   escudoM:()=> tone(520, 0.25, 'sine', 0.10, 900),
   comeM:  ()=> { noise(0.25, 0.2, 500, 1.2); tone(140, 0.25, 'square', 0.12, 70); },
-  sable:  ()=> { tone(92, 0.16, 'sawtooth', 0.045, 118); tone(184, 0.12, 'sine', 0.025, 150); },
+  plasma: ()=> { tone(640, 0.16, 'sawtooth', 0.04, 180); tone(1280, 0.1, 'sine', 0.03, 400); },
   over:   ()=> { [440,330,262,196].forEach((f,i)=> setTimeout(()=>tone(f,0.3,'triangle',0.2), i*160)); }
 };
 // Cortafuegos: un mismo efecto no puede repetirse más rápido que su cooldown,
@@ -7047,7 +7047,7 @@ const SFX_GAP = { sonicboom:0.30, dash:0.10, crack:0.20,
                   ulla:1.2, cargaM:0.25, rayoM:0.12, escudoM:0.2, comeM:0.15,
                   mordisco:0.08, aleteo:0.2, rayoDra:0.16, coletazo:0.2, trueno:0.18,
                   rafaga:0.045, hachazo:0.08, silbido:0.08, cohete:0.15, cargaInc:0.3, incinera:0.2, sierra:0.11, recarga:0.1,
-                  aterriza:0.3, sable:0.14, conjuro:0.08, telequinesis:0.3, hielo:0.3, escudoMag:0.3, cargaFuego:0.2, teleporte:0.2, portalRojo:0.5, humoVerde:0.5 };
+                  aterriza:0.3, plasma:0.12, conjuro:0.08, telequinesis:0.3, hielo:0.3, escudoMag:0.3, cargaFuego:0.2, teleporte:0.2, portalRojo:0.5, humoVerde:0.5 };
 const sfxLast = {};
 let sfxVoices = 0;
 const SFX_MAX_VOICES = 14;
@@ -7774,7 +7774,7 @@ const ACHIEVEMENTS = [
   { id:'tormenta',  icon:'\u{26A1}', name:'SEÑOR DE LA TORMENTA', goal:1,
     desc:'Derriba un OVNI siendo el dragón de tres cabezas y desata su regalo: una tormenta eléctrica cuyos relámpagos fulminan a los enemigos que te rodean.' },
   { id:'sobrecarga', icon:'\u{1F916}', name:'SOBRECARGA', goal:1,
-    desc:'Derriba un OVNI siendo la Máquina Aberrante: sus armas se sobrecargan (espada láser y minigun) y un escudo convierte en vida el daño que recibes.' },
+    desc:'Derriba un OVNI siendo la Máquina Aberrante: sus armas se sobrecargan (hacha de plasma y minigun) y un escudo convierte en vida el daño que recibes.' },
   { id:'nigromante', icon:'\u{1F9DF}', name:'NIGROMANTE', goal:1,
     desc:'Derriba un OVNI siendo el Mago Aberrante: sus hechizos se desatan y los policías y soldados que caen vuelven como zombis a pelear a tu lado.' },
 
@@ -11034,13 +11034,11 @@ const MAQ_COH_V = 720, MAQ_COH_CD = 0.8, MAQ_COH_R = 96, MAQ_COH_DMG = 80, MAQ_C
 const MAQ_SIE_MIN = 90, MAQ_SIE_MAX = 360, MAQ_SIE_R = 96, MAQ_SIE_VEL = 1050, MAQ_SIE_T = 0.6,
       MAQ_SIE_TICK = 0.1, MAQ_SIE_DMG = 30, MAQ_SIE_CD = 2.0;
 const MAQ_SOB = 1.6;                          // daño con la sobrecarga del OVNI
-// Con la sobrecarga el hacha se vuelve una espada láser de largo alcance
-// (corta mientras se mantenga pulsado, también al barrer con la mira) y la
-// ráfaga, minigun (fuego continuo, sin pausas).
-const MAQ_SABLE_TICK = 0.09, MAQ_SABLE_DMG = 26, MAQ_SABLE_L = 165, MAQ_SABLE_W = 22;   // espada láser de largo alcance
+// Con la sobrecarga el hacha se vuelve un hacha de plasma (tajo a cada clic,
+// más largo y brillante, que alumbra) y la ráfaga, minigun (fuego continuo).
 const MAQ_MINI_GAP = 0.05, MAQ_MINI_DMG = 0.85;
 function maqNombreArma(i){
-  if (maqSob()){ if (i === 0) return 'ESPADA LÁSER'; if (i === 1) return 'MINIGUN'; }
+  if (maqSob()){ if (i === 0) return 'HACHA DE PLASMA'; if (i === 1) return 'MINIGUN'; }
   return MAQ_ARMAS[i];
 }
 const MAQ_SIE_PASO = 45;                      // lo que arrollan las motosierras de camino a la zona
@@ -11067,7 +11065,7 @@ function maqBoca(a){
 function maqCambiaArma(){
   if (vil.intro) return;
   maq.arma = (maq.arma + 1) % MAQ_ARMAS.length;
-  maq.incCarga = 0; maq.incApunta = false; maq.rafN = 0; maq.armaT = 0.9; maq.sableAnt = undefined;
+  maq.incCarga = 0; maq.incApunta = false; maq.rafN = 0; maq.armaT = 0.9;
   toast('ARMA: ' + maqNombreArma(maq.arma));
   sfx('recarga');
 }
@@ -11078,13 +11076,7 @@ function maqDisparo(dt, ap){
   maq.disCd -= dt;
   const quiere = maq.gatillo || maq.pulso;
   const sob = maqSob();
-  if (maq.arma === 0 && sob){                            // --- espada láser ---
-    if (quiere){
-      maq.pulso = false; maq.corta = 0.12;
-      maq.motoTick = (maq.motoTick || 0) - dt;
-      if (maq.motoTick <= 0){ maq.motoTick += MAQ_SABLE_TICK; maqSable(ap); }
-    } else { maq.motoTick = 0; maq.sableAnt = undefined; }
-  } else if (maq.arma === 0){                            // --- hacha ---
+  if (maq.arma === 0){                                   // --- hacha (de plasma con el OVNI) ---
     if (quiere && maq.disCd <= 0){ maq.pulso = false; maqHachazo(ap); }
   } else if (maq.arma === 1 && sob){                     // --- minigun: sin pausas ---
     maq.rafN = 0;
@@ -11142,50 +11134,15 @@ function maqDisparo(dt, ap){
   }
 }
 // Un hachazo en arco hacia donde apunta: tajo a todo lo que alcance.
-// Un corte de la espada láser: la hoja alcanza lejos y, si se barre con la
-// mira, corta todo lo que cruza entre el ángulo anterior y el actual.
-function maqSable(ap){
-  const ox = player.x, oy = player.y - 16, a1 = ap.a;
-  const a0 = maq.sableAnt === undefined ? a1 : maq.sableAnt;
-  maq.sableAnt = a1;
-  let da = a1 - a0; while (da > Math.PI) da -= Math.PI*2; while (da < -Math.PI) da += Math.PI*2;
-  const pasos = Math.min(6, 1 + Math.ceil(Math.abs(da)/0.18));
-  const tocados = new Set();
-  const corta = (x, y)=>{ for (let k = 0; k < pasos; k++){ if (enLinea(x, y, ox, oy, a0 + da*(k + 1)/pasos, MAQ_SABLE_L, MAQ_SABLE_W)) return true; } return false; };
-  let dio = false;
-  for (const pool of [civilians, enemies]){
-    for (const t of pool){
-      if (t.dead || t.held || t.thrown || tocados.has(t)) continue;
-      const b = blancoRayo(t);
-      if (!corta(b.x, b.y)) continue;
-      tocados.add(t);
-      porJugador(()=> damageEnemy(t, MAQ_SABLE_DMG*(JEFES[t.type] ? 0.75 : 1)*(1 + maq.impulso*0.4), b.x, b.y));
-      dio = true;
-    }
-  }
-  for (const c of cars){ if (!c.dead && !c.held && !c.thrown && corta(c.x, c.y)){ danaAuto(c, MAQ_SABLE_DMG); dio = true; } }
-  for (const pool of [trees, benches, trash, lamps]){
-    for (const pr of pool){ if (!pr.dead && !pr.held && !pr.thrown && corta(pr.x, pr.y)){ porJugador(()=> propAbatido(pr)); dio = true; } }
-  }
-  // la punta raja los muros
-  const px = ox + Math.cos(a1)*MAQ_SABLE_L*0.9, py = oy + Math.sin(a1)*MAQ_SABLE_L*0.9;
-  for (const b of buildings){
-    if (b.stage >= 2 || px < b.x || px > b.x + b.w || py < b.y || py > b.y + b.h) continue;
-    porJugador(()=> damageBuilding(b, MAQ_SABLE_DMG*0.8)); addParticles(px, py, '#ff7a6a', 3, 120); dio = true; break;
-  }
-  if (dio){ addParticles(px, py, '#ff5a4a', 3, 120); shake(2, 0.05); }
-  sfx('sable');
-}
-// moto: un corte de la motosierra (se repite mientras se mantenga pulsado).
-function maqHachazo(ap, moto){
+// Con la sobrecarga es el hacha de plasma: llega más lejos, quema y deja un destello.
+function maqHachazo(ap){
   const sob = maqSob();
-  if (!moto){
-    maq.disCd = MAQ_HACHA_CD*(sob ? 0.7 : 1);
-    maq.hachaT = MAQ_HACHA_T; maq.hachaLado = -maq.hachaLado || 1;     // alterna el lado del tajo
-  }
-  const a = ap.a, R = moto ? MAQ_MOTO_ALC : MAQ_HACHA_ALC*(sob ? 1.25 : 1);
-  const ARCO = moto ? MAQ_MOTO_ARCO : MAQ_HACHA_ARCO;
-  const dmg = (moto ? MAQ_MOTO_DMG : MAQ_HACHA_DMG*(sob ? MAQ_SOB : 1))*(1 + maq.impulso*(moto ? 0.4 : 0.6));
+  maq.disCd = MAQ_HACHA_CD*(sob ? 0.7 : 1);
+  maq.hachaT = MAQ_HACHA_T; maq.hachaLado = -maq.hachaLado || 1;       // alterna el lado del tajo
+  if (sob) maq.plasmaT = 0.25;                                         // destello del tajo
+  const a = ap.a, R = MAQ_HACHA_ALC*(sob ? 1.35 : 1);
+  const ARCO = MAQ_HACHA_ARCO;
+  const dmg = MAQ_HACHA_DMG*(sob ? MAQ_SOB : 1)*(1 + maq.impulso*0.6);
   const ox = player.x, oy = player.y - 16;
   const enArco = (x, y, r)=>{
     const d = dist(ox, oy, x, y) - r;
@@ -11204,8 +11161,8 @@ function maqHachazo(ap, moto){
       porJugador(()=> damageEnemy(t, dmg*jf, b.x, b.y));
       dio = true;
       if (!t.dead && t.person){                                       // lo tambalea, sin sacarlo del alcance
-        const a2 = Math.atan2(t.y - player.y, t.x - player.x), emp = moto ? 0 : 60;
-        t.stunT = Math.max(t.stunT || 0, moto ? 0.15 : 0.35); t.stunVx = Math.cos(a2)*emp; t.stunVy = Math.sin(a2)*emp;
+        const a2 = Math.atan2(t.y - player.y, t.x - player.x);
+        t.stunT = Math.max(t.stunT || 0, 0.35); t.stunVx = Math.cos(a2)*60; t.stunVy = Math.sin(a2)*60;
       }
     }
   }
@@ -11226,16 +11183,14 @@ function maqHachazo(ap, moto){
     if (b.stage >= 2) continue;
     if (px < b.x - 6 || px > b.x + b.w + 6 || py < b.y - 6 || py > b.y + b.h + 6) continue;
     porJugador(()=> damageBuilding(b, dmg*0.8)); dio = true;
-    addParticles(px, py, '#9aa6ad', moto ? 3 : 8, 110);
+    addParticles(px, py, '#9aa6ad', 8, 110);
     break;
   }
-  if (moto){
-    addParticles(px, py, dio ? '#c33' : '#ffe07a', dio ? 4 : 2, 120);
-    if (dio) shake(2, 0.05);
-    sfx('sierra');
-    return;
+  if (sob){                                                            // chispas de plasma
+    addParticles(px, py, '#7af0ff', dio ? 10 : 5, 150);
+    sfx('plasma');
   }
-  if (dio){ addParticles(px, py, '#c33', 8, 140); shake(4, 0.08); }
+  if (dio){ addParticles(px, py, sob ? '#e8ffff' : '#c33', 8, 140); shake(4, 0.08); }
   sfx(dio ? 'hachazo' : 'silbido');
 }
 // El haz del incinerador: calcina todo lo que haya en la zona marcada y la
@@ -11375,6 +11330,7 @@ function updateMaquina(dt){
   if (maq.fogon > 0) maq.fogon -= dt;
   if (maq.hachaT > 0) maq.hachaT -= dt;
   if (maq.corta > 0) maq.corta -= dt;
+  if (maq.plasmaT > 0) maq.plasmaT -= dt;
   maq.retroceso = Math.max(0, maq.retroceso - dt*8);
   // regeneración tras las bajas (y, con la sobrecarga, un poco siempre)
   if (maq.regenT > 0){ maq.regenT -= dt; hp = Math.min(maxHp(), hp + MAQ_REGEN*dt); }
@@ -11608,7 +11564,7 @@ function drawMaquina(){
   }
   dibujaMaquina(ctx, s.x, s.y, 1, {
     t: vil.capa || 0, f: player.facing || 1, a: maq.mirA, arma: maq.arma, paso: maq.paso,
-    hacha: maq.hachaT, lado: maq.hachaLado, corta: maq.corta || 0, canon: maq.giraCanon || 0,
+    hacha: maq.hachaT, lado: maq.hachaLado, corta: maq.corta || 0, plasma: maq.plasmaT || 0, canon: maq.giraCanon || 0,
     vel: Math.hypot(player.vx || 0, player.vy || 0), imp: maq.impulso,
     sierras: maq.sierraApunta || !!maq.sierraFase, giro: maq.sierraFase === 'giro', salto: maq.sierraFase === 'salto',
     ret: maq.retroceso, fogon: maq.fogon, carga: maq.incCarga, sob: buffActivo('sobrecarga'), escudo: maq.escudo,
@@ -11727,8 +11683,9 @@ function dibujaMaquina(g, x, y, esc, st){
       const k = 1 - st.hacha/MAQ_HACHA_T, e = 1 - (1 - k)*(1 - k);
       const lado = st.lado || 1, a0 = aa - lado*1.4, a1 = a0 + lado*2.8*e;
       g.save(); g.translate(hx, hyA);
-      g.globalAlpha = 0.45*(1 - k); g.strokeStyle = st.sob ? '#ff9a5a' : '#e8eef4'; g.lineWidth = 7;
-      g.beginPath(); g.arc(0, 0, 27, Math.min(a0, a1), Math.max(a0, a1)); g.stroke();
+      g.globalAlpha = (st.sob ? 0.7 : 0.45)*(1 - k); g.strokeStyle = st.sob ? '#6ae8ff' : '#e8eef4'; g.lineWidth = st.sob ? 10 : 7;
+      g.beginPath(); g.arc(0, 0, st.sob ? 32 : 27, Math.min(a0, a1), Math.max(a0, a1)); g.stroke();
+      if (st.sob){ g.strokeStyle = '#e8ffff'; g.lineWidth = 3; g.beginPath(); g.arc(0, 0, 32, Math.min(a0, a1), Math.max(a0, a1)); g.stroke(); }
       g.globalAlpha = 1; g.restore();
       aa = a1;
     }
@@ -11738,18 +11695,21 @@ function dibujaMaquina(g, x, y, esc, st){
     g.beginPath(); g.moveTo(0, 0); g.lineTo(10, 2); g.stroke();
     g.strokeStyle = '#c9d2dc'; g.lineWidth = 1.8;
     g.beginPath(); g.moveTo(0, 0); g.lineTo(10, 2); g.stroke();
-    if (st.arma === 0 && st.sob){                                  // espada láser
-      g.fillStyle = '#2a2f36'; g.fillRect(6, -2.2, 10, 4.4);                       // empuñadura
-      g.fillStyle = '#9aa4ae'; g.fillRect(8, -2.2, 1.5, 4.4); g.fillRect(12, -2.2, 1.5, 4.4);
-      g.fillStyle = '#c33'; g.fillRect(14.5, -1, 1.5, 2);
-      const L = MAQ_SABLE_L - 18, vib = 0.85 + Math.random()*0.15 + (st.corta > 0 ? 0.2 : 0);
-      g.lineCap = 'round';
-      g.globalAlpha = 0.28*vib; g.strokeStyle = '#ff3a2a'; g.lineWidth = 11;
-      g.beginPath(); g.moveTo(17, 0); g.lineTo(17 + L, 0); g.stroke();
-      g.globalAlpha = 0.75; g.strokeStyle = '#ff5a4a'; g.lineWidth = 5;
-      g.beginPath(); g.moveTo(17, 0); g.lineTo(17 + L, 0); g.stroke();
-      g.globalAlpha = 1; g.strokeStyle = '#fff0ec'; g.lineWidth = 2;
-      g.beginPath(); g.moveTo(17, 0); g.lineTo(17 + L, 0); g.stroke();
+    if (st.arma === 0 && st.sob){                                  // hacha de plasma
+      g.strokeStyle = '#1e242a'; g.lineWidth = 3.4;                               // mango metálico
+      g.beginPath(); g.moveTo(6, 1); g.lineTo(28, 1); g.stroke();
+      g.strokeStyle = '#6a7684'; g.lineWidth = 1.4;
+      g.beginPath(); g.moveTo(6, 0.4); g.lineTo(28, 0.4); g.stroke();
+      const fl = 0.85 + Math.random()*0.15 + (st.plasma > 0 ? 0.3 : 0);
+      const hoja = (k)=>{ g.beginPath(); g.moveTo(21, -1); g.quadraticCurveTo(24 + k, -12 - k, 32 + k, -13 - k); g.lineTo(30 + k*0.5, -1);
+                         g.lineTo(32 + k, 12 + k); g.quadraticCurveTo(24 + k, 11 + k, 21, 3); g.closePath(); };
+      g.globalAlpha = 0.22*fl; g.fillStyle = '#3ad8ff'; hoja(4); g.fill();          // resplandor
+      g.globalAlpha = 0.8; g.fillStyle = '#4ae0ff'; hoja(0); g.fill();                // plasma
+      g.globalAlpha = 0.95; g.fillStyle = '#e8ffff';                                // núcleo
+      g.beginPath(); g.moveTo(24, -2); g.quadraticCurveTo(26.5, -9, 30.5, -10.5); g.lineTo(28.6, -2); g.closePath(); g.fill();
+      g.beginPath(); g.moveTo(24, 4); g.quadraticCurveTo(26.5, 9, 30.5, 9.5); g.lineTo(28.6, 4); g.closePath(); g.fill();
+      g.globalAlpha = 1; g.fillStyle = '#2a2f36'; g.fillRect(25, -1.8, 3.4, 4.4);    // emisor
+      g.fillStyle = '#7af0ff'; g.fillRect(25.8, -0.6, 1.8, 2);
     } else if (st.arma === 1 && st.sob){                           // minigun
       g.fillStyle = '#20252c'; g.fillRect(6, -4, 10, 8);
       g.fillStyle = '#ff7a2a'; g.fillRect(7, -3, 5, 2);
@@ -15541,6 +15501,8 @@ function lucesJefes(L, k, mx, Mx, my, My, tinta){
     else if (p.k === 'pilar') luz(p.x, p.y, p.R*1.2, luzFuego, 0.4*clamp(1 - p.t / p.max, 0, 1));
   }
   if (isMaq()){
+    // el hacha de plasma alumbra un poco, y destella con cada tajo
+    if (maq.arma === 0 && maqSob()) luz(player.x + Math.cos(maq.mirA)*26, player.y - 18 + Math.sin(maq.mirA)*14, maq.plasmaT > 0 ? 85 : 48, luzAzul, maq.plasmaT > 0 ? 0.85 : 0.45);
     if (maq.rayoT > 0){ const a = maq.rayoA; for (const f of [0.3, 0.65, 1]) luz(maq.rayoX + Math.cos(a)*maq.rayoL*f, maq.rayoY + Math.sin(a)*maq.rayoL*f, 110, luzFuego, 0.9); }
     if (maq.fogon > 0) luz(player.x + Math.cos(maq.mirA)*26, player.y - 16, 50, luzFuego, 0.7);
   }
@@ -18264,7 +18226,7 @@ function fichaHeroe(h){
           ['Click izq. / ' + K('grab'), 'Usar el arma (mantenido, sigue atacando)'],
           ['Click der. / ' + K('throw'), 'Cambiar de arma: hacha → ráfaga → incinerador → lanzacohetes'],
           ['Mantén ' + K('draCola'), 'Motosierras: marca la zona y, al soltar, salta arrollando lo que haya en el camino'],
-          ['OVNI', 'Sobrecarga: el hacha es una espada láser, la ráfaga una minigun sin pausas, más daño y un escudo que convierte el daño en vida']],
+          ['OVNI', 'Sobrecarga: el hacha es de plasma, la ráfaga una minigun sin pausas, más daño y un escudo que convierte el daño en vida']],
       m: 'DISPARO es un joystick (mantén y apunta; con un toque ataca a lo más cercano), ARMA cambia de arma y SIERRAS se mantiene, apunta y suelta.' },
     mago: {
       desc: 'Hechicero encapuchado que flota despacio. Rayos, telequinesis, hielo y fuego: todo gasta maná, que se recupera solo.',
