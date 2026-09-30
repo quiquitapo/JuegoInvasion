@@ -2394,7 +2394,9 @@ function edifToldo(g, x, y, w, c1, c2){
   for (let i = 0; i < w; i += 6){ g.fillStyle = (i/6) % 2 ? c2 : c1; g.beginPath(); g.arc(x + i + 3, y + 6, 3, 0, Math.PI); g.fill(); }
   eR(g, 'rgba(0,0,0,0.25)', x, y + 9, w, 3);
 }
+let edifNeonTmp = [];
 function edifLetrero(g, x, y, w, h, fondo, tinta, texto){
+  edifNeonTmp.push([x, y, w, h, tinta]);
   eR(g, eMez(fondo, -0.4), x - 1, y - 1, w + 2, h + 2);
   eR(g, fondo, x, y, w, h);
   eR(g, eMez(fondo, 0.25), x, y, w, 1);
@@ -2718,16 +2720,18 @@ function edifCanvas(b, etapa, forzar){
   if (etapa === 1 && b._cv[0]){ g.drawImage(b._cv[0], 0, 0); }
   else {
     const ventanas = [], humos = [];
+    edifNeonTmp = [];
     edifAzotea(g, b, P, R, rh, humos);
     edifFachadaDibuja(g, b, P, R, rh, fh, ventanas);
     edifEntradaLateral(g, b, P, rh);
     eR(g, 'rgba(0,0,0,0.35)', 0, rh, b.w, 1);
-    b._win = ventanas; b._humos = humos;
+    b._win = ventanas; b._humos = humos; b._neon = edifNeonTmp;
     if (etapa === 0){ b._cv[0] = c; return c; }
   }
   // etapa 1: grietas, ventanas rotas, hollín y agujeros en la azotea
   const R2 = mulberry32(((b.seed || 1)*77) | 0);
   const rotas = (b._win || []).filter(()=> R2() < 0.45);
+  b._rotas = rotas.slice(0, 3);
   for (const v of rotas){
     eR(g, '#0c0a0a', v[0], v[1], v[2], v[3]);
     g.fillStyle = '#8eb0c4'; g.beginPath(); g.moveTo(v[0], v[1]); g.lineTo(v[0] + v[2]*0.5, v[1]); g.lineTo(v[0], v[1] + v[3]*0.6); g.fill();
@@ -14378,6 +14382,11 @@ function lucesJefes(L, k, mx, Mx, my, My, tinta){
     }
   }
   for (const f of fuegos) luz(f.x, f.y, f.r*1.7, luzFuego, clamp(f.t / f.max, 0, 1)*(0.8 + Math.random()*0.2));
+  for (const b of buildings){                              // edificios en llamas
+    if (b.stage !== 1 || !b._rotas || !b._rotas.length) continue;
+    const v = b._rotas[0];
+    luz(b.x + v[0] + v[2]/2, b.y + v[1], 70, luzFuego, 0.6 + Math.random()*0.15);
+  }
   for (const c of cars){                                   // sirena de la ambulancia
     if (c.modelo !== 'ambulancia' || c.type !== 'car' || c.dead || c.held || c.thrown || isWreck(c)) continue;
     const on = Math.floor(gameTime*6) % 2;
@@ -14582,6 +14591,7 @@ function drawLighting(){
       L.globalCompositeOperation = 'source-over';
     }
     ctx.drawImage(lightCv, 0, 0, CW, CH);          // un solo volcado a pantalla
+    drawVentanasNoche(oscuro);
   }
   ctx.drawImage(overlayFase(), 0, 0, CW, CH);   // graduación + viñeta, de una vez
   drawClima();                                   // nubes y lluvia por encima
@@ -14835,6 +14845,57 @@ function drawRayosX(b, s2){
   ctx.beginPath(); ctx.arc(s2.x + lx, s2.y + ly, r + 1, 0, Math.PI*2); ctx.stroke();
   ctx.restore();
 }
+// Fuego en las ventanas rotas de un edificio tocado.
+function llamasVentanas(b, s2){
+  for (let i = 0; i < b._rotas.length; i++){
+    const v = b._rotas[i];
+    if (i >= 1 + ((b.seed|0) % 3)) break;
+    const x = s2.x + v[0], y = s2.y + v[1], w = v[2], hh = v[3];
+    for (let k = 0; k < 3; k++){
+      const fl = Math.sin(gameTime*14 + k*2 + i*5)*0.5 + 0.5;
+      ctx.fillStyle = k === 2 ? '#fff0a0' : k === 1 ? '#ffb02a' : '#e8481a';
+      const ww = w*(1 - k*0.3), hk = hh*(1.4 - k*0.35) + fl*4;
+      ctx.beginPath(); ctx.moveTo(x + (w - ww)/2, y + hh); ctx.lineTo(x + w/2 + (fl - 0.5)*3, y + hh - hk); ctx.lineTo(x + (w + ww)/2, y + hh); ctx.closePath(); ctx.fill();
+    }
+  }
+}
+// Ventanas encendidas y neones de noche, encima de la oscuridad. Cada ventana
+// decide por su cuenta si hay alguien en casa, y alguna se apaga o enciende
+// de vez en cuando.
+function drawVentanasNoche(oscuro){
+  if (oscuro < 0.08 || !lucesEncendidas()) return;
+  const Z = ZOOM, a = Math.min(1, oscuro*1.4);
+  const x0 = camX - 10, x1 = camX + VW + 10, y0 = camY - 10, y1 = camY + VH + 10;
+  const cambio = Math.floor(gameTime/14);
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  for (const b of buildings){
+    if (b.stage >= 2 || !b._win || b.x > x1 || b.x + b.w < x0 || b.y > y1 || b.y + b.h < y0) continue;
+    const bx = (b.x - camX)*Z, by = (b.y - camY)*Z, sd = (b.seed|0);
+    for (let i = 0; i < b._win.length; i++){
+      const v = b._win[i];
+      let n = ((sd*131 + i*977) % 100 + 100) % 100;
+      if (n < 12 && ((cambio + i) % 3 === 0)) n = 99 - n;          // se encienden y apagan
+      if (n > 44) continue;
+      const tono = n % 3 === 0 ? '255,214,140' : n % 3 === 1 ? '255,236,190' : '190,220,255';
+      ctx.fillStyle = 'rgba(' + tono + ',' + (a*0.16).toFixed(3) + ')';
+      ctx.fillRect(bx + (v[0] - 3)*Z, by + (v[1] - 2)*Z, (v[2] + 6)*Z, (v[3] + 5)*Z);
+      ctx.fillStyle = 'rgba(' + tono + ',' + (a*0.62).toFixed(3) + ')';
+      ctx.fillRect(bx + v[0]*Z, by + v[1]*Z, v[2]*Z, v[3]*Z);
+    }
+    if (b._neon){
+      const pul = 0.75 + Math.sin(gameTime*3 + sd)*0.25;
+      for (const n of b._neon){
+        ctx.globalAlpha = a*0.45*pul; ctx.fillStyle = n[4];
+        ctx.fillRect(bx + (n[0] - 4)*Z, by + (n[1] - 4)*Z, (n[2] + 8)*Z, (n[3] + 8)*Z);
+        ctx.globalAlpha = a*0.35*pul;
+        ctx.fillRect(bx + n[0]*Z, by + n[1]*Z, n[2]*Z, n[3]*Z);
+      }
+      ctx.globalAlpha = 1;
+    }
+  }
+  ctx.restore();
+}
 // ¿Está el invasor dentro de la planta de este edificio (volando a través)?
 function dentroDeEste(b){
   return player.x > b.x + 4 && player.x < b.x + b.w - 4 && player.y > b.y + 4 && player.y < b.y + b.h - 4;
@@ -14846,7 +14907,18 @@ const HUMO_EDIF_MAX = 180;
 function updateHumoEdif(dt){
   const x0 = camX - 60, x1 = camX + VW + 60, y0 = camY - 60, y1 = camY + VH + 120;
   for (const b of buildings){
-    if (b.stage >= 2 || !b._humos || b.x > x1 || b.x + b.w < x0 || b.y > y1 || b.y + b.h < y0) continue;
+    if (b.x > x1 || b.x + b.w < x0 || b.y > y1 || b.y + b.h < y0) continue;
+    if (b.stage >= 2){
+      // los escombros humean un rato tras el derrumbe
+      if (b.caeT === undefined || gameTime - b.caeT > 25) continue;
+      b._hT = (b._hT || 0) - dt;
+      if (b._hT > 0) continue;
+      b._hT = 0.35 + (gameTime - b.caeT)*0.04;
+      if (humoEdif.length >= HUMO_EDIF_MAX) humoEdif.shift();
+      humoEdif.push({ x: b.x + b.w*(0.25 + Math.random()*0.5), y: b.y + b.h*(0.3 + Math.random()*0.5), vx: rand(3, 10), vy: rand(-18, -10), t:0, max: 2.6, r: 5, oscuro: false });
+      continue;
+    }
+    if (!b._humos) continue;
     b._hT = (b._hT || 0) - dt;
     if (b._hT > 0) continue;
     const fuentes = b.stage === 1 && b._win && b._win.length ? b._humos.concat([[b._win[(b.seed|0) % b._win.length][0] + 5, b._win[(b.seed|0) % b._win.length][1], 3]]) : b._humos;
@@ -14957,6 +15029,7 @@ function drawBuildings(){
     if (cv){
       if (b.stage === 1) ctx.drawImage(edifInterior(b), s2.x, s2.y);   // asoma por los agujeros
       ctx.drawImage(cv, s2.x, s2.y);
+      if (b.stage === 1 && b._rotas) llamasVentanas(b, s2);
       if (dentroDeEste(b)) drawRayosX(b, s2);
     } else {
       ctx.fillStyle = b.color || '#5a5f66'; ctx.fillRect(s2.x, s2.y, b.w, b.h);
