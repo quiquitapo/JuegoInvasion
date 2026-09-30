@@ -5597,8 +5597,9 @@ function damageEnemy(e, dmg, fx, fy){
   // con el poder arcano del mago, los agentes caídos se levantan como zombis
   if ((k === 'police' || k === 'military' || k === 'minigun') && bajaArcana()) levantaZombi(e);
   // el mago convierte los tanques en ogros y los helicópteros en dragones
-  if (k === 'tank' && bajaDelMago()) levantaAliado(e, 'ogro');
-  if ((k === 'heli' || k === 'gunship') && bajaDelMago()) levantaAliado(e, 'dragoncito');
+  // (con el poder arcano del OVNI, igual que los zombis)
+  if (k === 'tank' && bajaArcana()) levantaAliado(e, 'ogro');
+  if ((k === 'heli' || k === 'gunship') && bajaArcana()) levantaAliado(e, 'dragoncito');
   if (k === 'heroe') heroeCae(e);
   if (FANT_TIPOS[k]){ addParticles(e.x, e.y - 14, '#bfe8ff', 14, 120); }
   addParticles(e.x, e.y, '#ffd27b', 16, 150);
@@ -8174,6 +8175,9 @@ const P2_UNITS = [
   { type:'superx',   name:'SUPER X2',  cost:1000,cool:22.0,sprite:'superx' },
   // Un trípode marciano: tampoco es del ejército, pero el J2 puede invocarlo.
   { type:'tripode',  name:'TRÍPODE',   cost:950, cool:24.0,sprite:null },
+  // Los dos jefes nuevos: el Héroe Mágico con su ejército fantasma y el Kaiyin.
+  { type:'heroe',    name:'HÉROE MÁG.', cost:1050,cool:22.0,sprite:'heroeF' },
+  { type:'kaiyin',   name:'KAIYIN',    cost:1250,cool:28.0,sprite:'kaiyinF' },
   { type:'mbt',      name:'MBT-MB92',  cost:300, cool:6.0, sprite:'mbt'     },
   { type:'mbtFrio',  name:'MBT FRÍO',  cost:340, cool:7.0, sprite:'mbtFrio' },
   // No es una unidad: desata durante unos segundos una versión corta de la
@@ -8271,6 +8275,8 @@ function p2Place(){
   }
   spawnEnemy(u.type, p2.x, p2.y);
   if (u.type === 'tripode'){ toast(TRI_AVISO, 3); sfx('ulla'); shake(14, 0.5); }
+  if (u.type === 'heroe'){ toast('¡EL HÉROE MÁGICO!'); sfx('conjuro'); }
+  if (u.type === 'kaiyin'){ toast('¡KAIYIN! EL CIELO SE OSCURECE'); sfx('trueno'); shake(18, 0.6); }
   p2.placeFlash = 0.35;
   addParticles(p2.x, p2.y, '#8fd7ff', 16, 150);
   sfx('grab');
@@ -10370,22 +10376,18 @@ function updateJefes2(dt){
 function limpiaJefes2(){ kaiAvisos.length = 0; kaiOndas.length = 0; heroeOrbes.length = 0; heroeAnillos.length = 0; fuegoAliado.length = 0; }
 
 // ---------- aliados del mago: ogros y dragones ----------
-// Al destruir un tanque, el mago levanta un ogro; al derribar un helicóptero,
-// un dragón que escupe fuego. Se deshacen al cabo de un rato, como los zombis.
+// Con el poder arcano del OVNI, al destruir un tanque el mago levanta un ogro
+// y al derribar un helicóptero, un dragón que escupe fuego. Duran su tiempo
+// aunque el regalo se acabe antes.
 const ALIADO_STATS = {
   ogro:       { hp:240, vel:78,  dmg:44, cd:1.2, alc:34,  vida:30 },
   dragoncito: { hp:150, vel:125, dmg:24, cd:0.6, alc:190, vida:30 }
 };
-function bajaDelMago(){
-  if (culpaJug <= 0) return false;
-  if (Online.culpaInv){ const a = Online.av; return !!(a && a.hero === 'mago'); }
-  return isMag();
-}
 function levantaAliado(e, tipo){
   if (zombis.length >= ZOMBI_MAX) zombis.shift();
   const S0 = ALIADO_STATS[tipo];
   zombis.push({ x:e.x, y:e.y, tipo, t:S0.vida, sube:0.7, cd:0, facing:e.facing || 1, bob:Math.random()*6,
-                hp:S0.hp, maxhp:S0.hp, libre:1, dueno: Online.culpaInv ? 'inv' : 'yo' });
+                hp:S0.hp, maxhp:S0.hp, dueno: Online.culpaInv ? 'inv' : 'yo' });
   addParticles(e.x, e.y, tipo === 'ogro' ? '#8dff6a' : '#ff9a4a', 16, 120);
   toast(tipo === 'ogro' ? '¡UN OGRO SE UNE AL MAGO!' : '¡UN DRAGÓN SE UNE AL MAGO!');
 }
@@ -12276,7 +12278,7 @@ const ZOMBI_MAX = 10, ZOMBI_VIDA = 26, ZOMBI_VEL = 92, ZOMBI_DMG = 18, ZOMBI_CD 
 const zombis = [];
 function levantaZombi(e){
   if (zombis.length >= ZOMBI_MAX) zombis.shift();
-  // dueño: quién lo levantó ('inv' = el compañero en Doble Invasión); se deshace cuando a él se le acaba el regalo
+  // dueño: quién lo levantó ('inv' = el compañero en Doble Invasión)
   zombis.push({ x:e.x, y:e.y, tipo:e.type, t:ZOMBI_VIDA, sube:0.9, cd:0, facing:e.facing || 1, bob:Math.random()*6,
                 hp:ZOMBI_HP, maxhp:ZOMBI_HP, dueno: Online.culpaInv ? 'inv' : 'yo' });
   addParticles(e.x, e.y, '#8dff6a', 10, 80);
@@ -12288,16 +12290,11 @@ function bajaArcana(){
   if (Online.culpaInv){ const a = Online.av; return !!(a && a.hero === 'mago' && a.bP === 'arcano' && a.bT > 0); }
   return isMag() && buffActivo('arcano');
 }
-// ¿Sigue activo el regalo de quien lo levantó?
-function arcanoDe(z){
-  if (z.dueno === 'inv'){ const a = Online.av; return !!(a && a.hero === 'mago' && a.bP === 'arcano' && a.bT > 0); }
-  return isMag() && buffActivo('arcano');
-}
 function updateZombis(dt){
   for (let i = zombis.length - 1; i >= 0; i--){
     const z = zombis[i];
-    // el regalo del OVNI es temporal: al acabarse, sus zombis se deshacen
-    if (!z.libre && !arcanoDe(z) && z.t > 0.8) z.t = 0.8;   // ogros y dragones duran su tiempo
+    // Zombis, ogros y dragones siguen peleando aunque se acabe el regalo del
+    // OVNI: cada uno se deshace solo cuando se le agota su propio tiempo.
     if (z.atT > 0) z.atT -= dt;
     const SZ = ALIADO_STATS[z.tipo], vuela = z.tipo === 'dragoncito';
     z.t -= dt; z.bob += dt*6;
