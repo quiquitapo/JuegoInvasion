@@ -3200,9 +3200,12 @@ function damageBuilding(b, dmg){
   b.stage = (b.hp / b.maxhp) < 0.5 ? 1 : 0;
 }
 
-function collideBuildings(ent, r, dt, breaker){
+function collideBuildings(ent, r, dt, breaker, libreDentro){
   for (const b of buildings){
     if (b.stage >= 2) continue;
+    // Con libreDentro, el edificio en el que ya se está no expulsa: se puede
+    // quedar dentro y salir andando; los demás siguen siendo muros.
+    if (libreDentro && ent.x > b.x && ent.x < b.x + b.w && ent.y > b.y && ent.y < b.y + b.h) continue;
     // descarte barato: si la caja no está cerca, ni se calcula la colisión
     if (ent.x + r < b.x || ent.x - r > b.x + b.w ||
         ent.y + r < b.y || ent.y - r > b.y + b.h) continue;              // por los escombros se puede pasar
@@ -4843,6 +4846,8 @@ function drawRayosOjos(){
   const fx = s2.x + Math.cos(a)*RAYO_LARGO, fy = s2.y + Math.sin(a)*RAYO_LARGO;
   // separación entre los dos ojos, perpendicular al rayo
   const nx = -Math.sin(a)*4, ny = Math.cos(a)*4;
+  ctx.globalAlpha = 0.13; ctx.strokeStyle = '#ff5a3a'; ctx.lineWidth = 16; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(s2.x, s2.y); ctx.lineTo(fx, fy); ctx.stroke();
   for (const lado of [1, -1]){
     ctx.globalAlpha = 0.85;
     ctx.strokeStyle = '#ff2b1e'; ctx.lineWidth = 4;
@@ -12957,10 +12962,9 @@ function updateViltrum(dt){
     // Volando embiste: arrasa edificios y lo que lleve delante recibe el golpe.
     vilSmash(dt);
   } else {
-    // Acaba de tomar tierra: si quedó dentro de un edificio (o en la junta
-    // de dos pegados) se le saca antes de resolver choques.
-    if (volabaAntes && !vil.flying) desatascar(22);
-    collideBuildings(player, 22, dt, 0);
+    // Si toma tierra dentro de un edificio, se queda dentro (y ve el interior):
+    // ya no se le expulsa, y puede salir por su propio pie.
+    collideBuildings(player, 22, dt, 0, true);
   }
 
   // El objeto agarrado va delante si vuela, o en la mano si no.
@@ -14249,7 +14253,7 @@ function drawLampProp(l){
 const LIGHT_DS = 4;                       // factor de reducción del búfer
 let lightCv = null, lightCtx = null, lightW = 0, lightH = 0;
 let holeSprite = null, warmSprite = null;
-let focoHazM = null, luzAzul = null, luzFuego = null, luzBlanca = null;
+let focoHazM = null, luzAzul = null, luzFuego = null, luzBlanca = null, luzRoja = null, luzAmarilla = null;
 const LAMP_R = 128, PLAYER_R = 150;
 // Focos de los helicópteros: de noche barren el suelo y, si te tienen cerca,
 // te siguen. Se pintan en el mismo búfer reducido que las farolas, así que
@@ -14339,6 +14343,8 @@ function ensureLightBuf(){
     luzAzul    = makeRadial(64, [[0,'rgba(120,200,255,0.55)'],[0.45,'rgba(80,160,255,0.18)'],[1,'rgba(60,140,255,0)']]);
     luzFuego   = makeRadial(64, [[0,'rgba(255,170,70,0.50)'],[0.45,'rgba(255,120,40,0.18)'],[1,'rgba(255,90,20,0)']]);
     luzBlanca  = makeRadial(64, [[0,'rgba(255,255,245,0.55)'],[0.5,'rgba(240,248,255,0.16)'],[1,'rgba(230,240,255,0)']]);
+    luzRoja    = makeRadial(64, [[0,'rgba(255,70,50,0.50)'],[0.45,'rgba(255,40,30,0.16)'],[1,'rgba(255,20,10,0)']]);
+    luzAmarilla= makeRadial(64, [[0,'rgba(255,240,140,0.50)'],[0.45,'rgba(255,220,90,0.16)'],[1,'rgba(255,210,60,0)']]);
   }
 }
 
@@ -14426,6 +14432,17 @@ function lucesJefes(L, k, mx, Mx, my, My, tinta){
   if (vil.intro && isMaq()) luz(player.x, player.y + 22, 110, luzFuego, 0.9);
   if (vil.intro && isMag()){ const P = portalMago(); luz(P.x, P.y, 100, luzAzul, 0.8); }
   for (const r of relampagos) luz(r.x, r.y, 130, luzBlanca, clamp(r.t / r.max, 0, 1));
+  // Los rayos del viltrumita y del dragón alumbran un poco a lo largo del haz:
+  // cuatro manchas de luz en el búfer reducido, nada más.
+  if (rayosOn && isVil() && buffActivo('rayos')){
+    const a = aimAngle(), ox = player.x, oy = player.y - 14;
+    for (const f of [0.12, 0.4, 0.7, 1]) luz(ox + Math.cos(a)*RAYO_LARGO*f, oy + Math.sin(a)*RAYO_LARGO*f, f === 1 ? 70 : 55, luzRoja, 0.55);
+  }
+  if (isDra() && dra.rayos){
+    const T = draObjetivo(), m = draBoca(1);
+    for (const f of [0.2, 0.55, 0.85]) luz(m.x + (T.x - m.x)*f, m.y + (T.y - m.y)*f, 55, luzAmarilla, 0.55);
+    luz(T.x, T.y, 80, luzAmarilla, 0.75);
+  }
   for (const b of booms){
     if (b.ring) continue;
     const a = clamp(b.life / b.maxlife, 0, 1);
@@ -15662,6 +15679,41 @@ function draw(){
   ctx.restore();
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   drawLighting();                                  // en píxeles del lienzo
+  drawFlechasJefe();                               // encima de la oscuridad
+}
+
+// Si un jefe queda fuera de la pantalla, una flecha en el borde señala
+// hacia dónde está (en píxeles del lienzo, encima de la noche).
+const JEFE_NOMBRE = { flametank:'TANQUE DE FUEGO', omni:'OMNIDROIDE', artillero:'ARTILLERO', superx:'SUPER X', tripode:'TRÍPODE' };
+function drawFlechasJefe(){
+  if (!running || esVisorVs()) return;
+  const M = 30, cx = CW/2, cy = CH/2;
+  for (const e of enemies){
+    if (e.dead || !JEFES[e.type]) continue;
+    const sx = (e.x - camX)*ZOOM, sy = (e.y - camY)*ZOOM;
+    if (sx > -20 && sx < CW + 20 && sy > -20 && sy < CH + 20) continue;   // se ve: sin flecha
+    const dx = sx - cx, dy = sy - cy, a = Math.atan2(dy, dx);
+    // punto del borde en esa dirección
+    const k = Math.min((cx - M)/Math.abs(dx || 1e-6), (cy - M)/Math.abs(dy || 1e-6));
+    const px = cx + dx*k, py = cy + dy*k;
+    const pul = 0.75 + Math.sin(gameTime*6)*0.25;
+    ctx.save();
+    ctx.translate(px, py); ctx.rotate(a);
+    ctx.globalAlpha = 0.9*pul;
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    ctx.beginPath(); ctx.moveTo(17, 0); ctx.lineTo(-9, -12); ctx.lineTo(-4, 0); ctx.lineTo(-9, 12); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#ff3b2e';
+    ctx.beginPath(); ctx.moveTo(14, 0); ctx.lineTo(-7, -9); ctx.lineTo(-3, 0); ctx.lineTo(-7, 9); ctx.closePath(); ctx.fill();
+    ctx.restore();
+    // nombre y distancia, del lado de dentro
+    const d = Math.round(dist(player.x, player.y, e.x, e.y)/10);
+    const tx = px - Math.cos(a)*30, ty = py - Math.sin(a)*22;
+    ctx.globalAlpha = 0.85*pul;
+    ctx.font = 'bold 10px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillText((JEFE_NOMBRE[e.type] || 'JEFE') + ' ' + d + 'm', tx + 1, ty + 1);
+    ctx.fillStyle = '#ffd0c8'; ctx.fillText((JEFE_NOMBRE[e.type] || 'JEFE') + ' ' + d + 'm', tx, ty);
+    ctx.globalAlpha = 1;
+  }
 }
 
 // ================= STORAGE =================
