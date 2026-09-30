@@ -9039,6 +9039,7 @@ const VIL_RAFAGA_DMG = 110;
 // Los jefes resisten el puño cargado del viltrumita: contra ellos, y solo
 // contra ellos, el golpe cargado vale la mitad. El toque simple no cambia.
 const VIL_JEFE_CARGA = 0.5;
+const VIL_JEFE_EMBISTE = 38, VIL_JEFE_PAUSA = 0.5;   // el vuelo contra un jefe: golpe y pausa
 const VIL_CHARGE_DMG = 210;     // daño del golpe cargado normal
 // Al completar la carga, el golpe pasa a otra categoría: pega mucho más
 // lejos y suelta una onda de viento a su alrededor.
@@ -14045,10 +14046,19 @@ function vilSmash(dt){
       // así que hacen falta varias pasadas para tumbarlos.
       // Tanques, helicópteros, artillados, asedio y jefes: el impacto sónico
       // los abre bastante mejor, aunque los jefes siguen exigiendo insistencia.
-      if (esBlindado(t)) porJugador(()=> damageEnemy(t, 420*dt, t.x, t.y));
+      // Contra un jefe no vale quedarse pegado: cada embestida cuenta una vez
+      // y hace falta separarse medio segundo para volver a golpear.
+      if (JEFES[t.type]){
+        if (gameTime - (t._vilT || -9) < VIL_JEFE_PAUSA) continue;
+        t._vilT = gameTime;
+        porJugador(()=> damageEnemy(t, VIL_JEFE_EMBISTE, t.x, t.y));
+        shake(5, 0.1); sfx('hit');
+      }
+      else if (esBlindado(t)) porJugador(()=> damageEnemy(t, 420*dt, t.x, t.y));
       else porJugador(()=> damageEnemy(t, 999, t.x, t.y));
     }
   }
+  vilInquilinos(px2, py2, 44);               // arrolla también a los de dentro
   for (const c of cars){
     if (c.dead || c.held) continue;
     if (dist(c.x,c.y,px2,py2) < 46){
@@ -14092,6 +14102,7 @@ function vilPunch(carga, modo){
     if (c.hp <= 0) porJugador(()=> autoAbatido(c));
     dio = true;
   }
+  if (vilInquilinos(px2, py2, alcance)) dio = true;   // vecinos dentro de los edificios
   for (const b of buildings){
     if (b.stage >= 2) continue;
     if (px2 < b.x-20 || px2 > b.x+b.w+20 || py2 < b.y-20 || py2 > b.y+b.h+20) continue;
@@ -15818,6 +15829,24 @@ function drawVentanasNoche(oscuro){
     }
   }
   ctx.restore();
+}
+// El viltrumita, dentro de un edificio, puede acabar con los vecinos que se
+// ven por los rayos X: cuentan como civiles (puntos, cadena, vida y bajas).
+function vilInquilinos(x, y, R){
+  let n = 0;
+  for (const b of buildings){
+    if (b.stage >= 2 || !b._gente || !b._gente.length) continue;
+    if (x < b.x - R || x > b.x + b.w + R || y < b.y - R || y > b.y + b.h + R) continue;
+    for (let i = b._gente.length - 1; i >= 0; i--){
+      const p = b._gente[i], gx = b.x + p.x, gy = b.y + p.y - 12;
+      if (dist(gx, gy, x, y) > R) continue;
+      b._gente.splice(i, 1);
+      porJugador(()=> damageEnemy({ kind:'civ', x:gx, y:gy, hp:1, maxhp:1, dead:false }, 999, gx, gy));
+      addParticles(gx, gy, '#b3202a', 10, 110);
+      n++;
+    }
+  }
+  return n;
 }
 // ¿Está el invasor dentro de la planta de este edificio (volando a través)?
 function dentroDeEste(b){
