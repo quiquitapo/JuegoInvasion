@@ -4621,7 +4621,7 @@ function spawnEnemy(type, atX, atY){
   // Amalgama de almas: crece al tragarse almas en pena.
   if (type==='amalgama') Object.assign(base, {hp:420, maxhp:420, speed:80, w:44, h:64, grabbable:false, k:1, fase:'', cd:2, embCd:4, golpeCd:0, paso:0});
   // Piernas de pollo: bestia de monta con un soldado encima.
-  if (type==='pollo') Object.assign(base, {hp:300, maxhp:300, speed:118, w:70, h:74, grabbable:false, fase:'', ft:0, cd:1.2,
+  if (type==='pollo') Object.assign(base, {hp:300, maxhp:300, speed:118, w:52, h:54, grabbable:false, fase:'', ft:0, cd:1.2,
                             tiroCd:rand(1, 2), fogT:0, giroA:0, golpeo:0, paso:0});
   // El Desgarrador: kaiju cíborg de motosierras, jefe del planeta marciano.
   if (type==='desgarrador') Object.assign(base, {hp:DES_HP, maxhp:DES_HP, speed:110, w:110, h:150, grabbable:false,
@@ -5169,6 +5169,7 @@ function drawTripode(e){
   for (let i = -2; i <= 2; i++){
     ctx.beginPath(); ctx.ellipse(c.x + i*17, c.y - 6 + Math.abs(i)*4, 4, 2.2, 0, 0, Math.PI*2); ctx.fill();
   }
+  if (esInfierno()) ojosTripode(e, c);                       // en el castigo le brotan ojos
   // emisor del rayo: mira hacia donde va a disparar
   const a = (e.miraA != null) ? e.miraA : (e.facing >= 0 ? 0 : Math.PI);
   const ox = c.x + Math.cos(a)*38, oy = c.y + Math.sin(a)*16;
@@ -8786,7 +8787,7 @@ const BESTIARY = [
     desc:'Un alma distinta a las demás: busca a las almas en pena y se las traga, y con cada una crece y gana vida. Le han salido brazos y piernas, y su cabeza es un amasijo de caras que gritan. Arranca los autos calcinados para lanzártelos y embiste en línea recta tras marcarla en el suelo. Mátala antes de que engorde.' },
   { id:'pollo', name:'PIERNAS DE POLLO', hp:300, dmg:'18 por coletazo giratorio y los tiros del jinete', sprite:'polloF', verb:'DERRIBADAS',
     hint:'Algo corre a dos patas por Castigo Divino, con alguien encima.',
-    desc:'Bestia de monta del castigo: un lagarto bípedo rosa con franjas amarillas, pico ganchudo de ave, patas de gallina y una cola larguísima. Lleva al lomo una silla blindada y, sobre ella, a un soldado condenado que te dispara con su fusil mientras la bestia corre hacia ti. Si te tiene cerca se agacha, gira sobre sí misma y barre con la cola el círculo que marca en el suelo: sal de él a tiempo. Cuando la bestia cae, el jinete sigue a pie.' },
+    desc:'Bestia de monta del castigo: un lagarto bípedo rosa con anillos amarillos, cabeza baja con un pico enorme y ganchudo, patas de gallina y una cola gruesa que se enrosca por debajo del vientre. Todo el lomo lo cubre un caparazón amarillo segmentado y, encima, va un soldado condenado con una boca gigante que le cuelga hasta el pecho (dentro solo hay oscuridad). El jinete te dispara con su fusil mientras la bestia corre hacia ti. Si te tiene cerca se agacha, gira sobre sí misma y barre con la cola el círculo que marca en el suelo: sal de él a tiempo. Cuando la bestia cae, el jinete sigue a pie.' },
   { id:'vengativo', name:'VENGATIVO', hp:12, dmg:'se te aferra y muerde', sprite:'vengativoF', verb:'DEVUELTOS AL SUELO',
     hint:'Algo se mueve bajo el suelo de Castigo Divino.',
     desc:'Lo que queda de los que mataste, retorcido por el castigo. Salen del suelo del infierno en grupo, corren en zigzag muy rápido y se te echan encima: los que te alcanzan se aferran a ti y te muerden hasta que se sueltan (corriendo te los quitas antes). Uno solo no aguanta nada; el peligro es que lleguen muchos. En Castigo Divino también te esperan el resto de las unidades de la ciudad y del planeta marciano, deformadas: más vida, más rápidas y más daño, pero valen más puntos. Hasta los jefes vuelven así.' },
@@ -12179,12 +12180,12 @@ function drawAliadoMago(z){
 // Centinelas (con la figura animada de la tropa), droides, escáneres,
 // cabezones, arañas, murciélagos, cazas y trípodes como unidades normales,
 // más los meteoritos que hacen de artillería.
-const AL_TAM = { droide:[40,48,20,45], cabezon:[44,52,22,49], escaner:[40,36,20,18], arana:[84,60,42,50], bicho:[118,108,58,100],
+const AL_TAM = { droide:[40,48,20,45], cabezon:[44,52,22,49], escaner:[40,36,20,18], arana:[124,66,62,58], bicho:[118,108,58,100],
                  murcielago:[92,54,48,30], caza40k:[78,44,39,22] };
 const AL_VUELA = { escaner:1, murcielago:1, caza40k:1 };
 const alCache = new Map();
 function alienFrame(tipo, pose, f){
-  const k = tipo + pose + f;
+  const k = tipo + pose + f + (tipo === 'arana' && esInfierno() ? 'i' : '');    // en el castigo, la araña cambia de patas
   let c = alCache.get(k);
   if (c) return c;
   const [W, H, cx, py] = AL_TAM[tipo];
@@ -12255,8 +12256,38 @@ function dibEscaner(g, pose, f){
   jR(g, '#2a3038', -4, 9, 8, 3); jR(g, '#7fe8ff', -3, 11, 6, 1);
 }
 // Tanque araña: casco bajo con cañón de plasma sobre seis patas.
+// Patas de araña de verdad (las del castigo): coxa, fémur alto y peludo,
+// rodilla, tibia y metatarso finos con anillos, acabados en uña.
+function pataAranaReal(g, f, x0, fase, lejos){
+  const dir = x0 < 0 ? -1 : 1;
+  const ph = f/4*Math.PI*2 + fase, lev = Math.max(0, Math.sin(ph))*6, av = Math.cos(ph)*5;
+  const cx = x0 + dir*4, cy = -27;
+  const kx = x0 + dir*15 + av*0.4, ky = -50 - lev*0.5;                 // la rodilla, muy por encima del cuerpo
+  const tx = x0 + dir*29 + av*0.8, ty = -16 - lev*0.6;
+  const fx = x0 + dir*35 + av, fy = -lev;
+  const c = lejos ? '#160e0a' : '#2c1c14', anillo = lejos ? '#3a2014' : '#7a3e22', pelo = lejos ? '#2a1a12' : '#8a6448';
+  jL(g, c, 4.4, x0, -26, cx, cy);
+  jL(g, c, 4, cx, cy, kx, ky);
+  jL(g, c, 3, kx, ky, tx, ty);
+  jL(g, c, 2, tx, ty, fx, fy);
+  jO(g, anillo, kx, ky, 2.6, 2.6); jO(g, anillo, tx, ty, 2, 2);
+  jO(g, anillo, (cx + kx)/2, (cy + ky)/2, 2.2, 1.6);
+  g.strokeStyle = pelo; g.lineWidth = 0.9;                              // pelos
+  for (const [ax, ay, bx, by, n] of [[cx, cy, kx, ky, 5], [kx, ky, tx, ty, 4]]){
+    const dx = bx - ax, dy = by - ay, L = Math.hypot(dx, dy) || 1, nx = -dy/L, ny = dx/L;
+    for (let i = 1; i < n; i++){
+      const t = i/n, px = ax + dx*t, py = ay + dy*t, sg = i % 2 ? 1 : -1;
+      g.beginPath(); g.moveTo(px, py); g.lineTo(px + nx*3*sg + dx/L, py + ny*3*sg + dy/L); g.stroke();
+    }
+  }
+  jL(g, lejos ? '#0a0604' : '#1a0e08', 1.4, fx, fy, fx + dir*2, fy + 1);   // la uña
+}
 function dibArana(g, pose, f){
+  if (esInfierno()){
+    for (const [x, fs] of [[-15, 0], [-6, 2.2], [5, 4.1], [14, 1.3]]) pataAranaReal(g, f, x, fs, true);
+  }
   const pata = (x, fase, lejos)=>{
+    if (esInfierno()) return;
     const ph = f/4*Math.PI*2 + fase, lev = Math.max(0, Math.sin(ph))*5, av = Math.cos(ph)*5;
     const bx = x, by = -26, kx = x + (x > 0 ? 12 : -12) + av*0.5, ky = -40 - lev*0.4, fx = x + (x > 0 ? 20 : -20) + av, fy = -lev;
     const c = lejos ? '#2a2e36' : '#4a505a';
@@ -12273,6 +12304,9 @@ function dibArana(g, pose, f){
   jR(g, '#20242c', 8, -36, L, 4); jR(g, '#6a7080', 8, -36, L, 1);
   jO(g, pose === 'ataca' ? '#e0b0ff' : '#7a4ab0', 8 + L, -34, 2.5, 2.5);
   pata(-14, 1, false); pata(0, 3, false); pata(12, 5, false);
+  if (esInfierno()){
+    for (const [x, fs] of [[-17, 1.1], [-8, 3.3], [7, 5.2], [16, 0.4]]) pataAranaReal(g, f, x, fs, false);
+  }
 }
 // Bicho guerrero: el arácnido de élite que los marcianos modificaron para su
 // ejército. Caparazón negro azulado con aletas rojas en el lomo, cabeza larga
@@ -13383,8 +13417,8 @@ function sorteaJefeInf(){
 // pico de ave, cola larga y una silla blindada donde va un soldado. El jinete
 // dispara con su fusil; la bestia, si te tiene cerca, gira sobre sí misma y
 // barre un área pequeña con la cola. Al caer, el jinete sigue a pie.
-const POLLO_R = 74, POLLO_DMG = 18;
-const POLLO_W = 160, POLLO_H = 116, POLLO_CX = 88, POLLO_PIE = 108;
+const POLLO_R = 64, POLLO_DMG = 18;
+const POLLO_W = 140, POLLO_H = 96, POLLO_CX = 86, POLLO_PIE = 90;
 const polloCache = new Map();
 function polloFrame(pose, f){
   const k = pose + f;
@@ -13399,73 +13433,78 @@ function polloFrame(pose, f){
   return c;
 }
 function dibPollo(g, pose, f){
-  const rosa = '#e070d0', rosaO = '#a0389a', rosaL = '#f8b0f0', amar = '#e8e048', amarO = '#a8a020';
-  const arm = '#b4ac2a', armO = '#6a6418', armL = '#e4dc66', pico = '#c8d444', picoO = '#7a8418';
-  const ph = f/4*Math.PI*2, s = pose === 'anda' ? Math.sin(ph) : 0, bob = pose === 'anda' ? Math.abs(Math.cos(ph))*2 : 0;
-  const agacha = pose === 'aviso' ? 5 : 0, y0 = -bob + agacha;
-  // pierna digitígrada con franjas: muslo grueso, rodilla adelante, garras
-  const pierna = (lejos, sg)=>{
-    const hx = -2 + sg*3, hy = -34 + y0;
-    const kx = hx + 10 + s*sg*6, ky = -21 + y0*0.5, ax = hx + 1 - s*sg*5, ay = -8, fx = ax + 11, fy = -1;
-    jL(g, lejos ? rosaO : rosa, 12, hx, hy, kx, ky);
-    jO(g, lejos ? amarO : amar, (hx + kx)/2, (hy + ky)/2, 5, 3.5);
-    jL(g, lejos ? rosaO : rosa, 7, kx, ky, ax, ay);
-    jO(g, lejos ? amarO : amar, (kx + ax)/2, (ky + ay)/2, 3.5, 2.5);
-    jL(g, lejos ? rosaO : rosa, 5, ax, ay, fx - 4, fy);
-    for (let t = -1; t <= 1; t++) jL(g, '#3a2a20', 2, fx - 4, fy, fx + 3 + t, fy + t*2);       // garras
-    jL(g, '#3a2a20', 2, ax - 2, ay + 4, ax - 6, fy);                                          // espolón
+  const rosa = '#e060d0', rosaO = '#a0369a', rosaL = '#f6a6ee', amar = '#e4e044', amarO = '#9c9a22';
+  const cap = '#d8d23c', capO = '#8a8618', capL = '#f2ec7a', pico = '#c6d240', picoO = '#78861a';
+  const ph = f/4*Math.PI*2, s = pose === 'anda' ? Math.sin(ph) : 0, bob = pose === 'anda' ? Math.abs(Math.cos(ph))*1.5 : 0;
+  const agacha = pose === 'aviso' ? 4 : 0, y0 = -bob + agacha, gira = pose === 'gira';
+  // patas gruesas a franjas, dobladas, con garras
+  const pierna = (lejos, sg, x0)=>{
+    const hx = x0, hy = -28 + y0;
+    const kx = hx + 8 + s*sg*5, ky = -17 + y0*0.5, ax = hx + 1 - s*sg*4, ay = -7, fx = ax + 8, fy = -1;
+    jL(g, lejos ? rosaO : rosa, 10, hx, hy, kx, ky);
+    jO(g, lejos ? amarO : amar, kx - 1, ky, 4.5, 3.5);                                        // franja de la rodilla
+    jL(g, lejos ? rosaO : rosa, 6, kx, ky, ax, ay);
+    jO(g, lejos ? amarO : amar, (kx + ax)/2, (ky + ay)/2 + 1, 3.4, 2.4);
+    jL(g, lejos ? rosaO : rosa, 5, ax, ay, fx - 3, fy);
+    for (let t = -1; t <= 1; t++) jL(g, '#3a2a20', 1.8, fx - 3, fy, fx + 3 + t, fy + t*1.5);
   };
-  pierna(true, -1);
-  // cola larga a franjas: cae y se enrosca hacia arriba (estirada al girar)
-  const gira = pose === 'gira';
-  for (let i = 0; i <= 11; i++){
-    const t = i/11;
-    const x = -20 - t*(gira ? 60 : 50);
-    const y = gira ? -38 - t*3 : -40 + y0 + t*20 - t*t*34 + Math.sin(ph + t*3)*4*t;
-    jO(g, i % 2 ? amar : rosa, x, y, 9*(1 - t) + 2.4, 8*(1 - t) + 2.2);
+  pierna(true, -1, -8);
+  // cola gruesa a anillos que baja y se enrosca por debajo, hacia delante
+  const P = gira ? [[-18, -34], [-40, -34], [-60, -33], [-80, -32]] : [[-18, -34 + y0], [-44, -34 + y0], [-50, -4], [-26, -6]];
+  const N = 16;
+  for (let i = 0; i <= N; i++){
+    const t = i/N, u = 1 - t;
+    const x = u*u*u*P[0][0] + 3*u*u*t*P[1][0] + 3*u*t*t*P[2][0] + t*t*t*P[3][0];
+    let y = u*u*u*P[0][1] + 3*u*u*t*P[1][1] + 3*u*t*t*P[2][1] + t*t*t*P[3][1];
+    if (!gira) y += Math.sin(ph + t*3)*1.5*t;
+    jO(g, (i >> 1) % 2 ? amar : rosa, x, y, 8.5*(1 - t) + 2.5, 8*(1 - t) + 2.3);
   }
-  // cuerpo con franjas y vientre claro
-  jO(g, rosaO, -2, -38 + y0, 25, 15);
-  jO(g, rosa, -2, -40 + y0, 23, 13);
-  jO(g, rosaL, 4, -31 + y0, 14, 4);
-  for (const x of [-15, -5, 5]) jL(g, amar, 4.5, x, -51 + y0, x + 3, -29 + y0);
-  // cuello y cabeza de ave con pico ganchudo
-  const cx = pose === 'aviso' ? 22 : 26, cy = (pose === 'aviso' ? -56 : -62) + y0;
-  jL(g, rosa, 11, 14, -46 + y0, cx, cy);
-  jO(g, amar, (14 + cx)/2 + 1, (-46 + y0 + cy)/2, 4.5, 3.5);
-  jO(g, rosa, cx + 5, cy - 4, 10, 8);
-  jO(g, rosaL, cx + 3, cy - 9, 5, 2);
-  const abre = pose === 'gira' || pose === 'aviso' ? 5 : 0;
-  g.fillStyle = pico;                                                                        // pico superior
-  g.beginPath(); g.moveTo(cx + 10, cy - 9); g.lineTo(cx + 27, cy - 3); g.lineTo(cx + 25, cy + 2); g.lineTo(cx + 10, cy + 1); g.closePath(); g.fill();
-  g.fillStyle = picoO;                                                                       // mandíbula
-  g.beginPath(); g.moveTo(cx + 10, cy + 1 + abre*0.4); g.lineTo(cx + 22, cy + 3 + abre); g.lineTo(cx + 10, cy + 5 + abre*0.6); g.closePath(); g.fill();
-  jL(g, picoO, 1.5, cx + 12, cy - 4, cx + 24, cy - 1);
-  jO(g, '#ffffff', cx + 6, cy - 7, 2.6, 2.6); jO(g, '#200810', cx + 7, cy - 7, 1.4, 1.6);
-  // silla blindada sobre el lomo, con cinchas
-  jL(g, '#5a3a20', 2.5, -14, -48 + y0, -16, -30 + y0); jL(g, '#5a3a20', 2.5, 4, -48 + y0, 6, -30 + y0);
-  jO(g, armO, -5, -53 + y0, 19, 9);
-  jO(g, arm, -5, -55 + y0, 17, 7);
-  for (const x of [-15, -8, -1, 6]) jL(g, armO, 1.5, x, -61 + y0, x + 1, -49 + y0);
-  jO(g, armL, -10, -59 + y0, 5, 2);
-  jR(g, armO, -20, -54 + y0, 30, 2);
-  // el jinete: soldado del castigo, de piel cenicienta y ojos rojos
-  const ry = -62 + y0, uni = '#56663a', uniO = '#3a4626';
-  jL(g, uniO, 5, -7, ry, 3, ry + 4); jL(g, uniO, 4, 3, ry + 4, 3, ry + 13); jR(g, '#2a2418', 1, ry + 12, 6, 4);   // pierna y bota
-  jR(g, uni, -12, ry - 18, 11, 18);
-  jR(g, '#3a2a18', -12, ry - 3, 11, 2);
-  jR(g, uniO, -12, ry - 18, 3, 16);
-  if (gira){                                                                                 // agarrado a la silla
-    jL(g, uni, 3.5, -4, ry - 14, 4, ry - 4);
-  } else {                                                                                   // fusil al frente
-    jL(g, '#2a2a2a', 3, -8, ry - 11, 18, ry - 13);
-    jL(g, '#4a3a28', 3, -10, ry - 10, -4, ry - 10);
-    jL(g, uni, 3.5, -5, ry - 15, 5, ry - 12);
-  }
-  jO(g, '#b6bca6', -6, ry - 24, 5, 5);                                                         // cara
-  jO(g, '#4a5a2a', -6, ry - 27, 6.5, 4); jR(g, '#4a5a2a', -13, ry - 27, 14, 2);                 // casco
-  jR(g, '#ff3020', -3, ry - 25, 2, 1.5);                                                       // ojo rojo
-  pierna(false, 1);
+  if (!gira) jO(g, rosa, -22, -11, 2.4, 2.2);                                                // la punta se vuelve hacia arriba
+  // vientre rosa bajo el caparazón
+  jO(g, rosaO, -2, -28 + y0, 20, 9); jO(g, rosa, -1, -29 + y0, 18, 7); jO(g, rosaL, 4, -26 + y0, 10, 2.5);
+  // cuello corto y cabeza baja, por delante del caparazón
+  const hx = pose === 'aviso' ? 28 : 31, hy = (pose === 'aviso' ? -30 : -34) + y0;
+  jL(g, rosa, 10, 12, -34 + y0, hx - 2, hy);
+  jO(g, amar, 18, -35 + y0, 3, 4);                                                           // anillo del cuello
+  jO(g, rosaO, hx + 2, hy - 1, 9.5, 8);
+  jO(g, rosa, hx + 2, hy - 2, 8.5, 7);
+  jO(g, rosaL, hx, hy - 6, 4, 1.8);
+  const abre = gira || pose === 'aviso' ? 4 : 0;
+  g.fillStyle = pico;                                                                        // pico grande y ganchudo
+  g.beginPath(); g.moveTo(hx + 5, hy - 8); g.quadraticCurveTo(hx + 18, hy - 9, hx + 22, hy - 1); g.lineTo(hx + 20, hy + 4);
+  g.lineTo(hx + 17, hy + 1); g.lineTo(hx + 6, hy + 1); g.closePath(); g.fill();
+  g.fillStyle = picoO;
+  g.beginPath(); g.moveTo(hx + 6, hy + 2 + abre*0.3); g.lineTo(hx + 16, hy + 3 + abre); g.lineTo(hx + 6, hy + 6 + abre*0.5); g.closePath(); g.fill();
+  jL(g, picoO, 1.2, hx + 8, hy - 4, hx + 18, hy - 2);
+  jO(g, '#f0f080', hx + 3, hy - 4, 2.4, 2.4); jO(g, '#200810', hx + 3.6, hy - 4, 1.2, 1.4);   // ojo
+  // el caparazón amarillo segmentado que cubre todo el lomo
+  g.fillStyle = capO;
+  g.beginPath(); g.moveTo(-24, -28 + y0); g.quadraticCurveTo(-26, -58 + y0, 0, -60 + y0); g.quadraticCurveTo(22, -60 + y0, 22, -36 + y0);
+  g.lineTo(16, -30 + y0); g.closePath(); g.fill();
+  g.fillStyle = cap;
+  g.beginPath(); g.moveTo(-21, -30 + y0); g.quadraticCurveTo(-23, -56 + y0, 0, -57 + y0); g.quadraticCurveTo(19, -57 + y0, 19, -37 + y0);
+  g.lineTo(14, -32 + y0); g.closePath(); g.fill();
+  g.strokeStyle = capO; g.lineWidth = 1.4;
+  for (const x of [-14, -6, 2, 10]){ g.beginPath(); g.moveTo(x - 1, -55 + y0 + Math.abs(x)*0.1); g.quadraticCurveTo(x + 2, -44 + y0, x, -31 + y0); g.stroke(); }
+  g.beginPath(); g.moveTo(-21, -40 + y0); g.quadraticCurveTo(0, -36 + y0, 19, -42 + y0); g.stroke();      // borde inferior de las placas
+  g.fillStyle = capL; g.beginPath(); g.ellipse(-8, -52 + y0, 7, 2.2, -0.15, 0, Math.PI*2); g.fill();
+  g.fillStyle = amarO;                                                                       // cresta de púas
+  for (const x of [-16, -8, 0, 8]){ g.beginPath(); g.moveTo(x - 3, -56 + y0); g.lineTo(x, -61 + y0); g.lineTo(x + 3, -56 + y0); g.closePath(); g.fill(); }
+  jR(g, capO, 14, -40 + y0, 7, 10);                                                          // gola sobre el cuello
+  // el jinete: soldado condenado con una boca enorme que le cuelga, negra por dentro
+  const ry = -58 + y0, uni = '#56663a', uniO = '#3a4626', piel = '#b2b8a2';
+  jL(g, uniO, 4, -5, ry + 2, 4, ry + 5); jL(g, uniO, 3.5, 4, ry + 5, 5, ry + 13); jR(g, '#2a2418', 3, ry + 12, 5, 3);
+  jR(g, uni, -9, ry - 15, 10, 16);
+  jR(g, uniO, -9, ry - 15, 3, 14);
+  jR(g, '#3a2a18', -9, ry - 1, 10, 2);
+  if (gira){ jL(g, uni, 3, -3, ry - 12, 5, ry - 2); }                                       // agarrado a la silla
+  else { jL(g, '#2a2a2a', 2.6, -4, ry - 8, 16, ry - 10); jL(g, '#4a3a28', 2.6, -7, ry - 7, -2, ry - 7); jL(g, uni, 3, -2, ry - 12, 6, ry - 9); }
+  jO(g, piel, -3, ry - 21, 5, 4.5);                                                          // cráneo
+  jO(g, piel, -2, ry - 13, 5.2, 8.5);                                                        // la quijada estirada hacia abajo
+  g.fillStyle = '#000000'; g.beginPath(); g.ellipse(-1.6, ry - 12, 3.8, 7.4, 0, 0, Math.PI*2); g.fill();   // la boca: oscuridad total
+  jO(g, '#4a5a2a', -3, ry - 24, 6, 3.6); jR(g, '#4a5a2a', -9, ry - 24, 12, 2);               // casco
+  jR(g, '#ff3020', -1, ry - 21, 1.6, 1.4); jR(g, '#ff3020', -5, ry - 21, 1.4, 1.4);           // ojos rojos
+  pierna(false, 1, 4);
 }
 function updatePollo(e, dt, a, ang){
   e.anim = (e.anim || 0) + dt;
@@ -13518,24 +13557,24 @@ function drawPollo(e){
     ctx.beginPath(); ctx.ellipse(s.x, s.y, POLLO_R, POLLO_R*0.5, 0, 0, Math.PI*2); ctx.stroke(); ctx.setLineDash([]);
     ctx.restore();
   }
-  sombra(s.x, s.y + 2, 54, 14, 0.7);
+  sombra(s.x, s.y + 2, 40, 11, 0.7);
   const pose = e.fase === 'gira' ? 'gira' : e.fase === 'aviso' ? 'aviso' : 'anda';
   const c = polloFrame(pose, pose === 'anda' ? Math.floor(e.paso || 0) % 4 : 0);
   // al girar se ve de frente y de espaldas: se estrecha y se da la vuelta
   let sx = e.facing < 0 ? -1 : 1;
   if (pose === 'gira'){ const cg = Math.cos(e.giroA || 0); sx = (cg < 0 ? -1 : 1)*Math.max(0.22, Math.abs(cg)); }
-  ctx.save(); ctx.translate(s.x, s.y + 2); ctx.scale(sx*0.8, 0.8);
+  ctx.save(); ctx.translate(s.x, s.y + 2); ctx.scale(sx*0.72, 0.72);
   const suave = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = false;
   ctx.drawImage(c, -POLLO_CX, -POLLO_PIE);
-  if (e.fogT > 0){ ctx.fillStyle = '#ffe08a'; ctx.beginPath(); ctx.arc(22, -74, 4, 0, Math.PI*2); ctx.fill(); }   // fogonazo del fusil
+  if (e.fogT > 0){ ctx.fillStyle = '#ffe08a'; ctx.beginPath(); ctx.arc(18, -68, 3.5, 0, Math.PI*2); ctx.fill(); }   // fogonazo del fusil
   ctx.imageSmoothingEnabled = suave; ctx.restore();
   if (pose === 'gira'){                                                                      // estela de la cola
     ctx.save(); ctx.globalAlpha = 0.45; ctx.strokeStyle = '#f0a0e8'; ctx.lineWidth = 5;
     const a0 = (e.giroA || 0)*1.0;
-    ctx.beginPath(); ctx.ellipse(s.x, s.y - 26, POLLO_R*0.85, POLLO_R*0.42, 0, a0, a0 + 2.2); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(s.x, s.y - 18, POLLO_R*0.85, POLLO_R*0.42, 0, a0, a0 + 2.2); ctx.stroke();
     ctx.restore();
   }
-  if (showHpBars) hpBar(s.x, s.y - 98, 56, e.hp, e.maxhp, '#e070d0');
+  if (showHpBars) hpBar(s.x, s.y - 66, 46, e.hp, e.maxhp, '#e070d0');
 }
 // ================= AMALGAMA DE ALMAS =================
 // Un alma distinta a las demás: se traga a las almas en pena que encuentra y
@@ -13816,6 +13855,49 @@ function estallidoArana(b){
 }
 
 // ---------- pezuñas y ojo humano en el infierno ----------
+// En el castigo, al trípode le brotan ojos humanos de la cúpula: unos en
+// tallos de carne que se mecen, otros incrustados que parpadean y dos antenas
+// acabadas en un ojo. Todos miran al invasor.
+function ojoCarne(x, y, r, mira, cerrado){
+  ctx.fillStyle = '#7a3438'; ctx.beginPath(); ctx.ellipse(x, y, r*1.3, r*1.05, 0, 0, Math.PI*2); ctx.fill();   // párpado
+  if (cerrado){ ctx.fillStyle = '#5a2228'; ctx.fillRect(x - r, y - 0.6, r*2, 1.2); return; }
+  ctx.fillStyle = '#efe6dc'; ctx.beginPath(); ctx.ellipse(x, y, r, r*0.8, 0, 0, Math.PI*2); ctx.fill();
+  ctx.strokeStyle = 'rgba(200,40,40,0.7)'; ctx.lineWidth = 0.8;                                             // venas
+  ctx.beginPath(); ctx.moveTo(x - r*0.9, y); ctx.lineTo(x - r*0.4, y + r*0.2); ctx.moveTo(x + r*0.9, y - r*0.1); ctx.lineTo(x + r*0.5, y + r*0.2); ctx.stroke();
+  const ix = x + Math.cos(mira)*r*0.38, iy = y + Math.sin(mira)*r*0.3;
+  ctx.fillStyle = '#5a7a2a'; ctx.beginPath(); ctx.arc(ix, iy, r*0.48, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#0a0606'; ctx.beginPath(); ctx.arc(ix, iy, r*0.24, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#ffffff'; ctx.fillRect(ix - r*0.25, iy - r*0.3, 1.2, 1.2);
+}
+function ojosTripode(e, c){
+  const ps = S(player.x, player.y - 20);
+  const mira = (x, y)=> Math.atan2(ps.y - y, ps.x - x);
+  const cup = th => ({ x: c.x + Math.cos(th)*50, y: c.y + 4 + Math.sin(th)*37 });
+  ctx.lineCap = 'round';
+  // dos antenas finas acabadas en un ojo
+  for (const sg of [-1, 1]){
+    const b = cup(Math.PI*1.5 + sg*0.55), w = Math.sin(gameTime*3 + sg)*5;
+    const tx = b.x + sg*14 + w, ty = b.y - 34;
+    ctx.strokeStyle = '#2a1a1a'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.quadraticCurveTo(b.x + sg*2, b.y - 20, tx, ty); ctx.stroke();
+    ojoCarne(tx, ty, 3, mira(tx, ty), false);
+  }
+  // ojos en tallos de carne que se mecen
+  const T = [1.12, 1.3, 1.46, 1.6, 1.76, 1.9];
+  T.forEach((q, i)=>{
+    const b = cup(Math.PI*q), an = -Math.PI/2 + (q - 1.5)*2.2 + Math.sin(gameTime*2.2 + i*1.3)*0.3, L = 14 + (i % 3)*6;
+    const tx = b.x + Math.cos(an)*L, ty = b.y + Math.sin(an)*L;
+    const mx = (b.x + tx)/2 + Math.sin(gameTime*3 + i)*4, my = (b.y + ty)/2;
+    ctx.strokeStyle = '#5a2228'; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.quadraticCurveTo(mx, my, tx, ty); ctx.stroke();
+    ctx.strokeStyle = '#a8545a'; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.quadraticCurveTo(mx, my, tx, ty); ctx.stroke();
+    ojoCarne(tx, ty, 4.5, mira(tx, ty), false);
+  });
+  // ojos incrustados en la cúpula, que parpadean a destiempo
+  [[-22, -10, 4], [6, -22, 3.5], [26, -8, 4], [-38, 0, 3], [40, 2, 3]].forEach(([dx, dy, r], i)=>{
+    const x = c.x + dx, y = c.y + dy, parpa = (gameTime*0.7 + i*0.37) % 3 < 0.14;
+    ojoCarne(x, y, r, mira(x, y), parpa);
+  });
+}
 function pezunaTripode(fx, fy){
   ctx.fillStyle = '#3a2418'; ctx.beginPath(); ctx.ellipse(fx, fy - 7, 7, 5, 0, 0, Math.PI*2); ctx.fill();   // pelaje del menudillo
   ctx.fillStyle = '#5a3a28'; ctx.fillRect(fx - 6, fy - 9, 2, 3); ctx.fillRect(fx + 3, fy - 8, 2, 3);
@@ -14318,7 +14400,7 @@ function drawMisilCayendo(m){
   ficha('desgarradorF', desFrame('corta', 0), 0.9);
   ficha('bichoF', alienFrame('bicho', 'ataca', 0), 1.3);
   ficha('amalgamaF', amalFrame('lanza', 0), 1.1);
-  ficha('polloF', polloFrame('anda', 0), 0.9);
+  ficha('polloF', polloFrame('anda', 0), 1.1);
   { const m = document.createElement('canvas'); m.width = 40; m.height = 40; const g = m.getContext('2d');
     g.fillStyle = '#ff8a2a'; g.beginPath(); g.moveTo(36, 4); g.lineTo(22, 16); g.lineTo(28, 22); g.closePath(); g.fill();
     g.fillStyle = '#ffd27a'; g.beginPath(); g.moveTo(32, 8); g.lineTo(22, 18); g.lineTo(26, 20); g.closePath(); g.fill();
