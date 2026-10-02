@@ -8060,8 +8060,8 @@ const BESTIARY = [
     desc:'Blindado sobre seis patas, muy rápido. Nunca se queda cerca: si te acercas huye corriendo de lado mientras te dispara obuses de plasma. Solo el COLOSO puede levantarlo.' },
   { id:'murcielago', name:'MURCIÉLAGO ÁCIDO', hp:22, dmg:'ácido y charco corrosivo', sprite:'murcielagoF',
     desc:'Criatura voladora del planeta. Revolotea en círculos y escupe bolas de ácido que dejan un charco en el suelo durante unos segundos: no te quedes encima. Se agarra fácilmente.' },
-  { id:'caza40k', name:'CAZA DE ASALTO', hp:80, dmg:'34 al estrellarse', sprite:'caza40kF', verb:'DERRIBADOS',
-    desc:'Nave gótica y blindada. Pasa disparando, da media vuelta y, cuando te encara, se lanza en picado para estrellarse contra ti. Si esquivas el picado, se estrella igual y explota donde cae.' },
+  { id:'caza40k', name:'DRON KAMIKAZE', hp:80, dmg:'26 por misil, 34 al estrellarse', sprite:'caza40kF', verb:'DERRIBADOS',
+    desc:'Dron de aspecto gótico y blindado, hecho para morir matando. De lejos suelta dos misiles autodirigidos, como el helicóptero artillado; luego pasa disparando, da media vuelta y, cuando te encara, se lanza en picado para estrellarse contra ti. Si esquivas el picado, se estrella igual y explota donde cae.' },
   { id:'centurion', name:'EL CENTURIÓN', hp:2200, dmg:'embestida, bombas, misiles, minigun y corte láser', sprite:'centurionF', verb:'DERROTADOS',
     hint:'El guardián del Mundo Alienígena. Aún no lo has derrotado.',
     desc:'La armadura robótica que protege el planeta marciano. Vuela a tu alrededor y alterna sus armas: embestida por una línea que marca en el suelo, bombas pegajosas que se te quedan encima (o en lo que lleves agarrado: lánzalo lejos), salvas de misiles guiados, ráfagas de su minigun láser y, lo peor, un gran corte láser que barre un abanico enorme marcado en rojo. Del corte solo te salva salir del abanico o ponerte detrás de algo. Por debajo de la mitad de vida pierde el blindaje y se vuelve más rápido.' },
@@ -11609,6 +11609,17 @@ function updateCaza40k(e, dt, a, ang){
   if (e.rumbo === undefined) e.rumbo = ang;
   if (e.fase === 'pasada'){
     e.x += Math.cos(e.rumbo)*e.speed*dt; e.y += Math.sin(e.rumbo)*e.speed*dt;
+    // de lejos suelta dos misiles autodirigidos, como el helicóptero artillado
+    if (!e.misiles && a < 680){
+      e.misiles = 1;
+      for (let i = 0; i < 2; i++){
+        const m = mkBullet(e, ang + (i ? 0.3 : -0.3), 240, 26, '#ff8a3b', 6);
+        m.delay = i*0.22; m.homing = true; m.homeTime = 2.6; m.turn = 3.1; m.maxSpd = 470;
+        m.sprite = 'missile'; m.life = 5.5; m.blast = 70; m.ignEdif = edifEn(m.x, m.y);
+        bullets.push(m);
+      }
+      sfx('cohete');
+    }
     if (!e.disparo && a < 400){
       e.disparo = 1;
       for (let i = 0; i < 2; i++){ const b = mkBullet(e, ang + (i ? 0.06 : -0.06), 520, 9, '#ffd25a', 3); b.laser = true; b.delay = i*0.08; bullets.push(b); }
@@ -11623,7 +11634,7 @@ function updateCaza40k(e, dt, a, ang){
     e.x += Math.cos(e.rumbo)*e.speed*0.7*dt; e.y += Math.sin(e.rumbo)*e.speed*0.7*dt;
     // se lanza en cuanto te tiene de frente (y nunca tarda más de 2 s)
     let dif = Math.abs(ang - e.rumbo) % (Math.PI*2); if (dif > Math.PI) dif = Math.PI*2 - dif;
-    if ((e.ft <= 0 && dif < 0.3) || e.ft <= -0.9){ e.fase = 'picado'; e.recorre = 0; sfx('dash'); toast('¡UN CAZA SE LANZA CONTRA TI!'); }
+    if ((e.ft <= 0 && dif < 0.3) || e.ft <= -0.9){ e.fase = 'picado'; e.recorre = 0; sfx('dash'); toast('¡UN DRON KAMIKAZE SE LANZA CONTRA TI!'); }
   } else {
     // en picado: corrige un poco el rumbo y se estrella
     e.rumbo = giraHacia(e.rumbo, ang, 1.2*dt);
@@ -11815,6 +11826,12 @@ function drawRayoLaser(b, s){
   ctx.beginPath(); ctx.moveTo(s.x - ux*10, s.y - uy*10); ctx.lineTo(s.x, s.y); ctx.stroke();
 }
 // Las oleadas del planeta marciano.
+function spawnTripodeNormal(x, y){
+  spawnEnemy('tripode', x, y);
+  const e = enemies[enemies.length - 1];
+  if (e && e.type === 'tripode'){ e.normal = true; e.ignorado = true; e.hp = e.maxhp = 520; }
+  return e;
+}
 function updateSpawnsAlien(dt, count){
   const T = spawnTimers;
   const tic = (k, ini)=>{ T[k] = (T[k] === undefined ? ini : T[k]) - dt; return T[k] <= 0; };
@@ -11838,14 +11855,16 @@ function updateSpawnsAlien(dt, count){
   }
   if (form >= 1 || score >= 2500){
     if (tic('ara', 6)){ if (count('arana') < 3) spawnEnemy('arana'); T.ara = rand(10, 15); }
-    if (tic('tri', 30)){
-      if (gameTime > 90 && enemies.filter(e=> e.type === 'tripode' && e.normal && !e.dead).length < (enAsedio() ? 2 : 1)){
-        spawnEnemy('tripode');
-        const e = enemies[enemies.length - 1];
-        if (e && e.type === 'tripode'){ e.normal = true; e.ignorado = true; e.hp = e.maxhp = 520; toast('¡UN TRÍPODE PATRULLA LA ZONA!'); sfx('ulla'); }
-      }
-      T.tri = rand(35, 50);
+  }
+  // Los trípodes, en su planeta, son tropa: atacan como una unidad más
+  // (no cuentan como jefe ni paran las oleadas).
+  if (stage >= 2 && tic('tri', 20)){
+    const max = enAsedio() ? 3 : (form >= 1 || score >= 2500) ? 2 : 1;
+    if (gameTime > 35 && enemies.filter(e=> e.type === 'tripode' && e.normal && !e.dead).length < max){
+      spawnTripodeNormal();
+      toast('¡TRÍPODES MARCIANOS ATACAN!'); sfx('ulla');
     }
+    T.tri = rand(22, 32);
   }
   if (tic('caza', 14)){
     if (finalWave()){ if (count('caza40k') < 3) spawnEnemy('caza40k'); T.caza = rand(8, 12); }
@@ -15101,7 +15120,7 @@ function objLabel(o){
   if (o.type === 'gunship') return 'ARTILLADO';
   if (o.type === 'plane') return 'CAZA';
   if (o.type === 'minigun') return 'MINIGUNERO';
-  const AL_NOM = { centinela:'CENTINELA', droide:'DROIDE', escaner:'ESCÁNER', cabezon:'CABEZÓN', arana:'ARAÑA', murcielago:'MURCIÉLAGO', caza40k:'CAZA' };
+  const AL_NOM = { centinela:'CENTINELA', droide:'DROIDE', escaner:'ESCÁNER', cabezon:'CABEZÓN', arana:'ARAÑA', murcielago:'MURCIÉLAGO', caza40k:'DRON' };
   if (AL_NOM[o.type]) return AL_NOM[o.type];
   return 'OBJETO';
 }
