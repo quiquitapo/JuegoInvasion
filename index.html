@@ -6299,6 +6299,16 @@ function blancoRayo(t){
   return { x: t.x, y: t.y - alturaVisible(t), r: Math.min(t.w || 26, t.h || 30)*0.3 };
 }
 function rayoToca(t, ox, oy, ang, largo, ancho){
+  const c = cajaCuerpo(t);
+  if (c){
+    // se recorre el haz cerca del jefe y basta que un punto caiga en su caja
+    const ux = Math.cos(ang), uy = Math.sin(ang);
+    const cy = t.y + (c[2] - c[1] - alturaVisible(t))*0.5;
+    const pr = (t.x - ox)*ux + (cy - oy)*uy, alc = c[0] + c[1] + c[2] + alturaVisible(t);
+    for (let k = Math.max(0, pr - alc); k <= Math.min(largo, pr + alc); k += 12)
+      if (distCuerpo(ox + ux*k, oy + uy*k, t) <= ancho) return true;
+    return false;
+  }
   const b = blancoRayo(t);
   // el margen del dibujo cuenta a lo ancho y también en la punta del haz
   return enLinea(b.x, b.y, ox, oy, ang, largo + b.r, ancho + b.r);
@@ -6761,7 +6771,7 @@ function damageEnemy(e, dmg, fx, fy){
   else if (k === 'kaiyin'){ explode(e.x, e.y, 260, 80, true); humoNegro(e.x, e.y); shake(24, 0.8); e.tormT = 0; }
   else if (k === 'desgarrador'){ explode(e.x, e.y, 220, 70, true); humoNegro(e.x, e.y); addParticles(e.x, e.y - 80, '#c4ccd6', 30, 260); shake(24, 0.8); }
   else if (k === 'centurion'){ explode(e.x, e.y, 210, 70, true); humoNegro(e.x, e.y); addParticles(e.x, e.y - 50, '#7fe8ff', 24, 240); shake(22, 0.7);
-                               if (esAlien()){ unlockAch('conquistador'); toast('¡EL PLANETA ROJO ES TUYO!'); } }
+                               if (esAlien()) unlockAch('conquistador'); }
   else if (k === 'tripode'){ explode(e.x, e.y - 30, 150, 55, true); addParticles(e.x, e.y - 44, '#dff6ff', 20, 220); humoNegro(e.x, e.y); }
   else if (k === 'tank' || k === 'heli') explode(e.x, e.y, 100, 40, true);
   shake(6, 0.15);
@@ -10355,7 +10365,7 @@ function ondaDeViento(ang){
   for (const pool of [civilians, enemies]){
     for (const t of pool){
       if (t.dead || t.held) continue;
-      const d = dist(t.x, t.y, player.x, player.y);
+      const d = distCuerpo(player.x, player.y, t);
       if (d > VIL_ONDA_R) continue;
       // de frente golpea entero; por la espalda, bastante menos
       let da = Math.atan2(t.y-player.y, t.x-player.x) - ang;
@@ -10654,7 +10664,7 @@ function draDanaArea(x, y, R, dmg, empuje, aturde){
   for (const pool of [civilians, enemies]){
     for (const t of pool){
       if (t.dead || t.held) continue;
-      const d = dist(t.x, t.y, x, y);
+      const d = distCuerpo(x, y, t);
       if (d > R) continue;
       const cerca = 0.6 + 0.4*(1 - d/R);
       const jf = JEFES[t.type] ? DRA_JEFE : 1;
@@ -10918,7 +10928,7 @@ function draPisoton(){
     for (const t of pool){
       if (t.dead || t.held || t.thrown) continue;
       if (!vuela && alturaVisible(t) > 0) continue;           // a pie no alcanza lo que vuela
-      if (dist(t.x, t.y, x, y) > R + (t.w || 26)*0.3) continue;
+      if (distCuerpo(x, y, t) > R + (cajaCuerpo(t) ? 0 : (t.w || 26)*0.3)) continue;
       const jf = JEFES[t.type] ? 0.5 : 1;
       porJugador(()=> damageEnemy(t, DRA_PISA_DMG*jf, t.x, t.y));
       dio = true;
@@ -11003,7 +11013,7 @@ function draRelampago(){
   for (const pool of [civilians, enemies]){          // chispazo alrededor
     for (const t of pool){
       if (t.dead || t.held || t === obj) continue;
-      if (dist(t.x, t.y - alturaVisible(t), x, y) > 70) continue;
+      if (distCuerpo(x, y, t) > 70) continue;
       porJugador(()=> damageEnemy(t, DRA_TORM_DMG*0.4, t.x, t.y));
       if (!t.dead && t.person) t.stunT = Math.max(t.stunT||0, 1);
     }
@@ -14185,6 +14195,7 @@ function proyJBlanco(p, R){
   for (const pool of [civilians, enemies]){
     for (const t of pool){
       if (t.dead || t.held || t.thrown || Math.abs(t.x - p.x) > 90) continue;   // descarte barato
+      if (cajaCuerpo(t)){ if (distCuerpo(p.x, p.y, t) < R + 4) return t; continue; }
       const b = blancoRayo(t);
       const dx = p.x - b.x, dy = p.y - b.y, rr = b.r + R;
       if (dx*dx + dy*dy < rr*rr) return t;
@@ -14483,7 +14494,7 @@ function maqHachazo(ap){
   for (const pool of [civilians, enemies]){
     for (const t of pool){
       if (t.dead || t.held || t.thrown) continue;
-      const b = blancoRayo(t);
+      const b = cajaCuerpo(t) ? Object.assign(puntoCuerpo(t, ox, oy), { r: 10 }) : blancoRayo(t);
       if (!enArco(b.x, b.y, b.r)) continue;
       const jf = JEFES[t.type] ? 0.75 : 1;
       porJugador(()=> damageEnemy(t, dmg*jf, b.x, b.y));
@@ -15325,7 +15336,7 @@ function magImpacto(x, y, arc){
     for (const e of enemies){
       if (n >= 2) break;
       if (e.dead || e.held || e.thrown || e.pacifico || e.type === 'ovni') continue;
-      const d = dist(e.x, e.y, x, y);
+      const d = distCuerpo(x, y, e);
       if (d < R || d > 260) continue;
       n++;
       relampagos.push({ x:e.x, y:e.y - alturaVisible(e), t:0.3, max:0.3, sem:Math.random()*1000, col:2 });
@@ -15429,7 +15440,7 @@ function magHielo(){
   for (const pool of [civilians, enemies]){
     for (const t of pool){
       if (t.dead || t.held || t.thrown || t.type === 'ovni') continue;
-      if (dist(t.x, t.y, player.x, player.y) > R) continue;
+      if (distCuerpo(player.x, player.y, t) > R) continue;
       porJugador(()=> damageEnemy(t, dmg, t.x, t.y));
       if (t.dead) continue;
       if (dobleInv()){ const r = refDe(t); if (r) refs.push(r); }
@@ -16708,10 +16719,38 @@ function drawMisilCaza(b, s){
 
 // Distancia a un enemigo contando con que, si vuela, se ve por encima de su
 // sombra: vale acertarle en el aparato o en la sombra, lo que quede más cerca.
+// Los jefes son moles: su posición son los pies (o el centro), pero el dibujo
+// sube mucho más. Cada uno tiene una caja con la medida de su cuerpo
+// [medio ancho, alto sobre la posición, bajo ella] y se le acierta en toda
+// ella, no solo en los pies. Medidas sacadas del dibujo, algo recogidas para
+// que el aire entre alas, sierras y cola no cuente.
+const CUERPO_JEFE = {
+  kaiyin:[70, 200, 30], desgarrador:[50, 190, 10], centurion:[26, 85, 6], heroe:[12, 52, 4],
+  superx:[60, 35, 0], artillero:[60, 60, 60], flametank:[55, 35, 35], tripode:[40, 50, 40], omni:[25, 25, 25],
+};
+function cajaCuerpo(e){
+  const c = CUERPO_JEFE[e.type];
+  if (!c || e.held || e.thrown) return null;
+  return c;
+}
 function distCuerpo(px, py, e){
+  const c = cajaCuerpo(e);
+  if (c){
+    const sube = c[1] + alturaVisible(e);
+    const dx = Math.max(0, Math.abs(px - e.x) - c[0]);
+    const dy = py < e.y - sube ? e.y - sube - py : py > e.y + c[2] ? py - e.y - c[2] : 0;
+    return Math.hypot(dx, dy);
+  }
   const d = dist(px, py, e.x, e.y);
   if (!e.alt) return d;
   return Math.min(d, dist(px, py, e.x, e.y - alturaVisible(e)));
+}
+// Punto del cuerpo de un jefe más cercano a (px,py): ahí se le pinta el golpe.
+function puntoCuerpo(e, px, py){
+  const c = cajaCuerpo(e);
+  if (!c) return { x: e.x, y: e.y - alturaVisible(e) };
+  const sube = c[1] + alturaVisible(e);
+  return { x: clamp(px, e.x - c[0], e.x + c[0]), y: clamp(py, e.y - sube, e.y + c[2]) };
 }
 // Altura a la que se ve un enemigo volador: la misma que usa el dibujo.
 function alturaVisible(e){
@@ -16721,7 +16760,7 @@ function alturaVisible(e){
 function enemyNear(tip, range){
   let best=null, bd=range;
   for (const pool of [civilians, enemies]){
-    for (const e of pool){ if (e.dead||e.held) continue; const d=dist(tip.x,tip.y,e.x,e.y); if(d<bd){bd=d;best=e;} }
+    for (const e of pool){ if (e.dead||e.held) continue; const d=distCuerpo(tip.x,tip.y,e); if(d<bd){bd=d;best=e;} }
   }
   return best;
 }
@@ -17064,7 +17103,8 @@ function updateRam(dt){
     if (e.dead || e.held || e === o) return false;
     // Lo que vuela se golpea donde se ve (el aparato) o en su sombra.
     const ey = (Math.abs(e.y-o.y) <= halfH) ? e.y : e.y - alturaVisible(e);
-    if (Math.abs(e.x-o.x) > halfW || Math.abs(ey-o.y) > halfH) return false;
+    if (cajaCuerpo(e)){ const q = puntoCuerpo(e, o.x, o.y); if (Math.abs(q.x-o.x) > halfW || Math.abs(q.y-o.y) > halfH) return false; }
+    else if (Math.abs(e.x-o.x) > halfW || Math.abs(ey-o.y) > halfH) return false;
     const soft = SOFT[e.kind === 'civ' ? 'civ' : e.type];
     if (soft){
       porJugador(()=> damageEnemy(e, 9999, e.x, e.y));      // aplastado en el acto
@@ -17300,7 +17340,7 @@ function updateViltrum(dt){
       for (const pool of [civilians, enemies]){          // aparta lo que pille debajo
         for (const t of pool){
           if (t.dead || t.held) continue;
-          if (dist(t.x, t.y, player.x, player.y) < 120) porJugador(()=> damageEnemy(t, 60, t.x, t.y));
+          if (distCuerpo(player.x, player.y, t) < 120) porJugador(()=> damageEnemy(t, 60, t.x, t.y));
         }
       }
     }
@@ -17573,7 +17613,7 @@ function vilSmash(dt){
   for (const pool of [civilians, enemies]){
     for (const t of pool){
       if (t.dead || t.held) continue;
-      if (dist(t.x,t.y,px2,py2) >= 44) continue;
+      if (distCuerpo(px2,py2,t) >= 44) continue;
       // Los blindados y los mini jefes resisten: reciben daño por segundo,
       // así que hacen falta varias pasadas para tumbarlos.
       // Tanques, helicópteros, artillados, asedio y jefes: el impacto sónico
@@ -17621,7 +17661,7 @@ function vilPunch(carga, modo){
   for (const pool of [civilians, enemies]){
     for (const t of pool){
       if (t.dead || t.held) continue;
-      if (dist(t.x,t.y,px2,py2) > alcance) continue;
+      if (distCuerpo(px2,py2,t) > alcance) continue;
       // Contra los jefes, el puño cargado del viltrumita rinde la mitad.
       const d2 = (carga > 0 && JEFES[t.type]) ? dmg * VIL_JEFE_CARGA : dmg;
       porJugador(()=> damageEnemy(t, d2, t.x, t.y)); dio = true;
