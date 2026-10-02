@@ -1,11 +1,12 @@
 // /api/scores  —  Ranking global de Invasión Tentacular
 //
-// GET  /api/scores?limit=25&hero=alien          -> tabla del personaje
-// GET  /api/scores?hero=alien&name=ZORA         -> posición de ese jugador
-// POST /api/scores                              -> guarda / mejora un puntaje
+// GET  /api/scores?limit=25&hero=alien&mapa=ciudad   -> tabla del personaje en ese mapa
+// GET  /api/scores?hero=alien&mapa=alien&name=ZORA    -> posición de ese jugador
+// POST /api/scores                                    -> guarda / mejora un puntaje
 //
-// Cada jugador tiene UN registro por personaje: el de su mejor partida. Si
-// envía uno peor, se le dice y no se toca la tabla.
+// Cada jugador tiene UN registro por personaje y mapa: el de su mejor
+// partida. Si envía uno peor, se le dice y no se toca la tabla. Sin `mapa`,
+// se entiende la ciudad (así siguen funcionando las versiones anteriores).
 //
 // La cadena de conexión NUNCA viaja al navegador: vive solo aquí, en la
 // variable de entorno DATABASE_URL de Vercel.
@@ -16,6 +17,7 @@ const MAX_SCORE    = 5000000;   // techo defensivo: por encima se rechaza
 const MAX_NOMBRE   = 14;
 const HEROES       = ['alien', 'viltrum', 'dragon', 'maquina', 'mago'];
 const DISPOSITIVOS = ['pc', 'movil'];
+const MAPAS        = ['ciudad', 'alien', 'infierno'];
 
 function conexion() {
   const url = process.env.DATABASE_URL;
@@ -41,24 +43,25 @@ export default async function handler(req, res) {
 
     if (req.method === 'GET') {
       const hero = HEROES.includes(req.query.hero) ? req.query.hero : null;
+      const mapa = MAPAS.includes(req.query.mapa) ? req.query.mapa : 'ciudad';
       const nombre = limpiarNombre(req.query.name);
 
       // --- consulta de posición: ¿en qué puesto estoy? ---
       if (nombre && hero) {
         const [mio] = await sql`
-          SELECT score FROM scores WHERE player_name = ${nombre} AND hero = ${hero}
+          SELECT score FROM scores WHERE player_name = ${nombre} AND hero = ${hero} AND mapa = ${mapa}
         `;
         if (!mio) return res.status(200).json({ ok: true, encontrado: false });
 
         const [{ mejores }] = await sql`
           SELECT COUNT(*)::int AS mejores FROM scores
-          WHERE hero = ${hero} AND score > ${mio.score}
+          WHERE hero = ${hero} AND mapa = ${mapa} AND score > ${mio.score}
         `;
         const [{ total }] = await sql`
-          SELECT COUNT(*)::int AS total FROM scores WHERE hero = ${hero}
+          SELECT COUNT(*)::int AS total FROM scores WHERE hero = ${hero} AND mapa = ${mapa}
         `;
         return res.status(200).json({
-          ok: true, encontrado: true, hero,
+          ok: true, encontrado: true, hero, mapa,
           score: mio.score, rank: mejores + 1, total
         });
       }
@@ -70,18 +73,18 @@ export default async function handler(req, res) {
 
       const filas = hero
         ? await sql`
-            SELECT id, player_name, score, hero, device, created_at
-            FROM scores WHERE hero = ${hero}
+            SELECT id, player_name, score, hero, mapa, device, created_at
+            FROM scores WHERE hero = ${hero} AND mapa = ${mapa}
             ORDER BY score DESC, created_at ASC
             LIMIT ${limit}
           `
         : await sql`
-            SELECT id, player_name, score, hero, device, created_at
-            FROM scores
+            SELECT id, player_name, score, hero, mapa, device, created_at
+            FROM scores WHERE mapa = ${mapa}
             ORDER BY score DESC, created_at ASC
             LIMIT ${limit}
           `;
-      return res.status(200).json({ ok: true, hero, scores: filas });
+      return res.status(200).json({ ok: true, hero, mapa, scores: filas });
     }
 
     if (req.method === 'POST') {
@@ -107,13 +110,14 @@ export default async function handler(req, res) {
 
       const hero = HEROES.includes(body.hero) ? body.hero : 'alien';
       const device = DISPOSITIVOS.includes(body.device) ? body.device : 'pc';
+      const mapa = MAPAS.includes(body.mapa) ? body.mapa : 'ciudad';
 
-      // Un registro por jugador y personaje, con su mejor marca. La base de
-      // datos decide: si el nuevo no supera al guardado, no se toca nada.
+      // Un registro por jugador, personaje y mapa, con su mejor marca. La base
+      // de datos decide: si el nuevo no supera al guardado, no se toca nada.
       const [fila] = await sql`
-        INSERT INTO scores (player_name, score, hero, device)
-        VALUES (${nombre}, ${score}, ${hero}, ${device})
-        ON CONFLICT (player_name, hero) DO UPDATE
+        INSERT INTO scores (player_name, score, hero, device, mapa)
+        VALUES (${nombre}, ${score}, ${hero}, ${device}, ${mapa})
+        ON CONFLICT (player_name, hero, mapa) DO UPDATE
           SET score = EXCLUDED.score,
               device = EXCLUDED.device,
               created_at = NOW()
@@ -123,16 +127,16 @@ export default async function handler(req, res) {
 
       // Sin fila devuelta, el puntaje no superaba al que ya tenía.
       const [actual] = await sql`
-        SELECT score FROM scores WHERE player_name = ${nombre} AND hero = ${hero}
+        SELECT score FROM scores WHERE player_name = ${nombre} AND hero = ${hero} AND mapa = ${mapa}
       `;
       const mejor = actual ? actual.score : score;
 
       const [{ mejores }] = await sql`
         SELECT COUNT(*)::int AS mejores FROM scores
-        WHERE hero = ${hero} AND score > ${mejor}
+        WHERE hero = ${hero} AND mapa = ${mapa} AND score > ${mejor}
       `;
       const [{ total }] = await sql`
-        SELECT COUNT(*)::int AS total FROM scores WHERE hero = ${hero}
+        SELECT COUNT(*)::int AS total FROM scores WHERE hero = ${hero} AND mapa = ${mapa}
       `;
 
       return res.status(fila ? 201 : 200).json({
@@ -141,7 +145,8 @@ export default async function handler(req, res) {
         score: mejor,
         rank: mejores + 1,
         total,
-        hero
+        hero,
+        mapa
       });
     }
 

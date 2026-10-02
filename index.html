@@ -52,6 +52,10 @@
             letter-spacing:2px; cursor:pointer; border:2px solid #1f5c37;
             background:rgba(10,22,14,0.8); color:#6fa382; }
   .tabbtn.on { border-color:#2fe86e; color:#7bffa0; background:rgba(20,54,32,0.9); }
+  .maptabs { margin-top:-4px; flex-wrap:wrap; }
+  .tabbtn.mini { padding:3px 8px; font-size:0.44rem; letter-spacing:1px; border-width:1px; }
+  .tabbtn.mini[data-pm="alien"].on { border-color:#7fe8ff; color:#bff6ff; background:rgba(16,40,54,0.9); }
+  .tabbtn.mini[data-pm="infierno"].on { border-color:#ff7a3a; color:#ffd36a; background:rgba(54,16,8,0.9); }
   .globalmsg { min-height:14px; font-size:0.44rem; letter-spacing:1px; color:#9fb3a8;
                text-align:center; margin-top:5px; }
   .globalmsg.err { color:#ffb36b; }
@@ -387,6 +391,7 @@
   .mapbtn[data-mapa="alien"].on { background:#7fe8ff; border-color:#7fe8ff; }
   .mapbtn[data-mapa="infierno"].on { background:#ff7a3a; border-color:#ffd36a; color:#200804; }
   .mapdesc { color:#6f9a8a; font-size:0.55rem; text-align:center; margin-bottom:4px; min-height:1.2em; }
+  .salamapa { margin:2px 0 8px; }
   #introMapa { position:absolute; left:50%; top:20%; transform:translateX(-50%); z-index:9; pointer-events:none;
                width:min(560px, 86vw); text-align:center; padding:14px 18px; border-radius:8px;
                background:linear-gradient(180deg, rgba(20,8,40,0.82), rgba(6,24,30,0.82));
@@ -1028,6 +1033,11 @@
         <button type="button" class="tabbtn on" id="tabLocal">LOCAL</button>
         <button type="button" class="tabbtn" id="tabGlobal">GLOBAL</button>
       </div>
+      <div class="tabrow maptabs" id="scoreMapas">
+        <button type="button" class="tabbtn mini on" data-pm="ciudad">CIUDAD</button>
+        <button type="button" class="tabbtn mini" data-pm="alien">ALIENÍGENA</button>
+        <button type="button" class="tabbtn mini" data-pm="infierno">CASTIGO DIVINO</button>
+      </div>
       <div id="scoreheader" class="scorehdr"></div>
       <div id="scorelist"></div>
       <div id="globalmsg" class="globalmsg"></div>
@@ -1072,6 +1082,13 @@
   <div id="modeselect" class="overlay hidden">
     <img id="gamelogo2" class="gamelogo logo2" alt="Invasión">
     <div class="subtitle">¿Cómo quieres invadir?</div>
+    <div class="maprow">
+      <span class="maplbl">MAPA</span>
+      <button type="button" class="mapbtn on" data-mapa="ciudad">CIUDAD</button>
+      <button type="button" class="mapbtn" data-mapa="alien">MUNDO ALIENÍGENA</button>
+      <button type="button" class="mapbtn" data-mapa="infierno">CASTIGO DIVINO</button>
+    </div>
+    <div class="mapdesc" id="mapDesc">La ciudad humana de siempre.</div>
 
     <div class="modelist">
       <div class="modecard" id="cardInvasion">
@@ -1086,13 +1103,6 @@
           (<b>click izq.</b> agarra, <b>click der.</b> lanza). Si prefieres solo teclado, usa
           <b>E</b> para agarrar y <b>Q</b> para lanzar. Todo se puede cambiar en <b>Controles</b>.</span>
         </div>
-        <div class="maprow">
-          <span class="maplbl">MAPA</span>
-          <button type="button" class="mapbtn on" data-mapa="ciudad">CIUDAD</button>
-          <button type="button" class="mapbtn" data-mapa="alien">MUNDO ALIENÍGENA</button>
-          <button type="button" class="mapbtn" data-mapa="infierno">CASTIGO DIVINO</button>
-        </div>
-        <div class="mapdesc" id="mapDesc">La ciudad humana de siempre.</div>
         <div class="playrow">
           <span class="btnwrap">
             <canvas class="btntent" id="tentInvasion" width="168" height="88"></canvas>
@@ -1208,6 +1218,12 @@
           <div class="salalbl" id="salaSkinLbl">Tu skin</div>
           <div id="salaSkins" class="salaskins"></div>
           <div id="salaSkinNom" class="salaskinnom"></div>
+        </div>
+        <div class="salalbl">Mapa · lo elige quien crea la sala</div>
+        <div class="maprow salamapa">
+          <button type="button" class="mapbtn on" data-mapa="ciudad">CIUDAD</button>
+          <button type="button" class="mapbtn" data-mapa="alien">ALIENÍGENA</button>
+          <button type="button" class="mapbtn" data-mapa="infierno">CASTIGO DIVINO</button>
         </div>
         <div class="salalbl">Jugadores</div>
         <div id="salaLista" class="salalista"></div>
@@ -1838,6 +1854,17 @@ function tropaCuerpo(g, tipo, v, pose, f, aim){
   }
   const ang = aim*0.42;
   const gx = 18, gy = mg ? 24 : 21;
+  const armaMano = mg && (v & 16);                 // minigunero del infierno: las manos son armas
+  if (armaMano){
+    // el brazo de atrás acaba en un segundo cañón, más bajo y por detrás
+    const fx = gx - 1 + Math.cos(ang + 0.08)*-3, fy = gy + 4 + Math.sin(ang + 0.08)*-3;
+    tlinea(g, '#5a2018', 4.2, 16, 19, fx, fy);
+    g.save(); g.translate(gx - 1, gy + 4); g.rotate(ang + 0.08);
+    tpx(g, '#5a2018', -4, -2, 6, 4); tpx(g, P.arma, 2, -2, 5, 4);
+    for (let i = 0; i < 3; i++) tpx(g, (i + f) % 2 ? P.armaL : '#3c3c3a', 7, -1.6 + i*1.3, 11, 1);
+    tpx(g, '#2a2a28', 17, -2, 2, 4.5);
+    g.restore();
+  }
   g.save(); g.translate(gx, gy); g.rotate(ang);
   if (mg){
     // minigun: carcasa, asa, seis cañones y la cinta que viene del tambor
@@ -1871,6 +1898,15 @@ function tropaCuerpo(g, tipo, v, pose, f, aim){
   g.restore();
   // mano de atrás en la empuñadura y brazo cercano sujetando por delante
   const rot = (x, y)=> [gx + x*Math.cos(ang) - y*Math.sin(ang), gy + x*Math.sin(ang) + y*Math.cos(ang)];
+  if (armaMano){
+    // sin manos: el brazo de carne se funde con la carcasa de la minigun
+    const rB = rot(-2, 0);
+    tlinea(g, '#8a3a30', 4.8, 19, 19, rB[0], rB[1]);
+    tlinea(g, '#c8685a', 1, 19, 18, rB[0] - 1, rB[1] - 1);
+    g.fillStyle = '#5a2018'; g.beginPath(); g.arc(rB[0], rB[1], 2.8, 0, Math.PI*2); g.fill();
+    tpx(g, '#c8685a', Math.round(rB[0]) - 1, Math.round(rB[1]) - 2, 2, 1);
+    return;
+  }
   const mA = rot(mg ? 1 : 0, 1), mB = rot(mg ? 6 : 9, 1);
   tlinea(g, P.os, 3.4, 16, 19, mA[0], mA[1]);
   g.fillStyle = S[1]; g.beginPath(); g.arc(mA[0], mA[1], 1.7, 0, Math.PI*2); g.fill();
@@ -3494,15 +3530,15 @@ function tinteInfierno(c){
     for (let i = 0; i < p.length; i += 4){
       if (!p[i + 3]) continue;
       const l = p[i]*0.3 + p[i + 1]*0.59 + p[i + 2]*0.11;
-      p[i]     = (l*0.5 + p[i]*0.5)*0.6;
-      p[i + 1] = (l*0.5 + p[i + 1]*0.5)*0.44;
-      p[i + 2] = (l*0.5 + p[i + 2]*0.5)*0.4;
+      p[i]     = (l*0.45 + p[i]*0.55)*0.8;
+      p[i + 1] = (l*0.45 + p[i + 1]*0.55)*0.6;
+      p[i + 2] = (l*0.45 + p[i + 2]*0.55)*0.52;
     }
     g.putImageData(d, 0, 0);
     // hollín de abajo arriba y el reflejo rojo de la lava en la base
     g.globalCompositeOperation = 'source-atop';
     const lg = g.createLinearGradient(0, 0, 0, c.height);
-    lg.addColorStop(0, 'rgba(20,6,4,0.05)'); lg.addColorStop(0.75, 'rgba(20,6,4,0.25)'); lg.addColorStop(1, 'rgba(140,30,8,0.35)');
+    lg.addColorStop(0, 'rgba(20,6,4,0)'); lg.addColorStop(0.75, 'rgba(20,6,4,0.15)'); lg.addColorStop(1, 'rgba(150,34,8,0.3)');
     g.fillStyle = lg; g.fillRect(0, 0, c.width, c.height);
     g.globalCompositeOperation = 'source-over';
   } catch(e){}
@@ -3513,10 +3549,10 @@ let walkPatInf = null, lavaPat = null;
 function makeWalkTileInf(){
   const c = document.createElement('canvas'); c.width = c.height = 40;
   const g = c.getContext('2d');
-  g.fillStyle = '#211b1a'; g.fillRect(0, 0, 40, 40);
-  g.fillStyle = '#2a2321'; g.fillRect(2, 2, 36, 36);
+  g.fillStyle = '#3a3230'; g.fillRect(0, 0, 40, 40);
+  g.fillStyle = '#463c38'; g.fillRect(2, 2, 36, 36);
   g.strokeStyle = '#1c1615'; g.lineWidth = 1; g.strokeRect(0.5, 0.5, 39, 39);
-  g.fillStyle = '#332a28'; g.fillRect(5, 5, 12, 1);
+  g.fillStyle = '#524642'; g.fillRect(5, 5, 12, 1);
   g.strokeStyle = 'rgba(16,10,9,0.9)'; g.beginPath(); g.moveTo(26, 4); g.lineTo(22, 14); g.lineTo(27, 21); g.stroke();
   g.fillStyle = 'rgba(255,90,30,0.35)'; g.fillRect(23, 13, 1, 2);
   return c;
@@ -3524,10 +3560,10 @@ function makeWalkTileInf(){
 function makeLavaTile(){
   const T = 320, c = document.createElement('canvas'); c.width = c.height = T;
   const g = c.getContext('2d'), R = mulberry32(6661);
-  g.fillStyle = '#1d1715'; g.fillRect(0, 0, T, T);
-  for (let i = 0; i < 900; i++){ g.fillStyle = R() < 0.5 ? '#241c19' : '#171211'; g.fillRect(R()*T, R()*T, 2 + R()*3, 1 + R()*2); }
+  g.fillStyle = '#2a2220'; g.fillRect(0, 0, T, T);
+  for (let i = 0; i < 900; i++){ g.fillStyle = R() < 0.5 ? '#332a27' : '#221b19'; g.fillRect(R()*T, R()*T, 2 + R()*3, 1 + R()*2); }
   // grietas por las que asoma la lava (sin tocar los bordes: el patrón empalma)
-  for (let k = 0; k < 4; k++){
+  for (let k = 0; k < 6; k++){
     const pts = []; let x = 30 + R()*260, y = 30 + R()*260, a = R()*Math.PI*2;
     for (let s = 0; s < 6; s++){ pts.push([x, y]); a += (R() - 0.5)*1.4; x = clamp(x + Math.cos(a)*14, 8, T - 8); y = clamp(y + Math.sin(a)*14, 8, T - 8); }
     const linea = (col, w)=>{ g.strokeStyle = col; g.lineWidth = w; g.lineCap = 'round'; g.lineJoin = 'round'; g.beginPath(); pts.forEach((p, i)=> i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1])); g.stroke(); };
@@ -4338,7 +4374,7 @@ function resetGame(){
   marcianaAvisoT = 0;
   comboReset(); comboBonus = 0; comboFlash = 0;
   venenoT = 0; venenoDosis = 0; venenoUlt = 0; paralizadoT = 0;
-  quemaT = 0; hieloT = 0;
+  quemaT = 0; hieloT = 0; elecT = 0; elecTick = 0; elecChispa = 0;
   miniOleada = null;
   clima = 'sol'; nubeK = 0; lluviaK = 0; climaMostrado = null;
   auraTxts.length = 0;
@@ -5604,6 +5640,15 @@ let venenoT = 0, venenoDosis = 0, venenoUlt = 0, paralizadoT = 0;
 const QUEMA_DUR = 2.6, QUEMA_DPS = 9;
 const HIELO_DUR = 1.4;
 let quemaT = 0, hieloT = 0;
+// Electrocutado (disparos del centinela): durante un rato, cada poco salta
+// una descarga que quita algo de vida y te deja clavado un instante.
+const ELEC_DUR = 3.2, ELEC_TICK = 0.8, ELEC_DMG = 3, ELEC_PARAL = 0.32;
+let elecT = 0, elecTick = 0, elecChispa = 0;
+function electrocutar(dur){
+  if (Online.objetivoInv){ Online.estInv.e = 1; return; }
+  if (elecT <= 0){ elecTick = 0.25; toast('¡ELECTROCUTADO!'); }
+  elecT = Math.max(elecT, dur || ELEC_DUR);
+}
 function quemar(dur){ if (Online.objetivoInv){ Online.estInv.q = 1; return; } quemaT = Math.max(quemaT, dur || QUEMA_DUR); }
 function congelar(dur){
   if (Online.objetivoInv){ Online.estInv.h = 1; return; }
@@ -5624,6 +5669,33 @@ function updateEstados(dt){
     if (Math.random() < 0.3)
       addParticles(player.x + rand(-11,11), player.y + rand(-14,4), '#9fe8ff', 1, 40);
   }
+  if (elecChispa > 0) elecChispa -= dt;
+  if (elecT > 0){
+    elecT -= dt; elecTick -= dt;
+    if (elecTick <= 0 && !vil.intro){
+      elecTick = ELEC_TICK;
+      hp = clamp(hp - recibe(ELEC_DMG), 0, maxHp());
+      paralizadoT = Math.max(paralizadoT, ELEC_PARAL);
+      elecChispa = 0.22;
+      addParticles(player.x, player.y - 8, '#bff4ff', 8, 140);
+      shake(4, 0.1); sfx('zap');
+    }
+    if (elecT <= 0){ elecT = 0; elecTick = 0; }
+  }
+}
+// Las descargas se ven: arcos azulados alrededor del invasor.
+function drawElectrocutado(){
+  if (!(elecT > 0) || !(elecChispa > 0 || Math.random() < 0.25)) return;
+  const s = S(player.x, player.y), r = F().r + 8;
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  ctx.strokeStyle = elecChispa > 0 ? '#e8fbff' : 'rgba(150,230,255,0.7)'; ctx.lineWidth = elecChispa > 0 ? 2.2 : 1.2;
+  for (let k = 0; k < (elecChispa > 0 ? 4 : 2); k++){
+    let a = Math.random()*Math.PI*2, x = s.x + Math.cos(a)*r, y = s.y - 8 + Math.sin(a)*r*0.7;
+    ctx.beginPath(); ctx.moveTo(x, y);
+    for (let i = 0; i < 4; i++){ a += rand(0.3, 0.7); x = s.x + Math.cos(a)*r*rand(0.7, 1.25); y = s.y - 8 + Math.sin(a)*r*0.7*rand(0.7, 1.25); ctx.lineTo(x, y); }
+    ctx.stroke();
+  }
+  ctx.restore();
 }
 
 function envenenar(){
@@ -8055,6 +8127,7 @@ const SFX = {
   laserE: ()=> tone(1500, 0.09, 'square', 0.035, 380),
   escupe: ()=> { noise(0.12, 0.08, 900); tone(300, 0.12, 'sine', 0.05, 160); },
   escaneo:()=> tone(880, 0.25, 'sine', 0.04, 1760),
+  zap:    ()=> { noise(0.14, 0.09, 5000); tone(1800, 0.12, 'square', 0.035, 300); },
   vengativos:()=> { noise(0.5, 0.07, 1500, 0.6); tone(240, 0.5, 'sawtooth', 0.04, 90); tone(330, 0.4, 'square', 0.02, 140); },
   portalSanto:()=> { [523.25, 659.25, 783.99, 1046.5].forEach((f, i)=> setTimeout(()=> tone(f, 1.4, 'sine', 0.045, f*1.01), i*90)); noise(1.2, 0.04, 6000); },
   caidaGolpe:()=> { noise(0.7, 0.3, 160, 1.4); tone(90, 0.7, 'sawtooth', 0.14, 36); },
@@ -8071,7 +8144,7 @@ const SFX_GAP = { sonicboom:0.30, dash:0.10, crack:0.20,
                   ulla:1.2, cargaM:0.25, rayoM:0.12, escudoM:0.2, comeM:0.15,
                   mordisco:0.08, aleteo:0.2, rayoDra:0.16, coletazo:0.2, trueno:0.18,
                   rafaga:0.045, hachazo:0.08, silbido:0.08, cohete:0.15, cargaInc:0.3, incinera:0.2, sierra:0.11, recarga:0.1,
-                  aterriza:0.3, plasma:0.12, laserE:0.06, escupe:0.1, escaneo:0.3, vengativos:1, portalSanto:2, caidaGolpe:0.5, alarma:1, meteoro:1, conjuro:0.08, telequinesis:0.3, hielo:0.3, escudoMag:0.3, cargaFuego:0.2, teleporte:0.2, portalRojo:0.5, humoVerde:0.5 };
+                  aterriza:0.3, plasma:0.12, laserE:0.06, escupe:0.1, escaneo:0.3, zap:0.2, vengativos:1, portalSanto:2, caidaGolpe:0.5, alarma:1, meteoro:1, conjuro:0.08, telequinesis:0.3, hielo:0.3, escudoMag:0.3, cargaFuego:0.2, teleporte:0.2, portalRojo:0.5, humoVerde:0.5 };
 const sfxLast = {};
 let sfxVoices = 0;
 const SFX_MAX_VOICES = 14;
@@ -8496,10 +8569,10 @@ const BESTIARY = [
     desc:'Mole de roca animada por runas. Lento y duro; al tenerte cerca alza los puños y golpea el suelo alrededor. Solo el COLOSO puede levantarlo.' },
   { id:'kaiyin', name:'KAIYIN', hp:2700, dmg:'rayos, aletazo, embestida y mordisco', sprite:'kaiyinF', verb:'DERROTADOS',
     desc:'El dragón de tres cabezas en tamaño colosal. Llega volando y desata una tormenta: los rayos caen donde se marca el suelo. Camina aplastando edificios y alterna ataques: aletazo que lo barre todo alrededor, embestida marcada que arrasa lo que hay en la línea, vuelo en picado con mordisco antes de aterrizar y, sobre todo, sus tres rayos. De esos rayos solo te salva un escudo: ponte detrás de un edificio, interpón un auto o lo que lleves agarrado, o usa la burbuja o los objetos del mago.' },
-  { id:'centinela', name:'CENTINELA', hp:60, dmg:'8 por disparo', sprite:'centinelaF',
-    desc:'Soldado de la guardia marciana, con máscara de visores y una mochila de energía a la espalda. Guarda la distancia y dispara ráfagas de su rifle de pulsos. Los ojos escáner los llaman de tres en tres. Se pueden agarrar como cualquier soldado.' },
-  { id:'droide', name:'DROIDE DE BATALLA', hp:30, dmg:'7 por disparo', sprite:'droideF',
-    desc:'Robot flaco fabricado en serie. Es frágil, pero dispara desde más lejos que nadie y se queda atrás, a más de cuatrocientos metros, para no darte el gusto de alcanzarlo.' },
+  { id:'centinela', name:'CENTINELA', hp:60, dmg:'8 + descarga eléctrica', sprite:'centinelaF',
+    desc:'Soldado de la guardia marciana, con máscara de visores y una mochila de energía a la espalda. Guarda la distancia y dispara ráfagas de su rifle de pulsos: cada impacto te electrocuta unos segundos, y mientras dura saltan descargas que quitan un poco de vida y te dejan clavado un instante. Los ojos escáner los llaman de tres en tres. Se pueden agarrar como cualquier soldado.' },
+  { id:'droide', name:'DROIDE DE BATALLA', hp:30, dmg:'7 + quemadura', sprite:'droideF',
+    desc:'Robot flaco fabricado en serie. Sus láseres queman: cada impacto te deja ardiendo un momento. Es frágil, pero dispara desde más lejos que nadie y se queda atrás, a más de cuatrocientos metros, para no darte el gusto de alcanzarlo.' },
   { id:'cabezon', name:'CABEZÓN VERDE', hp:45, dmg:'38 (rayo desintegrador)', sprite:'cabezonF',
     desc:'Marcianito de cabeza enorme con una pistola de rayos. Se planta, la carga con un zumbido y dispara un rayo desintegrador que hace mucho daño y pulveriza a cualquiera que esté en la línea. Medio segundo antes de disparar deja de seguirte: es tu momento para apartarte o cubrirte.' },
   { id:'escaner', name:'OJO ESCÁNER', hp:28, dmg:'—', sprite:'escanerF',
@@ -9362,8 +9435,9 @@ const CIVIL_STOP_SCORE = 9000; // la ciudad se vacía: no llegan más civiles ni
 const VS_DURATION = 150;              // 2:30
 let vsTimeLeft = VS_DURATION, vsWinner = null;
 
-// Coste, recarga y nombre de cada "semilla"
-const P2_UNITS = [
+// Coste, recarga y nombre de cada "semilla". Cada mapa tiene su ejército:
+// P2_UNITS apunta al del mapa de la partida (lo fija startGame).
+const P2_CIUDAD = [
   { type:'police',   name:'POLICÍA',   cost:50,  cool:1.2, sprite:'police'  },
   { type:'military', name:'MILITAR',   cost:100, cool:2.0, sprite:'soldier' },
   { type:'tank',     name:'TANQUE',    cost:250, cool:6.0, sprite:'tank'    },
@@ -9387,6 +9461,38 @@ const P2_UNITS = [
   // oleada final, con lo más pesado del ejército cayendo sobre el alien.
   { type:'miniOleada', name:'MINI OLEADA FINAL', cost:1300, cool:45.0, sprite:'gunship', oleada:true }
 ];
+// El planeta marciano: su ejército, el meteorito y su jefe.
+const P2_ALIEN = [
+  { type:'centinela', name:'CENTINELA',  cost:70,  cool:1.6, sprite:'centinelaF' },
+  { type:'droide',    name:'DROIDE',     cost:60,  cool:1.4, sprite:'droideF' },
+  { type:'murcielago',name:'MURCIÉLAGO', cost:90,  cool:2.0, sprite:'murcielagoF' },
+  { type:'escaner',   name:'ESCÁNER',    cost:160, cool:6.0, sprite:'escanerF' },
+  { type:'cabezon',   name:'CABEZÓN',    cost:220, cool:5.0, sprite:'cabezonF' },
+  { type:'arana',     name:'T. ARAÑA',   cost:300, cool:7.0, sprite:'aranaF' },
+  { type:'caza40k',   name:'DRON KAMIK.',cost:360, cool:8.0, sprite:'caza40kF' },
+  { type:'meteoro',   name:'METEORITO',  cost:500, cool:12.0,sprite:'meteoroF', especial:'meteoro' },
+  { type:'tripode',   name:'TRÍPODE',    cost:700, cool:18.0,sprite:null, especial:'tripodeN' },
+  { type:'centurion', name:'CENTURIÓN',  cost:1300,cool:28.0,sprite:'centurionF' }
+];
+// El castigo: hordas de vengativos y los de los otros dos mapas, deformados.
+const P2_INFIERNO = [
+  { type:'horda',     name:'VENGATIVOS',   cost:140, cool:4.0, sprite:'vengativoF', especial:'horda' },
+  { type:'police',    name:'POLICÍA D.',   cost:70,  cool:1.4, sprite:'police',     deforme:1 },
+  { type:'military',  name:'MILITAR D.',   cost:140, cool:2.4, sprite:'soldier',    deforme:1 },
+  { type:'minigun',   name:'MINIGUN D.',   cost:230, cool:3.6, sprite:'minigun',    deforme:1 },
+  { type:'centinela', name:'CENTINELA D.', cost:110, cool:2.0, sprite:'centinelaF', deforme:1 },
+  { type:'droide',    name:'DROIDE D.',    cost:90,  cool:1.8, sprite:'droideF',    deforme:1 },
+  { type:'murcielago',name:'MURCIÉL. D.',  cost:130, cool:2.6, sprite:'murcielagoF',deforme:1 },
+  { type:'tank',      name:'TANQUE D.',    cost:360, cool:7.0, sprite:'tank',       deforme:1 },
+  { type:'arana',     name:'ARAÑA D.',     cost:420, cool:8.0, sprite:'aranaF',     deforme:1 },
+  { type:'heli',      name:'HELICÓP. D.',  cost:420, cool:8.0, sprite:'heli',       deforme:1 },
+  { type:'meteoro',   name:'FUEGO DEL CIELO', cost:500, cool:12.0, sprite:'meteoroF', especial:'meteoro' },
+  { type:'tripode',   name:'TRÍPODE D.',   cost:1000,cool:22.0,sprite:null, especial:'tripodeN', deforme:1 },
+  { type:'kaiyin',    name:'KAIYIN D.',    cost:1500,cool:30.0,sprite:'kaiyinF',    deforme:1 },
+  { type:'centurion', name:'CENTURIÓN D.', cost:1500,cool:30.0,sprite:'centurionF', deforme:1 }
+];
+const P2_SETS = { ciudad:P2_CIUDAD, alien:P2_ALIEN, infierno:P2_INFIERNO };
+let P2_UNITS = P2_CIUDAD;
 
 // ---- MINI OLEADA FINAL ----
 const MINI_OLEADA_DUR = 14;
@@ -9449,7 +9555,7 @@ function p2Gain(dmg){
 // de lo que le costó, para que perderlas no lo deje sin nada que hacer.
 function p2Refund(type){
   if (gameMode !== 'vs') return;
-  const u = P2_UNITS.find(x => x.type === type);
+  const u = P2_UNITS.find(x => x.type === type && !x.especial);
   if (!u) return;
   const back = Math.round(u.cost * P2_REFUND);
   p2.mat = Math.min(9999, p2.mat + back);
@@ -9464,8 +9570,9 @@ function p2Place(){
   if (!u) return;
   if (p2.cool[p2.sel] > 0){ sfx('deny'); return; }
   if (p2.mat < u.cost){ sfx('deny'); return; }
-  // no plantar dentro de un edificio en pie (la oleada no se planta en ningún sitio)
-  if (!u.oleada) for (const b of buildings){
+  // no plantar dentro de un edificio en pie (la oleada no se planta en ningún
+  // sitio, y el meteorito cae donde sea)
+  if (!u.oleada && u.especial !== 'meteoro') for (const b of buildings){
     if (b.stage >= 2) continue;
     if (p2.x > b.x-10 && p2.x < b.x+b.w+10 && p2.y > b.y-10 && p2.y < b.y+b.h+10){ sfx('deny'); return; }
   }
@@ -9476,8 +9583,21 @@ function p2Place(){
     p2.placeFlash = 0.35;
     return;
   }
-  spawnEnemy(u.type, p2.x, p2.y);
-  if (u.type === 'tripode'){ toast(TRI_AVISO, 3); sfx('ulla'); shake(14, 0.5); }
+  if (u.especial === 'horda') hordaVengativa(6, p2.x, p2.y, 20, 90);
+  else if (u.especial === 'meteoro'){
+    meteoros.push({ x: p2.x, y: p2.y, t: METEORO_T, max: METEORO_T });
+    toast(esInfierno() ? '¡FUEGO DEL CIELO! SAL DEL CÍRCULO' : '¡METEORITO! SAL DEL CÍRCULO'); sfx('meteoro');
+  } else if (u.especial === 'tripodeN'){
+    const t = spawnTripodeNormal(p2.x, p2.y);
+    if (u.deforme) hazDeforme(t, 1.4);
+    toast('¡TRÍPODE MARCIANO!'); sfx('ulla'); shake(10, 0.4);
+  } else {
+    const n0 = enemies.length;
+    spawnEnemy(u.type, p2.x, p2.y);
+    if (u.deforme && enemies.length > n0) hazDeforme(enemies[enemies.length - 1], JEFES[u.type] ? 1.5 : 1.7);
+    if (u.type === 'centurion'){ toast('¡EL CENTURIÓN!'); shake(18, 0.6); }
+  }
+  if (u.type === 'tripode' && !u.especial){ toast(TRI_AVISO, 3); sfx('ulla'); shake(14, 0.5); }
   if (u.type === 'heroe'){ toast('¡EL HÉROE MÁGICO!'); sfx('conjuro'); }
   if (u.type === 'kaiyin'){ toast('¡KAIYIN! EL CIELO SE OSCURECE'); sfx('trueno'); shake(18, 0.6); }
   p2.placeFlash = 0.35;
@@ -9722,6 +9842,18 @@ let p2Seeds = null, p2SeedsSig = '', p2MatShown = -1;
 function iconoUnidadP2(u){
   if (u.type === 'omni') return omniIconURL();
   if (u.type === 'tripode') return tripodeIconURL();
+  if (u.deforme){                                   // el icono, deformado (se hace una vez)
+    if (u._ic) return u._ic;
+    let src = null, esc = 1;
+    if (u.type === 'police' || u.type === 'military' || u.type === 'minigun'){ src = tropaFrame(u.type, u.type === 'minigun' ? 17 : 1, 'aim', 4, 0); esc = 2; }
+    else { const sp = sprites[u.sprite]; if (sp && sp.img.complete && sp.img.naturalWidth) src = sp.img; }
+    if (!src) return '';
+    const d = deformCv(src, true), c = document.createElement('canvas');
+    c.width = d.width*esc; c.height = d.height*esc;
+    const g = c.getContext('2d'); g.imageSmoothingEnabled = false; g.drawImage(d, 0, 0, c.width, c.height);
+    try { u._ic = c.toDataURL(); } catch(e){ return ''; }
+    return u._ic;
+  }
   return sprites[u.sprite] ? sprites[u.sprite].img.src : '';
 }
 function construyeP2Seeds(sigImgs){
@@ -9749,7 +9881,7 @@ function p2VerSemilla(el){
 }
 function renderP2Panel(){
   const mat = Math.floor(p2.mat);
-  let sigImgs = '';
+  let sigImgs = mapa;                                // otro mapa, otro ejército
   for (const u of P2_UNITS) sigImgs += iconoUnidadP2(u) ? '1' : '0';
   if (!p2Seeds || p2PanelSig === '' || sigImgs !== p2SeedsSig){
     construyeP2Seeds(sigImgs);
@@ -12748,12 +12880,12 @@ function drawVengativo(e){
 const deformCache = new WeakMap();
 let deformNuevosT = -1, deformNuevos = 0;
 let pintaDeforme = false;
-function deformCv(src){
+function deformCv(src, forzar){
   let c = deformCache.get(src);
   if (c) return c;
   let ahora = 0; try { ahora = gameTime; } catch(e){}
   if (deformNuevosT !== ahora){ deformNuevosT = ahora; deformNuevos = 0; }
-  if (++deformNuevos > 6) return src;                       // el resto, al siguiente fotograma
+  if (!forzar && ++deformNuevos > 6) return src;                       // el resto, al siguiente fotograma
   const W = src.naturalWidth || src.width, H = src.naturalHeight || src.height;
   if (!W || !H) return src;
   c = document.createElement('canvas'); c.width = W; c.height = H;
@@ -12766,6 +12898,8 @@ function deformCv(src){
       const j = i/4, x = j % W, y = (j / W) | 0;
       const l = (p[i]*0.3 + p[i + 1]*0.59 + p[i + 2]*0.11)/255;
       if (l < 0.13){ p[i] = 30; p[i + 1] = 4; p[i + 2] = 8; continue; }
+      const mx = Math.max(p[i], p[i + 1], p[i + 2]), mn = Math.min(p[i], p[i + 1], p[i + 2]);
+      if (mx - mn < 18 && l < 0.75){ p[i] = p[i]*0.86 + 18; p[i + 1] *= 0.72; p[i + 2] *= 0.72; continue; }   // metal: casi intacto
       const m = 0.82 + (((x*7 + y*13) % 5)/5)*0.36;          // piel moteada
       p[i] = Math.min(255, (64 + l*190)*m); p[i + 1] = (16 + l*86)*m; p[i + 2] = (18 + l*62)*m;
       if (y < minY) minY = y; if (y > maxY) maxY = y;
@@ -12790,6 +12924,7 @@ function deformCv(src){
 function hazDeforme(e, k){
   if (!e || e.deforme) return e;
   e.deforme = 1;
+  if (e.type === 'minigun') e.var = (e.var | 0) | 16;     // las manos, armas
   e.hp = e.maxhp = Math.round(e.maxhp*k);
   if (e.speed) e.speed *= 1.12;
   return e;
@@ -12808,14 +12943,15 @@ function drawAuraDeforme(e){
   ctx.beginPath(); ctx.ellipse(s.x, s.y + (e.h || 30)*0.3, r, r*0.4, 0, 0, Math.PI*2); ctx.fill();
   ctx.globalAlpha = 1;
 }
-function hordaVengativa(n){
+function hordaVengativa(n, cx, cy, dmin, dmax){
+  if (cx === undefined){ cx = player.x; cy = player.y; dmin = 180; dmax = 380; }
   const a0 = Math.random()*Math.PI*2;
   let hechos = 0;
   for (let i = 0; i < n; i++){
     let x = 0, y = 0, ok = false;
     for (let t = 0; t < 14 && !ok; t++){
-      const a = a0 + (i/n)*Math.PI*1.3 + rand(-0.3, 0.3) + (t > 6 ? rand(-1.5, 1.5) : 0), d = rand(180, 380);
-      x = clamp(player.x + Math.cos(a)*d, 40, WORLD_W - 40); y = clamp(player.y + Math.sin(a)*d, 40, WORLD_H - 40);
+      const a = a0 + (i/n)*Math.PI*1.3 + rand(-0.3, 0.3) + (t > 6 ? rand(-1.5, 1.5) : 0), d = rand(dmin, dmax);
+      x = clamp(cx + Math.cos(a)*d, 40, WORLD_W - 40); y = clamp(cy + Math.sin(a)*d, 40, WORLD_H - 40);
       ok = !dentroDeEdificio(x, y, 12);
     }
     if (!ok) continue;
@@ -12897,6 +13033,13 @@ function sorteaJefeInf(){
   ficha('murcielagoF', alienFrame('murcielago', 'ataca', 0), 2); ficha('caza40kF', alienFrame('caza40k', 'ataca', 0), 1.4);
   ficha('centurionF', centFrame('dispara', 0, false), 1.6);
   ficha('vengativoF', vengFrame('ataca', 0), 2.4);
+  { const m = document.createElement('canvas'); m.width = 40; m.height = 40; const g = m.getContext('2d');
+    g.fillStyle = '#ff8a2a'; g.beginPath(); g.moveTo(36, 4); g.lineTo(22, 16); g.lineTo(28, 22); g.closePath(); g.fill();
+    g.fillStyle = '#ffd27a'; g.beginPath(); g.moveTo(32, 8); g.lineTo(22, 18); g.lineTo(26, 20); g.closePath(); g.fill();
+    g.fillStyle = '#4a3a34'; g.beginPath(); g.arc(17, 24, 10, 0, Math.PI*2); g.fill();
+    g.fillStyle = '#6a5a52'; g.beginPath(); g.arc(15, 22, 6, 0, Math.PI*2); g.fill();
+    g.fillStyle = '#2a1e1a'; g.fillRect(19, 27, 3, 2); g.fillRect(12, 25, 2, 2);
+    pixelArte(m, '#140c08'); ficha('meteoroF', m, 1.6); }
 }
 // Relámpagos de la tormenta: caen desde lo alto de la pantalla.
 function drawRelampagos(){
@@ -15999,7 +16142,8 @@ function updatePlayer(dt){
     return;
   }
   let dx=0, dy=0, mag=1;
-  if (moveJoy.active){
+  if (paralizado() || congelado()){ /* clavada: ni un paso */ }
+  else if (moveJoy.active){
     dx = moveJoy.dx; dy = moveJoy.dy; mag = clamp(Math.hypot(dx,dy),0,1);
   } else {
     if (pressed('up'))    dy-=1;
@@ -16947,10 +17091,10 @@ function updateEnemies(dt){
         }
       } else if (e.type==='centinela' && a < 600){
         e.shootCd = rand(0.9, 1.3);
-        const b = mkBullet(e, ang + rand(-0.04, 0.04), 430, 8, '#7fe8ff', 3); b.laser = true; bullets.push(b);
+        const b = mkBullet(e, ang + rand(-0.04, 0.04), 430, 8, '#7fe8ff', 3); b.laser = true; b.elec = true; bullets.push(b);
       } else if (e.type==='droide' && a < 760){
         e.shootCd = rand(1.1, 1.7);
-        const b = mkBullet(e, ang + rand(-0.06, 0.06), 470, 7, '#ff4a3a', 3); b.laser = true; bullets.push(b);
+        const b = mkBullet(e, ang + rand(-0.06, 0.06), 470, 7, '#ff4a3a', 3); b.laser = true; b.quema = true; bullets.push(b);
       } else if (e.type==='minigun' && a < 640){
         e.shootCd = rand(0.24,0.36);                 // ráfaga rápida, algo menos densa
         bullets.push(mkBullet(e, ang + rand(-0.07,0.07), 400, 6, '#ffe27b', 3));
@@ -17058,7 +17202,7 @@ function updateBullets(dt){
     // Doble Invasión: una bala también puede dar al invasor del otro jugador
     if (dobleAnf() && Online.av && !Online.av.caido && !b.artillery &&
         dist(b.x, b.y, Online.proxy.x, Online.proxy.y) < (Online.av.r || 20) + 6){
-      Online.danoInv += b.dmg; if (b.veneno) Online.estInv.v = 1;
+      Online.danoInv += b.dmg; if (b.veneno) Online.estInv.v = 1; if (b.elec) Online.estInv.e = 1; if (b.quema) Online.estInv.q = 1;
       b.life = 0;
       addParticles(b.x, b.y, '#ff5b5b', 8, 90);
       if (b.blast) explode(b.x, b.y, b.blast, 0, false);
@@ -17072,6 +17216,8 @@ function updateBullets(dt){
       // Los disparos del SUPER X2 dejan veneno. Si varios impactan seguidos,
       // la dosis acumulada te deja clavado un segundo.
       if (b.veneno) envenenar();
+      if (b.elec) electrocutar();                  // centinela: descarga
+      if (b.quema) quemar(1.6);                    // droide: quemadura
       b.life = 0;
       sfx('hurt');
       shake(b.shell?9:4, b.shell?0.2:0.1);
@@ -17819,7 +17965,7 @@ function faseSiguiente(){ return PHASES[(phaseIdx + 1) % PHASES.length]; }
 
 // Oscuridad y tinte interpolados entre la hora actual y la siguiente.
 function oscuridadAhora(){
-  if (esInfierno()) return 0.52;                     // en el infierno no amanece
+  if (esInfierno()) return 0.3;                      // en el infierno no amanece
   const m = mezclaFase();
   return phase().dark * (1-m) + faseSiguiente().dark * m;
 }
@@ -19050,7 +19196,7 @@ function draw(){
   drawBullets(); drawTriRayos(); drawDragonRayos(); drawJefes2Rayos(); drawAlienEfectos(); drawCenturionEfectos(); drawMeteorosCayendo(); drawProyJ(proyJ); drawProyJ(proyRed);
   if (dobleAnf() && Online.av && Online.av.pj) drawProyJ(Online.av.pj);
   drawMaquinaEfectos(); drawMagoEfectos();
-  drawRelampagos(); drawHumos(); drawHumoEdif(); drawSonic(); drawWind(); drawRayosOjos(); drawFX(); drawAura(); drawPortalCelestial(); if (vil.caida) drawCaidaJugador(); drawP2Cursor();
+  drawRelampagos(); drawHumos(); drawHumoEdif(); drawSonic(); drawWind(); drawRayosOjos(); drawFX(); drawAura(); drawElectrocutado(); drawPortalCelestial(); if (vil.caida) drawCaidaJugador(); drawP2Cursor();
   ctx.restore();
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   drawLighting();                                  // en píxeles del lienzo
@@ -19110,12 +19256,26 @@ function cleanName(n){
   return String(n||'').trim().replace(/[ \t]+/g,' ').slice(0,14).toUpperCase();
 }
 
-function scoreKey(){
-  return isVil() ? 'invasion_scores_vil' : isDra() ? 'invasion_scores_dra'
-       : isMaq() ? 'invasion_scores_maq' : isMag() ? 'invasion_scores_mag' : 'invasion_scores';
+// Cada mapa tiene su propia tabla, además de cada personaje. La ciudad
+// conserva las claves de siempre; los otros dos mapas añaden su nombre.
+const MAPAS = ['ciudad', 'alien', 'infierno'];
+const MAPA_NOMBRE = { ciudad:'CIUDAD', alien:'MUNDO ALIENÍGENA', infierno:'CASTIGO DIVINO' };
+let puntMapa = 'ciudad';            // de qué mapa es la tabla que se está viendo
+function scoreKey(m){
+  const base = isVil() ? 'invasion_scores_vil' : isDra() ? 'invasion_scores_dra'
+             : isMaq() ? 'invasion_scores_maq' : isMag() ? 'invasion_scores_mag' : 'invasion_scores';
+  return m && m !== 'ciudad' ? base + '_' + m : base;
 }
-async function loadScores(){
-  const v = await storeGet(scoreKey());
+function pintaMapasPuntaje(){
+  document.querySelectorAll('#scoreMapas [data-pm]').forEach(b=> b.classList.toggle('on', b.dataset.pm === puntMapa));
+}
+function cambiaMapaPuntaje(m){
+  puntMapa = MAPAS.includes(m) ? m : 'ciudad';
+  pintaMapasPuntaje();
+  if (scoreTab === 'global') showGlobal(false); else renderScoreList();
+}
+async function loadScores(m){
+  const v = await storeGet(scoreKey(m || puntMapa));
   try { return v ? (JSON.parse(v) || []) : []; } catch(e){ return []; }
 }
 // Detecta con qué se jugó la partida para marcarlo en la tabla.
@@ -19127,11 +19287,13 @@ function deviceKind(){
   } catch(e){ return 'pc'; }
 }
 
+// Se guarda en la tabla del mapa que se jugó (sigue en `mapa` hasta la siguiente partida).
 async function saveScore(sc, who){
-  let l = await loadScores();
+  const m = MAPAS.includes(mapa) ? mapa : 'ciudad';
+  let l = await loadScores(m);
   l.push({score:sc, date:Date.now(), name: who || null, dev: deviceKind(), hero: hero});
   l.sort((a,b)=>b.score-a.score); l = l.slice(0,5);
-  await storeSet(scoreKey(), JSON.stringify(l));
+  await storeSet(scoreKey(m), JSON.stringify(l));
   return l;
 }
 function esc(t){
@@ -19154,11 +19316,11 @@ function globalMsg(txt, err){
 }
 
 // Trae los mejores puntajes del servidor. Nunca lanza: devuelve null si falla.
-async function fetchGlobal(quien){
+async function fetchGlobal(quien, m){
   try {
     const ctrl = typeof AbortController === 'function' ? new AbortController() : null;
     const to = setTimeout(()=>{ try { ctrl && ctrl.abort(); } catch(e){} }, 8000);
-    const r = await fetch(API_SCORES + '?limit=' + GLOBAL_TOP + '&hero=' + encodeURIComponent(quien),
+    const r = await fetch(API_SCORES + '?limit=' + GLOBAL_TOP + '&hero=' + encodeURIComponent(quien) + '&mapa=' + encodeURIComponent(m || 'ciudad'),
                           ctrl ? { signal: ctrl.signal } : undefined);
     clearTimeout(to);
     if (!r.ok) return null;
@@ -19169,10 +19331,10 @@ async function fetchGlobal(quien){
 
 // ¿En qué puesto está este jugador con este personaje? Devuelve null si no
 // se pudo consultar, y {encontrado:false} si nunca subió nada.
-async function fetchMiRango(nombre, quien){
+async function fetchMiRango(nombre, quien, m){
   if (!nombre) return null;
   try {
-    const r = await fetch(API_SCORES + '?hero=' + encodeURIComponent(quien) +
+    const r = await fetch(API_SCORES + '?hero=' + encodeURIComponent(quien) + '&mapa=' + encodeURIComponent(m || 'ciudad') +
                           '&name=' + encodeURIComponent(nombre));
     if (!r.ok) return null;
     const d = await r.json();
@@ -19188,7 +19350,7 @@ async function postGlobal(nombre, sc){
     const r = await fetch(API_SCORES, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ player_name: nombre, score: sc, hero: hero, device: deviceKind() })
+      body: JSON.stringify({ player_name: nombre, score: sc, hero: hero, device: deviceKind(), mapa: MAPAS.includes(mapa) ? mapa : 'ciudad' })
     });
     const data = await r.json().catch(()=>null);
     if (!data || !data.ok) return null;
@@ -19213,47 +19375,47 @@ async function showGlobal(forzar){
   scoreTab = 'global';
   refreshTabs();
   if (globalCargando) return;
-  const quien = hero;                          // cada personaje, su tabla
-  if (globalCache[quien] && !forzar){
-    renderGlobalList(globalCache[quien]); globalMsg(etiquetaHeroe()); return;
+  const quien = hero, m = puntMapa, clave = quien + '|' + m;   // cada personaje y cada mapa, su tabla
+  if (globalCache[clave] && !forzar){
+    renderGlobalList(globalCache[clave]); globalMsg(etiquetaHeroe()); return;
   }
   globalCargando = true;
   const el = document.getElementById('scorelist');
   if (el) el.innerHTML = '<div class="score-row"><span>Cargando…</span><span>—</span></div>';
   globalMsg('');
-  const lista = await fetchGlobal(quien);
+  const lista = await fetchGlobal(quien, m);
   globalCargando = false;
-  if (scoreTab !== 'global' || hero !== quien) return;   // cambió de pestaña o de personaje
+  if (scoreTab !== 'global' || hero !== quien || puntMapa !== m){ if (scoreTab === 'global') showGlobal(false); return; }   // cambió algo mientras cargaba
   if (!lista){
     renderGlobalList([]);
     globalMsg('No se pudo conectar. El ranking local sigue disponible.', true);
     return;
   }
-  globalCache[quien] = lista;
+  globalCache[clave] = lista;
   renderGlobalList(lista);
   globalMsg(etiquetaHeroe());
-  miPuesto(lista, quien);
+  miPuesto(lista, quien, m);
 }
 
 // Si tu marca no entra en los puestos visibles, se te dice en cuál estás.
-async function miPuesto(lista, quien){
+async function miPuesto(lista, quien, m){
   const nombres = await loadNames();
   const mio = nombres && nombres[0];
   if (!mio) return;
   // si ya apareces en la tabla, no hace falta repetirlo
   if (lista.some(s => s.player_name === mio)) return;
-  const d = await fetchMiRango(mio, quien);
-  if (!d || scoreTab !== 'global' || hero !== quien) return;
+  const d = await fetchMiRango(mio, quien, m);
+  if (!d || scoreTab !== 'global' || hero !== quien || puntMapa !== m) return;
   if (!d.encontrado){
     globalMsg(etiquetaHeroe() + ' · aún no has subido ninguno con este personaje');
     return;
   }
   globalMsg('Tu puntaje: ' + d.score + ' — estás en el puesto ' + d.rank +
-            ' de ' + d.total + ' jugando como ' + heroName(quien));
+            ' de ' + d.total + ' jugando como ' + heroName(quien) + (m !== 'ciudad' ? ' en ' + MAPA_NOMBRE[m] : ''));
 }
 // Deja claro de quién es la tabla que se está viendo.
 function etiquetaHeroe(){
-  return 'Ranking mundial de ' + heroName(hero);
+  return 'Ranking mundial de ' + heroName(hero) + (puntMapa !== 'ciudad' ? ' · ' + MAPA_NOMBRE[puntMapa] : '');
 }
 
 function refreshTabs(){
@@ -19433,10 +19595,11 @@ function startGame(mode){
   stopModeAnims();
   flushPendingScore();
   gameMode = (mode === 'vs') ? 'vs' : 'invasion';
-  // el mapa elegido vale para la invasión en solitario; el duelo y lo jugado
-  // en línea siguen en la ciudad
-  mapa = (gameMode === 'invasion' && !Online.activo) ? mapaElegido : 'ciudad';
+  // el mapa elegido vale para todos los modos; en línea manda el de quien
+  // empezó la partida (llega en el mensaje de empezar)
+  mapa = Online.activo ? (MAPAS.includes(Online.mapaPartida) ? Online.mapaPartida : 'ciudad') : mapaElegido;
   aplicaMapa();
+  P2_UNITS = P2_SETS[mapa] || P2_CIUDAD;           // el ejército del J2, el de ese mapa
   resetGame();
   if (gameMode === 'vs') resetVS();
   running = true;
@@ -19522,6 +19685,7 @@ async function endGame(){
     if (coins >= 1599) unlockAch('millonario');
   }
   pendingScore = (gameMode === 'invasion' && !enLinea) ? score : null;   // en línea no va al ranking
+  puntMapa = MAPAS.includes(mapa) ? mapa : 'ciudad'; pintaMapasPuntaje();   // la tabla, la del mapa jugado
   const ce = document.getElementById('finalcoins');
   if (ce) ce.textContent = '+' + earned;
   if (earned > 0) sfx('coin');
@@ -19756,6 +19920,7 @@ const _tl = document.getElementById('tabLocal');
 if (_tl) _tl.addEventListener('click', ()=>{ showLocal(); sfx('ui'); });
 const _tg = document.getElementById('tabGlobal');
 if (_tg) _tg.addEventListener('click', ()=>{ showGlobal(false); sfx('ui'); });
+document.querySelectorAll('#scoreMapas [data-pm]').forEach(b=> b.addEventListener('click', ()=>{ cambiaMapaPuntaje(b.dataset.pm); sfx('ui'); }));
 
 // --- subir (o no) al ranking global ---
 const _bsg = document.getElementById('btnSubirGlobal');
@@ -19770,8 +19935,8 @@ if (_bsg) _bsg.addEventListener('click', async ()=>{
   if (r && r.mejorado){
     b1.textContent = 'SUBIDO';
     if (b2) b2.disabled = true;
-    if (m) m.textContent = 'Puesto ' + r.rank + ' de ' + r.total + ' como ' + heroName(hero);
-    globalCache[hero] = null;               // se refresca la tabla de este personaje
+    if (m) m.textContent = 'Puesto ' + r.rank + ' de ' + r.total + ' como ' + heroName(hero) + (mapa !== 'ciudad' ? ' en ' + MAPA_NOMBRE[mapa] : '');
+    globalCache[hero + '|' + mapa] = null;  // se refresca la tabla de este personaje en este mapa
     if (scoreTab === 'global') showGlobal(true);
     sfx('coin');
     globalPend = null;
@@ -20945,7 +21110,7 @@ function _pool(c){ return c === 't' ? trees : c === 'l' ? lamps : c === 'b' ? tr
 function instantaneaAnfitrion(){
   { const c = centroVista(); _olCx = c.x; _olCy = c.y; }
   const i = { t:'i', n: ++Online.seq,
-    gt: gameTime, sc: score, hp, form, kills, dem: demolished, stg: stage, vt: vsTimeLeft,
+    gt: gameTime, sc: score, hp, form, kills, dem: demolished, stg: stage, vt: vsTimeLeft, mp: mapa,
     dr: drawR, fase: phaseIdx, hero, sk: skinRed(), rayos: rayosOn ? 1 : 0,
     buff: [buffT, buffTipo], cl: [clima, nubeK, lluviaK],
     cb: [comboN, comboT, comboFase, comboBonus, comboFlash],
@@ -20970,9 +21135,9 @@ function instantaneaAnfitrion(){
   if (Online.modo === 'doble'){
     i.caido = Online.caidoYo ? 1 : 0;
     const E = Online.estInv;
-    if (Online.danoInv > 0 || E.q || E.h || E.v){
-      i.hi = { d: Math.round(Online.danoInv*10)/10, q:E.q, h:E.h, v:E.v };
-      Online.danoInv = 0; E.q = 0; E.h = 0; E.v = 0;
+    if (Online.danoInv > 0 || E.q || E.h || E.v || E.e){
+      i.hi = { d: Math.round(Online.danoInv*10)/10, q:E.q, h:E.h, v:E.v, e:E.e ? 1 : 0 };
+      Online.danoInv = 0; E.q = 0; E.h = 0; E.v = 0; E.e = 0;
     }
     const P = Online.premioInv;
     if (P.kills || P.heal || P.ovni){ i.pv = { k:P.kills, h:P.heal, o:P.ovni ? 1 : 0 }; P.kills = 0; P.heal = 0; P.ovni = false; }
@@ -21061,6 +21226,9 @@ function _sincroniza(datos, mapa){
 }
 function aplicaInstantanea(i){
   const doble = Online.modo === 'doble';
+  if (i.mp && i.mp !== mapa && MAPAS.includes(i.mp)){             // por si el mapa no llegó al empezar
+    mapa = i.mp; aplicaMapa(); P2_UNITS = P2_SETS[mapa] || P2_CIUDAD; p2PanelSig = '';
+  }
   gameTime = i.gt; score = i.sc; demolished = i.dem;
   stage = i.stg; vsTimeLeft = i.vt; phaseIdx = i.fase;
   clima = i.cl[0]; nubeK = i.cl[1]; lluviaK = i.cl[2];
@@ -21074,7 +21242,7 @@ function aplicaInstantanea(i){
     if (i.hi && !vil.intro){                       // lo que te han hecho (mientras entras, nada)
       hp = clamp(hp - recibe(i.hi.d), 0, maxHp());
       if (i.hi.d > 0){ sfx('hurt'); shake(4, 0.1); }
-      if (i.hi.q) quemar(); if (i.hi.h) congelar(); if (i.hi.v) envenenar();
+      if (i.hi.q) quemar(); if (i.hi.h) congelar(); if (i.hi.v) envenenar(); if (i.hi.e) electrocutar();
     }
     if (i.pv){                                     // y lo que te has ganado
       if (i.pv.h) hp = clamp(hp + Math.round(i.pv.h * curaPorBaja()), 0, maxHp());
@@ -21208,7 +21376,7 @@ function loopInvitado(dt){
       p2.x += (Online.p2Obj.x - p2.x)*k; p2.y += (Online.p2Obj.y - p2.y)*k;
     }
   }
-  updateFX(dt); updateZoom(dt); updateRelampagos(dt); avanzaProyRed(dt);
+  updateFX(dt); updateZoom(dt); updateRelampagos(dt); avanzaProyRed(dt); updateInfierno(dt);
   if (shakeTime > 0){ shakeTime -= dt; if (shakeTime <= 0) shakeMag = 0; }
   const foco = camaraEnMira() ? p2 : player;         // según Ajustes: el invasor o tu mira
   camX = clamp(foco.x - VW/2, 0, Math.max(0, WORLD_W - VW));
@@ -21474,7 +21642,7 @@ function loopInvitadoDoble(dt){
   if (heldObject && heldObject.ref){                 // lo que llevas, en tu tentáculo
     const tp = tentacleTip(); heldObject.ref.x = tp.x; heldObject.ref.y = tp.y; heldObject.ref.held = true;
   }
-  updateFX(dt); updateZoom(dt);
+  updateFX(dt); updateZoom(dt); updateInfierno(dt);
   if (shakeTime > 0){ shakeTime -= dt; if (shakeTime <= 0) shakeMag = 0; }
   camX = clamp(player.x - VW/2, 0, Math.max(0, WORLD_W - VW));
   camY = clamp(player.y - VH/2, 0, Math.max(0, WORLD_H - VH));
@@ -21506,8 +21674,8 @@ function empiezaEnLinea(){
   // lo cede al otro y él pasa a ver la partida y a desplegar unidades.
   if (Sala.modo === 'vs' && Sala.rol === 'ejercito'){
     salaPost({ accion:'empezar', codigo:Sala.codigo, jugador:Sala.jugador, token:Sala.token }).catch(()=>{});
-    salaEnviar(otro.id, { t:'empezar', modo:'vs', invasor: otro.id });
-    empiezaComoInvitado({ modo:'vs' }, otro.id);
+    salaEnviar(otro.id, { t:'empezar', modo:'vs', invasor: otro.id, mapa: mapaElegido });
+    empiezaComoInvitado({ modo:'vs', mapa: mapaElegido }, otro.id);
     return;
   }
   Online.activo = true; Online.rol = 'anfitrion'; Online.otro = otro.id;
@@ -21517,7 +21685,8 @@ function empiezaEnLinea(){
   for (const k in Online.ultimo) Online.ultimo[k].clear();
   Online.p2in = { x:0, y:0, r:false }; Online.camInv = false;
   salaPost({ accion:'empezar', codigo:Sala.codigo, jugador:Sala.jugador, token:Sala.token }).catch(()=>{});
-  salaEnviar(otro.id, { t:'empezar', modo: Sala.modo, hero: Sala.heroe, sk: skinRed() });
+  Online.mapaPartida = mapaElegido;
+  salaEnviar(otro.id, { t:'empezar', modo: Sala.modo, hero: Sala.heroe, sk: skinRed(), mapa: mapaElegido });
   Online.heroePropio = hero;
   hero = Sala.heroe;
   hide('sala');
@@ -21527,8 +21696,9 @@ function empiezaEnLinea(){
   Online.jugando = true;
 }
 // El que no creó la sala pero eligió invadir: simula la partida.
-function empiezaComoSimulador(otro){
+function empiezaComoSimulador(otro, m){
   Online.activo = true; Online.rol = 'anfitrion'; Online.otro = otro;
+  Online.mapaPartida = m && m.mapa;
   Online.modo = 'vs'; Online.av = null; Online.caidoYo = false; Online.cDib = null;
   Online.seq = 0; Online.acum = 0; Online.bdSig = ''; Online.plN = -1;
   for (const k in Online.ultimo) Online.ultimo[k].clear();
@@ -21544,6 +21714,7 @@ function empiezaComoSimulador(otro){
 }
 function empiezaComoInvitado(m, otro){
   Online.activo = true; Online.rol = 'invitado'; Online.otro = otro;
+  Online.mapaPartida = m && m.mapa;
   Online.heroePropio = hero; Online.skinPropia = activeSkin;
   Online.teclas = {}; Online.cola = []; Online.btKey = null;
   Online.p2Pred = false; Online.p2Obj = null; Online.ritmo = 0; Online.tRecibida = 0;
@@ -21628,7 +21799,7 @@ function recibeMensaje(otro, m){
   }
   else if (m.t === 'empezar'){
     // el que invade simula; el otro mira y manda al ejército
-    if (m.modo === 'vs' && m.invasor === Sala.jugador) empiezaComoSimulador(otro);
+    if (m.modo === 'vs' && m.invasor === Sala.jugador) empiezaComoSimulador(otro, m);
     else if (!Sala.anfitrion || m.invasor) empiezaComoInvitado(m, otro);
   }
   else if (m.t === 'fin' && enLineaInvitado()){
@@ -21686,8 +21857,10 @@ document.querySelectorAll('.mapbtn').forEach(b=> b.addEventListener('click', e=>
   mapaElegido = b.dataset.mapa === 'alien' || b.dataset.mapa === 'infierno' ? b.dataset.mapa : 'ciudad';
   storeSet('invasion_mapa', mapaElegido);
   pintaBotonesMapa(); sfx('ui');
+  if (puntMapa !== mapaElegido){ puntMapa = mapaElegido; pintaMapasPuntaje(); if (scoreTab === 'global') showGlobal(false); else renderScoreList(); }
 }));
-(async ()=>{ try { const v = await storeGet('invasion_mapa'); if (v === 'alien' || v === 'infierno') mapaElegido = v; } catch(e){} pintaBotonesMapa(); })();
+(async ()=>{ try { const v = await storeGet('invasion_mapa'); if (v === 'alien' || v === 'infierno') mapaElegido = v; } catch(e){} pintaBotonesMapa();
+  puntMapa = mapaElegido; pintaMapasPuntaje(); if (mapaElegido !== 'ciudad') renderScoreList(); })();
 document.getElementById('btnModeInvasion').addEventListener('click', ()=> crackAndStart('btnModeInvasion', ()=> startGame('invasion')));
 document.getElementById('btnModeVs').addEventListener('click', ()=>{ sfx('ui'); show('vselige'); });
 document.getElementById('btnRetry').addEventListener('click', ()=> startGame(gameMode));

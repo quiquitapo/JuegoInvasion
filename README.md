@@ -58,6 +58,25 @@ y se separan por la columna `hero`. En el navegador, los puntajes locales
 también van por separado (`invasion_scores`, `invasion_scores_vil`,
 `invasion_scores_dra`, `invasion_scores_maq` e `invasion_scores_mag`).
 
+### Rankings por mapa (CIUDAD, MUNDO ALIENÍGENA y CASTIGO DIVINO)
+
+Cada mapa tiene además su propia tabla, global y local. Para activarlo en una
+base que ya existía, vuelve a pegar y ejecutar `schema.sql` en el SQL Editor
+de Neon y después haz **Redeploy** en Vercel. El script:
+
+- añade la columna `mapa` (`ciudad`, `alien` o `infierno`); todos los puntajes
+  que ya tenías quedan como de la ciudad, sin perder ninguno;
+- cambia el índice único a jugador + personaje + mapa, para que cada jugador
+  pueda tener su mejor marca en cada mapa;
+- crea las vistas `ranking_mapa_alien` y `ranking_mapa_infierno`.
+
+**Ejecuta `schema.sql` antes del Redeploy**: el `api/scores.js` nuevo ya
+consulta la columna `mapa` y, sin ella, el ranking global no cargaría.
+
+En el navegador, los puntajes locales de los mapas nuevos añaden el nombre
+del mapa a la clave (por ejemplo `invasion_scores_alien` o
+`invasion_scores_vil_infierno`); los de la ciudad no cambian.
+
 ## 2. Subir el proyecto a GitHub
 
 ```bash
