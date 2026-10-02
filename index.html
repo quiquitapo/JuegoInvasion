@@ -4374,7 +4374,7 @@ function resetGame(){
   marcianaAvisoT = 0;
   comboReset(); comboBonus = 0; comboFlash = 0;
   venenoT = 0; venenoDosis = 0; venenoUlt = 0; paralizadoT = 0;
-  quemaT = 0; hieloT = 0; elecT = 0; elecTick = 0; elecChispa = 0;
+  quemaT = 0; hieloT = 0;
   miniOleada = null;
   clima = 'sol'; nubeK = 0; lluviaK = 0; climaMostrado = null;
   auraTxts.length = 0;
@@ -4522,7 +4522,7 @@ function edgeSpawnPos(dmin, dmax, vuela){
 
 const ENEMY_TYPES = { police:1, military:1, minigun:1, tank:1, heli:1, gunship:1, siege:1, flametank:1, plane:1, omni:1, artillero:1, superx:1, mbt:1, mbtFrio:1, ovni:1, tripode:1,
                       heroe:1, arquero:1, caballero:1, golem:1, kaiyin:1,
-                      centinela:1, droide:1, escaner:1, cabezon:1, arana:1, murcielago:1, caza40k:1, centurion:1, vengativo:1 };
+                      centinela:1, droide:1, escaner:1, cabezon:1, arana:1, murcielago:1, caza40k:1, centurion:1, vengativo:1, bicho:1 };
 function spawnEnemy(type, atX, atY){
   if (!ENEMY_TYPES[type]) return;      // ignora tipos retirados o mal escritos
   // Lo que vuela puede aparecer sobre un tejado; el resto, no.
@@ -4568,6 +4568,7 @@ function spawnEnemy(type, atX, atY){
   if (type==='escaner')   Object.assign(base, {hp:28, maxhp:28, speed:130, w:30, h:28, grabbable:true, ligero:true, alt:48, bob:rand(0,6),
                             llama:9, flashCd:1.5, flashT:0});
   if (type==='arana')     Object.assign(base, {hp:190, maxhp:190, speed:150, w:66, h:44, grabbable:true, lado:1, paso:0});
+  if (type==='bicho')     Object.assign(base, {hp:110, maxhp:110, speed:rand(165, 195), w:62, h:46, grabbable:true, paso:0, golpeCd:0.5, tajo:0, semilla:rand(0, 6)});
   if (type==='murcielago')Object.assign(base, {hp:22, maxhp:22, speed:175, w:30, h:22, grabbable:true, ligero:true, alt:40, bob:rand(0,6),
                             cd:rand(1, 2.5), lado: Math.random() < 0.5 ? 1 : -1});
   if (type==='caza40k')   Object.assign(base, {hp:80, maxhp:80, speed:330, w:66, h:34, grabbable:true, ligero:true, alt:66, bob:rand(0,6),
@@ -5640,15 +5641,6 @@ let venenoT = 0, venenoDosis = 0, venenoUlt = 0, paralizadoT = 0;
 const QUEMA_DUR = 2.6, QUEMA_DPS = 9;
 const HIELO_DUR = 1.4;
 let quemaT = 0, hieloT = 0;
-// Electrocutado (disparos del centinela): durante un rato, cada poco salta
-// una descarga que quita algo de vida y te deja clavado un instante.
-const ELEC_DUR = 3.2, ELEC_TICK = 0.8, ELEC_DMG = 3, ELEC_PARAL = 0.32;
-let elecT = 0, elecTick = 0, elecChispa = 0;
-function electrocutar(dur){
-  if (Online.objetivoInv){ Online.estInv.e = 1; return; }
-  if (elecT <= 0){ elecTick = 0.25; toast('¡ELECTROCUTADO!'); }
-  elecT = Math.max(elecT, dur || ELEC_DUR);
-}
 function quemar(dur){ if (Online.objetivoInv){ Online.estInv.q = 1; return; } quemaT = Math.max(quemaT, dur || QUEMA_DUR); }
 function congelar(dur){
   if (Online.objetivoInv){ Online.estInv.h = 1; return; }
@@ -5669,33 +5661,6 @@ function updateEstados(dt){
     if (Math.random() < 0.3)
       addParticles(player.x + rand(-11,11), player.y + rand(-14,4), '#9fe8ff', 1, 40);
   }
-  if (elecChispa > 0) elecChispa -= dt;
-  if (elecT > 0){
-    elecT -= dt; elecTick -= dt;
-    if (elecTick <= 0 && !vil.intro){
-      elecTick = ELEC_TICK;
-      hp = clamp(hp - recibe(ELEC_DMG), 0, maxHp());
-      paralizadoT = Math.max(paralizadoT, ELEC_PARAL);
-      elecChispa = 0.22;
-      addParticles(player.x, player.y - 8, '#bff4ff', 8, 140);
-      shake(4, 0.1); sfx('zap');
-    }
-    if (elecT <= 0){ elecT = 0; elecTick = 0; }
-  }
-}
-// Las descargas se ven: arcos azulados alrededor del invasor.
-function drawElectrocutado(){
-  if (!(elecT > 0) || !(elecChispa > 0 || Math.random() < 0.25)) return;
-  const s = S(player.x, player.y), r = F().r + 8;
-  ctx.save(); ctx.globalCompositeOperation = 'lighter';
-  ctx.strokeStyle = elecChispa > 0 ? '#e8fbff' : 'rgba(150,230,255,0.7)'; ctx.lineWidth = elecChispa > 0 ? 2.2 : 1.2;
-  for (let k = 0; k < (elecChispa > 0 ? 4 : 2); k++){
-    let a = Math.random()*Math.PI*2, x = s.x + Math.cos(a)*r, y = s.y - 8 + Math.sin(a)*r*0.7;
-    ctx.beginPath(); ctx.moveTo(x, y);
-    for (let i = 0; i < 4; i++){ a += rand(0.3, 0.7); x = s.x + Math.cos(a)*r*rand(0.7, 1.25); y = s.y - 8 + Math.sin(a)*r*0.7*rand(0.7, 1.25); ctx.lineTo(x, y); }
-    ctx.stroke();
-  }
-  ctx.restore();
 }
 
 function envenenar(){
@@ -6598,6 +6563,7 @@ const REWARD = {
   kaiyin:   { pts:3200, heal:90 },
   centurion:{ pts:3000, heal:90 },
   vengativo:{ pts:12,   heal:2 },
+  bicho:    { pts:90,   heal:10 },
   arquero:  { pts:60,   heal:10 },
   caballero:{ pts:110,  heal:16 },
   golem:    { pts:180,  heal:24 }
@@ -6720,6 +6686,7 @@ function damageEnemy(e, dmg, fx, fy){
   if ((k === 'tank' || k === 'arana') && bajaArcana()) levantaAliado(e, 'ogro');
   if ((k === 'heli' || k === 'gunship' || k === 'caza40k') && bajaArcana()) levantaAliado(e, 'dragoncito');
   if (k === 'heroe') heroeCae(e);
+  if (k === 'bicho'){ addParticles(e.x, e.y - 22, '#c8d84a', 18, 170); addParticles(e.x, e.y - 22, '#b0682a', 10, 120); }   // revienta en papilla verde
   if (FANT_TIPOS[k]){ addParticles(e.x, e.y - 14, '#bfe8ff', 14, 120); }
   addParticles(e.x, e.y, '#ffd27b', 16, 150);
   sfx('kill');
@@ -8127,7 +8094,6 @@ const SFX = {
   laserE: ()=> tone(1500, 0.09, 'square', 0.035, 380),
   escupe: ()=> { noise(0.12, 0.08, 900); tone(300, 0.12, 'sine', 0.05, 160); },
   escaneo:()=> tone(880, 0.25, 'sine', 0.04, 1760),
-  zap:    ()=> { noise(0.14, 0.09, 5000); tone(1800, 0.12, 'square', 0.035, 300); },
   vengativos:()=> { noise(0.5, 0.07, 1500, 0.6); tone(240, 0.5, 'sawtooth', 0.04, 90); tone(330, 0.4, 'square', 0.02, 140); },
   portalSanto:()=> { [523.25, 659.25, 783.99, 1046.5].forEach((f, i)=> setTimeout(()=> tone(f, 1.4, 'sine', 0.045, f*1.01), i*90)); noise(1.2, 0.04, 6000); },
   caidaGolpe:()=> { noise(0.7, 0.3, 160, 1.4); tone(90, 0.7, 'sawtooth', 0.14, 36); },
@@ -8144,7 +8110,7 @@ const SFX_GAP = { sonicboom:0.30, dash:0.10, crack:0.20,
                   ulla:1.2, cargaM:0.25, rayoM:0.12, escudoM:0.2, comeM:0.15,
                   mordisco:0.08, aleteo:0.2, rayoDra:0.16, coletazo:0.2, trueno:0.18,
                   rafaga:0.045, hachazo:0.08, silbido:0.08, cohete:0.15, cargaInc:0.3, incinera:0.2, sierra:0.11, recarga:0.1,
-                  aterriza:0.3, plasma:0.12, laserE:0.06, escupe:0.1, escaneo:0.3, zap:0.2, vengativos:1, portalSanto:2, caidaGolpe:0.5, alarma:1, meteoro:1, conjuro:0.08, telequinesis:0.3, hielo:0.3, escudoMag:0.3, cargaFuego:0.2, teleporte:0.2, portalRojo:0.5, humoVerde:0.5 };
+                  aterriza:0.3, plasma:0.12, laserE:0.06, escupe:0.1, escaneo:0.3, vengativos:1, portalSanto:2, caidaGolpe:0.5, alarma:1, meteoro:1, conjuro:0.08, telequinesis:0.3, hielo:0.3, escudoMag:0.3, cargaFuego:0.2, teleporte:0.2, portalRojo:0.5, humoVerde:0.5 };
 const sfxLast = {};
 let sfxVoices = 0;
 const SFX_MAX_VOICES = 14;
@@ -8569,8 +8535,8 @@ const BESTIARY = [
     desc:'Mole de roca animada por runas. Lento y duro; al tenerte cerca alza los puños y golpea el suelo alrededor. Solo el COLOSO puede levantarlo.' },
   { id:'kaiyin', name:'KAIYIN', hp:2700, dmg:'rayos, aletazo, embestida y mordisco', sprite:'kaiyinF', verb:'DERROTADOS',
     desc:'El dragón de tres cabezas en tamaño colosal. Llega volando y desata una tormenta: los rayos caen donde se marca el suelo. Camina aplastando edificios y alterna ataques: aletazo que lo barre todo alrededor, embestida marcada que arrasa lo que hay en la línea, vuelo en picado con mordisco antes de aterrizar y, sobre todo, sus tres rayos. De esos rayos solo te salva un escudo: ponte detrás de un edificio, interpón un auto o lo que lleves agarrado, o usa la burbuja o los objetos del mago.' },
-  { id:'centinela', name:'CENTINELA', hp:60, dmg:'8 + descarga eléctrica', sprite:'centinelaF',
-    desc:'Soldado de la guardia marciana, con máscara de visores y una mochila de energía a la espalda. Guarda la distancia y dispara ráfagas de su rifle de pulsos: cada impacto te electrocuta unos segundos, y mientras dura saltan descargas que quitan un poco de vida y te dejan clavado un instante. Los ojos escáner los llaman de tres en tres. Se pueden agarrar como cualquier soldado.' },
+  { id:'centinela', name:'CENTINELA', hp:60, dmg:'8 por disparo', sprite:'centinelaF',
+    desc:'Soldado de la guardia marciana, con máscara de visores y una mochila de energía a la espalda. Guarda la distancia y dispara ráfagas de su rifle de pulsos. Los ojos escáner los llaman de tres en tres. Se pueden agarrar como cualquier soldado.' },
   { id:'droide', name:'DROIDE DE BATALLA', hp:30, dmg:'7 + quemadura', sprite:'droideF',
     desc:'Robot flaco fabricado en serie. Sus láseres queman: cada impacto te deja ardiendo un momento. Es frágil, pero dispara desde más lejos que nadie y se queda atrás, a más de cuatrocientos metros, para no darte el gusto de alcanzarlo.' },
   { id:'cabezon', name:'CABEZÓN VERDE', hp:45, dmg:'38 (rayo desintegrador)', sprite:'cabezonF',
@@ -8586,6 +8552,8 @@ const BESTIARY = [
   { id:'centurion', name:'EL CENTURIÓN', hp:2200, dmg:'embestida, bombas, misiles, minigun y corte láser', sprite:'centurionF', verb:'DERROTADOS',
     hint:'El guardián del Mundo Alienígena. Aún no lo has derrotado.',
     desc:'La armadura robótica que protege el planeta marciano. Vuela a tu alrededor y alterna sus armas: embestida por una línea que marca en el suelo, bombas pegajosas que se te quedan encima (o en lo que lleves agarrado: lánzalo lejos), salvas de misiles guiados, ráfagas de su minigun láser y, lo peor, un gran corte láser que barre un abanico enorme marcado en rojo. Del corte solo te salva salir del abanico o ponerte detrás de algo. Por debajo de la mitad de vida pierde el blindaje y se vuelve más rápido.' },
+  { id:'bicho', name:'BICHO GUERRERO', hp:110, dmg:'9 por tajo', sprite:'bichoF', verb:'APLASTADOS',
+    desc:'Insecto de guerra del planeta marciano, primo lejano de los arácnidos que se ven en las películas de soldados contra bichos. Caparazón anaranjado lleno de púas, cuatro patas altas acabadas en punta y dos guadañas de hueso. No dispara: llega en enjambre, corre a la carga y te despedaza a tajos si te alcanza. Aguanta bastante; solo el COLOSO puede levantarlo.' },
   { id:'vengativo', name:'VENGATIVO', hp:12, dmg:'se te aferra y muerde', sprite:'vengativoF', verb:'DEVUELTOS AL SUELO',
     hint:'Algo se mueve bajo el suelo de Castigo Divino.',
     desc:'Lo que queda de los que mataste, retorcido por el castigo. Salen del suelo del infierno en grupo, corren en zigzag muy rápido y se te echan encima: los que te alcanzan se aferran a ti y te muerden hasta que se sueltan (corriendo te los quitas antes). Uno solo no aguanta nada; el peligro es que lleguen muchos. En Castigo Divino también te esperan el resto de las unidades de la ciudad y del planeta marciano, deformadas: más vida, más rápidas y más daño, pero valen más puntos. Hasta los jefes vuelven así.' },
@@ -8655,7 +8623,14 @@ const OST_TEMAS = [
   { id:'atardecer', icon:'\u{1F305}', name:'ÚLTIMA HORA',
     desc:'El tema del atardecer. Baja de tono y se vuelve melancólico, justo cuando llegan los blindados.' },
   { id:'noche',     icon:'\u{1F319}', name:'HORA MUERTA',
-    desc:'El tema nocturno. El más grave y espaciado; con las farolas encendidas y la ciudad a oscuras.' }
+    desc:'El tema nocturno. El más grave y espaciado; con las farolas encendidas y la ciudad a oscuras.' },
+  // Los temas de los otros mapas: se desbloquean jugando una partida en ellos.
+  { id:'mapa_alien',    icon:'\u{1FA90}', name:'PLANETA ROJO', pista: ()=> ALIEN_TRACK,
+    bloqueo:'Juega una partida en el MUNDO ALIENÍGENA para desbloquearlo. Toca el icono para ver otro tema.',
+    desc:'El tema del Mundo Alienígena. Bajo pulsante de sintetizador, un arpegio frío que sube y baja y destellos agudos: la ciudad futurista de los marcianos.' },
+  { id:'mapa_infierno', icon:'\u{1F525}', name:'LAMENTO ETERNO', pista: ()=> INFIERNO_TRACK,
+    bloqueo:'Juega una partida en CASTIGO DIVINO para desbloquearlo. Toca el icono para ver otro tema.',
+    desc:'El tema de Castigo Divino. Un órgano grave que nunca se resuelve, un coro desafinado, el Dies irae arrastrado y un tambor lento como un latido.' }
 ];
 let ostSel = 0;
 
@@ -8670,7 +8645,7 @@ function renderOST(){
     `<div class="ostico${on?'':' locked'}" id="ostIco" title="Toca para cambiar de tema">${on ? t.icon : '\u{1F512}'}</div>
      <div class="ostinfo">
        <div class="ostname">${on ? esc(t.name) : 'TEMA POR DESCUBRIR'}</div>
-       <div class="ostdesc">${on ? esc(t.desc) : 'Juega una partida a esta hora del día para desbloquearlo. Toca el icono para ver otro tema.'}</div>
+       <div class="ostdesc">${on ? esc(t.desc) : esc(t.bloqueo || 'Juega una partida a esta hora del día para desbloquearlo. Toca el icono para ver otro tema.')}</div>
      </div>
      <button type="button" class="ostplay${sonando?' on':''}" id="ostPlay"${on?'':' disabled'}>${sonando ? '\u{25A0} PARAR' : '\u{25B6} OÍR'}</button>`;
   const ico = document.getElementById('ostIco');
@@ -8684,7 +8659,8 @@ function ostToggle(t){
   initAudio();
   if (previewTrack && previewTrack.ostId === t.id){ stopBossPreview(); return; }
   const sc = MUSIC_SCALES[t.id] || MUSIC_SCALES.dia;
-  previewTrack = { scale: sc, tempo: 260, name: t.name, ostId: t.id, style:'amb' };
+  previewTrack = t.pista ? Object.assign({}, t.pista(), { ostId: t.id })      // tema de otro mapa
+                         : { scale: sc, tempo: 260, name: t.name, ostId: t.id, style:'amb' };
   previewT = 20;
   if (!audio.musicTimer) startMusic();
   retuneMusic();
@@ -9468,6 +9444,7 @@ const P2_ALIEN = [
   { type:'murcielago',name:'MURCIÉLAGO', cost:90,  cool:2.0, sprite:'murcielagoF' },
   { type:'escaner',   name:'ESCÁNER',    cost:160, cool:6.0, sprite:'escanerF' },
   { type:'cabezon',   name:'CABEZÓN',    cost:220, cool:5.0, sprite:'cabezonF' },
+  { type:'bicho',     name:'BICHO GUERR.',cost:150, cool:3.0, sprite:'bichoF' },
   { type:'arana',     name:'T. ARAÑA',   cost:300, cool:7.0, sprite:'aranaF' },
   { type:'caza40k',   name:'DRON KAMIK.',cost:360, cool:8.0, sprite:'caza40kF' },
   { type:'meteoro',   name:'METEORITO',  cost:500, cool:12.0,sprite:'meteoroF', especial:'meteoro' },
@@ -11943,7 +11920,7 @@ function drawAliadoMago(z){
 // Centinelas (con la figura animada de la tropa), droides, escáneres,
 // cabezones, arañas, murciélagos, cazas y trípodes como unidades normales,
 // más los meteoritos que hacen de artillería.
-const AL_TAM = { droide:[40,48,20,45], cabezon:[44,52,22,49], escaner:[40,36,20,18], arana:[84,60,42,50],
+const AL_TAM = { droide:[40,48,20,45], cabezon:[44,52,22,49], escaner:[40,36,20,18], arana:[84,60,42,50], bicho:[92,68,44,64],
                  murcielago:[56,34,28,17], caza40k:[78,44,39,22] };
 const AL_VUELA = { escaner:1, murcielago:1, caza40k:1 };
 const alCache = new Map();
@@ -11955,7 +11932,7 @@ function alienFrame(tipo, pose, f){
   c = document.createElement('canvas'); c.width = W; c.height = H;
   const g = c.getContext('2d'); g.lineCap = 'round'; g.lineJoin = 'round';
   g.translate(cx, py);
-  ({ droide:dibDroide, cabezon:dibCabezon, escaner:dibEscaner, arana:dibArana, murcielago:dibMurcielago, caza40k:dibCaza })[tipo](g, pose, f);
+  ({ droide:dibDroide, cabezon:dibCabezon, escaner:dibEscaner, arana:dibArana, murcielago:dibMurcielago, caza40k:dibCaza, bicho:dibBicho })[tipo](g, pose, f);
   pixelArte(c, '#0c0a16');
   alCache.set(k, c);
   return c;
@@ -12037,6 +12014,67 @@ function dibArana(g, pose, f){
   jR(g, '#20242c', 8, -36, L, 4); jR(g, '#6a7080', 8, -36, L, 1);
   jO(g, pose === 'ataca' ? '#e0b0ff' : '#7a4ab0', 8 + L, -34, 2.5, 2.5);
   pata(-14, 1, false); pata(0, 3, false); pata(12, 5, false);
+}
+// Bicho guerrero: el arácnido de las películas de soldados contra insectos.
+// Caparazón anaranjado con púas, cuatro patas altas acabadas en punta y dos
+// guadañas delante con las que despedaza. Llega en enjambre y a la carga.
+function dibBicho(g, pose, f){
+  const cap = '#b0682a', capO = '#5a2e12', capL = '#e0985a', hueso = '#ecdcb8';
+  const pata = (x0, fase, lejos)=>{
+    const ph = f/4*Math.PI*2 + fase, lev = Math.max(0, Math.sin(ph))*6, av = Math.cos(ph)*7;
+    const kx = x0 + (x0 > 0 ? 10 : -10) + av*0.4, ky = -52 - lev*0.5, fx = x0 + (x0 > 0 ? 18 : -18) + av, fy = -lev;
+    const c = lejos ? capO : cap;
+    jL(g, c, 4, x0, -30, kx, ky); jL(g, c, 3, kx, ky, (kx + fx)/2, (ky + fy)/2); jL(g, c, 2, (kx + fx)/2, (ky + fy)/2, fx, fy);
+    jR(g, lejos ? '#3a1a08' : capL, kx - 1.5, ky - 2, 3, 3);                       // la rodilla, con púa
+    jL(g, lejos ? '#3a1a08' : capL, 1.2, kx, ky, kx + (x0 > 0 ? 3 : -3), ky - 5);
+  };
+  pata(-16, 0, true); pata(8, 2.2, true);
+  // abdomen grande detrás, con placas
+  jO(g, capO, -16, -32, 20, 13); jO(g, cap, -16, -34, 18, 11);
+  for (let i = 0; i < 4; i++) jR(g, capO, -30 + i*8, -42 + Math.abs(i - 1.5)*1.5, 2, 16 - Math.abs(i - 1.5)*3);
+  jO(g, capL, -20, -40, 7, 3);
+  // tórax y cabeza bajas, como un toro a punto de embestir
+  jO(g, capO, 6, -32, 13, 10); jO(g, cap, 6, -34, 12, 8);
+  for (let i = 0; i < 3; i++) jL(g, capL, 1.4, -2 + i*6, -41, 0 + i*6, -47);         // púas del lomo
+  jO(g, capO, 20, -30, 8, 7); jO(g, cap, 21, -31, 7, 6);
+  jO(g, '#1a0a04', 26, -28, 4, 3);                                                // boca
+  jL(g, hueso, 1.6, 26, -31, 32, -26); jL(g, hueso, 1.6, 26, -25, 32, -22);           // mandíbulas
+  jR(g, '#2a0a04', 21, -34, 2, 2); jR(g, '#2a0a04', 24, -33, 2, 2);
+  // las guadañas: arriba al cargar, abajo al tajar
+  const corta = pose === 'ataca', baja = corta && f % 2;
+  const guadana = (x0, lejos)=>{
+    const ex = x0 + 6, ey = baja ? -36 : -54, tx = x0 + (baja ? 22 : 18), ty = baja ? -6 : -42;
+    jL(g, lejos ? capO : cap, 3.6, x0, -36, ex, ey);
+    jL(g, lejos ? '#c8b890' : hueso, 2.6, ex, ey, tx, ty);
+    jL(g, lejos ? '#c8b890' : hueso, 1.2, tx, ty, tx + (baja ? 4 : 6), ty + (baja ? 2 : 6));
+  };
+  guadana(10, true);
+  pata(-6, 1.1, false); pata(16, 3.3, false);
+  guadana(14, false);
+}
+function updateBicho(e, dt, a, ang){
+  e.anim = (e.anim || 0) + dt;
+  if (e.tajo > 0) e.tajo -= dt;
+  if (e.golpeCd > 0) e.golpeCd -= dt;
+  const B = blancoAlien(e, a, ang);
+  e.facing = Math.cos(B.an) >= 0 ? 1 : -1;
+  const alcance = (B.T === player ? F().r : 12) + 40;
+  if (B.d > alcance - 6){
+    // a la carga, zigzagueando un poco
+    const zig = Math.sin(e.anim*5 + (e.semilla || 0))*0.35;
+    const x0 = e.x, y0 = e.y;
+    e.x = clamp(e.x + Math.cos(B.an + zig)*e.speed*dt, 30, WORLD_W - 30); e.y = clamp(e.y + Math.sin(B.an + zig)*e.speed*dt, 30, WORLD_H - 30);
+    collideBuildings(e, 22, dt, 0);
+    e.paso = (e.paso || 0) + dist(x0, y0, e.x, e.y)*0.1;
+  }
+  if (B.d < alcance && e.golpeCd <= 0){
+    e.golpeCd = 1.1; e.tajo = 0.3;
+    if (B.T === player){
+      if (!vil.intro){ const d0 = hp; hp = clamp(hp - recibe(e.deforme ? 12 : 9), 0, maxHp()); p2Gain(d0 - hp); shake(5, 0.12); sfx('hurt'); }
+    } else B.T.hp -= 14;
+    addParticles(B.T.x, B.T.y - 10, '#e8dcb8', 6, 110);
+    sfx('hachazo');
+  }
 }
 // Murciélago ácido: alas membranosas, ojos verdes y boca que gotea.
 function dibMurcielago(g, pose, f){
@@ -12317,6 +12355,7 @@ function drawUnidadAlien(e){
     case 'cabezon': pose = e.fase ? 'ataca' : 'anda'; f = e.anda ? Math.floor(t*8) % 4 : 0; break;
     case 'escaner': pose = e.flashT > 0 || e.llama < 2.5 ? 'ataca' : 'anda'; f = Math.floor(t*10) % 4; dy = s.y - alt; break;
     case 'arana':   pose = e.fogon > 0 ? 'ataca' : 'anda'; f = Math.floor(e.paso || 0) % 4; break;
+    case 'bicho':   pose = e.tajo > 0 ? 'ataca' : 'anda'; f = pose === 'ataca' ? (e.tajo > 0.15 ? 0 : 1) : Math.floor(e.paso || 0) % 4; break;
     case 'murcielago': pose = e.escupe > 0 ? 'ataca' : 'anda'; f = Math.floor(t*12) % 4; dy = s.y - alt; break;
     case 'caza40k': {
       f = Math.floor(t*20) % 2; dy = s.y - alt;
@@ -12437,6 +12476,9 @@ function updateSpawnsAlien(dt, count){
     if (tic('cen', 0) && count('centinela') < Math.min(2 + Math.floor(gameTime/25), 8)){ grupo('centinela', 2, 30); T.cen = rand(4, 6); }
     else if (T.cen <= 0) T.cen = 1;
     if (tic('esc', 22) && gameTime > 25){ if (count('escaner') < (stage >= 3 ? 2 : 1)) spawnEnemy('escaner'); T.esc = rand(16, 24); }
+  }
+  if (stage >= 2 && gameTime > 30){                  // enjambre de bichos guerreros, a la carga
+    if (tic('bic', 6)){ if (count('bicho') < (finalWave() ? 9 : 6)) grupo('bicho', finalWave() ? 4 : 3, 40); T.bic = rand(13, 18); }
   }
   if (stage >= 3){
     if (tic('dro', 4)){ if (count('droide') < 9) grupo('droide', 3, 28); T.dro = rand(9, 13); }
@@ -13033,6 +13075,7 @@ function sorteaJefeInf(){
   ficha('murcielagoF', alienFrame('murcielago', 'ataca', 0), 2); ficha('caza40kF', alienFrame('caza40k', 'ataca', 0), 1.4);
   ficha('centurionF', centFrame('dispara', 0, false), 1.6);
   ficha('vengativoF', vengFrame('ataca', 0), 2.4);
+  ficha('bichoF', alienFrame('bicho', 'anda', 1), 1.4);
   { const m = document.createElement('canvas'); m.width = 40; m.height = 40; const g = m.getContext('2d');
     g.fillStyle = '#ff8a2a'; g.beginPath(); g.moveTo(36, 4); g.lineTo(22, 16); g.lineTo(28, 22); g.closePath(); g.fill();
     g.fillStyle = '#ffd27a'; g.beginPath(); g.moveTo(32, 8); g.lineTo(22, 18); g.lineTo(26, 20); g.closePath(); g.fill();
@@ -15966,6 +16009,7 @@ function objLabel(o){
   if (o.type === 'plane') return 'CAZA';
   if (o.type === 'minigun') return 'MINIGUNERO';
   if (o.type === 'vengativo') return 'VENGATIVO';
+  if (o.type === 'bicho') return 'BICHO GUERRERO';
   const AL_NOM = { centinela:'CENTINELA', droide:'DROIDE', escaner:'ESCÁNER', cabezon:'CABEZÓN', arana:'ARAÑA', murcielago:'MURCIÉLAGO', caza40k:'DRON' };
   if (AL_NOM[o.type]) return AL_NOM[o.type];
   return 'OBJETO';
@@ -16982,6 +17026,7 @@ function updateEnemies(dt){
     if (e.type === 'kaiyin'){ updateKaiyin(e, dt, a, ang); continue; }
     if (e.type === 'centurion'){ updateCenturion(e, dt, a, ang); continue; }
     if (e.type === 'vengativo'){ updateVengativo(e, dt, a, ang); continue; }
+    if (e.type === 'bicho'){ updateBicho(e, dt, a, ang); continue; }
     if (e.type === 'cabezon'){ updateCabezon(e, dt, a, ang); continue; }
     if (e.type === 'arana'){ updateArana(e, dt, a, ang); continue; }
     if (e.type === 'murcielago'){ updateMurcielago(e, dt, a, ang); continue; }
@@ -17091,7 +17136,7 @@ function updateEnemies(dt){
         }
       } else if (e.type==='centinela' && a < 600){
         e.shootCd = rand(0.9, 1.3);
-        const b = mkBullet(e, ang + rand(-0.04, 0.04), 430, 8, '#7fe8ff', 3); b.laser = true; b.elec = true; bullets.push(b);
+        const b = mkBullet(e, ang + rand(-0.04, 0.04), 430, 8, '#7fe8ff', 3); b.laser = true; bullets.push(b);
       } else if (e.type==='droide' && a < 760){
         e.shootCd = rand(1.1, 1.7);
         const b = mkBullet(e, ang + rand(-0.06, 0.06), 470, 7, '#ff4a3a', 3); b.laser = true; b.quema = true; bullets.push(b);
@@ -17202,7 +17247,7 @@ function updateBullets(dt){
     // Doble Invasión: una bala también puede dar al invasor del otro jugador
     if (dobleAnf() && Online.av && !Online.av.caido && !b.artillery &&
         dist(b.x, b.y, Online.proxy.x, Online.proxy.y) < (Online.av.r || 20) + 6){
-      Online.danoInv += b.dmg; if (b.veneno) Online.estInv.v = 1; if (b.elec) Online.estInv.e = 1; if (b.quema) Online.estInv.q = 1;
+      Online.danoInv += b.dmg; if (b.veneno) Online.estInv.v = 1; if (b.quema) Online.estInv.q = 1;
       b.life = 0;
       addParticles(b.x, b.y, '#ff5b5b', 8, 90);
       if (b.blast) explode(b.x, b.y, b.blast, 0, false);
@@ -17216,7 +17261,6 @@ function updateBullets(dt){
       // Los disparos del SUPER X2 dejan veneno. Si varios impactan seguidos,
       // la dosis acumulada te deja clavado un segundo.
       if (b.veneno) envenenar();
-      if (b.elec) electrocutar();                  // centinela: descarga
       if (b.quema) quemar(1.6);                    // droide: quemadura
       b.life = 0;
       sfx('hurt');
@@ -19196,7 +19240,7 @@ function draw(){
   drawBullets(); drawTriRayos(); drawDragonRayos(); drawJefes2Rayos(); drawAlienEfectos(); drawCenturionEfectos(); drawMeteorosCayendo(); drawProyJ(proyJ); drawProyJ(proyRed);
   if (dobleAnf() && Online.av && Online.av.pj) drawProyJ(Online.av.pj);
   drawMaquinaEfectos(); drawMagoEfectos();
-  drawRelampagos(); drawHumos(); drawHumoEdif(); drawSonic(); drawWind(); drawRayosOjos(); drawFX(); drawAura(); drawElectrocutado(); drawPortalCelestial(); if (vil.caida) drawCaidaJugador(); drawP2Cursor();
+  drawRelampagos(); drawHumos(); drawHumoEdif(); drawSonic(); drawWind(); drawRayosOjos(); drawFX(); drawAura(); drawPortalCelestial(); if (vil.caida) drawCaidaJugador(); drawP2Cursor();
   ctx.restore();
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   drawLighting();                                  // en píxeles del lienzo
@@ -19600,6 +19644,7 @@ function startGame(mode){
   mapa = Online.activo ? (MAPAS.includes(Online.mapaPartida) ? Online.mapaPartida : 'ciudad') : mapaElegido;
   aplicaMapa();
   P2_UNITS = P2_SETS[mapa] || P2_CIUDAD;           // el ejército del J2, el de ese mapa
+  if (mapa !== 'ciudad') discoverMusic('mapa_' + mapa);   // su tema queda en el registro
   resetGame();
   if (gameMode === 'vs') resetVS();
   running = true;
@@ -21135,9 +21180,9 @@ function instantaneaAnfitrion(){
   if (Online.modo === 'doble'){
     i.caido = Online.caidoYo ? 1 : 0;
     const E = Online.estInv;
-    if (Online.danoInv > 0 || E.q || E.h || E.v || E.e){
-      i.hi = { d: Math.round(Online.danoInv*10)/10, q:E.q, h:E.h, v:E.v, e:E.e ? 1 : 0 };
-      Online.danoInv = 0; E.q = 0; E.h = 0; E.v = 0; E.e = 0;
+    if (Online.danoInv > 0 || E.q || E.h || E.v){
+      i.hi = { d: Math.round(Online.danoInv*10)/10, q:E.q, h:E.h, v:E.v };
+      Online.danoInv = 0; E.q = 0; E.h = 0; E.v = 0;
     }
     const P = Online.premioInv;
     if (P.kills || P.heal || P.ovni){ i.pv = { k:P.kills, h:P.heal, o:P.ovni ? 1 : 0 }; P.kills = 0; P.heal = 0; P.ovni = false; }
@@ -21242,7 +21287,7 @@ function aplicaInstantanea(i){
     if (i.hi && !vil.intro){                       // lo que te han hecho (mientras entras, nada)
       hp = clamp(hp - recibe(i.hi.d), 0, maxHp());
       if (i.hi.d > 0){ sfx('hurt'); shake(4, 0.1); }
-      if (i.hi.q) quemar(); if (i.hi.h) congelar(); if (i.hi.v) envenenar(); if (i.hi.e) electrocutar();
+      if (i.hi.q) quemar(); if (i.hi.h) congelar(); if (i.hi.v) envenenar();
     }
     if (i.pv){                                     // y lo que te has ganado
       if (i.pv.h) hp = clamp(hp + Math.round(i.pv.h * curaPorBaja()), 0, maxHp());
