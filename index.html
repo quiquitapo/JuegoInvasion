@@ -4556,7 +4556,7 @@ function edgeSpawnPos(dmin, dmax, vuela){
 
 const ENEMY_TYPES = { police:1, military:1, minigun:1, tank:1, heli:1, gunship:1, siege:1, flametank:1, plane:1, omni:1, artillero:1, superx:1, mbt:1, mbtFrio:1, ovni:1, tripode:1,
                       heroe:1, arquero:1, caballero:1, golem:1, kaiyin:1,
-                      centinela:1, droide:1, escaner:1, cabezon:1, arana:1, murcielago:1, caza40k:1, centurion:1, vengativo:1, bicho:1, amalgama:1, desgarrador:1 };
+                      centinela:1, droide:1, escaner:1, cabezon:1, arana:1, murcielago:1, caza40k:1, centurion:1, vengativo:1, bicho:1, amalgama:1, desgarrador:1, pollo:1 };
 function spawnEnemy(type, atX, atY){
   if (!ENEMY_TYPES[type]) return;      // ignora tipos retirados o mal escritos
   // Lo que vuela puede aparecer sobre un tejado; el resto, no.
@@ -4620,6 +4620,9 @@ function spawnEnemy(type, atX, atY){
                             nace:0.8, cd:0, semilla:rand(0, 6)});
   // Amalgama de almas: crece al tragarse almas en pena.
   if (type==='amalgama') Object.assign(base, {hp:420, maxhp:420, speed:80, w:44, h:64, grabbable:false, k:1, fase:'', cd:2, embCd:4, golpeCd:0, paso:0});
+  // Piernas de pollo: bestia de monta con un soldado encima.
+  if (type==='pollo') Object.assign(base, {hp:300, maxhp:300, speed:118, w:70, h:74, grabbable:false, fase:'', ft:0, cd:1.2,
+                            tiroCd:rand(1, 2), fogT:0, giroA:0, golpeo:0, paso:0});
   // El Desgarrador: kaiju cíborg de motosierras, jefe del planeta marciano.
   if (type==='desgarrador') Object.assign(base, {hp:DES_HP, maxhp:DES_HP, speed:110, w:110, h:150, grabbable:false,
                             fase:'', ft:0, cd:2.2, alt:0, rA:0, sA:0, eA:0, giro:0, paso:0});
@@ -6631,6 +6634,7 @@ const REWARD = {
   vengativo:{ pts:12,   heal:2 },
   bicho:    { pts:140,  heal:14 },
   amalgama: { pts:450,  heal:35 },
+  pollo:    { pts:200,  heal:22 },
   arquero:  { pts:60,   heal:10 },
   caballero:{ pts:110,  heal:16 },
   golem:    { pts:180,  heal:24 }
@@ -6762,6 +6766,11 @@ function damageEnemy(e, dmg, fx, fy){
   if ((k === 'heli' || k === 'gunship' || k === 'caza40k') && bajaArcana()) levantaAliado(e, 'dragoncito');
   if (k === 'heroe') heroeCae(e);
   if (k === 'amalgama'){ if (e.auto){ e.auto.presa = false; e.auto.presaDe = null; } addParticles(e.x, e.y - 50*(e.k || 1), '#cfe0ff', 40, 260); addParticles(e.x, e.y - 30, '#9ab8e8', 20, 180); shake(12, 0.3); }
+  if (k === 'pollo'){                                    // la bestia cae y el jinete sigue a pie
+    addParticles(e.x, e.y - 30, '#e070d0', 22, 180); addParticles(e.x, e.y - 30, '#e8e048', 12, 150);
+    const j = spawnDeforme('military', e.x + 22*(e.facing || 1), e.y + 6);
+    if (j){ j.stunT = 0.8; j.oleada = true; }             // el jinete no da reembolso al J2
+  }
   if (k === 'bicho'){ addParticles(e.x, e.y - 22, '#c8d84a', 18, 170); addParticles(e.x, e.y - 22, '#b0682a', 10, 120); }   // revienta en papilla verde
   if (FANT_TIPOS[k]){ addParticles(e.x, e.y - 14, '#bfe8ff', 14, 120); }
   addParticles(e.x, e.y, '#ffd27b', 16, 150);
@@ -8211,15 +8220,40 @@ function voiceStart(dur){
 // Temas de los mini jefes: escalas tensas y propias de cada uno.
 // flametank: menor armónica con quinta disminuida, muy marcial.
 // omni: tonos enteros, inquietante y mecánico.
+// BESTIA DE ACERO (tanque lanzallamas): marcha rockera de cuartel, en re
+// menor. Bombo sincopado, caja con redobles de desfile, bajo que salta de
+// octava, golpes de metales a contratiempo y una corneta heroica. Cuatro
+// secciones de 4 compases: base, corneta, corneta una octava arriba con
+// segunda voz y un puente de redoble sobre el V que vuelve a empezar.
+const AC_PROG = [0, -4, -2, 0], AC_PROG2 = [0, 0, -4, -5];
+const AC_BAJO = [0,-1,12,0, -1,0,12,-1, 0,12,-1,0, 10,-1,7,-1];
+const AC_MEL = [7,-1,7,5, 7,-1,10,-1, 12,-1,10,7, -1,5,7,-1,
+                8,-1,7,5, 3,-1,5,-1, 3,-1,-1,-1, 0,-1,2,-1,
+                2,-1,5,7, 10,-1,7,5, 10,-1,12,-1, 14,-1,12,-1,
+                15,-1,14,12, 10,-1,7,-1, 12,-1,-1,-1, -1,-1,-1,-1];
+// ESCUADRÓN X2 (Súper X2): tema de nave de defensa, heroico y futurista, en
+// mi mayor con el giro I - bVII - bVI - bVII. Secuenciador en semicorcheas,
+// bajo pulsante, metales de sintetizador, pitido de radar y el paso del
+// reactor; el puente vuelve a la escala de tonos enteros del tema anterior.
+const SX_PROG = [0, -2, -4, -2];
+const SX_MEL = [7,-1,-1,4, 7,-1,12,-1, 11,-1,9,-1, 7,-1,-1,-1,
+                5,-1,-1,2, 5,-1,10,-1, 9,-1,10,5, -1,-1,2,-1,
+                3,-1,-1,0, 3,-1,8,-1, 7,-1,8,3, -1,-1,7,-1,
+                10,-1,-1,9, 10,-1,14,-1, 12,-1,-1,-1, 11,-1,14,-1];
+// duración de una nota: lo que dura hasta la siguiente (los -1 la sostienen)
+function sostenNota(mel, i, tempo){
+  let n = 1;
+  while (n < 6 && mel[(i + n) % mel.length] === -1) n++;
+  return n*tempo/1000*0.92;
+}
 const BOSS_TRACKS = {
-  flametank: { scale:[110.00,130.81,146.83,155.56,164.81,196.00,207.65,261.63],
-               tempo:180, name:'MARCHA DE CENIZA', style:'march' },
+  flametank: { root:73.42, scale:[73.42,82.41,87.31,98.00,110.00,116.54,130.81,146.83],
+               tempo:108, name:'BESTIA DE ACERO', style:'acero' },
   // Artillero: menor armónica, con su segunda aumentada. Suena a marcha
   // militar vieja y torcida, acorde con el abuelo acorazado.
-  // SUPER X2: escala de tonos enteros, sin semitonos. Suena artificial y
-  // flotante, como una máquina que no termina de posarse.
-  superx:    { scale:[110.00,123.47,138.59,155.56,174.61,196.00,220.00,246.94],
-               bass:[55.00,61.74,69.30,61.74], tempo:146, name:'ARMA A MEDIDA', style:'omni' },
+  // SUPER X2: ver ESCUADRÓN X2 más arriba.
+  superx:    { root:82.41, scale:[82.41,92.50,103.83,116.54,123.47,138.59,155.56,164.81],
+               tempo:112, name:'ESCUADRÓN X2', style:'escuadron' },
   // Artillero: marcha militar con caja, redobles, bombo y una corneta.
   artillero: { scale:[98.00,110.00,116.54,130.81,146.83,155.56,185.00,196.00],
                bass:[49.00,49.00,58.27,55.00], tempo:150, name:'VIEJO CAÑÓN', style:'militar',
@@ -8491,6 +8525,72 @@ function musicStep(){
     if (s % 8 === 6) noise(0.05, 0.06, 2400);
     return;
   }
+  if (bt && bt.style === 'acero'){
+    const f = n => bt.root*Math.pow(2, n/12);
+    const paso = s % 16, comp = (s/16 | 0) % 4, sec = (s/64 | 0) % 4;
+    const raiz = (sec === 3 ? AC_PROG2 : AC_PROG)[comp];
+    const menor = raiz === 0 || raiz === 5, ac = menor ? [0, 3, 7] : [0, 4, 7];
+    // batería: bombo sincopado, caja en el 2 y el 4, charles en corcheas
+    if (paso === 0 || paso === 6 || paso === 8 || (paso === 11 && sec !== 3)){ mk(62, 0.12, 'sine', 0.32); noise(0.03, 0.12, 140); }
+    if (paso === 4 || paso === 12){ noise(0.11, 0.2, 2200); mk(190, 0.05, 'triangle', 0.05); }
+    if (paso % 2 === 0) noise(0.02, 0.05, 9000);
+    if (s % 64 === 0) noise(0.7, 0.12, 5200);                                                  // platillo
+    if (comp === 3 && paso >= 13 && sec !== 3) noise(0.04, 0.08, 2600);                        // redoble al cerrar la frase
+    if (sec === 3 && comp >= 2) noise(0.04, 0.04 + (comp - 2)*0.05 + paso*0.004, 2600);       // redoble de desfile
+    // bajo
+    const nb = sec === 3 ? (paso % 2 === 0 ? (paso % 4 ? 12 : 0) : -1) : AC_BAJO[paso];
+    if (nb >= 0){ mk(f(raiz + nb), 0.1, 'sawtooth', 0.15); if (paso % 4 === 0) mk(f(raiz + nb), 0.14, 'sine', 0.1); }
+    // golpes de metales
+    const golpe = sec === 0 || sec === 3 ? (paso === 6 || paso === 10 || (comp === 3 && paso === 14))
+                                          : (paso === 14 || (comp === 0 && paso === 0));
+    if (golpe){
+      const d = comp === 0 && paso === 0 ? 0.4 : 0.14;
+      for (const n of ac){ mk(f(raiz + n + 12), d, 'sawtooth', 0.034); mk(f(raiz + n + 12), d, 'square', 0.018); }
+    }
+    // la corneta
+    if (sec === 1 || sec === 2){
+      const i = s % 64, m = AC_MEL[i];
+      if (m >= 0){
+        const d = sostenNota(AC_MEL, i, bt.tempo), o = sec === 2 ? 12 : 0;
+        mk(f(m + 12 + o), d, 'sawtooth', 0.048); mk(f(m + 12 + o)*1.005, d, 'square', 0.026);
+        if (sec === 2) mk(f(m + 12 + o - (menor ? 3 : 4)), d, 'triangle', 0.03);             // segunda voz
+      }
+    }
+    return;
+  }
+  if (bt && bt.style === 'escuadron'){
+    const f = n => bt.root*Math.pow(2, n/12);
+    const paso = s % 16, comp = (s/16 | 0) % 4, sec = (s/64 | 0) % 4;
+    const raiz = sec === 3 ? [0, 2, 0, 2][comp] : SX_PROG[comp];
+    const ac = sec === 3 ? [0, 4, 8] : [0, 4, 7];                                              // aumentado en el puente
+    // batería
+    if (paso === 0 || paso === 8 || paso === 10){ mk(64, 0.12, 'sine', 0.3); noise(0.03, 0.1, 150); }
+    if (paso === 4 || paso === 12){ noise(0.1, 0.17, 2600); mk(240, 0.04, 'square', 0.03); }
+    noise(0.015, paso % 4 === 2 ? 0.05 : 0.025, 9500);
+    if (comp === 3 && paso >= 12) mk([210, 175, 140, 110][paso - 12], 0.14, 'sine', 0.2);    // redoble de toms
+    if (s % 64 === 0) noise(0.8, 0.1, 5600);
+    // bajo pulsante
+    if (paso % 2 === 0) mk(f(raiz + (paso % 4 === 2 ? 12 : 0)), 0.1, 'sawtooth', 0.15);
+    // colchón del acorde
+    if (paso === 0) for (const n of ac) mk(f(raiz + n + 12), 16*bt.tempo/1000, 'triangle', 0.022);
+    // secuenciador
+    const sq = [0, 1, 2, 3, 2, 1, 0, 1][paso % 8];
+    const tono = [ac[0], ac[1], ac[2], ac[0] + 12][sq];
+    mk(f(raiz + tono + 24), 0.07, 'square', sec === 0 ? 0.035 : 0.024);
+    // metales del tema
+    if (sec === 1 || sec === 2){
+      const i = s % 64, m = SX_MEL[i];
+      if (m >= 0){
+        const d = sostenNota(SX_MEL, i, bt.tempo), o = sec === 2 ? 12 : 0;
+        mk(f(m + 12 + o), d, 'sawtooth', 0.045); mk(f(m + 12 + o)*0.997, d, 'sawtooth', 0.025);
+        if (sec === 2) mk(f(m + o), d, 'square', 0.022);
+      }
+    }
+    if (sec === 3 && paso % 4 === 0) mk(f(raiz + ac[(paso/4) % 3] + 24), 0.22, 'sawtooth', 0.04);   // alarma de tonos enteros
+    if (s % 32 === 16) mk(f(43), 0.25, 'sine', 0.04);                                          // radar
+    if (s % 64 === 60) noise(0.9, 0.07, 1200);                                                 // el reactor pasa
+    return;
+  }
   if (bt && bt.style === 'menu'){
     // CIUDAD DORMIDA: notas sueltas y sostenidas, un bajo muy espaciado y
     // algún destello agudo. Sin percusión y a la mitad de volumen.
@@ -8502,7 +8602,7 @@ function musicStep(){
     return;
   }
   if (bt){
-    // MARCHA DE CENIZA: bajo insistente, ostinato rápido y golpes graves.
+    // Tema genérico de jefe: bajo insistente, ostinato rápido y golpes graves.
     if (s % 2 === 0) mk(sc[0]/2, 0.34, 'sawtooth', 0.26);
     if (s % 8 === 0) mk(sc[0]/4, 0.6, 'triangle', 0.30);
     mk(sc[(s*3) % sc.length], 0.16, 'square', 0.075);
@@ -8684,6 +8784,9 @@ const BESTIARY = [
   { id:'amalgama', name:'AMALGAMA DE ALMAS', hp:'420+', dmg:'autos lanzados, embestida y manotazos', sprite:'amalgamaF', verb:'DISPERSADAS',
     hint:'Algo grande se arrastra entre las almas de Castigo Divino.',
     desc:'Un alma distinta a las demás: busca a las almas en pena y se las traga, y con cada una crece y gana vida. Le han salido brazos y piernas, y su cabeza es un amasijo de caras que gritan. Arranca los autos calcinados para lanzártelos y embiste en línea recta tras marcarla en el suelo. Mátala antes de que engorde.' },
+  { id:'pollo', name:'PIERNAS DE POLLO', hp:300, dmg:'18 por coletazo giratorio y los tiros del jinete', sprite:'polloF', verb:'DERRIBADAS',
+    hint:'Algo corre a dos patas por Castigo Divino, con alguien encima.',
+    desc:'Bestia de monta del castigo: un lagarto bípedo rosa con franjas amarillas, pico ganchudo de ave, patas de gallina y una cola larguísima. Lleva al lomo una silla blindada y, sobre ella, a un soldado condenado que te dispara con su fusil mientras la bestia corre hacia ti. Si te tiene cerca se agacha, gira sobre sí misma y barre con la cola el círculo que marca en el suelo: sal de él a tiempo. Cuando la bestia cae, el jinete sigue a pie.' },
   { id:'vengativo', name:'VENGATIVO', hp:12, dmg:'se te aferra y muerde', sprite:'vengativoF', verb:'DEVUELTOS AL SUELO',
     hint:'Algo se mueve bajo el suelo de Castigo Divino.',
     desc:'Lo que queda de los que mataste, retorcido por el castigo. Salen del suelo del infierno en grupo, corren en zigzag muy rápido y se te echan encima: los que te alcanzan se aferran a ti y te muerden hasta que se sueltan (corriendo te los quitas antes). Uno solo no aguanta nada; el peligro es que lleguen muchos. En Castigo Divino también te esperan el resto de las unidades de la ciudad y del planeta marciano, deformadas: más vida, más rápidas y más daño, pero valen más puntos. Hasta los jefes vuelven así.' },
@@ -9617,6 +9720,7 @@ const P2_INFIERNO = [
   { type:'arana',     name:'ARAÑA D.',     cost:420, cool:8.0, sprite:'aranaF',     deforme:1 },
   { type:'heli',      name:'HELICÓP. D.',  cost:420, cool:8.0, sprite:'heli',       deforme:1 },
   { type:'amalgama',  name:'AMALGAMA',     cost:650, cool:16.0,sprite:'amalgamaF' },
+  { type:'pollo',     name:'PIERNAS POLLO',cost:300, cool:6.0, sprite:'polloF' },
   { type:'meteoro',   name:'FUEGO DEL CIELO', cost:500, cool:12.0, sprite:'meteoroF', especial:'meteoro' },
   { type:'tripode',   name:'TRÍPODE D.',   cost:1000,cool:22.0,sprite:null, especial:'tripodeN', deforme:1 },
   { type:'kaiyin',    name:'KAIYIN D.',    cost:1500,cool:30.0,sprite:'kaiyinF',    deforme:1 },
@@ -13257,6 +13361,10 @@ function updateSpawnsInf(dt, count){
     if (count('amalgama') < ((form >= 1 || score >= 2500) ? 2 : 1)){ spawnEnemy('amalgama'); toast('¡UNA AMALGAMA DE ALMAS!'); sfx('vengativos'); }
     T.amal = rand(30, 40);
   }
+  if (stage >= 2 && gameTime > 25 && tic('pollo', 12)){
+    if (count('pollo') < (finalWave() ? 3 : 2)) spawnEnemy('pollo');
+    T.pollo = rand(17, 23);
+  }
   if (tic('fuego', 30)){
     if (finalWave() || (stage >= 3 && gameTime > 70)) lanzaMeteorito();
     T.fuego = finalWave() ? rand(14, 18) : rand(24, 32);
@@ -13269,6 +13377,165 @@ function sorteaJefeInf(){
   if (r < 0.32) return 'desgarrador';
   const j = sorteaJefe();
   return j === 'marciana' ? 'centurion' : j;
+}
+// ================= PIERNAS DE POLLO =================
+// Bestia de monta del castigo: lagarto bípedo rosa con franjas amarillas,
+// pico de ave, cola larga y una silla blindada donde va un soldado. El jinete
+// dispara con su fusil; la bestia, si te tiene cerca, gira sobre sí misma y
+// barre un área pequeña con la cola. Al caer, el jinete sigue a pie.
+const POLLO_R = 74, POLLO_DMG = 18;
+const POLLO_W = 160, POLLO_H = 116, POLLO_CX = 88, POLLO_PIE = 108;
+const polloCache = new Map();
+function polloFrame(pose, f){
+  const k = pose + f;
+  let c = polloCache.get(k);
+  if (c) return c;
+  c = document.createElement('canvas'); c.width = POLLO_W; c.height = POLLO_H;
+  const g = c.getContext('2d'); g.lineCap = 'round'; g.lineJoin = 'round';
+  g.translate(POLLO_CX, POLLO_PIE);
+  dibPollo(g, pose, f);
+  pixelArte(c, '#1a0a18');
+  polloCache.set(k, c);
+  return c;
+}
+function dibPollo(g, pose, f){
+  const rosa = '#e070d0', rosaO = '#a0389a', rosaL = '#f8b0f0', amar = '#e8e048', amarO = '#a8a020';
+  const arm = '#b4ac2a', armO = '#6a6418', armL = '#e4dc66', pico = '#c8d444', picoO = '#7a8418';
+  const ph = f/4*Math.PI*2, s = pose === 'anda' ? Math.sin(ph) : 0, bob = pose === 'anda' ? Math.abs(Math.cos(ph))*2 : 0;
+  const agacha = pose === 'aviso' ? 5 : 0, y0 = -bob + agacha;
+  // pierna digitígrada con franjas: muslo grueso, rodilla adelante, garras
+  const pierna = (lejos, sg)=>{
+    const hx = -2 + sg*3, hy = -34 + y0;
+    const kx = hx + 10 + s*sg*6, ky = -21 + y0*0.5, ax = hx + 1 - s*sg*5, ay = -8, fx = ax + 11, fy = -1;
+    jL(g, lejos ? rosaO : rosa, 12, hx, hy, kx, ky);
+    jO(g, lejos ? amarO : amar, (hx + kx)/2, (hy + ky)/2, 5, 3.5);
+    jL(g, lejos ? rosaO : rosa, 7, kx, ky, ax, ay);
+    jO(g, lejos ? amarO : amar, (kx + ax)/2, (ky + ay)/2, 3.5, 2.5);
+    jL(g, lejos ? rosaO : rosa, 5, ax, ay, fx - 4, fy);
+    for (let t = -1; t <= 1; t++) jL(g, '#3a2a20', 2, fx - 4, fy, fx + 3 + t, fy + t*2);       // garras
+    jL(g, '#3a2a20', 2, ax - 2, ay + 4, ax - 6, fy);                                          // espolón
+  };
+  pierna(true, -1);
+  // cola larga a franjas: cae y se enrosca hacia arriba (estirada al girar)
+  const gira = pose === 'gira';
+  for (let i = 0; i <= 11; i++){
+    const t = i/11;
+    const x = -20 - t*(gira ? 60 : 50);
+    const y = gira ? -38 - t*3 : -40 + y0 + t*20 - t*t*34 + Math.sin(ph + t*3)*4*t;
+    jO(g, i % 2 ? amar : rosa, x, y, 9*(1 - t) + 2.4, 8*(1 - t) + 2.2);
+  }
+  // cuerpo con franjas y vientre claro
+  jO(g, rosaO, -2, -38 + y0, 25, 15);
+  jO(g, rosa, -2, -40 + y0, 23, 13);
+  jO(g, rosaL, 4, -31 + y0, 14, 4);
+  for (const x of [-15, -5, 5]) jL(g, amar, 4.5, x, -51 + y0, x + 3, -29 + y0);
+  // cuello y cabeza de ave con pico ganchudo
+  const cx = pose === 'aviso' ? 22 : 26, cy = (pose === 'aviso' ? -56 : -62) + y0;
+  jL(g, rosa, 11, 14, -46 + y0, cx, cy);
+  jO(g, amar, (14 + cx)/2 + 1, (-46 + y0 + cy)/2, 4.5, 3.5);
+  jO(g, rosa, cx + 5, cy - 4, 10, 8);
+  jO(g, rosaL, cx + 3, cy - 9, 5, 2);
+  const abre = pose === 'gira' || pose === 'aviso' ? 5 : 0;
+  g.fillStyle = pico;                                                                        // pico superior
+  g.beginPath(); g.moveTo(cx + 10, cy - 9); g.lineTo(cx + 27, cy - 3); g.lineTo(cx + 25, cy + 2); g.lineTo(cx + 10, cy + 1); g.closePath(); g.fill();
+  g.fillStyle = picoO;                                                                       // mandíbula
+  g.beginPath(); g.moveTo(cx + 10, cy + 1 + abre*0.4); g.lineTo(cx + 22, cy + 3 + abre); g.lineTo(cx + 10, cy + 5 + abre*0.6); g.closePath(); g.fill();
+  jL(g, picoO, 1.5, cx + 12, cy - 4, cx + 24, cy - 1);
+  jO(g, '#ffffff', cx + 6, cy - 7, 2.6, 2.6); jO(g, '#200810', cx + 7, cy - 7, 1.4, 1.6);
+  // silla blindada sobre el lomo, con cinchas
+  jL(g, '#5a3a20', 2.5, -14, -48 + y0, -16, -30 + y0); jL(g, '#5a3a20', 2.5, 4, -48 + y0, 6, -30 + y0);
+  jO(g, armO, -5, -53 + y0, 19, 9);
+  jO(g, arm, -5, -55 + y0, 17, 7);
+  for (const x of [-15, -8, -1, 6]) jL(g, armO, 1.5, x, -61 + y0, x + 1, -49 + y0);
+  jO(g, armL, -10, -59 + y0, 5, 2);
+  jR(g, armO, -20, -54 + y0, 30, 2);
+  // el jinete: soldado del castigo, de piel cenicienta y ojos rojos
+  const ry = -62 + y0, uni = '#56663a', uniO = '#3a4626';
+  jL(g, uniO, 5, -7, ry, 3, ry + 4); jL(g, uniO, 4, 3, ry + 4, 3, ry + 13); jR(g, '#2a2418', 1, ry + 12, 6, 4);   // pierna y bota
+  jR(g, uni, -12, ry - 18, 11, 18);
+  jR(g, '#3a2a18', -12, ry - 3, 11, 2);
+  jR(g, uniO, -12, ry - 18, 3, 16);
+  if (gira){                                                                                 // agarrado a la silla
+    jL(g, uni, 3.5, -4, ry - 14, 4, ry - 4);
+  } else {                                                                                   // fusil al frente
+    jL(g, '#2a2a2a', 3, -8, ry - 11, 18, ry - 13);
+    jL(g, '#4a3a28', 3, -10, ry - 10, -4, ry - 10);
+    jL(g, uni, 3.5, -5, ry - 15, 5, ry - 12);
+  }
+  jO(g, '#b6bca6', -6, ry - 24, 5, 5);                                                         // cara
+  jO(g, '#4a5a2a', -6, ry - 27, 6.5, 4); jR(g, '#4a5a2a', -13, ry - 27, 14, 2);                 // casco
+  jR(g, '#ff3020', -3, ry - 25, 2, 1.5);                                                       // ojo rojo
+  pierna(false, 1);
+}
+function updatePollo(e, dt, a, ang){
+  e.anim = (e.anim || 0) + dt;
+  if (e.cd > 0) e.cd -= dt;
+  if (e.tiroCd > 0) e.tiroCd -= dt;
+  if (e.fogT > 0) e.fogT -= dt;
+  const B = blancoAlien(e, a, ang);
+  const radio = POLLO_R + (B.T === player ? F().r : 12);
+  if (e.fase === 'aviso'){
+    e.ft -= dt;
+    if (e.ft <= 0){ e.fase = 'gira'; e.ft = 0.75; e.golpeo = 0; e.giroA = 0; sfx('coletazo'); }
+    return;
+  }
+  if (e.fase === 'gira'){
+    e.ft -= dt; e.giroA = (e.giroA || 0) + 21*dt;
+    e.x = clamp(e.x + Math.cos(B.an)*50*dt, 30, WORLD_W - 30); e.y = clamp(e.y + Math.sin(B.an)*50*dt, 30, WORLD_H - 30);
+    collideBuildings(e, 20, dt, 0);
+    if (!e.golpeo && B.d < radio){
+      e.golpeo = 1;
+      if (B.T === player){ if (!vil.intro){ const d0 = hp; hp = clamp(hp - recibe(POLLO_DMG), 0, maxHp()); p2Gain(d0 - hp); shake(8, 0.18); sfx('hurt'); } }
+      else B.T.hp -= 30;
+      addParticles(B.T.x, B.T.y - 10, '#e070d0', 10, 140);
+    }
+    if (Math.random() < 0.6) addParticles(e.x + rand(-1, 1)*POLLO_R*0.7, e.y + rand(-10, 10), '#8a6a5a', 1, 60);   // polvo
+    if (e.ft <= 0){ e.fase = ''; e.cd = rand(1.6, 2.4); e.giroA = 0; }
+    return;
+  }
+  e.facing = Math.cos(B.an) >= 0 ? 1 : -1;
+  if (B.d > radio - 18){
+    const x0 = e.x, y0 = e.y;
+    e.x = clamp(e.x + Math.cos(B.an)*e.speed*dt, 30, WORLD_W - 30); e.y = clamp(e.y + Math.sin(B.an)*e.speed*dt, 30, WORLD_H - 30);
+    collideBuildings(e, 20, dt, 0);
+    e.paso = (e.paso || 0) + dist(x0, y0, e.x, e.y)*0.07;
+  }
+  if (B.d < radio + 14 && e.cd <= 0){ e.fase = 'aviso'; e.ft = 0.45; return; }
+  // el jinete dispara con su fusil
+  if (B.d > 110 && B.d < 460 && e.tiroCd <= 0){
+    e.tiroCd = rand(1.8, 2.6); e.fogT = 0.12;
+    const b = mkBullet(e, B.an + rand(-0.06, 0.06), 400, 8, '#ffcf6a', 3);
+    b.y = e.y - 20; bullets.push(b); sfx('shoot');
+  }
+}
+function drawPollo(e){
+  const s = S(e.x, e.y);
+  if (e.fase === 'aviso' || e.fase === 'gira'){                                               // el área del coletazo
+    const p = e.fase === 'gira' ? 1 : 1 - e.ft/0.45;
+    ctx.save(); ctx.globalAlpha = 0.18 + p*0.2; ctx.fillStyle = '#ff4a2a';
+    ctx.beginPath(); ctx.ellipse(s.x, s.y, POLLO_R, POLLO_R*0.5, 0, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 0.8; ctx.strokeStyle = '#ffb06a'; ctx.lineWidth = 2; ctx.setLineDash([8, 6]); ctx.lineDashOffset = -gameTime*60;
+    ctx.beginPath(); ctx.ellipse(s.x, s.y, POLLO_R, POLLO_R*0.5, 0, 0, Math.PI*2); ctx.stroke(); ctx.setLineDash([]);
+    ctx.restore();
+  }
+  sombra(s.x, s.y + 2, 54, 14, 0.7);
+  const pose = e.fase === 'gira' ? 'gira' : e.fase === 'aviso' ? 'aviso' : 'anda';
+  const c = polloFrame(pose, pose === 'anda' ? Math.floor(e.paso || 0) % 4 : 0);
+  // al girar se ve de frente y de espaldas: se estrecha y se da la vuelta
+  let sx = e.facing < 0 ? -1 : 1;
+  if (pose === 'gira'){ const cg = Math.cos(e.giroA || 0); sx = (cg < 0 ? -1 : 1)*Math.max(0.22, Math.abs(cg)); }
+  ctx.save(); ctx.translate(s.x, s.y + 2); ctx.scale(sx*0.8, 0.8);
+  const suave = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(c, -POLLO_CX, -POLLO_PIE);
+  if (e.fogT > 0){ ctx.fillStyle = '#ffe08a'; ctx.beginPath(); ctx.arc(22, -74, 4, 0, Math.PI*2); ctx.fill(); }   // fogonazo del fusil
+  ctx.imageSmoothingEnabled = suave; ctx.restore();
+  if (pose === 'gira'){                                                                      // estela de la cola
+    ctx.save(); ctx.globalAlpha = 0.45; ctx.strokeStyle = '#f0a0e8'; ctx.lineWidth = 5;
+    const a0 = (e.giroA || 0)*1.0;
+    ctx.beginPath(); ctx.ellipse(s.x, s.y - 26, POLLO_R*0.85, POLLO_R*0.42, 0, a0, a0 + 2.2); ctx.stroke();
+    ctx.restore();
+  }
+  if (showHpBars) hpBar(s.x, s.y - 98, 56, e.hp, e.maxhp, '#e070d0');
 }
 // ================= AMALGAMA DE ALMAS =================
 // Un alma distinta a las demás: se traga a las almas en pena que encuentra y
@@ -14051,6 +14318,7 @@ function drawMisilCayendo(m){
   ficha('desgarradorF', desFrame('corta', 0), 0.9);
   ficha('bichoF', alienFrame('bicho', 'ataca', 0), 1.3);
   ficha('amalgamaF', amalFrame('lanza', 0), 1.1);
+  ficha('polloF', polloFrame('anda', 0), 0.9);
   { const m = document.createElement('canvas'); m.width = 40; m.height = 40; const g = m.getContext('2d');
     g.fillStyle = '#ff8a2a'; g.beginPath(); g.moveTo(36, 4); g.lineTo(22, 16); g.lineTo(28, 22); g.closePath(); g.fill();
     g.fillStyle = '#ffd27a'; g.beginPath(); g.moveTo(32, 8); g.lineTo(22, 18); g.lineTo(26, 20); g.closePath(); g.fill();
@@ -16792,6 +17060,7 @@ function meleeDmg(e){
   if (e.type === 'gunship') return 130;
   if (e.type === 'tank' || e.type === 'arana' || e.type === 'bicho') return 160;
   if (e.type === 'amalgama') return 120;
+  if (e.type === 'pollo')    return 110;    // tres tentacazos
   return 9999;                            // el resto revienta de un tentacazo
 }
 
@@ -16965,7 +17234,7 @@ const SCENERY = { tree:1, lamp:1, bench:1, trash:1 };
 function isScenery(o){ return !!SCENERY[o.kind]; }
 
 // Unidades que no se revientan de una pasada: hay que insistir.
-const BLINDADOS = { desgarrador:1, bicho:1, amalgama:1, arana:1, tank:1, siege:1, gunship:1, heli:1, flametank:1, omni:1, artillero:1, superx:1, mbt:1, mbtFrio:1, tripode:1 };
+const BLINDADOS = { desgarrador:1, bicho:1, amalgama:1, pollo:1, arana:1, tank:1, siege:1, gunship:1, heli:1, flametank:1, omni:1, artillero:1, superx:1, mbt:1, mbtFrio:1, tripode:1 };
 // Mini jefes: el viltrumita les hace más daño con lo que les arroja.
 const JEFES = { flametank:1, omni:1, artillero:1, superx:1, tripode:1, heroe:1, kaiyin:1, centurion:1, desgarrador:1 };
 const VIL_BOSS_MULT = 1.40;
@@ -18040,6 +18309,7 @@ function updateEnemies(dt){
     if (e.type === 'vengativo'){ updateVengativo(e, dt, a, ang); continue; }
     if (e.type === 'bicho'){ updateBicho(e, dt, a, ang); continue; }
     if (e.type === 'amalgama'){ updateAmalgama(e, dt, a, ang); continue; }
+    if (e.type === 'pollo'){ updatePollo(e, dt, a, ang); continue; }
     if (e.type === 'cabezon'){ updateCabezon(e, dt, a, ang); continue; }
     if (e.type === 'arana'){ updateArana(e, dt, a, ang); continue; }
     if (e.type === 'murcielago'){ updateMurcielago(e, dt, a, ang); continue; }
@@ -19881,6 +20151,7 @@ function drawEnemyBase(e){
   if (e.type === 'desgarrador'){ drawDesgarrador(e); return; }
   if (e.type === 'vengativo'){ drawVengativo(e); return; }
   if (e.type === 'amalgama'){ drawAmalgama(e); return; }
+  if (e.type === 'pollo'){ drawPollo(e); return; }
   if (AL_TAM[e.type]){ drawUnidadAlien(e); return; }
   if (e.type === 'heroe'){ drawHeroe(e); return; }
   if (FANT_TIPOS[e.type]){ drawFantasmaUnidad(e); return; }
