@@ -3921,6 +3921,15 @@ function drawCenizas(){
 }
 
 // ---------- música ----------
+// Pasado un rato, el castigo sube de marcha: metal frenético de doble bombo,
+// riffs graves de cuerda al aire y gritos de guitarra.
+const INFIERNO_TRACK2 = {
+  scale: [65.41, 69.30, 77.78, 87.31, 92.50, 103.83, 116.54, 130.81],
+  bass:  [32.70, 32.70, 34.65, 30.87], tempo: 105, name:'MATANZA ETERNA', style:'metal',
+  riff:  [0,0,-1,0, 0,-1,0,0, 1,-1,0,0, 3,-1,2,1, 0,0,-1,0, 0,-1,0,0, 4,-1,3,-1, 5,4,3,1],
+  lead:  [7,-1,-1,6, -1,-1,5,-1, 4,-1,-1,-1, 5,-1,6,-1]
+};
+const INF_CAMBIO_T = 100;          // segundos de LAMENTO ETERNO antes de que entre el metal
 const INFIERNO_TRACK = {
   scale: [130.81, 146.83, 164.81, 174.61, 196.00, 207.65, 233.08, 261.63],
   bass:  [73.42, 73.42, 69.30, 65.41], tempo: 230, name:'LAMENTO ETERNO', style:'infierno',
@@ -4530,13 +4539,13 @@ function edgeSpawnPos(dmin, dmax, vuela){
 
 const ENEMY_TYPES = { police:1, military:1, minigun:1, tank:1, heli:1, gunship:1, siege:1, flametank:1, plane:1, omni:1, artillero:1, superx:1, mbt:1, mbtFrio:1, ovni:1, tripode:1,
                       heroe:1, arquero:1, caballero:1, golem:1, kaiyin:1,
-                      centinela:1, droide:1, escaner:1, cabezon:1, arana:1, murcielago:1, caza40k:1, centurion:1, vengativo:1, bicho:1, amalgama:1 };
+                      centinela:1, droide:1, escaner:1, cabezon:1, arana:1, murcielago:1, caza40k:1, centurion:1, vengativo:1, bicho:1, amalgama:1, desgarrador:1 };
 function spawnEnemy(type, atX, atY){
   if (!ENEMY_TYPES[type]) return;      // ignora tipos retirados o mal escritos
   // Lo que vuela puede aparecer sobre un tejado; el resto, no.
   const vuela = (type === 'heli' || type === 'gunship' || type === 'plane' ||
                  type === 'ovni' || type === 'superx' || type === 'tripode' ||   // el trípode pasa por encima
-                 type === 'heroe' || type === 'kaiyin' || type === 'centurion' || !!FANT_TIPOS[type] || !!AL_VUELA[type]);   // almas y dragón: por encima de todo
+                 type === 'heroe' || type === 'kaiyin' || type === 'centurion' || type === 'desgarrador' || !!FANT_TIPOS[type] || !!AL_VUELA[type]);   // almas y dragón: por encima de todo
   const p = (atX != null && atY != null) ? {x:atX, y:atY} : edgeSpawnPos(460, 620, vuela);
   const base = { x:p.x, y:p.y, type, dead:false, facing:1, shootCd:rand(0.3,1.6), rot:0,
                  held:false, thrown:false, alt:0, stunT:0, stunVx:0, stunVy:0, person:false };
@@ -4594,6 +4603,9 @@ function spawnEnemy(type, atX, atY){
                             nace:0.8, cd:0, semilla:rand(0, 6)});
   // Amalgama de almas: crece al tragarse almas en pena.
   if (type==='amalgama') Object.assign(base, {hp:420, maxhp:420, speed:80, w:44, h:64, grabbable:false, k:1, fase:'', cd:2, embCd:4, golpeCd:0, paso:0});
+  // El Desgarrador: kaiju cíborg de motosierras, jefe del planeta marciano.
+  if (type==='desgarrador') Object.assign(base, {hp:DES_HP, maxhp:DES_HP, speed:110, w:110, h:150, grabbable:false,
+                            fase:'', ft:0, cd:2.2, alt:0, rA:0, sA:0, eA:0, giro:0, paso:0});
   // El Centurión: armadura voladora, jefe del planeta marciano.
   if (type==='centurion') Object.assign(base, {hp:CENT_HP, maxhp:CENT_HP, speed:135, w:70, h:96, grabbable:false,
                             fase:'', ft:0, cd:2.4, alt:34, lado:1, mA:0, cA:0, c0:0, c1:0, eA:0});
@@ -6575,6 +6587,7 @@ const REWARD = {
   caza40k:  { pts:180,  heal:22 },
   kaiyin:   { pts:3200, heal:90 },
   centurion:{ pts:3000, heal:90 },
+  desgarrador:{ pts:3200, heal:90 },
   vengativo:{ pts:12,   heal:2 },
   bicho:    { pts:140,  heal:14 },
   amalgama: { pts:450,  heal:35 },
@@ -6708,6 +6721,7 @@ function damageEnemy(e, dmg, fx, fy){
   // El estallido de su caída se queda; el logro ahora es del Registro completo.
   if (k === 'flametank' || k === 'omni'){ explode(e.x, e.y, 190, 70, true); }
   else if (k === 'kaiyin'){ explode(e.x, e.y, 260, 80, true); humoNegro(e.x, e.y); shake(24, 0.8); e.tormT = 0; }
+  else if (k === 'desgarrador'){ explode(e.x, e.y, 220, 70, true); humoNegro(e.x, e.y); addParticles(e.x, e.y - 80, '#c4ccd6', 30, 260); shake(24, 0.8); }
   else if (k === 'centurion'){ explode(e.x, e.y, 210, 70, true); humoNegro(e.x, e.y); addParticles(e.x, e.y - 50, '#7fe8ff', 24, 240); shake(22, 0.7);
                                if (esAlien()){ unlockAch('conquistador'); toast('¡EL PLANETA ROJO ES TUYO!'); } }
   else if (k === 'tripode'){ explode(e.x, e.y - 30, 150, 55, true); addParticles(e.x, e.y - 44, '#dff6ff', 20, 220); humoNegro(e.x, e.y); }
@@ -8190,6 +8204,11 @@ const BOSS_TRACKS = {
                ost:[0,1,2,-1, 0,1,2,-1, 0,1,3,2, 1,-1,-1,-1, 0,1,2,-1, 0,1,2,-1, 4,3,2,1, 0,-1,-1,-1] },
   // El Centurión: sintetizador de máquina de guerra. Bajo en semicorcheas,
   // bombo industrial y un riff de onda cuadrada que se repite como una alarma.
+  // El Desgarrador: monstruo gigante de película, con metales en ostinato y
+  // golpes de orquesta, más rápido y metálico que el del Kaiyin.
+  desgarrador: { scale:[73.42,77.78,87.31,98.00,103.83,116.54,130.81,146.83],
+               bass:[36.71,38.89,36.71,32.70], tempo:150, name:'SIERRA DE ACERO', style:'kaiju',
+               ost:[0,0,1,-1, 0,0,3,-1, 0,0,1,-1, 4,3,1,-1, 0,0,1,-1, 0,0,3,-1, 6,5,4,3, 1,-1,0,-1] },
   centurion: { scale:[146.83,155.56,174.61,196.00,220.00,233.08,261.63,293.66],
                bass:[73.42,73.42,77.78,65.41], tempo:172, name:'ACERO ORBITAL', style:'mecha',
                mel:[0,-1,0,3, -1,2,-1,1, 0,-1,0,5, -1,4,3,-1, 0,-1,0,3, -1,2,-1,1, 6,5,4,3, 2,-1,1,-1] }
@@ -8215,7 +8234,7 @@ let menuMusica = false;
 // El tema que manda: muestra del registro, jefe, menú o, en el planeta
 // marciano, su propio tema futurista.
 function pistaBase(){
-  return previewTrack || bossTrack || (menuMusica ? MENU_TRACK : null) || (running && esAlien() ? ALIEN_TRACK : null) || (running && esInfierno() ? INFIERNO_TRACK : null);
+  return previewTrack || bossTrack || (menuMusica ? MENU_TRACK : null) || (running && esAlien() ? ALIEN_TRACK : null) || (running && esInfierno() ? (gameTime > INF_CAMBIO_T ? INFIERNO_TRACK2 : INFIERNO_TRACK) : null);
 }
 function musicStep(){
   if (!audio.ctx || !audio.musOn) return;
@@ -8314,6 +8333,19 @@ function musicStep(){
     if (n >= 0) mk(sc[n]*2, 0.5, 'square', 0.06);
     if (s % 16 === 12) mk(sc[1]*4, 0.9, 'sine', 0.05);
     if (s % 8 === 4) noise(0.12, 0.1, 400);
+    return;
+  }
+  if (bt && bt.style === 'metal'){
+    // MATANZA ETERNA: doble bombo, caja en el 2 y el 4, riff de sierra grave
+    // con su quinta (acorde de potencia) y una guitarra solista que grita.
+    const b = bt.bass[(s/16 | 0) % bt.bass.length], sec = (s/64 | 0) % 4;
+    if (sec !== 3 || s % 2 === 0){ mk(b*1.5, 0.07, 'sine', 0.3); noise(0.03, 0.14, 110); }   // doble bombo
+    if (s % 8 === 4){ noise(0.14, 0.24, 1900); mk(196, 0.06, 'triangle', 0.05); }            // caja
+    if (s % 2 === 1) noise(0.02, 0.05, 9000);                                                // platillo
+    if (s % 32 === 0) noise(0.6, 0.12, 5000);                                                // choque
+    const n = bt.riff[s % bt.riff.length];
+    if (n >= 0){ mk(sc[n], 0.09, 'sawtooth', 0.2); mk(sc[n]*1.5, 0.09, 'square', 0.09); mk(sc[n]*2, 0.09, 'sawtooth', 0.05); }
+    if (sec >= 2){ const l = bt.lead[s % bt.lead.length]; if (l >= 0){ mk(sc[l]*4, 0.3, 'square', 0.05); mk(sc[l]*4*1.006, 0.3, 'sawtooth', 0.03); } }
     return;
   }
   if (bt && bt.style === 'infierno'){
@@ -8435,10 +8467,13 @@ function updateBossMusic(dt){
     if (e.type === 'tripode' && !e.normal){ cual = 'tripode'; break; }
     if (e.type === 'kaiyin'){ cual = 'kaiyin'; break; }
     if (e.type === 'centurion'){ cual = 'centurion'; break; }
+    if (e.type === 'desgarrador'){ cual = 'desgarrador'; break; }
     if (e.type === 'heroe'){ cual = 'heroe'; break; }
   }
   const nuevo = cual ? BOSS_TRACKS[cual] : null;
   if (nuevo !== bossTrack){ bossTrack = nuevo; retuneMusic(); }
+  const base = pistaBase();
+  if (base !== updateBossMusic.ultima){ updateBossMusic.ultima = base; retuneMusic(); }
 }
 
 // Vista previa desde el registro.
@@ -8564,6 +8599,9 @@ const BESTIARY = [
     desc:'Criatura voladora del planeta con aspecto de xenomorfo: cabeza larga y lisa, fauces con una segunda mandíbula, tubos en el lomo, alas de hueso y cola acabada en punta. Revolotea en círculos y escupe bolas de ácido que dejan un charco en el suelo durante unos segundos: no te quedes encima. Se agarra fácilmente.' },
   { id:'caza40k', name:'DRON KAMIKAZE', hp:80, dmg:'26 por misil, 34 al estrellarse', sprite:'caza40kF', verb:'DERRIBADOS',
     desc:'Dron de aspecto gótico y blindado, hecho para morir matando. De lejos suelta dos misiles autodirigidos, como el helicóptero artillado; luego pasa disparando, da media vuelta y, cuando te encara, se lanza en picado para estrellarse contra ti. Si esquivas el picado, se estrella igual y explota donde cae.' },
+  { id:'desgarrador', name:'EL DESGARRADOR', hp:2600, dmg:'embestidas, motosierras, rayo y coletazo', sprite:'desgarradorF', verb:'DERROTADOS',
+    hint:'El otro guardián del Mundo Alienígena. Aún no lo has derrotado.',
+    desc:'Kaiju cíborg del planeta marciano: garfios y motosierras por brazos, una sierra circular en el pecho, aletas rojas, cola de púas y un visor rojo. Embiste volando a gran velocidad cortando con sus dos cuchillas, dispara desde el visor un rayo que te persigue (escóndete tras un edificio o un escudo), lanza tajos con las motosierras si te tiene cerca, embiste por el suelo con la sierra del pecho y barre todo alrededor con la cola. Además se regenera poco a poco. En Castigo Divino vuelve deformado.' },
   { id:'centurion', name:'EL CENTURIÓN', hp:2200, dmg:'embestida, bombas, misiles, minigun y corte láser', sprite:'centurionF', verb:'DERROTADOS',
     hint:'El guardián del Mundo Alienígena. Aún no lo has derrotado.',
     desc:'La armadura robótica que protege el planeta marciano. Vuela a tu alrededor y alterna sus armas: embestida por una línea que marca en el suelo, bombas pegajosas que se te quedan encima (o en lo que lleves agarrado: lánzalo lejos), salvas de misiles guiados, ráfagas de su minigun láser y, lo peor, un gran corte láser que barre un abanico enorme marcado en rojo. Del corte solo te salva salir del abanico o ponerte detrás de algo. Por debajo de la mitad de vida pierde el blindaje y se vuelve más rápido.' },
@@ -8648,7 +8686,9 @@ const OST_TEMAS = [
     desc:'El tema del Mundo Alienígena. Bajo pulsante de sintetizador, un arpegio frío que sube y baja y destellos agudos: la ciudad futurista de los marcianos.' },
   { id:'mapa_infierno', icon:'\u{1F525}', name:'LAMENTO ETERNO', pista: ()=> INFIERNO_TRACK,
     bloqueo:'Juega una partida en CASTIGO DIVINO para desbloquearlo. Toca el icono para ver otro tema.',
-    desc:'El tema de Castigo Divino. Un órgano grave que nunca se resuelve, un coro desafinado, el Dies irae arrastrado y un tambor lento como un latido.' }
+    desc:'El tema de Castigo Divino. Un órgano grave que nunca se resuelve, un coro desafinado, el Dies irae arrastrado y un tambor lento como un latido.' },
+  { id:'mapa_infierno2', icon:'\u{1F918}', name:'MATANZA ETERNA', pista: ()=> INFIERNO_TRACK2,
+    desc:'El segundo tema de Castigo Divino, cuando la partida se alarga: metal frenético de doble bombo, riffs graves y una guitarra que grita.' }
 ];
 let ostSel = 0;
 
@@ -9484,7 +9524,11 @@ const P2_ALIEN = [
   { type:'caza40k',   name:'DRON KAMIK.',cost:360, cool:8.0, sprite:'caza40kF' },
   { type:'meteoro',   name:'METEORITO',  cost:500, cool:12.0,sprite:'meteoroF', especial:'meteoro' },
   { type:'tripode',   name:'TRÍPODE',    cost:700, cool:18.0,sprite:null, especial:'tripodeN' },
-  { type:'centurion', name:'CENTURIÓN',  cost:1300,cool:28.0,sprite:'centurionF' }
+  { type:'centurion', name:'CENTURIÓN',  cost:1300,cool:28.0,sprite:'centurionF' },
+  { type:'desgarrador',name:'DESGARRADOR',cost:1350,cool:28.0,sprite:'desgarradorF' },
+  { type:'misilHielo', name:'MISIL HIELO', cost:450, cool:12.0,sprite:'meteoroF', especial:'meteoro', misil:'hielo' },
+  { type:'misilNuke',  name:'MISIL NUCLEAR',cost:900, cool:24.0,sprite:'meteoroF', especial:'meteoro', misil:'nuke' },
+  { type:'bombaNegra', name:'BOMBA NEGRA', cost:400, cool:12.0,sprite:'meteoroF', especial:'meteoro', misil:'negra' }
 ];
 // El castigo: hordas de vengativos y los de los otros dos mapas, deformados.
 const P2_INFIERNO = [
@@ -9502,7 +9546,8 @@ const P2_INFIERNO = [
   { type:'meteoro',   name:'FUEGO DEL CIELO', cost:500, cool:12.0, sprite:'meteoroF', especial:'meteoro' },
   { type:'tripode',   name:'TRÍPODE D.',   cost:1000,cool:22.0,sprite:null, especial:'tripodeN', deforme:1 },
   { type:'kaiyin',    name:'KAIYIN D.',    cost:1500,cool:30.0,sprite:'kaiyinF',    deforme:1 },
-  { type:'centurion', name:'CENTURIÓN D.', cost:1500,cool:30.0,sprite:'centurionF', deforme:1 }
+  { type:'centurion', name:'CENTURIÓN D.', cost:1500,cool:30.0,sprite:'centurionF', deforme:1 },
+  { type:'desgarrador',name:'DESGARRADOR D.',cost:1550,cool:30.0,sprite:'desgarradorF', deforme:1 }
 ];
 const P2_SETS = { ciudad:P2_CIUDAD, alien:P2_ALIEN, infierno:P2_INFIERNO };
 let P2_UNITS = P2_CIUDAD;
@@ -9598,8 +9643,7 @@ function p2Place(){
   }
   if (u.especial === 'horda') hordaVengativa(6, p2.x, p2.y, 20, 90);
   else if (u.especial === 'meteoro'){
-    meteoros.push({ x: p2.x, y: p2.y, t: METEORO_T, max: METEORO_T });
-    toast(esInfierno() ? '¡FUEGO DEL CIELO! SAL DEL CÍRCULO' : '¡METEORITO! SAL DEL CÍRCULO'); sfx('meteoro');
+    lanzaMisilEn(p2.x, p2.y, u.misil || 'meteoro');
   } else if (u.especial === 'tripodeN'){
     const t = spawnTripodeNormal(p2.x, p2.y);
     if (u.deforme) hazDeforme(t, 1.4);
@@ -9609,6 +9653,7 @@ function p2Place(){
     spawnEnemy(u.type, p2.x, p2.y);
     if (u.deforme && enemies.length > n0) hazDeforme(enemies[enemies.length - 1], JEFES[u.type] ? 1.5 : 1.7);
     if (u.type === 'centurion'){ toast('¡EL CENTURIÓN!'); shake(18, 0.6); }
+    if (u.type === 'desgarrador'){ toast('¡EL DESGARRADOR!'); sfx('sierra'); shake(18, 0.6); }
   }
   if (u.type === 'tripode' && !u.especial){ toast(TRI_AVISO, 3); sfx('ulla'); shake(14, 0.5); }
   if (u.type === 'heroe'){ toast('¡EL HÉROE MÁGICO!'); sfx('conjuro'); }
@@ -12387,7 +12432,8 @@ function updateCaza40k(e, dt, a, ang){
 // ---------- ácido y meteoritos ----------
 const acidoProy = [], acidos = [], meteoros = [];
 const METEORO_R = 170, METEORO_T = 3.4;
-function lanzaMeteorito(){
+function lanzaMeteorito(tipo){
+  if (tipo) return lanzaMisilEn(player.x, player.y, tipo);
   meteoros.push({ x: player.x, y: player.y, t: METEORO_T, max: METEORO_T });
   toast(esInfierno() ? '¡FUEGO DEL CIELO! SAL DEL CÍRCULO' : '¡METEORITO! SAL DEL CÍRCULO');
   sfx('meteoro');
@@ -12418,18 +12464,11 @@ function updateAlien(dt){
     m.t -= dt;
     if (m.t > 0) continue;
     meteoros.splice(i, 1);
-    explode(m.x, m.y, METEORO_R, 70, true, true);
-    for (const b of buildings){
-      if (b.stage >= 2) continue;
-      const cx = clamp(m.x, b.x, b.x + b.w), cy = clamp(m.y, b.y, b.y + b.h);
-      if (dist(cx, cy, m.x, m.y) < METEORO_R*0.7) damageBuilding(b, 160);
-    }
-    for (let k = 0; k < 6; k++) addSmoke(m.x + rand(-40, 40), m.y + rand(-30, 30));
-    addParticles(m.x, m.y, '#ff8a2a', 30, 280); addParticles(m.x, m.y, '#5a4a3a', 20, 200);
-    shake(22, 0.6); sfx('bigboom');
+    impactoMisil(m);
   }
+  updateNubesNegras(dt);
 }
-function limpiaAlien(){ acidoProy.length = 0; acidos.length = 0; meteoros.length = 0; limpiaCenturion(); charcosLava.length = 0; lentoT = 0; }
+function limpiaAlien(){ acidoProy.length = 0; acidos.length = 0; meteoros.length = 0; limpiaCenturion(); charcosLava.length = 0; lentoT = 0; nubesNegras.length = 0; cenizas.length = 0; }
 
 // ---------- dibujo ----------
 function pintaAl(c, tipo, sx, sy, facing, rot){
@@ -12523,33 +12562,26 @@ function drawAlienSuelo(){
   }
   for (const m of meteoros){
     const s = S(m.x, m.y), p = 1 - m.t/m.max, pul = 0.6 + Math.sin(gameTime*14)*0.3;
+    const M = MISIL_TIPOS[m.tipo] || MISIL_TIPOS.meteoro, MR = M.R;
     ctx.save();
-    ctx.globalAlpha = 0.12 + p*0.18; ctx.fillStyle = '#ff5a2a';
-    ctx.beginPath(); ctx.ellipse(s.x, s.y, METEORO_R, METEORO_R*0.6, 0, 0, Math.PI*2); ctx.fill();
-    ctx.globalAlpha = pul; ctx.strokeStyle = '#ff6a3a'; ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.ellipse(s.x, s.y, METEORO_R, METEORO_R*0.6, 0, 0, Math.PI*2); ctx.stroke();
+    ctx.globalAlpha = 0.12 + p*0.18; ctx.fillStyle = M.col;
+    ctx.beginPath(); ctx.ellipse(s.x, s.y, MR, MR*0.6, 0, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = pul; ctx.strokeStyle = M.borde; ctx.lineWidth = m.tipo === 'nuke' ? 4 : 3;
+    ctx.beginPath(); ctx.ellipse(s.x, s.y, MR, MR*0.6, 0, 0, Math.PI*2); ctx.stroke();
     ctx.globalAlpha = 0.8; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.ellipse(s.x, s.y, METEORO_R*p, METEORO_R*0.6*p, 0, 0, Math.PI*2); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(s.x, s.y, MR*p, MR*0.6*p, 0, 0, Math.PI*2); ctx.stroke();
+    if (m.tipo === 'nuke'){                                    // el símbolo radiactivo en el centro
+      ctx.globalAlpha = 0.5 + pul*0.3; ctx.fillStyle = '#2a2a14';
+      for (let k = 0; k < 3; k++){ const a0 = k*Math.PI*2/3 - Math.PI/2; ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.ellipse(s.x, s.y, 30, 18, 0, a0 - 0.5, a0 + 0.5); ctx.closePath(); ctx.fill(); }
+      ctx.fillStyle = '#fff07a'; ctx.beginPath(); ctx.ellipse(s.x, s.y, 7, 4.5, 0, 0, Math.PI*2); ctx.fill();
+    }
     ctx.beginPath(); ctx.moveTo(s.x - 18, s.y); ctx.lineTo(s.x + 18, s.y); ctx.moveTo(s.x, s.y - 12); ctx.lineTo(s.x, s.y + 12); ctx.stroke();
     ctx.restore();
   }
 }
 // La roca cayendo del cielo, por encima de todo.
 function drawMeteorosCayendo(){
-  for (const m of meteoros){
-    if (m.t > 1.1) continue;
-    const k = 1 - m.t/1.1, s = S(m.x, m.y);
-    const x = s.x + 380*(1 - k), y = s.y - 700*(1 - k);
-    ctx.save();
-    ctx.globalAlpha = 0.5; ctx.strokeStyle = '#ff8a2a'; ctx.lineWidth = 26; ctx.lineCap = 'round';
-    ctx.beginPath(); ctx.moveTo(x + 90, y - 165); ctx.lineTo(x, y); ctx.stroke();
-    ctx.globalAlpha = 0.85; ctx.strokeStyle = '#ffe07a'; ctx.lineWidth = 10;
-    ctx.beginPath(); ctx.moveTo(x + 50, y - 92); ctx.lineTo(x, y); ctx.stroke();
-    ctx.globalAlpha = 1; ctx.fillStyle = '#4a3a30'; ctx.beginPath(); ctx.arc(x, y, 22, 0, Math.PI*2); ctx.fill();
-    ctx.fillStyle = '#6a5442'; ctx.beginPath(); ctx.arc(x - 5, y - 6, 12, 0, Math.PI*2); ctx.fill();
-    ctx.fillStyle = '#ff7a2a'; ctx.beginPath(); ctx.arc(x + 9, y + 7, 7, 0, Math.PI*2); ctx.fill();
-    ctx.restore();
-  }
+  for (const m of meteoros){ drawMisilCayendo(m); }
 }
 function drawRayoLaser(b, s){
   const v = Math.hypot(b.vx, b.vy) || 1, ux = b.vx/v, uy = b.vy/v;
@@ -12607,9 +12639,10 @@ function updateSpawnsAlien(dt, count){
     if (finalWave()){ if (count('caza40k') < 3) spawnEnemy('caza40k'); T.caza = rand(8, 12); }
     else { if (stage >= 3 && gameTime > 45 && count('caza40k') < 1) spawnEnemy('caza40k'); T.caza = rand(18, 26); }
   }
-  if (tic('met', 25)){
-    if (finalWave() || (stage >= 3 && gameTime > 70)) lanzaMeteorito();
-    T.met = finalWave() ? rand(12, 16) : rand(22, 30);
+  if (tic('met', 25)){                               // meteoritos y misiles del cielo
+    if (finalWave() || (stage >= 3 && gameTime > 70)) lanzaMeteorito(sorteaMisil());
+    else if (stage >= 2 && gameTime > 45) lanzaMeteorito(Math.random() < 0.5 ? 'hielo' : 'negra');
+    T.met = finalWave() ? rand(11, 15) : rand(18, 26);
   }
 }
 // ================= EL CENTURIÓN =================
@@ -13156,7 +13189,9 @@ function updateSpawnsInf(dt, count){
 }
 // En el infierno vuelven todos los jefes, deformados (el Centurión incluido).
 function sorteaJefeInf(){
-  if (Math.random() < 0.18) return 'centurion';
+  const r = Math.random();
+  if (r < 0.16) return 'centurion';
+  if (r < 0.32) return 'desgarrador';
   const j = sorteaJefe();
   return j === 'marciana' ? 'centurion' : j;
 }
@@ -13466,6 +13501,454 @@ function ojoHumanoOmni(e, x, y, er, cargando, disparando){
   const parp = (gameTime*0.35 + e.x*0.001) % 1 < 0.04 ? 1 : 0.28;
   ctx.fillStyle = '#9a5a4e'; ctx.beginPath(); ctx.ellipse(x, y - er*0.95*(1 - parp), er*1.45, er*0.95*parp + 0.5, 0, Math.PI, 0); ctx.fill();
 }
+// ================= EL DESGARRADOR =================
+// Kaiju cíborg del planeta marciano: garfios y motosierras por brazos, una
+// sierra circular en el pecho, aletas rojas, cola llena de púas y un visor
+// rojo del que sale un rayo que te persigue. Se regenera poco a poco.
+const DES_HP = 2600, DES_ESC = 1.45, DES_REGEN = 6;
+const DES_TAM = [190, 176, 92, 166];
+const desCache = new Map();
+function desFrame(pose, f){
+  const k = pose + f;
+  let c = desCache.get(k);
+  if (c) return c;
+  const [W, H, cx, py] = DES_TAM;
+  c = document.createElement('canvas'); c.width = W; c.height = H;
+  const g = c.getContext('2d'); g.lineCap = 'round'; g.lineJoin = 'round';
+  g.translate(cx, py);
+  dibDesgarrador(g, pose, f);
+  pixelArte(c, '#08080c');
+  desCache.set(k, c);
+  return c;
+}
+function dibDesgarrador(g, pose, f){
+  const neg = '#1a1c24', gris = '#4a505c', grisL = '#8a929e', plata = '#c4ccd6', rojo = '#a81822', rojoL = '#e0303a';
+  const ph = f/4*Math.PI*2, s = pose === 'anda' ? Math.sin(ph) : 0;
+  // cola larga con púas (barrida hacia delante en el coletazo)
+  const cola = pose === 'cola';
+  const pts = [];
+  for (let i = 0; i <= 8; i++){
+    const t = i/8;
+    pts.push(cola ? [-14 + Math.cos(Math.PI*0.95 - t*2.4)*(20 + t*70), -34 + Math.sin(Math.PI*0.95 - t*2.4)*(10 + t*26)]
+                  : [-18 - t*76, -34 + t*24 + Math.sin(t*3 + ph)*3]);
+  }
+  for (let i = 0; i < 8; i++){
+    const w = 12 - i*1.2;
+    jL(g, neg, w, pts[i][0], pts[i][1], pts[i + 1][0], pts[i + 1][1]);
+    jL(g, gris, Math.max(1, w*0.35), pts[i][0], pts[i][1] - w*0.25, pts[i + 1][0], pts[i + 1][1] - w*0.25);
+    const mx = (pts[i][0] + pts[i + 1][0])/2, my = (pts[i][1] + pts[i + 1][1])/2;
+    g.fillStyle = grisL; g.beginPath(); g.moveTo(mx - 3, my - w*0.4); g.lineTo(mx, my - w*0.4 - 7 + i*0.4); g.lineTo(mx + 3, my - w*0.4); g.fill();   // púas
+  }
+  // aletas rojas del lomo (abiertas al volar)
+  const ala = pose === 'vuela';
+  for (let i = 0; i < 4; i++){
+    const bx = -6 - i*6, by = -96 + i*6, L = ala ? 46 - i*6 : 30 - i*4, an = ala ? -2.2 + i*0.25 : -2.0 + i*0.18;
+    g.fillStyle = i % 2 ? '#5a0c12' : rojo;
+    g.beginPath(); g.moveTo(bx, by); g.lineTo(bx + Math.cos(an)*L, by + Math.sin(an)*L);
+    g.lineTo(bx + Math.cos(an + 0.35)*L*0.6, by + Math.sin(an + 0.35)*L*0.6); g.lineTo(bx + 8, by + 6); g.closePath(); g.fill();
+    jL(g, neg, 1.6, bx, by, bx + Math.cos(an)*L, by + Math.sin(an)*L);
+  }
+  // piernas digitígradas
+  const pierna = (x0, lado, lejos)=>{
+    const kx = x0 + 8 + lado*s*6, ky = -34, ax = x0 - 4 + lado*s*8, ay = -14, fx = x0 + 6 + lado*s*10;
+    jL(g, lejos ? neg : gris, 13, x0, -56, kx, ky); jL(g, lejos ? neg : gris, 9, kx, ky, ax, ay); jL(g, lejos ? neg : gris, 7, ax, ay, fx, -3);
+    if (!lejos){ jL(g, grisL, 2, x0 + 2, -54, kx + 2, ky); jR(g, plata, kx - 3, ky - 3, 6, 4); }
+    for (let k = 0; k < 3; k++) jL(g, lejos ? '#2a2c34' : plata, 2, fx - 4 + k*5, -3, fx - 2 + k*5 + 4, 1);   // garras
+  };
+  pierna(-12, -1, true);
+  // torso: costillas de metal y vientre negro
+  jO(g, neg, -2, -76, 24, 30); jO(g, gris, 0, -78, 20, 26);
+  for (let i = 0; i < 5; i++) jL(g, grisL, 2, -16, -96 + i*8, 12, -92 + i*8);
+  jO(g, neg, 4, -58, 15, 10);
+  // la sierra circular del pecho se pinta aparte (gira)
+  jO(g, '#2a2c34', 14, -80, 16, 16);
+  // cuello y cabeza con el visor rojo y el pico
+  jL(g, neg, 12, 8, -102, 22, -122);
+  jO(g, neg, 30, -128, 15, 11); jO(g, gris, 30, -130, 13, 9);
+  jL(g, grisL, 4, 24, -138, 18, -156); jL(g, plata, 2, 24, -138, 19, -154);                  // cuerno
+  jR(g, '#2a0406', 22, -134, 26, 6); jR(g, pose === 'rayo' ? '#ffe0d0' : rojoL, 23, -133, 24, 4);  // visor
+  g.fillStyle = plata; g.beginPath(); g.moveTo(38, -124); g.lineTo(52, -122); g.lineTo(44, -114); g.lineTo(38, -118); g.closePath(); g.fill();   // pico
+  jR(g, neg, 40, -121, 8, 1.5);
+  pierna(10, 1, false);
+  // brazos: garfio arriba y motosierra larga
+  const brazo = (sx, sy, lejos)=>{
+    let a = pose === 'corta' ? -0.05 : pose === 'vuela' ? -0.55 : pose === 'carga' ? 0.9 : 0.35;
+    if (lejos) a += 0.12;
+    const ex = sx + Math.cos(a)*18, ey = sy + Math.sin(a)*18;
+    jL(g, lejos ? neg : gris, 9, sx, sy, ex, ey);
+    g.save(); g.translate(ex, ey); g.rotate(a);
+    jR(g, lejos ? '#2a2c34' : neg, -2, -7, 12, 14);                                    // la carcasa
+    jR(g, lejos ? gris : grisL, 8, -5, 44, 10);                                        // la espada de la sierra
+    for (let i = 0; i < 11; i++){                                                      // dientes que corren
+      const x = 8 + ((i*4 + f*2) % 44);
+      jR(g, lejos ? grisL : plata, x, -7, 2, 2); jR(g, lejos ? grisL : plata, x, 5, 2, 2);
+    }
+    g.fillStyle = lejos ? gris : plata;                                               // garfio
+    g.beginPath(); g.moveTo(4, -6); g.quadraticCurveTo(20, -26, 34, -14); g.lineTo(28, -12); g.quadraticCurveTo(18, -18, 8, -4); g.closePath(); g.fill();
+    g.restore();
+  };
+  brazo(-2, -92, true);
+  brazo(10, -94, false);
+}
+function golpeDes(dmg){
+  if (vil.intro) return;
+  const d0 = hp; hp = clamp(hp - recibe(dmg), 0, maxHp()); p2Gain(d0 - hp); shake(12, 0.3); sfx('hurt');
+}
+function desSierraPecho(e){ return { x: e.x + (e.facing < 0 ? -1 : 1)*14*DES_ESC, y: e.y + 8 - (e.alt || 0) - 80*DES_ESC }; }
+function desSuelo(e){ return { x: e.x + (e.facing < 0 ? -1 : 1)*40, y: e.y }; }
+function desOjo(e){ return { x: e.x + (e.facing < 0 ? -1 : 1)*36*DES_ESC, y: e.y + 8 - (e.alt || 0) - 131*DES_ESC }; }
+function updateDesgarrador(e, dt, a, ang){
+  e.anim = (e.anim || 0) + dt;
+  e.giro = (e.giro || 0) + dt*(e.fase === 'disco' ? 30 : 8);
+  if (e.hp < e.maxhp) e.hp = Math.min(e.maxhp, e.hp + DES_REGEN*dt);          // regeneración
+  if (e.hieloT > 0) return;
+  e.ft -= dt;
+  switch (e.fase){
+    case 'vueloAviso':
+      e.facing = Math.cos(e.eA) >= 0 ? 1 : -1; e.alt = Math.min(40, (e.alt || 0) + 60*dt);
+      if (e.ft <= 0){ e.fase = 'vuelo'; e.rest = 620; e.golpeo = 0; e.cId = (e.cId || 0) + 1; sfx('dash'); }
+      break;
+    case 'vuelo': case 'disco': {
+      const vuela = e.fase === 'vuelo', paso = (vuela ? 1050 : 720)*dt;
+      e.x = clamp(e.x + Math.cos(e.eA)*paso, 60, WORLD_W - 60); e.y = clamp(e.y + Math.sin(e.eA)*paso, 60, WORLD_H - 60);
+      e.rest -= paso;
+      const R = vuela ? 58 : 46;
+      for (const b of buildings){ if (b.stage < 2){ const cx = clamp(e.x, b.x, b.x + b.w), cy = clamp(e.y, b.y, b.y + b.h); if (dist(cx, cy, e.x, e.y) < R) damageBuilding(b, (vuela ? 500 : 800)*dt); } }
+      for (const pool of [civilians, enemies]) for (const t of pool){
+        if (t === e || t.dead || t.held || JEFES[t.type] || t._desG === e.cId || dist(t.x, t.y, e.x, e.y) > R) continue;
+        t._desG = e.cId; damageEnemy(t, 90, t.x, t.y);
+      }
+      for (const c of cars){ if (!c.dead && !c.held && dist(c.x, c.y, e.x, e.y) < R){ c.hp -= 60; if (c.hp <= 0) autoAbatido(c); } }
+      if (a < R + F().r){
+        if (vuela){ if (!e.golpeo){ e.golpeo = 1; golpeDes(e.deforme ? 44 : 34); } }
+        else {                                         // la sierra del pecho: un tajo al entrar y luego tritura
+          if (!e.golpeo){ e.golpeo = 1; golpeDes(e.deforme ? 26 : 20); }
+          e.tickD = (e.tickD || 0) - dt; if (e.tickD <= 0){ e.tickD = 0.15; golpeDesSuave(e.deforme ? 7 : 5); addParticles(player.x, player.y - 8, '#ffd27a', 6, 140); }
+        }
+      }
+      if (Math.random() < 0.6) addParticles(e.x, e.y - (vuela ? 70 : 20), vuela ? '#ff5a3a' : '#ffd27a', 2, 120);
+      if (!vuela && Math.random() < 0.3) sfx('sierra');
+      if (e.rest <= 0){ e.fase = ''; e.cd = rand(1.4, 2.2); }
+      break;
+    }
+    case 'discoAviso':
+      e.facing = Math.cos(e.eA) >= 0 ? 1 : -1;
+      if (e.ft <= 0){ e.fase = 'disco'; e.rest = 520; e.cId = (e.cId || 0) + 1; e.tickD = 0; e.golpeo = 0; sfx('sierra'); }
+      break;
+    case 'rayoCarga':
+      e.rA = giraHacia(e.rA, Math.atan2(player.y - desSuelo(e).y, player.x - desSuelo(e).x), 3*dt);
+      e.facing = Math.cos(e.rA) >= 0 ? 1 : -1;
+      if (e.ft <= 0){ e.fase = 'rayo'; e.ft = 2.4; e.rTick = 0; sfx('rayoM'); }
+      break;
+    case 'rayo': {
+      // el rayo te persigue: solo te libras poniendo algo en medio
+      // se apunta y se choca desde el suelo bajo la cabeza (el visor está muy
+      // alto: desde ahí el rayo tropezaba con tejados que solo tapan en el dibujo)
+      const o = desSuelo(e);
+      e.rA = giraHacia(e.rA, Math.atan2(player.y - o.y, player.x - o.x), 0.95*dt);
+      e.facing = Math.cos(e.rA) >= 0 ? 1 : -1;
+      const imp = kaiImpacto(o.x, o.y, o.x + Math.cos(e.rA)*900, o.y + Math.sin(e.rA)*900, e.x, e.y, 900);
+      e.rx = imp.x; e.ry = imp.y;
+      e.rTick -= dt;
+      if (e.rTick <= 0){
+        e.rTick = 0.1;
+        if (imp.que === 'jugador') golpeDesSuave(e.deforme ? 4.5 : 3.5);
+        else if (imp.que === 'edif') damageBuilding(imp.ref, 14);
+        else if (imp.que === 'escudo'){ damageHeld(0.05); runStats.blocks += 0.02; }
+        else if (imp.que === 'tk'){ const t = imp.ref; if (t.tkDur === undefined) t.tkDur = objDurability(t); t.tkDur -= 0.05; if (t.tkDur <= 0){ const j = mag.tk.indexOf(t); if (j >= 0) mag.tk.splice(j, 1); rompeTK(t); } }
+        else if (imp.que === 'zombi') imp.ref.hp -= 6;
+        if (Math.random() < 0.5) addParticles(imp.x, imp.y, '#ff6a4a', 3, 90);
+      }
+      if (Math.random() < 0.2) sfx('rayoM');
+      if (e.ft <= 0){ e.fase = ''; e.cd = rand(1.8, 2.6); e.rx = undefined; }
+      break;
+    }
+    case 'sierrasAviso':
+      e.facing = Math.cos(e.sA) >= 0 ? 1 : -1;
+      if (e.ft <= 0){
+        e.fase = 'sierras'; e.ft = 0.35; sfx('sierra'); shake(8, 0.2);
+        const R = 210;
+        if (enLineaArco(player.x, player.y, e.x, e.y, e.sA, R)) golpeDes(e.deforme ? 42 : 32);
+        for (const pool of [civilians, enemies]) for (const t of pool){
+          if (t === e || t.dead || t.held || JEFES[t.type]) continue;
+          if (enLineaArco(t.x, t.y, e.x, e.y, e.sA, R)) damageEnemy(t, 120, t.x, t.y);
+        }
+        for (let k = 0; k < 10; k++){ const an = e.sA + rand(-0.8, 0.8), r = rand(60, R); addParticles(e.x + Math.cos(an)*r, e.y + Math.sin(an)*r*0.7 - 30, '#ffd27a', 2, 140); }
+      }
+      break;
+    case 'sierras':
+      if (e.ft <= 0){ e.fase = ''; e.cd = rand(1.2, 2); }
+      break;
+    case 'colaAviso':
+      if (e.ft <= 0){
+        e.fase = 'cola'; e.ft = 0.45; sfx('coletazo'); shake(14, 0.35);
+        const R = 260;
+        const d = dist(e.x, e.y, player.x, player.y);
+        if (d < R + F().r){
+          golpeDes(e.deforme ? 34 : 26);
+          const a2 = Math.atan2(player.y - e.y, player.x - e.x), emp = 140*(1 - d/(R + 40));
+          player.x = clamp(player.x + Math.cos(a2)*emp, 30, WORLD_W - 30); player.y = clamp(player.y + Math.sin(a2)*emp, 30, WORLD_H - 30);
+          if (!(isVil() && vil.flying)) desatascar(F().r);
+        }
+        for (const pool of [civilians, enemies]) for (const t of pool){
+          if (t === e || t.dead || t.held || JEFES[t.type] || dist(e.x, e.y, t.x, t.y) > R) continue;
+          damageEnemy(t, 70, t.x, t.y);
+        }
+        sacudeArboles(e.x, e.y, R + 60, 0.5);
+        kaiOndas.push({ x:e.x, y:e.y, t:0, max:0.45, R, col:'#c4ccd6' });
+      }
+      break;
+    case 'cola':
+      if (e.ft <= 0){ e.fase = ''; e.cd = rand(1.4, 2.2); }
+      break;
+    default: {
+      e.alt = Math.max(0, (e.alt || 0) - 80*dt);
+      e.facing = Math.cos(ang) >= 0 ? 1 : -1;
+      // se acerca andando, sin pegarse demasiado
+      if (a > 230){
+        const x0 = e.x, y0 = e.y;
+        e.x = clamp(e.x + Math.cos(ang)*e.speed*dt, 60, WORLD_W - 60); e.y = clamp(e.y + Math.sin(ang)*e.speed*dt, 60, WORLD_H - 60);
+        for (const b of buildings){ if (b.stage < 2){ const cx = clamp(e.x, b.x, b.x + b.w), cy = clamp(e.y, b.y, b.y + b.h); if (dist(cx, cy, e.x, e.y) < 40) damageBuilding(b, 160*dt); } }
+        e.paso = (e.paso || 0) + dist(x0, y0, e.x, e.y)*0.05;
+      }
+      e.cd -= dt;
+      if (e.cd <= 0) desEligeAtaque(e, a, ang);
+    }
+  }
+}
+function golpeDesSuave(dmg){ if (vil.intro) return; const d0 = hp; hp = clamp(hp - recibe(dmg), 0, maxHp()); p2Gain(d0 - hp); }
+// ¿Está el punto dentro del abanico de las motosierras?
+function enLineaArco(px, py, ox, oy, an, R){
+  const d = dist(px, py, ox, oy);
+  if (d > R) return false;
+  let df = Math.abs(Math.atan2(py - oy, px - ox) - an) % (Math.PI*2); if (df > Math.PI) df = Math.PI*2 - df;
+  return df < 0.85 || d < 50;
+}
+function desEligeAtaque(e, a, ang){
+  const r = Math.random();
+  if (a < 190){                                        // cerca: motosierras o coletazo
+    if (r < 0.55){ e.fase = 'sierrasAviso'; e.ft = 0.6; e.sA = ang; }
+    else { e.fase = 'colaAviso'; e.ft = 0.9; }
+    return;
+  }
+  if (r < 0.28){ e.fase = 'vueloAviso'; e.ft = 0.9; e.eA = ang; toast('¡EMBESTIDA EN VUELO!'); }
+  else if (r < 0.55){ e.fase = 'rayoCarga'; e.ft = 1.3; e.rA = Math.atan2(player.y - desSuelo(e).y, player.x - desSuelo(e).x); toast('¡ESCÓNDETE DEL RAYO! TE PERSIGUE'); sfx('cargaM'); }
+  else if (r < 0.8){ e.fase = 'discoAviso'; e.ft = 0.8; e.eA = ang; }
+  else if (a < 300){ e.fase = 'colaAviso'; e.ft = 0.9; }
+  else { e.fase = 'vueloAviso'; e.ft = 0.9; e.eA = ang; toast('¡EMBESTIDA EN VUELO!'); }
+}
+function drawDesgarrador(e){
+  const s = S(e.x, e.y), alt = e.alt || 0;
+  sombra(s.x, s.y + 10, 120, 30, alt ? 0.5 : 0.9);
+  const dy = s.y + 8 - alt;
+  const pose = e.fase === 'vuelo' || e.fase === 'vueloAviso' ? 'vuela' : (e.fase === 'sierras' || e.fase === 'sierrasAviso') ? 'corta'
+             : (e.fase === 'cola' || e.fase === 'colaAviso') ? 'cola' : (e.fase === 'rayo' || e.fase === 'rayoCarga') ? 'rayo'
+             : (e.fase === 'disco' || e.fase === 'discoAviso') ? 'carga' : 'anda';
+  const f = pose === 'anda' ? Math.floor(e.paso || 0) % 4 : Math.floor((e.anim || 0)*16) % 2;
+  let c = desFrame(pose, f);
+  if (pintaDeforme) c = deformCv(c);
+  const [W, H, cx, py] = DES_TAM;
+  const fl = e.facing < 0 ? -1 : 1;
+  ctx.save(); ctx.translate(s.x, dy); ctx.scale(fl*DES_ESC, DES_ESC);
+  const suave = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(c, -cx, -py);
+  ctx.imageSmoothingEnabled = suave;
+  // la sierra circular del pecho, girando
+  const r = 14;
+  ctx.translate(14, -80); ctx.rotate(e.giro || 0);
+  ctx.fillStyle = e.deforme ? '#8a5048' : '#9aa2ae'; ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = e.deforme ? '#c88a7a' : '#d8dee6';
+  for (let i = 0; i < 12; i++){ const a = i*Math.PI/6; ctx.beginPath(); ctx.moveTo(Math.cos(a)*r, Math.sin(a)*r); ctx.lineTo(Math.cos(a + 0.2)*(r + 5), Math.sin(a + 0.2)*(r + 5)); ctx.lineTo(Math.cos(a + 0.42)*r, Math.sin(a + 0.42)*r); ctx.fill(); }
+  ctx.fillStyle = '#2a2c34'; ctx.beginPath(); ctx.arc(0, 0, 4, 0, Math.PI*2); ctx.fill();
+  ctx.restore();
+  if (showHpBars) hpBar(s.x, dy - 175*DES_ESC*0.95, 120, e.hp, e.maxhp, '#c81f1f');
+}
+function drawDesgarradorAvisos(){
+  for (const e of enemies){
+    if (e.dead || e.type !== 'desgarrador') continue;
+    ctx.save();
+    if (e.fase === 'vueloAviso' || e.fase === 'discoAviso'){
+      const L = e.fase === 'vueloAviso' ? 620 : 520, s0 = S(e.x, e.y), s1 = S(e.x + Math.cos(e.eA)*L, e.y + Math.sin(e.eA)*L);
+      ctx.globalAlpha = 0.85; ctx.strokeStyle = e.fase === 'vueloAviso' ? '#ff3a2a' : '#ffd27a'; ctx.lineWidth = 5; ctx.setLineDash([16, 10]); ctx.lineDashOffset = -gameTime*90;
+      ctx.beginPath(); ctx.moveTo(s0.x, s0.y); ctx.lineTo(s1.x, s1.y); ctx.stroke(); ctx.setLineDash([]);
+      ctx.globalAlpha = 0.16; ctx.lineWidth = 110; ctx.beginPath(); ctx.moveTo(s0.x, s0.y); ctx.lineTo(s1.x, s1.y); ctx.stroke();
+    } else if (e.fase === 'sierrasAviso'){
+      const s0 = S(e.x, e.y), p = 1 - e.ft/0.6;
+      ctx.globalAlpha = 0.15 + p*0.25; ctx.fillStyle = '#ffb36b';
+      ctx.beginPath(); ctx.moveTo(s0.x, s0.y); ctx.ellipse(s0.x, s0.y, 210, 150, 0, e.sA - 0.85, e.sA + 0.85); ctx.closePath(); ctx.fill();
+    } else if (e.fase === 'colaAviso'){
+      const s0 = S(e.x, e.y), p = 1 - e.ft/0.9;
+      ctx.globalAlpha = 0.12 + p*0.2; ctx.fillStyle = '#c4ccd6';
+      ctx.beginPath(); ctx.ellipse(s0.x, s0.y, 260, 170, 0, 0, Math.PI*2); ctx.fill();
+      ctx.globalAlpha = 0.8; ctx.strokeStyle = '#e8eef6'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.ellipse(s0.x, s0.y, 260*p, 170*p, 0, 0, Math.PI*2); ctx.stroke();
+    } else if (e.fase === 'rayoCarga'){
+      const o = desOjo(e), so = S(o.x, o.y), g0 = desSuelo(e), sg = S(g0.x + Math.cos(e.rA)*900, g0.y + Math.sin(e.rA)*900);
+      ctx.globalAlpha = 0.5 + Math.sin(gameTime*30)*0.3; ctx.strokeStyle = '#ff3a2a'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(so.x, so.y); ctx.lineTo(sg.x, sg.y); ctx.stroke();
+    }
+    ctx.restore();
+  }
+}
+function drawDesgarradorRayo(){
+  for (const e of enemies){
+    if (e.dead || e.type !== 'desgarrador' || e.fase !== 'rayo' || e.rx === undefined) continue;
+    const o = desOjo(e), so = S(o.x, o.y), d = S(e.rx, e.ry);
+    ctx.lineCap = 'round';
+    ctx.globalAlpha = 0.35; ctx.strokeStyle = '#ff2a1a'; ctx.lineWidth = 22; ctx.beginPath(); ctx.moveTo(so.x, so.y); ctx.lineTo(d.x, d.y); ctx.stroke();
+    ctx.globalAlpha = 0.9; ctx.strokeStyle = '#ff6a4a'; ctx.lineWidth = 8; ctx.beginPath(); ctx.moveTo(so.x, so.y); ctx.lineTo(d.x, d.y); ctx.stroke();
+    ctx.globalAlpha = 1; ctx.strokeStyle = '#fff0e8'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(so.x, so.y); ctx.lineTo(d.x, d.y); ctx.stroke();
+    ctx.globalAlpha = 0.7 + Math.random()*0.3; ctx.fillStyle = '#ffd0c0'; ctx.beginPath(); ctx.arc(d.x, d.y, 10 + Math.random()*5, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+}
+
+// ================= MISILES DEL CIELO (planeta marciano) =================
+// Además del meteorito caen misiles: congelador, nuclear y bomba negra. Cada
+// uno marca su zona en el suelo igual que el meteorito.
+const MISIL_TIPOS = {
+  meteoro: { R: 170, T: 3.4, aviso:'¡METEORITO! SAL DEL CÍRCULO',        col:'#ff5a2a', borde:'#ff6a3a' },
+  hielo:   { R: 150, T: 3.2, aviso:'¡MISIL CONGELADOR! SAL DEL CÍRCULO', col:'#7fe8ff', borde:'#bff4ff' },
+  nuke:    { R: 235, T: 4.2, aviso:'¡MISIL NUCLEAR! ¡CORRE!',             col:'#ffe04a', borde:'#fff07a' },
+  negra:   { R: 160, T: 3.2, aviso:'¡BOMBA NEGRA! SAL DEL CÍRCULO',       col:'#6a6a7a', borde:'#a8a8b8' }
+};
+const nubesNegras = [], cenizas = [];
+function lanzaMisilEn(x, y, tipo){
+  const M = MISIL_TIPOS[tipo] || MISIL_TIPOS.meteoro;
+  meteoros.push({ x, y, t: M.T, max: M.T, tipo: tipo || 'meteoro' });
+  toast(tipo === 'meteoro' || !tipo ? (esInfierno() ? '¡FUEGO DEL CIELO! SAL DEL CÍRCULO' : M.aviso) : M.aviso);
+  sfx('meteoro');
+}
+function sorteaMisil(){
+  const r = Math.random();
+  if (r < 0.4) return 'meteoro';
+  if (r < 0.6) return 'hielo';
+  if (r < 0.8) return 'negra';
+  return stage >= 3 || finalWave() ? 'nuke' : 'hielo';
+}
+// A los invasores dentro de un radio: el propio y, en Doble Invasión, el del otro.
+function aCadaInvasor(x, y, R, fn){
+  const d = dist(x, y, player.x, player.y);
+  if (d < R + F().r) fn(clamp(1 - d/(R + F().r), 0, 1));
+  if (dobleAnf() && Online.av && !Online.av.caido && Online.proxy){
+    const d2 = dist(x, y, Online.proxy.x, Online.proxy.y);
+    if (d2 < R + (Online.av.r || 20)){
+      const real = player; player = Online.proxy; Online.objetivoInv = true;
+      try { fn(clamp(1 - d2/(R + 20), 0, 1)); } finally { player = real; Online.objetivoInv = false; }
+    }
+  }
+}
+function impactoMisil(m){
+  const M = MISIL_TIPOS[m.tipo] || MISIL_TIPOS.meteoro, R = M.R;
+  if (m.tipo === 'hielo'){
+    explode(m.x, m.y, R*0.6, 0, false);
+    aCadaInvasor(m.x, m.y, R, ()=>{ golpeDesSuave(15); congelar(2.6); });
+    for (const pool of [civilians, enemies]) for (const t of pool){ if (!t.dead && !t.held && dist(t.x, t.y, m.x, m.y) < R) congelaUnidad(t, 4); }
+    for (const c of cars){ if (!c.dead && !c.held && dist(c.x, c.y, m.x, m.y) < R){ c.hieloT = 4; c.vx *= 0; c.vy *= 0; } }
+    addParticles(m.x, m.y, '#bff4ff', 40, 300); addParticles(m.x, m.y, '#ffffff', 20, 200);
+    booms.push({ x:m.x, y:m.y, r:10, max:R*1.2, life:0.6, maxlife:0.6, ring:true });
+    shake(16, 0.4); sfx('hielo');
+    return;
+  }
+  if (m.tipo === 'nuke'){
+    // lo deja todo en cenizas y el suelo ardiendo a miles de grados
+    explode(m.x, m.y, R, 0, true);
+    aCadaInvasor(m.x, m.y, R, (k)=>{ golpeDesSuave(25 + 45*k); quemar(4); });
+    for (const pool of [civilians, enemies]) for (const t of pool){ if (!t.dead && !t.held && dist(t.x, t.y, m.x, m.y) < R) damageEnemy(t, 400, t.x, t.y); }
+    for (const b of buildings){
+      if (b.stage >= 2) continue;
+      const cx = clamp(m.x, b.x, b.x + b.w), cy = clamp(m.y, b.y, b.y + b.h);
+      if (dist(cx, cy, m.x, m.y) < R*0.85) damageBuilding(b, 600);
+    }
+    fuegos.push({ x: m.x, y: m.y, r: R*0.7, t: 9, max: 9 });
+    cenizas.push({ x: m.x, y: m.y, r: R, t: 30 });
+    if (cenizas.length > 6) cenizas.shift();
+    booms.push({ x:m.x, y:m.y, r:R*0.3, max:R*2.2, life:0.25, maxlife:0.25, flash:true });
+    booms.push({ x:m.x, y:m.y, r:10, max:R*2.4, life:0.8, maxlife:0.8, ring:true });
+    for (let k = 0; k < 14; k++) addSmoke(m.x + rand(-60, 60), m.y + rand(-50, 40));
+    addParticles(m.x, m.y, '#fff07a', 50, 380); addParticles(m.x, m.y, '#ff8a2a', 40, 320);
+    shake(32, 1.0); sfx('bigboom');
+    return;
+  }
+  if (m.tipo === 'negra'){
+    explode(m.x, m.y, R*0.4, 0, false);
+    nubesNegras.push({ x: m.x, y: m.y, r: R, t: 11, max: 11 });
+    if (nubesNegras.length > 6) nubesNegras.shift();
+    for (let k = 0; k < 8; k++) addSmoke(m.x + rand(-50, 50), m.y + rand(-40, 30));
+    shake(12, 0.3);
+    return;
+  }
+  explode(m.x, m.y, R, 70, true, true);                                      // el meteorito de siempre
+  for (const b of buildings){
+    if (b.stage >= 2) continue;
+    const cx = clamp(m.x, b.x, b.x + b.w), cy = clamp(m.y, b.y, b.y + b.h);
+    if (dist(cx, cy, m.x, m.y) < R*0.7) damageBuilding(b, 160);
+  }
+  for (let k = 0; k < 6; k++) addSmoke(m.x + rand(-40, 40), m.y + rand(-30, 30));
+  addParticles(m.x, m.y, '#ff8a2a', 30, 280); addParticles(m.x, m.y, '#5a4a3a', 20, 200);
+  shake(22, 0.6); sfx('bigboom');
+}
+// El humo de la bomba negra: casi no hace daño, pero dentro vas lento.
+function updateNubesNegras(dt){
+  for (let i = nubesNegras.length - 1; i >= 0; i--){
+    const n = nubesNegras[i]; n.t -= dt;
+    if (n.t <= 0){ nubesNegras.splice(i, 1); continue; }
+    if (Math.random() < 0.15) addSmoke(n.x + rand(-n.r*0.6, n.r*0.6), n.y + rand(-n.r*0.4, n.r*0.4));
+    aCadaInvasor(n.x, n.y, n.r*0.85, ()=>{ golpeDesSuave(3*dt); if (Online.objetivoInv) Online.estInv.l = 1; else lentoT = Math.max(lentoT, 0.35); });
+  }
+  for (let i = cenizas.length - 1; i >= 0; i--){ cenizas[i].t -= dt; if (cenizas[i].t <= 0) cenizas.splice(i, 1); }
+}
+function drawCenizasSuelo(){
+  for (const c of cenizas){
+    const s = S(c.x, c.y), a = clamp(c.t/6, 0, 1);
+    ctx.globalAlpha = 0.6*a; ctx.fillStyle = '#1a1614';
+    ctx.beginPath(); ctx.ellipse(s.x, s.y, c.r, c.r*0.62, 0, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 0.35*a; ctx.fillStyle = '#4a4440';
+    ctx.beginPath(); ctx.ellipse(s.x - c.r*0.1, s.y - c.r*0.05, c.r*0.6, c.r*0.36, 0, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+}
+function drawNubesNegras(){
+  for (const n of nubesNegras){
+    const s = S(n.x, n.y), a = clamp(n.t/2, 0, 1)*clamp((n.max - n.t)/0.6, 0, 1);
+    for (let i = 0; i < 7; i++){
+      const an = i*0.9 + gameTime*0.25*(i % 2 ? 1 : -1), r = n.r*(0.25 + (i % 3)*0.22);
+      ctx.globalAlpha = 0.32*a; ctx.fillStyle = i % 2 ? '#0e0e14' : '#24242c';
+      ctx.beginPath(); ctx.ellipse(s.x + Math.cos(an)*r*0.6, s.y + Math.sin(an)*r*0.35 - 10, n.r*0.42, n.r*0.28, 0, 0, Math.PI*2); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+}
+// El proyectil cayendo: roca o misil, según el tipo.
+function drawMisilCayendo(m){
+  if (m.t > 1.1) return;
+  const k = 1 - m.t/1.1, s = S(m.x, m.y);
+  const x = s.x + 380*(1 - k), y = s.y - 700*(1 - k), ang = Math.atan2(700, -380);
+  const estela = m.tipo === 'hielo' ? '#7fe8ff' : m.tipo === 'nuke' ? '#ffb24a' : m.tipo === 'negra' ? '#5a5a66' : '#ff8a2a';
+  ctx.save();
+  ctx.globalAlpha = 0.5; ctx.strokeStyle = estela; ctx.lineWidth = m.tipo === 'nuke' ? 30 : 22; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(x + 90, y - 165); ctx.lineTo(x, y); ctx.stroke();
+  if (!m.tipo || m.tipo === 'meteoro'){
+    ctx.globalAlpha = 0.85; ctx.strokeStyle = '#ffe07a'; ctx.lineWidth = 10;
+    ctx.beginPath(); ctx.moveTo(x + 50, y - 92); ctx.lineTo(x, y); ctx.stroke();
+    ctx.globalAlpha = 1; ctx.fillStyle = '#4a3a30'; ctx.beginPath(); ctx.arc(x, y, 22, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#6a5442'; ctx.beginPath(); ctx.arc(x - 5, y - 6, 12, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#ff7a2a'; ctx.beginPath(); ctx.arc(x + 9, y + 7, 7, 0, Math.PI*2); ctx.fill();
+  } else {
+    // un misil de verdad: cuerpo, punta y aletas, apuntando a su zona
+    const cuerpo = m.tipo === 'hielo' ? '#e8f6ff' : m.tipo === 'nuke' ? '#e8d24a' : '#22222a';
+    const punta = m.tipo === 'hielo' ? '#4ab8e8' : m.tipo === 'nuke' ? '#2a2a2a' : '#8a1a1a';
+    const L = m.tipo === 'nuke' ? 58 : 44, W = m.tipo === 'nuke' ? 13 : 10;
+    ctx.globalAlpha = 1; ctx.translate(x, y); ctx.rotate(ang - Math.PI/2);
+    ctx.fillStyle = cuerpo; ctx.fillRect(-W/2, -L, W, L);
+    if (m.tipo === 'nuke') for (let i = 0; i < 4; i++){ ctx.fillStyle = '#1a1a1a'; ctx.fillRect(-W/2, -L + 8 + i*11, W, 4); }      // franjas de peligro
+    ctx.fillStyle = punta; ctx.beginPath(); ctx.moveTo(-W/2, 0); ctx.lineTo(0, W*1.1); ctx.lineTo(W/2, 0); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = punta; ctx.beginPath(); ctx.moveTo(-W/2, -L); ctx.lineTo(-W*1.3, -L - 10); ctx.lineTo(-W/2, -L + 12); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(W/2, -L); ctx.lineTo(W*1.3, -L - 10); ctx.lineTo(W/2, -L + 12); ctx.fill();
+    ctx.fillStyle = '#ffd27a'; ctx.beginPath(); ctx.arc(0, -L - 4, W*0.5 + Math.random()*3, 0, Math.PI*2); ctx.fill();
+  }
+  ctx.restore();
+}
 // Fichas del bestiario de lo nuevo.
 {
   const ficha = (k, c, esc)=>{ const o = document.createElement('canvas'); o.width = c.width*esc; o.height = c.height*esc;
@@ -13490,6 +13973,7 @@ function ojoHumanoOmni(e, x, y, er, cargando, disparando){
   ficha('murcielagoF', alienFrame('murcielago', 'ataca', 0), 2); ficha('caza40kF', alienFrame('caza40k', 'ataca', 0), 1.4);
   ficha('centurionF', centFrame('dispara', 0, false), 1.6);
   ficha('vengativoF', vengFrame('ataca', 0), 2.4);
+  ficha('desgarradorF', desFrame('corta', 0), 0.9);
   ficha('bichoF', alienFrame('bicho', 'ataca', 0), 1.3);
   ficha('amalgamaF', amalFrame('lanza', 0), 1.1);
   { const m = document.createElement('canvas'); m.width = 40; m.height = 40; const g = m.getContext('2d');
@@ -16197,6 +16681,7 @@ function meleeDmg(e){
   if (e.type === 'flametank') return 60;
   if (e.type === 'kaiyin')    return 60;    // ~45 golpes: el gigante aguanta
   if (e.type === 'centurion') return 58;    // ~38 golpes
+  if (e.type === 'desgarrador') return 58;
   if (e.type === 'heroe')     return 58;    // ~23 golpes
   if (e.type === 'golem')     return 110;   // la roca aguanta tres
   if (e.type === 'siege')   return 65;    // ~10 golpes
@@ -16376,9 +16861,9 @@ const SCENERY = { tree:1, lamp:1, bench:1, trash:1 };
 function isScenery(o){ return !!SCENERY[o.kind]; }
 
 // Unidades que no se revientan de una pasada: hay que insistir.
-const BLINDADOS = { bicho:1, amalgama:1, arana:1, tank:1, siege:1, gunship:1, heli:1, flametank:1, omni:1, artillero:1, superx:1, mbt:1, mbtFrio:1, tripode:1 };
+const BLINDADOS = { desgarrador:1, bicho:1, amalgama:1, arana:1, tank:1, siege:1, gunship:1, heli:1, flametank:1, omni:1, artillero:1, superx:1, mbt:1, mbtFrio:1, tripode:1 };
 // Mini jefes: el viltrumita les hace más daño con lo que les arroja.
-const JEFES = { flametank:1, omni:1, artillero:1, superx:1, tripode:1, heroe:1, kaiyin:1, centurion:1 };
+const JEFES = { flametank:1, omni:1, artillero:1, superx:1, tripode:1, heroe:1, kaiyin:1, centurion:1, desgarrador:1 };
 const VIL_BOSS_MULT = 1.40;
 function throwDmgOn(o, tgt){
   const base = o.throwDmg;
@@ -17443,6 +17928,7 @@ function updateEnemies(dt){
     if (e.type === 'heroe'){ updateHeroe(e, dt, a, ang); continue; }
     if (e.type === 'kaiyin'){ updateKaiyin(e, dt, a, ang); continue; }
     if (e.type === 'centurion'){ updateCenturion(e, dt, a, ang); continue; }
+    if (e.type === 'desgarrador'){ updateDesgarrador(e, dt, a, ang); continue; }
     if (e.type === 'vengativo'){ updateVengativo(e, dt, a, ang); continue; }
     if (e.type === 'bicho'){ updateBicho(e, dt, a, ang); continue; }
     if (e.type === 'amalgama'){ updateAmalgama(e, dt, a, ang); continue; }
@@ -17860,7 +18346,8 @@ function updateSpawns(dt){
       if (Math.random() < (enAsedio() ? BOSS_CHANCE_2 : BOSS_CHANCE)){
         // En invasión no se repite jefe seguido, y el de dos turnos atrás
         // sale con la mitad de probabilidad. Es memoria de una sola partida.
-        const cual = esAlien() ? 'centurion' : esInfierno() ? sorteaJefeInf() : sorteaJefe();
+        const cual = esAlien() ? (ultimoJefe === 'centurion' ? 'desgarrador' : ultimoJefe === 'desgarrador' ? 'centurion' : (Math.random() < 0.5 ? 'centurion' : 'desgarrador'))
+                   : esInfierno() ? sorteaJefeInf() : sorteaJefe();
         penultimoJefe = ultimoJefe;
         ultimoJefe = cual;
         if (cual === 'marciana') lanzaInvasionMarciana();
@@ -17868,8 +18355,9 @@ function updateSpawns(dt){
           spawnEnemy(cual);
           toast(cual === 'omni' ? '¡OMNIDROIDE!' : cual === 'artillero' ? '¡EL ARTILLERO!'
               : cual === 'superx' ? '¡SUPER X2!' : cual === 'heroe' ? '¡EL HÉROE MÁGICO!'
-              : cual === 'kaiyin' ? '¡KAIYIN! EL CIELO SE OSCURECE' : cual === 'centurion' ? '¡EL CENTURIÓN!' : '¡TANQUE DE FUEGO!');
+              : cual === 'kaiyin' ? '¡KAIYIN! EL CIELO SE OSCURECE' : cual === 'centurion' ? '¡EL CENTURIÓN!' : cual === 'desgarrador' ? '¡EL DESGARRADOR!' : '¡TANQUE DE FUEGO!');
           if (cual === 'kaiyin') sfx('trueno');
+          if (cual === 'desgarrador') sfx('sierra');
           if (esInfierno()){ const j = enemies[enemies.length - 1]; if (j && j.type === cual){ hazDeforme(j, 1.5); setTimeout(()=> toast('VUELVE DEFORMADO PARA VENGARSE'), 1400); } }
           shake(24, 0.8);
         }
@@ -18353,7 +18841,8 @@ function lucesJefes(L, k, mx, Mx, my, My, tinta){
       luz(e.x, e.y - 120 - (e.lift || 0), 90, luzAmarilla, 0.6);
     }
   }
-  for (const m of meteoros) luz(m.x, m.y, METEORO_R, luzFuego, 0.25 + (1 - m.t/m.max)*0.5);
+  for (const m of meteoros) luz(m.x, m.y, (MISIL_TIPOS[m.tipo] || MISIL_TIPOS.meteoro).R, m.tipo === 'hielo' ? luzAzul : luzFuego, 0.25 + (1 - m.t/m.max)*0.5);
+  for (const e of enemies) if (!e.dead && e.type === 'desgarrador'){ const o = desOjo(e); luz(o.x, o.y, 50, luzRoja, 0.7); if (e.fase === 'rayo' && e.rx !== undefined) for (const f of [0.3, 0.65, 1]) luz(o.x + (e.rx - o.x)*f, o.y + (e.ry - o.y)*f, 110, luzRoja, 0.8); }
   for (const b of bombasPeg) if (b.t >= b.vuelo) luz(b.x, b.y, 34, luzRoja, 0.5);
   for (const k of kaiAvisos) luz(k.x, k.y, 60, luzBlanca, 0.25*(1 - k.t/k.max));
   if (vil.intro && isMaq()) luz(player.x, player.y + 22, 110, luzFuego, 0.9);
@@ -19281,6 +19770,7 @@ function drawEnemyBase(e){
   if (e.type === 'tripode'){ drawTripode(e); return; }
   if (e.type === 'kaiyin'){ drawKaiyin(e); return; }
   if (e.type === 'centurion'){ drawCenturion(e); return; }
+  if (e.type === 'desgarrador'){ drawDesgarrador(e); return; }
   if (e.type === 'vengativo'){ drawVengativo(e); return; }
   if (e.type === 'amalgama'){ drawAmalgama(e); return; }
   if (AL_TAM[e.type]){ drawUnidadAlien(e); return; }
@@ -19602,7 +20092,7 @@ function draw(){
   drawBuildings(); drawPlanters(); drawLamps();
   // Las zonas marcadas del Artillero van DESPUÉS de los edificios: si no, los
   // escombros las tapaban justo donde más falta hace verlas.
-  drawFuegos(); drawArtAvisos(); drawTriAvisos(); drawDragonAvisos(); drawMaquinaAvisos(); drawMagoAvisos(); drawMbtRayos(); drawJefes2Avisos(); drawAlienSuelo(); drawCenturionAvisos(); drawAmalgamaAvisos();
+  drawFuegos(); drawArtAvisos(); drawTriAvisos(); drawDragonAvisos(); drawMaquinaAvisos(); drawMagoAvisos(); drawMbtRayos(); drawJefes2Avisos(); drawAlienSuelo(); drawCenturionAvisos(); drawAmalgamaAvisos(); drawDesgarradorAvisos(); drawCenizasSuelo(); drawNubesNegras();
 
   // Solo se encolan los objetos visibles: con ~200 props fuera de pantalla,
   // esto evita cientos de entradas y llamadas de dibujo por fotograma.
@@ -19660,7 +20150,7 @@ function draw(){
     }
   }
 
-  drawBullets(); drawTriRayos(); drawDragonRayos(); drawJefes2Rayos(); drawAlienEfectos(); drawCenturionEfectos(); drawMeteorosCayendo(); drawProyJ(proyJ); drawProyJ(proyRed);
+  drawBullets(); drawTriRayos(); drawDragonRayos(); drawJefes2Rayos(); drawAlienEfectos(); drawCenturionEfectos(); drawDesgarradorRayo(); drawMeteorosCayendo(); drawProyJ(proyJ); drawProyJ(proyRed);
   if (dobleAnf() && Online.av && Online.av.pj) drawProyJ(Online.av.pj);
   drawMaquinaEfectos(); drawMagoEfectos();
   drawRelampagos(); drawHumos(); drawHumoEdif(); drawSonic(); drawWind(); drawRayosOjos(); drawFX(); drawAura(); drawPortalCelestial(); if (vil.caida) drawCaidaJugador(); drawP2Cursor();
@@ -19673,7 +20163,7 @@ function draw(){
 // Si un jefe queda fuera de la pantalla, una flecha en el borde señala
 // hacia dónde está (en píxeles del lienzo, encima de la noche).
 const JEFE_NOMBRE = { flametank:'TANQUE DE FUEGO', omni:'OMNIDROIDE', artillero:'ARTILLERO', superx:'SUPER X', tripode:'TRÍPODE',
-                      heroe:'HÉROE MÁGICO', kaiyin:'KAIYIN', centurion:'CENTURIÓN' };
+                      heroe:'HÉROE MÁGICO', kaiyin:'KAIYIN', centurion:'CENTURIÓN', desgarrador:'DESGARRADOR' };
 function drawFlechasJefe(){
   if (!running || esVisorVs()) return;
   const M = 30, cx = CW/2, cy = CH/2;
@@ -21580,6 +22070,9 @@ function instantaneaAnfitrion(){
   { const c = centroVista(); _olCx = c.x; _olCy = c.y; }
   const i = { t:'i', n: ++Online.seq,
     gt: gameTime, sc: score, hp, form, kills, dem: demolished, stg: stage, vt: vsTimeLeft, mp: mapa,
+    mt: meteoros.map(m => [Math.round(m.x), Math.round(m.y), Math.round(m.t*10)/10, m.max, m.tipo || 'meteoro']),
+    nn: nubesNegras.map(n => [Math.round(n.x), Math.round(n.y), n.r, Math.round(n.t*10)/10, n.max]),
+    cz: cenizas.map(c => [Math.round(c.x), Math.round(c.y), c.r, Math.round(c.t)]),
     lv: esInfierno() ? charcosLava.map(c => [Math.round(c.x), Math.round(c.y), Math.round(c.r), Math.round(c.t*10)/10, Math.round(c.max*10)/10]) : 0,
     dr: drawR, fase: phaseIdx, hero, sk: skinRed(), rayos: rayosOn ? 1 : 0,
     buff: [buffT, buffTipo], cl: [clima, nubeK, lluviaK],
@@ -21696,6 +22189,9 @@ function _sincroniza(datos, mapa){
 }
 function aplicaInstantanea(i){
   const doble = Online.modo === 'doble';
+  if (i.mt){ meteoros.length = 0; for (const m of i.mt) meteoros.push({ x:m[0], y:m[1], t:m[2], max:m[3], tipo:m[4] }); }
+  if (i.nn){ nubesNegras.length = 0; for (const n of i.nn) nubesNegras.push({ x:n[0], y:n[1], r:n[2], t:n[3], max:n[4] }); }
+  if (i.cz){ cenizas.length = 0; for (const c of i.cz) cenizas.push({ x:c[0], y:c[1], r:c[2], t:c[3] }); }
   if (i.lv){ charcosLava.length = 0; for (const c of i.lv) charcosLava.push({ x:c[0], y:c[1], r:c[2], t:c[3], max:c[4] }); }
   else if (i.lv === 0) charcosLava.length = 0;
   if (i.mp && i.mp !== mapa && MAPAS.includes(i.mp)){             // por si el mapa no llegó al empezar
