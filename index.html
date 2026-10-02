@@ -3485,11 +3485,28 @@ function civCabezaAlien(g, L, piel, pielO, pielL, pose){
 }
 
 // ---------- cielo, música e introducción ----------
-const ALIEN_TRACK = {
-  scale: [130.81, 146.83, 155.56, 196.00, 207.65, 233.08, 261.63, 293.66],
-  bass:  [65.41, 65.41, 51.91, 58.27], tempo: 150, name:'PLANETA ROJO', style:'futuro',
-  arp:   [0, 2, 4, 7, 4, 2, 5, 3, 0, 3, 6, 4, 7, 5, 3, 1]
+// PLANETA ROJO: tecno industrial de estación espacial, rápido y metálico (en
+// el espíritu de las fases mecánicas de los juegos de 16 bits): bajo que salta
+// de octava, batería quebrada, acordes cortos y una melodía con cromatismos.
+// Cada hora del día lo varía: tono, ritmo, instrumento y densidad.
+const ALIEN_VARIANTES = {
+  manana:    { trans: 3,  tempo: 122, lead:'triangle', bajo:'square',   stab:0.14, kickLigero:true,  noche:false },
+  dia:       { trans: 0,  tempo: 110, lead:'square',   bajo:'square',   stab:0.12, kickLigero:false, noche:false },
+  atardecer: { trans: -2, tempo: 116, lead:'sawtooth', bajo:'sawtooth', stab:0.34, kickLigero:false, noche:false },
+  noche:     { trans: -5, tempo: 128, lead:'triangle', bajo:'sine',     stab:0,    kickLigero:true,  noche:true  }
 };
+const ALIEN_PISTAS = {};
+for (const k in ALIEN_VARIANTES) ALIEN_PISTAS[k] = Object.assign({ name:'PLANETA ROJO', style:'futuro', fase:k, root:55,
+  scale:[110, 123.47, 130.81, 146.83, 164.81, 174.61, 196, 220] }, ALIEN_VARIANTES[k]);
+const ALIEN_TRACK = ALIEN_PISTAS.dia;
+function pistaAlien(){ try { return ALIEN_PISTAS[phase().id] || ALIEN_TRACK; } catch(e){ return ALIEN_TRACK; } }
+const PR_BAJO  = [0,-1,12,-1, 0,0,-1,12, 10,-1,12,-1, 7,-1,8,10];
+const PR_BAJO2 = [0,-1,12,0, -1,12,0,-1, 0,-1,15,-1, 12,10,7,-1];
+const PR_ACORDE = [[0,3,7], [5,8,12], [8,12,15], [7,11,14]];           // i, iv, VI, V
+const PR_MELO = [12,-1,15,-1, 14,12,-1,10, 12,-1,-1,7, -1,-1,-1,-1,
+                 17,-1,15,-1, 14,-1,12,14, 15,-1,-1,12, -1,10,-1,-1,
+                 20,-1,19,-1, 17,15,-1,14, 15,-1,17,-1, 19,-1,20,-1,
+                 19,-1,-1,-1, 18,-1,19,-1, 23,-1,-1,-1, -1,-1,-1,-1];
 function muestraIntroMapa(){
   const el = document.getElementById('introMapa');
   if (!el) return;
@@ -4883,6 +4900,7 @@ const TRI_CURA       = 0.08;          // parte de su vida que recupera al comer
 const TRI_COME_SI    = 0.85;          // solo come si está por debajo de esto
 const TRI_ESC_CD     = [9, 13];
 const TRI_ESC_DUR    = 3.0;
+const TRI_ESC_HP     = 140;           // lo que aguanta el escudo antes de romperse
 const TRI_RAYO_CD    = [7, 10];
 const TRI_RAYO_AVISO = 1.7;           // tiempo para salir del área marcada
 const TRI_RAYO_T     = 0.45;          // lo que dura la descarga
@@ -4944,6 +4962,7 @@ function updateTripode(e, dt, d, ang){
   e.escudoCd -= dt;
   if (e.escudoCd <= 0 && e.escudoT <= 0){
     e.escudoT = TRI_ESC_DUR;
+    e.escudoHp = e.escudoMax = Math.round(TRI_ESC_HP*(e.deforme ? 1.4 : 1));
     e.escudoCd = rand(TRI_ESC_CD[0], TRI_ESC_CD[1]);
     sfx('escudoM');
   }
@@ -5181,13 +5200,24 @@ function drawTripode(e){
 
   // escudo pequeño
   if (e.escudoT > 0){
-    const p = 0.5 + Math.sin(gameTime*8)*0.2;
-    ctx.globalAlpha = 0.16 + p*0.12;
+    const p = 0.5 + Math.sin(gameTime*8)*0.2, vida = e.escudoMax ? clamp(e.escudoHp/e.escudoMax, 0, 1) : 1;
+    ctx.globalAlpha = (0.16 + p*0.12)*(0.5 + vida*0.5) + (e.escudoGolpe > 0 ? 0.2 : 0);
+    if (e.escudoGolpe > 0) e.escudoGolpe -= 1/60;
     ctx.fillStyle = '#bfeaff';
     ctx.beginPath(); ctx.ellipse(c.x, c.y, 76, 58, 0, 0, Math.PI*2); ctx.fill();
     ctx.globalAlpha = 0.55 + p*0.35;
     ctx.strokeStyle = '#e8f8ff'; ctx.lineWidth = 2.5;
     ctx.beginPath(); ctx.ellipse(c.x, c.y, 76, 58, 0, 0, Math.PI*2); ctx.stroke();
+    if (vida < 0.7){                                           // grietas: le queda poco
+      ctx.lineWidth = 1.5; ctx.strokeStyle = '#ffffff';
+      const n = vida < 0.35 ? 5 : 3;
+      for (let k = 0; k < n; k++){
+        const a = k*2.1 + 0.4; let x = c.x + Math.cos(a)*70, y = c.y + Math.sin(a)*52;
+        ctx.beginPath(); ctx.moveTo(x, y);
+        for (let q = 0; q < 3; q++){ x += (c.x - x)*0.3 + Math.cos(a + q*1.7)*6; y += (c.y - y)*0.3 + Math.sin(a + q*1.3)*5; ctx.lineTo(x, y); }
+        ctx.stroke();
+      }
+    }
     ctx.globalAlpha = 1;
   }
   if (showHpBars) hpBar(s.x, c.y - 52, 70, e.hp, e.maxhp, '#c81f1f');
@@ -6669,9 +6699,17 @@ function damageEnemy(e, dmg, fx, fy){
   }
   if (e.dead) return;
   // Escudo del trípode: pequeño y breve, pero no deja pasar nada.
+  // Escudo del trípode: lo para todo... hasta que se rompe a golpes. Lo que
+  // sobra del golpe que lo rompe sí entra.
   if (e.type === 'tripode' && e.escudoT > 0 && dmg > 0){
-    addParticles(fx, fy, '#cfefff', 5, 80);
-    return;
+    if (e.escudoHp === undefined) e.escudoHp = e.escudoMax = TRI_ESC_HP;
+    e.escudoHp -= dmg;
+    if (e.escudoHp > 0){ addParticles(fx, fy, '#cfefff', 5, 80); e.escudoGolpe = 0.12; return; }
+    dmg = -e.escudoHp; e.escudoHp = 0; e.escudoT = 0;
+    addParticles(e.x, e.y - 44, '#e8f8ff', 26, 220); addParticles(e.x, e.y - 44, '#7fd0ff', 14, 160);
+    shake(8, 0.2); sfx('crack');
+    if (!Online.culpaInv) toast('¡ESCUDO ROTO!');
+    if (dmg <= 0) return;
   }
   // Escudo del SUPER X2: el daño no entra, se convierte en vida.
   if (sxEscudoActivo(e) && dmg > 0){
@@ -8234,7 +8272,7 @@ let menuMusica = false;
 // El tema que manda: muestra del registro, jefe, menú o, en el planeta
 // marciano, su propio tema futurista.
 function pistaBase(){
-  return previewTrack || bossTrack || (menuMusica ? MENU_TRACK : null) || (running && esAlien() ? ALIEN_TRACK : null) || (running && esInfierno() ? (gameTime > INF_CAMBIO_T ? INFIERNO_TRACK2 : INFIERNO_TRACK) : null);
+  return previewTrack || bossTrack || (menuMusica ? MENU_TRACK : null) || (running && esAlien() ? pistaAlien() : null) || (running && esInfierno() ? (gameTime > INF_CAMBIO_T ? INFIERNO_TRACK2 : INFIERNO_TRACK) : null);
 }
 function musicStep(){
   if (!audio.ctx || !audio.musOn) return;
@@ -8301,15 +8339,41 @@ function musicStep(){
     return;
   }
   if (bt && bt.style === 'futuro'){
-    // PLANETA ROJO: bajo pulsante de sintetizador, arpegio frío que sube y
-    // baja, charles electrónico y destellos agudos.
-    const bass = bt.bass;
-    if (s % 4 === 0) mk(bass[(s/4 | 0) % bass.length], 0.42, 'sine', 0.26);
-    if (s % 2 === 1) mk(bass[(s/4 | 0) % bass.length]*2, 0.12, 'sawtooth', 0.07);
-    mk(sc[bt.arp[s % bt.arp.length]]*2, 0.14, 'square', 0.05);
-    if (s % 2 === 0) noise(0.03, 0.05, 7000);
-    if (s % 8 === 4) noise(0.07, 0.1, 1800);
-    if (s % 16 === 14) mk(sc[7]*4, 0.5, 'sine', 0.04);
+    // PLANETA ROJO (ver ALIEN_VARIANTES). Ciclo de 4 compases de 16 pasos y
+    // cuatro secciones: base, con acordes, con melodía y melodía una octava arriba.
+    const V = bt, f = n => V.root*Math.pow(2, (n + V.trans)/12);
+    const paso = s % 16, comp = (s/16 | 0) % 4, sec = (s/64 | 0) % 4;
+    const raiz = PR_ACORDE[comp][0];
+    // batería quebrada
+    const kick = paso === 0 || paso === 8 || (!V.kickLigero && (paso === 6 || paso === 11));
+    if (kick){ mk(f(-12)*0.9, 0.12, 'sine', 0.3); noise(0.03, 0.1, 120); }
+    if (V.noche ? paso === 8 : (paso === 4 || paso === 12)){ noise(0.1, 0.16, 2400); mk(220, 0.05, 'triangle', 0.04); }
+    if (!V.noche && (paso === 7 || paso === 15) && sec >= 1) noise(0.04, 0.05, 2600);          // golpes fantasma
+    if (paso % 2 === 1) noise(0.02, V.kickLigero ? 0.03 : 0.05, 8500);                         // charles
+    if (paso === 14 && sec >= 2) noise(0.12, 0.05, 6000);                                       // abierto
+    // bajo que salta de octava, siguiendo el acorde
+    const nb = (comp % 2 ? PR_BAJO2 : PR_BAJO)[paso];
+    if (nb >= 0) mk(f(raiz + nb), 0.1, V.bajo, 0.17);
+    // acordes cortos en contratiempo
+    if (V.stab > 0 && sec >= 1 && (paso === 2 || paso === 7 || paso === 10 || paso === 14)){
+      for (const n of PR_ACORDE[comp]){ mk(f(n + 12), V.stab, 'square', 0.03); mk(f(n + 12)*1.004, V.stab, 'sawtooth', 0.02); }
+    }
+    // arpegio de los acordes en la primera sección (y suave toda la noche)
+    if ((sec === 1 || V.noche) && paso % 2 === 0){
+      const ac = PR_ACORDE[comp], n = ac[(paso/2) % 3] + 24 + ((paso/6 | 0) % 2)*12;
+      if (!V.noche || paso % 4 === 0) mk(f(n), 0.09, 'square', V.noche ? 0.025 : 0.035);
+    }
+    // la melodía
+    if (sec >= 2){
+      const m = PR_MELO[(s % 64)];
+      if (m >= 0){
+        const o = sec === 3 && !V.noche ? 12 : 0;
+        mk(f(m + 12 + o), 0.16, V.lead, V.lead === 'sawtooth' ? 0.04 : 0.055);
+        if (V.noche) mk(f(m + 24), 0.12, 'sine', 0.018);                                           // eco brillante
+      }
+      if (V.noche && s % 64 >= 2){ const e2 = PR_MELO[(s - 2) % 64]; if (e2 >= 0) mk(f(e2 + 12), 0.14, 'triangle', 0.02); }   // eco
+    }
+    if (s % 128 === 124) mk(f(31), 0.5, 'sine', 0.03);                                          // destello al cerrar el ciclo
     return;
   }
   if (bt && bt.style === 'militar'){
@@ -8574,7 +8638,7 @@ const BESTIARY = [
   { id:'omni', name:'OMNIDROIDE', hp:950, dmg:'52/s el rayo', sprite:null,
     desc:'Esfera acorazada con cuatro patas y un único ojo rojo. Calcula dónde estás y rueda en línea recta hasta ese punto, arrollando lo que pille; al llegar se detiene y camina. Andando te arroja el mobiliario de la calle y carga un rayo desde su ojo: primero marca la línea, luego dispara y barre muy despacio, así que se esquiva moviéndose de lado. El rayo también achicharra a sus propias tropas.' },
   { id:'tripode', name:'TRÍPODE MARCIANO', hp:TRI_HP, dmg:'72 + quemadura (rayo)', sprite:null, verb:'DERRIBADOS',
-    desc:'Al parecer no eres el único que quiere el planeta. Llegan de dos en dos (de tres en tres pasado el asedio) y, mientras quede uno en pie, el ejército humano no se atreve a salir. Caminan por encima de los edificios y con sus tentáculos atrapan autos, farolas y soldados para lanzártelos; si están heridos, se comen a los humanos para recuperar algo de vida. A ratos se cubren con un escudo pequeño que no deja pasar nada, y marcan en blanco un área del suelo donde descargan un rayo que arrasa y deja quemadura: sal de ella antes de que dispare.' },
+    desc:'Al parecer no eres el único que quiere el planeta. Llegan de dos en dos (de tres en tres pasado el asedio) y, mientras quede uno en pie, el ejército humano no se atreve a salir. Caminan por encima de los edificios y con sus tentáculos atrapan autos, farolas y soldados para lanzártelos; si están heridos, se comen a los humanos para recuperar algo de vida. A ratos se cubren con un escudo pequeño que lo para todo hasta que se rompe a golpes (se le ven las grietas), y marcan en blanco un área del suelo donde descargan un rayo que arrasa y deja quemadura: sal de ella antes de que dispare.' },
   { id:'heroe', name:'HÉROE MÁGICO', hp:1350, dmg:'invoca, escuda y cura', sprite:'heroeF', verb:'DERROTADOS',
     desc:'Un rey guerrero que volvió de entre los muertos con su ejército. No pelea: se aleja despacio y rodea al invasor mientras, con su cetro, invoca almas de arqueros, caballeros a caballo y gólems de piedra. Cada pocos segundos lanza escudos dorados que dejan pasar solo un tercio del daño y cura a todos sus aliados cercanos. Mientras él siga en pie, su ejército no deja de crecer: ve a por él. Al caer, sus almas se desvanecen.' },
   { id:'arquero', name:'ARQUERO FANTASMA', hp:55, dmg:'8 por flecha', sprite:'arqueroF', verb:'DISIPADOS',
@@ -13152,24 +13216,25 @@ function updateSpawnsInf(dt, count){
       spawnDeforme(tipo, x, y);
     }
   };
+  // (un poco menos poblado que al principio: hordas algo menores y más espaciadas)
   if (tic('ven', 1.5)){
-    if (count('vengativo') < 24) hordaVengativa(Math.min(5 + Math.floor(gameTime/35), 10));
-    T.ven = rand(7, 10)*(finalWave() ? 0.7 : 1);
+    if (count('vengativo') < 18) hordaVengativa(Math.min(4 + Math.floor(gameTime/45), 8));
+    T.ven = rand(8.5, 12)*(finalWave() ? 0.75 : 1);
   }
   if (stage >= 2){
-    if (tic('dpol', 6)){ if (count('police') + count('military') < Math.min(3 + Math.floor(gameTime/30), 8)) grupo(Math.random() < 0.5 ? 'police' : 'military', 2, 30); T.dpol = rand(7, 10); }
-    if (tic('dcen', 14)){ if (count('centinela') < 4) grupo('centinela', 2, 30); T.dcen = rand(12, 16); }
+    if (tic('dpol', 6)){ if (count('police') + count('military') < Math.min(2 + Math.floor(gameTime/35), 6)) grupo(Math.random() < 0.5 ? 'police' : 'military', 2, 30); T.dpol = rand(8.5, 12); }
+    if (tic('dcen', 14)){ if (count('centinela') < 3) grupo('centinela', 2, 30); T.dcen = rand(14, 19); }
   }
   if (stage >= 3){
-    if (tic('dmg', 10)){ if (count('minigun') < 2) grupo('minigun', 1, 0); T.dmg = rand(14, 18); }
-    if (tic('ddro', 12)){ if (count('droide') < 6) grupo('droide', 3, 28); T.ddro = rand(12, 16); }
-    if (tic('dmur', 16)){ if (count('murcielago') < 5) grupo('murcielago', 3, 26); T.dmur = rand(14, 18); }
-    if (tic('dcab', 20)){ if (score >= 1200 && count('cabezon') < 2) spawnDeforme('cabezon'); T.dcab = rand(14, 18); }
+    if (tic('dmg', 10)){ if (count('minigun') < 2) grupo('minigun', 1, 0); T.dmg = rand(16, 21); }
+    if (tic('ddro', 12)){ if (count('droide') < 4) grupo('droide', 2, 28); T.ddro = rand(14, 19); }
+    if (tic('dmur', 16)){ if (count('murcielago') < 4) grupo('murcielago', 2, 26); T.dmur = rand(16, 21); }
+    if (tic('dcab', 20)){ if (score >= 1200 && count('cabezon') < 2) spawnDeforme('cabezon'); T.dcab = rand(17, 22); }
   }
   if (form >= 1 || score >= 2500){
-    if (tic('dtank', 12)){ if (count('tank') < 2) spawnDeforme('tank'); T.dtank = rand(16, 22); }
-    if (tic('dara', 18)){ if (count('arana') < 2) spawnDeforme('arana'); T.dara = rand(16, 22); }
-    if (tic('dheli', 20)){ if (count('heli') + count('gunship') < 2) spawnDeforme(Math.random() < 0.6 ? 'heli' : 'gunship'); T.dheli = rand(18, 24); }
+    if (tic('dtank', 12)){ if (count('tank') < 2) spawnDeforme('tank'); T.dtank = rand(19, 26); }
+    if (tic('dara', 18)){ if (count('arana') < 1) spawnDeforme('arana'); T.dara = rand(19, 26); }
+    if (tic('dheli', 20)){ if (count('heli') + count('gunship') < 1) spawnDeforme(Math.random() < 0.6 ? 'heli' : 'gunship'); T.dheli = rand(21, 28); }
   }
   if (finalWave()){
     if (tic('dcaza', 10)){ if (count('caza40k') < 2) spawnDeforme('caza40k'); T.dcaza = rand(10, 14); }
@@ -13645,7 +13710,7 @@ function updateDesgarrador(e, dt, a, ang){
       // se apunta y se choca desde el suelo bajo la cabeza (el visor está muy
       // alto: desde ahí el rayo tropezaba con tejados que solo tapan en el dibujo)
       const o = desSuelo(e);
-      e.rA = giraHacia(e.rA, Math.atan2(player.y - o.y, player.x - o.x), 0.95*dt);
+      e.rA = giraHacia(e.rA, Math.atan2(player.y - o.y, player.x - o.x), 0.72*dt);
       e.facing = Math.cos(e.rA) >= 0 ? 1 : -1;
       const imp = kaiImpacto(o.x, o.y, o.x + Math.cos(e.rA)*900, o.y + Math.sin(e.rA)*900, e.x, e.y, 900);
       e.rx = imp.x; e.ry = imp.y;
@@ -16723,7 +16788,7 @@ function aguanteLanzado(o){
   if (!o) return 1;
   if (o.kind === 'edificio') return 4;    // atraviesa tres, muere en el cuarto
   if (o.type === 'siege')    return 3;    // atraviesa dos
-  if (o.kind === 'car')      return 2;    // atraviesa uno
+  if (o.kind === 'car')      return esAlien() || esInfierno() ? 3 : 2;   // atraviesa uno (dos en los mapas de bichos duros)
   if (o.type === 'tank' || o.type === 'heli' ||
       o.type === 'mbt' || o.type === 'mbtFrio') return 2;
   return 1;
@@ -16866,7 +16931,10 @@ const BLINDADOS = { desgarrador:1, bicho:1, amalgama:1, arana:1, tank:1, siege:1
 const JEFES = { flametank:1, omni:1, artillero:1, superx:1, tripode:1, heroe:1, kaiyin:1, centurion:1, desgarrador:1 };
 const VIL_BOSS_MULT = 1.40;
 function throwDmgOn(o, tgt){
-  const base = o.throwDmg;
+  let base = o.throwDmg;
+  // En el planeta y en el infierno la tropa aguanta más (y la deformada,
+  // mucho más): el auto lanzado pega más fuerte para seguir llevándosela por delante.
+  if (o.kind === 'car' && (esAlien() || esInfierno()) && tgt && !JEFES[tgt.type]) base *= tgt.deforme ? 1.9 : 1.5;
   return (isVil() && tgt && JEFES[tgt.type]) ? base * VIL_BOSS_MULT : base;
 }
 function esBlindado(t){ return !!BLINDADOS[t.type]; }
