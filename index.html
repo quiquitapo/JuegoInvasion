@@ -230,6 +230,13 @@
              background:rgba(20,50,80,0.9); color:#cfe8ff; flex:0 0 auto; }
   .ostplay.on { background:#3aa7ff; color:#06121c; }
   .ostplay[disabled] { opacity:0.4; cursor:default; }
+  .osttemas { display:flex; flex-wrap:wrap; gap:5px; justify-content:center; align-items:center; margin:6px 0 8px; }
+  .osttemas .ostgrupo { color:#5f8296; font-size:0.42rem; letter-spacing:1px; margin:0 2px 0 6px; }
+  .osttema { font-family:inherit; font-size:0.44rem; letter-spacing:1px; cursor:pointer; padding:4px 7px;
+             border-radius:6px; border:1px solid #2a4a5c; background:rgba(10,24,34,0.85); color:#9fc4d8; }
+  .osttema.on { border-color:#8fd7ff; color:#06121c; background:#8fd7ff; }
+  .osttema.locked { color:#4a6474; }
+  .osttema.mapa.on { border-color:#ffb36b; background:#ffb36b; }
   .imglock { display:none; margin-top:7px; font-size:0.44rem; letter-spacing:1px; color:#c9a6ff; }
   .imglock.on { display:block; }
   .uniqtitle { margin:0; font-size:0.72rem; letter-spacing:2px; color:#d9b8ff; text-align:center; }
@@ -1303,7 +1310,8 @@
     <div class="subtitle">Solo se revela lo que has derrotado</div>
     <div id="ostwrap" class="ostwrap">
       <h3 class="uniqtitle" style="color:#8fd7ff">BANDA SONORA</h3>
-      <div class="uniqsub" style="color:#6f95ac">Se desbloquea jugando a cada hora del día</div>
+      <div class="uniqsub" style="color:#6f95ac">Los de la ciudad se desbloquean jugando a cada hora del día; los de los otros mapas, siempre disponibles</div>
+      <div id="ostTemas" class="osttemas"></div>
       <div id="ostcard" class="ostcard"></div>
     </div>
     <div id="dexlist" class="dexlist"></div>
@@ -8644,10 +8652,27 @@ const OST_TEMAS = [
 ];
 let ostSel = 0;
 
-function ostDesbloqueado(t){ return !!musicDex[t.id]; }
+// Los de la ciudad se ganan jugando a cada hora; los de los otros mapas se
+// pueden oír siempre.
+function ostDesbloqueado(t){ return !!t.pista || !!musicDex[t.id]; }
+function pintaOstTemas(){
+  const el = document.getElementById('ostTemas');
+  if (!el) return;
+  const sel = ostSel % OST_TEMAS.length;
+  let h = '<span class="ostgrupo">CIUDAD</span>', mapas = false;
+  OST_TEMAS.forEach((t, i)=>{
+    if (t.pista && !mapas){ mapas = true; h += '<span class="ostgrupo">OTROS MAPAS</span>'; }
+    const on = ostDesbloqueado(t);
+    h += `<button type="button" class="osttema${t.pista ? ' mapa' : ''}${i === sel ? ' on' : ''}${on ? '' : ' locked'}" data-ost-i="${i}"` +
+         ` title="${on ? esc(t.name) : 'Por descubrir'}">${on ? t.icon + ' ' + esc(t.name) : '\u{1F512}'}</button>`;
+  });
+  el.innerHTML = h;
+  el.querySelectorAll('[data-ost-i]').forEach(b=> b.addEventListener('click', ()=>{ ostSel = +b.dataset.ostI; sfx('ui'); renderOST(); }));
+}
 function renderOST(){
   const c = document.getElementById('ostcard');
   if (!c) return;
+  pintaOstTemas();
   const t = OST_TEMAS[ostSel % OST_TEMAS.length];
   const on = ostDesbloqueado(t);
   const sonando = previewTrack && previewTrack.ostId === t.id;
