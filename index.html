@@ -4056,13 +4056,13 @@ function edgeSpawnPos(dmin, dmax, vuela){
 
 const ENEMY_TYPES = { police:1, military:1, minigun:1, tank:1, heli:1, gunship:1, siege:1, flametank:1, plane:1, omni:1, artillero:1, superx:1, mbt:1, mbtFrio:1, ovni:1, tripode:1,
                       heroe:1, arquero:1, caballero:1, golem:1, kaiyin:1,
-                      centinela:1, droide:1, escaner:1, cabezon:1, arana:1, murcielago:1, caza40k:1 };
+                      centinela:1, droide:1, escaner:1, cabezon:1, arana:1, murcielago:1, caza40k:1, centurion:1 };
 function spawnEnemy(type, atX, atY){
   if (!ENEMY_TYPES[type]) return;      // ignora tipos retirados o mal escritos
   // Lo que vuela puede aparecer sobre un tejado; el resto, no.
   const vuela = (type === 'heli' || type === 'gunship' || type === 'plane' ||
                  type === 'ovni' || type === 'superx' || type === 'tripode' ||   // el trípode pasa por encima
-                 type === 'heroe' || type === 'kaiyin' || !!FANT_TIPOS[type] || !!AL_VUELA[type]);   // almas y dragón: por encima de todo
+                 type === 'heroe' || type === 'kaiyin' || type === 'centurion' || !!FANT_TIPOS[type] || !!AL_VUELA[type]);   // almas y dragón: por encima de todo
   const p = (atX != null && atY != null) ? {x:atX, y:atY} : edgeSpawnPos(460, 620, vuela);
   const base = { x:p.x, y:p.y, type, dead:false, facing:1, shootCd:rand(0.3,1.6), rot:0,
                  held:false, thrown:false, alt:0, stunT:0, stunVx:0, stunVy:0, person:false };
@@ -4114,6 +4114,9 @@ function spawnEnemy(type, atX, atY){
                             fase:'trota', ft:0, cargaCd:rand(1.5, 3), nace:0.6});
   if (type==='golem')     Object.assign(base, {hp:320, maxhp:320, speed:40, w:46, h:52, grabbable:true,
                             fase:'', ft:0, golpeCd:1, nace:0.6});
+  // El Centurión: armadura voladora, jefe del planeta marciano.
+  if (type==='centurion') Object.assign(base, {hp:CENT_HP, maxhp:CENT_HP, speed:135, w:70, h:96, grabbable:false,
+                            fase:'', ft:0, cd:2.4, alt:34, lado:1, mA:0, cA:0, c0:0, c1:0, eA:0});
   // Kaiyin: el dragón de tres cabezas en tamaño colosal.
   if (type==='kaiyin')    Object.assign(base, {hp:KAI_HP, maxhp:KAI_HP, speed:62, w:170, h:140, grabbable:false,
                             fase:'entra', ft:2.4, cd:3, vuela:1, lift:80, mirA:0, tormT:8, tormCd:24, strikeCd:0.8,
@@ -6088,6 +6091,7 @@ const REWARD = {
   murcielago:{ pts:50,  heal:8 },
   caza40k:  { pts:180,  heal:22 },
   kaiyin:   { pts:3200, heal:90 },
+  centurion:{ pts:3000, heal:90 },
   arquero:  { pts:60,   heal:10 },
   caballero:{ pts:110,  heal:16 },
   golem:    { pts:180,  heal:24 }
@@ -6216,6 +6220,8 @@ function damageEnemy(e, dmg, fx, fy){
   // El estallido de su caída se queda; el logro ahora es del Registro completo.
   if (k === 'flametank' || k === 'omni'){ explode(e.x, e.y, 190, 70, true); }
   else if (k === 'kaiyin'){ explode(e.x, e.y, 260, 80, true); humoNegro(e.x, e.y); shake(24, 0.8); e.tormT = 0; }
+  else if (k === 'centurion'){ explode(e.x, e.y, 210, 70, true); humoNegro(e.x, e.y); addParticles(e.x, e.y - 50, '#7fe8ff', 24, 240); shake(22, 0.7);
+                               if (esAlien()){ unlockAch('conquistador'); toast('¡EL PLANETA ROJO ES TUYO!'); } }
   else if (k === 'tripode'){ explode(e.x, e.y - 30, 150, 55, true); addParticles(e.x, e.y - 44, '#dff6ff', 20, 220); humoNegro(e.x, e.y); }
   else if (k === 'tank' || k === 'heli') explode(e.x, e.y, 100, 40, true);
   shake(6, 0.15);
@@ -7690,7 +7696,12 @@ const BOSS_TRACKS = {
   // ostinato grave de metales, timbales pesados y golpes de orquesta.
   kaiyin:    { scale:[82.41,87.31,98.00,110.00,123.47,130.81,146.83,164.81],
                bass:[41.20,43.65,41.20,36.71], tempo:185, name:'TRES CABEZAS', style:'kaiju',
-               ost:[0,1,2,-1, 0,1,2,-1, 0,1,3,2, 1,-1,-1,-1, 0,1,2,-1, 0,1,2,-1, 4,3,2,1, 0,-1,-1,-1] }
+               ost:[0,1,2,-1, 0,1,2,-1, 0,1,3,2, 1,-1,-1,-1, 0,1,2,-1, 0,1,2,-1, 4,3,2,1, 0,-1,-1,-1] },
+  // El Centurión: sintetizador de máquina de guerra. Bajo en semicorcheas,
+  // bombo industrial y un riff de onda cuadrada que se repite como una alarma.
+  centurion: { scale:[146.83,155.56,174.61,196.00,220.00,233.08,261.63,293.66],
+               bass:[73.42,73.42,77.78,65.41], tempo:172, name:'ACERO ORBITAL', style:'mecha',
+               mel:[0,-1,0,3, -1,2,-1,1, 0,-1,0,5, -1,4,3,-1, 0,-1,0,3, -1,2,-1,1, 6,5,4,3, 2,-1,1,-1] }
 };
 let bossTrack = null;              // el que suena ahora, si hay jefe en pie
 let previewTrack = null, previewT = 0;
@@ -7814,6 +7825,19 @@ function musicStep(){
     if (s % 8 === 4) noise(0.12, 0.1, 400);
     return;
   }
+  if (bt && bt.style === 'mecha'){
+    // ACERO ORBITAL: bajo de sierra en semicorcheas, bombo en negras, caja
+    // metálica en el 2 y el 4, el riff cuadrado y un barrido agudo al cerrar.
+    const b = bt.bass[(s/8 | 0) % bt.bass.length];
+    mk(s % 2 ? b*2 : b, 0.11, 'sawtooth', s % 4 === 0 ? 0.2 : 0.11);
+    if (s % 4 === 0){ mk(b/2, 0.22, 'sine', 0.3); noise(0.1, 0.18, 150); }
+    if (s % 8 === 4){ noise(0.08, 0.14, 2600); mk(b*8, 0.05, 'square', 0.03); }
+    const n = bt.mel[s % bt.mel.length];
+    if (n >= 0) mk(sc[n]*2, 0.16, 'square', 0.06);
+    if (s % 2 === 1) noise(0.02, 0.04, 8000);
+    if (s % 32 === 30) mk(sc[7]*4, 0.4, 'sawtooth', 0.04);
+    return;
+  }
   if (bt && bt.style === 'kaiju'){
     // TRES CABEZAS: ostinato grave de metales, timbales y golpes de orquesta.
     const o = bt.ost[s % bt.ost.length];
@@ -7908,6 +7932,7 @@ function updateBossMusic(dt){
     if (e.type === 'omni'){ cual = 'omni'; break; }
     if (e.type === 'tripode' && !e.normal){ cual = 'tripode'; break; }
     if (e.type === 'kaiyin'){ cual = 'kaiyin'; break; }
+    if (e.type === 'centurion'){ cual = 'centurion'; break; }
     if (e.type === 'heroe'){ cual = 'heroe'; break; }
   }
   const nuevo = cual ? BOSS_TRACKS[cual] : null;
@@ -8023,6 +8048,23 @@ const BESTIARY = [
     desc:'Mole de roca animada por runas. Lento y duro; al tenerte cerca alza los puños y golpea el suelo alrededor. Solo el COLOSO puede levantarlo.' },
   { id:'kaiyin', name:'KAIYIN', hp:2700, dmg:'rayos, aletazo, embestida y mordisco', sprite:'kaiyinF', verb:'DERROTADOS',
     desc:'El dragón de tres cabezas en tamaño colosal. Llega volando y desata una tormenta: los rayos caen donde se marca el suelo. Camina aplastando edificios y alterna ataques: aletazo que lo barre todo alrededor, embestida marcada que arrasa lo que hay en la línea, vuelo en picado con mordisco antes de aterrizar y, sobre todo, sus tres rayos. De esos rayos solo te salva un escudo: ponte detrás de un edificio, interpón un auto o lo que lleves agarrado, o usa la burbuja o los objetos del mago.' },
+  { id:'centinela', name:'CENTINELA', hp:60, dmg:'8 por disparo', sprite:'centinelaF',
+    desc:'Soldado de la guardia marciana, con máscara de visores y una mochila de energía a la espalda. Guarda la distancia y dispara ráfagas de su rifle de pulsos. Los ojos escáner los llaman de tres en tres. Se pueden agarrar como cualquier soldado.' },
+  { id:'droide', name:'DROIDE DE BATALLA', hp:30, dmg:'7 por disparo', sprite:'droideF',
+    desc:'Robot flaco fabricado en serie. Es frágil, pero dispara desde más lejos que nadie y se queda atrás, a más de cuatrocientos metros, para no darte el gusto de alcanzarlo.' },
+  { id:'cabezon', name:'CABEZÓN VERDE', hp:45, dmg:'38 (rayo desintegrador)', sprite:'cabezonF',
+    desc:'Marcianito de cabeza enorme con una pistola de rayos. Se planta, la carga con un zumbido y dispara un rayo desintegrador que hace mucho daño y pulveriza a cualquiera que esté en la línea. Medio segundo antes de disparar deja de seguirte: es tu momento para apartarte o cubrirte.' },
+  { id:'escaner', name:'OJO ESCÁNER', hp:28, dmg:'—', sprite:'escanerF',
+    desc:'Ojo volador que da vueltas a tu alrededor sin atacar. Si no lo derribas a tiempo, emite una alarma y llegan tres centinelas; luego vuelve a contar. Es frágil y se puede agarrar al vuelo.' },
+  { id:'arana', name:'TANQUE ARAÑA', hp:190, dmg:'16 + área (obús de plasma)', sprite:'aranaF', verb:'DESTRUIDOS',
+    desc:'Blindado sobre seis patas, muy rápido. Nunca se queda cerca: si te acercas huye corriendo de lado mientras te dispara obuses de plasma. Solo el COLOSO puede levantarlo.' },
+  { id:'murcielago', name:'MURCIÉLAGO ÁCIDO', hp:22, dmg:'ácido y charco corrosivo', sprite:'murcielagoF',
+    desc:'Criatura voladora del planeta. Revolotea en círculos y escupe bolas de ácido que dejan un charco en el suelo durante unos segundos: no te quedes encima. Se agarra fácilmente.' },
+  { id:'caza40k', name:'CAZA DE ASALTO', hp:80, dmg:'34 al estrellarse', sprite:'caza40kF', verb:'DERRIBADOS',
+    desc:'Nave gótica y blindada. Pasa disparando, da media vuelta y, cuando te encara, se lanza en picado para estrellarse contra ti. Si esquivas el picado, se estrella igual y explota donde cae.' },
+  { id:'centurion', name:'EL CENTURIÓN', hp:2200, dmg:'embestida, bombas, misiles, minigun y corte láser', sprite:'centurionF', verb:'DERROTADOS',
+    hint:'El guardián del Mundo Alienígena. Aún no lo has derrotado.',
+    desc:'La armadura robótica que protege el planeta marciano. Vuela a tu alrededor y alterna sus armas: embestida por una línea que marca en el suelo, bombas pegajosas que se te quedan encima (o en lo que lleves agarrado: lánzalo lejos), salvas de misiles guiados, ráfagas de su minigun láser y, lo peor, un gran corte láser que barre un abanico enorme marcado en rojo. Del corte solo te salva salir del abanico o ponerte detrás de algo. Por debajo de la mitad de vida pierde el blindaje y se vuelve más rápido.' },
   { id:'truck', name:'CAMIÓN CISTERNA', hp:60, dmg:'200 en área al detonar', sprite:'truck',
     desc:'Aparición rara en el tráfico. No te ataca, pero lanzarlo provoca la mayor explosión del juego y encadena con otras cisternas.' }
 ];
@@ -8375,6 +8417,8 @@ const ACHIEVEMENTS = [
     desc:'Derriba un OVNI siendo la Máquina Aberrante: sus armas se sobrecargan (hacha de plasma y minigun) y un escudo convierte en vida el daño que recibes.' },
   { id:'nigromante', icon:'\u{1F9DF}', name:'NIGROMANTE', goal:1,
     desc:'Derriba un OVNI siendo el Mago Aberrante: sus hechizos se desatan y los policías y soldados que caen vuelven como zombis a pelear a tu lado.' },
+  { id:'conquistador', icon:'\u{1F47D}', name:'CONQUISTADOR', goal:1,
+    desc:'Derrota al Centurión, el guardián del Mundo Alienígena. Ahora los invadidos son ellos.' },
 
   // --- SECRETOS: no aparecen en la lista hasta conseguirlos ---
   { id:'curioso', icon:'\u{1F50E}', name:'CURIOSO', goal:1, secret:true,
@@ -10987,8 +11031,8 @@ function kaiEligeAtaque(e, a, ang){
 }
 // Tres rayos: los para lo primero que se cruce (edificio, lo que lleves
 // agarrado, lo que el mago levite o su burbuja). Si no, te alcanzan.
-function kaiImpacto(ox, oy, tx, ty, px, py){
-  const dx = tx - ox, dy = ty - oy, L = Math.min(KAI_RAYO_LARGO, Math.hypot(dx, dy) + 40) || 1;
+function kaiImpacto(ox, oy, tx, ty, px, py, largo){
+  const dx = tx - ox, dy = ty - oy, L = Math.min(largo || KAI_RAYO_LARGO, Math.hypot(dx, dy) + 40) || 1;
   const ux = dx/(Math.hypot(dx, dy) || 1), uy = dy/(Math.hypot(dx, dy) || 1);
   const ex = ox + ux*L, ey = oy + uy*L;
   const x0 = Math.min(ox, ex) - 4, x1 = Math.max(ox, ex) + 4, y0 = Math.min(oy, ey) - 4, y1 = Math.max(oy, ey) + 4;
@@ -11642,7 +11686,7 @@ function updateAlien(dt){
     shake(22, 0.6); sfx('bigboom');
   }
 }
-function limpiaAlien(){ acidoProy.length = 0; acidos.length = 0; meteoros.length = 0; }
+function limpiaAlien(){ acidoProy.length = 0; acidos.length = 0; meteoros.length = 0; limpiaCenturion(); }
 
 // ---------- dibujo ----------
 function pintaAl(c, tipo, sx, sy, facing, rot){
@@ -11812,6 +11856,303 @@ function updateSpawnsAlien(dt, count){
     T.met = finalWave() ? rand(12, 16) : rand(22, 30);
   }
 }
+// ================= EL CENTURIÓN =================
+// Jefe del planeta marciano: una armadura robótica que vuela. Embiste por una
+// línea marcada, lanza bombas pegajosas, salvas de misiles, ráfagas de su
+// minigun láser y un gran corte láser que barre media pantalla. Por debajo de
+// la mitad de vida pierde placas, se vuelve más rápido y encadena ataques.
+const CENT_HP = 2200, CENT_ESC = 1.5, CENT_CORTE_L = 900;
+const CENT_TAM = [72, 90, 36, 78];
+const centCache = new Map();
+const bombasPeg = [];
+function centFrame(pose, f, roto){
+  const k = pose + f + (roto ? 'r' : '');
+  let c = centCache.get(k);
+  if (c) return c;
+  const [W, H, cx, py] = CENT_TAM;
+  c = document.createElement('canvas'); c.width = W; c.height = H;
+  const g = c.getContext('2d'); g.lineCap = 'round'; g.lineJoin = 'round';
+  g.translate(cx, py);
+  dibCenturion(g, pose, f, roto);
+  pixelArte(c, '#08080e');
+  centCache.set(k, c);
+  return c;
+}
+function dibCenturion(g, pose, f, roto){
+  const pl = '#4a5262', plL = '#7a8496', plO = '#2a2f3a', oro = '#c8a040', vis = '#ff3a2a', nuc = '#7fe8ff';
+  const incl = pose === 'embiste' ? 0.35 : 0;
+  g.rotate(incl);
+  // mochila de propulsión
+  jR(g, plO, -15, -58, 9, 26); jR(g, pl, -14, -57, 7, 6); jR(g, '#1a1e26', -15, -34, 9, 4);
+  // piernas con propulsores en los pies
+  const pierna = (x, d, c)=>{ jL(g, c, 7, x, -26, x + d, -12); jL(g, c, 6, x + d, -12, x + d*0.5, -2); jR(g, plO, x + d*0.5 - 4, -3, 9, 4); };
+  pierna(-4, -3, plO); pierna(5, 3, pl);
+  // torso con el núcleo
+  g.fillStyle = pl; g.beginPath(); g.moveTo(-12, -60); g.lineTo(13, -60); g.lineTo(10, -28); g.lineTo(-9, -28); g.closePath(); g.fill();
+  jR(g, plL, -10, -58, 20, 3); jR(g, plO, -9, -32, 19, 4);
+  jO(g, '#14202a', 1, -46, 6, 6); jO(g, nuc, 1, -46, 4, 4); jO(g, '#e8ffff', 0, -47, 1.6, 1.6);
+  jR(g, oro, -10, -40, 2, 10); jR(g, oro, 10, -40, 2, 10);
+  if (!roto){                                                   // placas del pecho (se pierden en la fase 2)
+    jR(g, plL, -12, -56, 6, 8); jR(g, plL, 7, -56, 6, 8);
+  } else { jR(g, '#ff7a2a', -6, -38, 2, 2); jR(g, '#ff7a2a', 6, -52, 2, 2); }
+  // casco con visor en T
+  jO(g, plO, 1, -68, 8.5, 8); jO(g, pl, 1.5, -69, 7.5, 7);
+  jR(g, plL, -4, -75, 9, 2);
+  jR(g, vis, -2, -70, 10, 2.5); jR(g, vis, 3, -70, 2.5, 7);
+  jR(g, oro, -6, -77, 2, 4);
+  // hombreras
+  jO(g, plO, -13, -58, 7, 5); jO(g, pl, -13, -59, 6, 4); jO(g, roto ? plO : plL, 14, -58, 8, 6); jO(g, pl, 14, -59, 7, 5);
+  jR(g, oro, 9, -61, 10, 1.5);
+  // brazo izquierdo: lanzamisiles
+  jL(g, plO, 6, -12, -54, -18, -40);
+  jR(g, plO, -26, -46, 12, 12); jR(g, pl, -25, -45, 10, 10);
+  for (let i = 0; i < 4; i++) jO(g, i % 2 ? '#1a1e26' : '#d83a3a', -22 + (i % 2)*5, -42 + (i > 1 ? 5 : 0), 1.8, 1.8);
+  // brazo derecho: minigun láser
+  const a = pose === 'dispara' ? -0.05 : pose === 'carga' ? 1.1 : 0.45;
+  const hx = 14, hy = -54, mx = hx + Math.cos(a)*11, my = hy + Math.sin(a)*11;
+  jL(g, pl, 6.5, hx, hy, mx, my);
+  g.save(); g.translate(mx, my); g.rotate(a);
+  jR(g, plO, -2, -5, 10, 10); jR(g, '#ff7a2a', 0, -3, 3, 6);
+  for (let i = 0; i < 3; i++) jR(g, (i + f) % 2 ? '#8a939c' : '#4a525a', 8, -3.5 + i*2.8, 16, 1.8);
+  jR(g, '#2a2f36', 22, -4.5, 3, 9);
+  g.restore();
+}
+function updateCenturion(e, dt, a, ang){
+  e.anim = (e.anim || 0) + dt;
+  const f2 = e.hp < e.maxhp*0.5;
+  if (f2 && !e.roto){ e.roto = true; toast('¡EL CENTURIÓN PIERDE SU BLINDAJE!'); addParticles(e.x, e.y - 60, '#7a8496', 24, 220); shake(12, 0.3); sfx('bigboom'); }
+  const vel = f2 ? 1.35 : 1;
+  e.ft -= dt;
+  if (e.hieloT > 0) return;
+  switch (e.fase){
+    case 'embisteAviso':
+      e.facing = Math.cos(e.eA) >= 0 ? 1 : -1;
+      if (e.ft <= 0){ e.fase = 'embiste'; e.rest = 560; e.golpeo = 0; e.embId = (e.embId || 0) + 1; sfx('dash'); }
+      break;
+    case 'embiste': {
+      const paso = 950*vel*dt;
+      e.x = clamp(e.x + Math.cos(e.eA)*paso, 60, WORLD_W - 60); e.y = clamp(e.y + Math.sin(e.eA)*paso, 60, WORLD_H - 60);
+      e.rest -= paso;
+      // arrasa lo que hay en su camino
+      for (const b of buildings){ if (b.stage < 2){ const cx = clamp(e.x, b.x, b.x + b.w), cy = clamp(e.y, b.y, b.y + b.h); if (dist(cx, cy, e.x, e.y) < 50) damageBuilding(b, 700*dt); } }
+      for (const pool of [civilians, enemies]) for (const t of pool){
+        if (t === e || t.dead || t.held || JEFES[t.type] || t._cenG === e.embId || dist(t.x, t.y, e.x, e.y) > 50) continue;
+        t._cenG = e.embId; damageEnemy(t, 80, t.x, t.y);
+      }
+      if (!e.golpeo && a < 50 + F().r){ e.golpeo = 1; const d0 = hp; hp = clamp(hp - recibe(32), 0, maxHp()); p2Gain(d0 - hp); shake(12, 0.3); sfx('hurt'); }
+      if (Math.random() < 0.6) addParticles(e.x - Math.cos(e.eA)*20, e.y - 40, '#ff8a2a', 2, 100);
+      if (e.rest <= 0){ e.fase = ''; e.cd = rand(1.6, 2.4)/vel; }
+      break;
+    }
+    case 'bombas':
+      if (!e.lanzo && e.ft <= 0.3){
+        e.lanzo = 1;
+        const n = f2 ? 5 : 3;
+        for (let i = 0; i < n; i++){
+          const tx = player.x + (i ? rand(-110, 110) : 0), ty = player.y + (i ? rand(-80, 80) : 0);
+          bombasPeg.push({ x0:e.x - 20*e.facing, y0:e.y - 70, x:e.x, y:e.y, tx, ty, t:0, vuelo:0.65 + i*0.08, mecha:2.1, on:null });
+        }
+        sfx('cohete');
+      }
+      if (e.ft <= 0){ e.fase = ''; e.cd = rand(1.4, 2.2)/vel; }
+      break;
+    case 'misiles':
+      if (e.ft <= 0.4 && !e.lanzo){
+        e.lanzo = 1;
+        const n = f2 ? 6 : 4;
+        for (let i = 0; i < n; i++){
+          const m = mkBullet(e, ang + (i - (n - 1)/2)*0.32, 230, 24, '#ff8a3b', 6);
+          m.x = e.x - 22*e.facing; m.y = e.y - 70; m.ignEdif = edifEn(m.x, m.y);
+          m.delay = i*0.12; m.homing = true; m.homeTime = 2.2; m.turn = 3; m.maxSpd = 460;
+          m.sprite = 'missile'; m.life = 5; m.blast = 70;
+          bullets.push(m);
+        }
+        sfx('cohete');
+      }
+      if (e.ft <= 0){ e.fase = ''; e.cd = rand(1.8, 2.6)/vel; }
+      break;
+    case 'minigun':
+      e.mA = giraHacia(e.mA, ang, 1.6*dt);
+      e.facing = Math.cos(e.mA) >= 0 ? 1 : -1;
+      e.tiroT -= dt;
+      while (e.tiroT <= 0){
+        e.tiroT += f2 ? 0.045 : 0.06;
+        const m = centCanon(e);
+        const b = mkBullet(e, e.mA + rand(-0.09, 0.09), 540, 6, '#ff4a3a', 3);
+        b.x = m.x; b.y = m.y; b.laser = true; b.ignEdif = edifEn(m.x, m.y);
+        bullets.push(b);
+      }
+      if (Math.random() < 0.3) sfx('laserE');
+      if (e.ft <= 0){ e.fase = ''; e.cd = rand(1.4, 2.2)/vel; }
+      break;
+    case 'corteCarga':
+      e.facing = Math.cos(e.c0) >= 0 ? 1 : -1;
+      if (e.ft <= 0){ e.fase = 'corte'; e.ft = 0.95; e.cA = e.c0; e.cortado = 0; e.corteTick = 0; sfx('rayoM'); shake(8, 0.3); }
+      break;
+    case 'corte': {
+      const k = 1 - e.ft/0.95;
+      e.cA = e.c0 + (e.c1 - e.c0)*k;
+      e.facing = Math.cos(e.cA) >= 0 ? 1 : -1;
+      e.corteTick -= dt;
+      const m = centBoca(e);
+      const imp = kaiImpacto(m.x, m.y, m.x + Math.cos(e.cA)*CENT_CORTE_L, m.y + Math.sin(e.cA)*CENT_CORTE_L, e.x, e.y, CENT_CORTE_L);
+      e.cx2 = imp.x; e.cy2 = imp.y;
+      if (e.corteTick <= 0){
+        e.corteTick = 0.05;
+        if (imp.que === 'jugador' && !e.cortado){ e.cortado = 1; const d0 = hp; hp = clamp(hp - recibe(45), 0, maxHp()); p2Gain(d0 - hp); shake(14, 0.3); sfx('hurt'); }
+        else if (imp.que === 'edif') damageBuilding(imp.ref, 20);
+        else if (imp.que === 'escudo'){ damageHeld(0.12); runStats.blocks += 0.05; }
+        else if (imp.que === 'tk'){ const o = imp.ref; if (o.tkDur === undefined) o.tkDur = objDurability(o); o.tkDur -= 0.12; if (o.tkDur <= 0){ const j = mag.tk.indexOf(o); if (j >= 0) mag.tk.splice(j, 1); rompeTK(o); } }
+        else if (imp.que === 'zombi') imp.ref.hp -= 40;
+        const L = dist(m.x, m.y, imp.x, imp.y);
+        for (const pool of [civilians, enemies]) for (const t of pool){
+          if (t === e || t.dead || t.held || JEFES[t.type]) continue;
+          if (enLinea(t.x, t.y - alturaVisible(t), m.x, m.y, e.cA, L, 14)) damageEnemy(t, 40, t.x, t.y);
+        }
+        for (const c of cars) if (!c.dead && !c.held && enLinea(c.x, c.y, m.x, m.y, e.cA, L, 16)){ c.hp -= 30; if (c.hp <= 0) autoAbatido(c); }
+        if (Math.random() < 0.5) addParticles(imp.x, imp.y, '#ff6a4a', 4, 140);
+      }
+      if (e.ft <= 0){ e.fase = ''; e.cd = rand(2, 2.8)/vel; }
+      break;
+    }
+    default: {
+      // vuela manteniendo la distancia y moviéndose de lado
+      e.facing = Math.cos(ang) >= 0 ? 1 : -1;
+      e.ladoT = (e.ladoT || 0) - dt;
+      if (e.ladoT <= 0){ e.lado = Math.random() < 0.5 ? 1 : -1; e.ladoT = rand(1.5, 3); }
+      let mx = -Math.sin(ang)*e.lado*0.7, my = Math.cos(ang)*e.lado*0.7;
+      if (a > 480){ mx += Math.cos(ang); my += Math.sin(ang); } else if (a < 300){ mx -= Math.cos(ang); my -= Math.sin(ang); }
+      const l = Math.hypot(mx, my) || 1;
+      e.x = clamp(e.x + mx/l*e.speed*vel*dt, 60, WORLD_W - 60); e.y = clamp(e.y + my/l*e.speed*vel*dt, 60, WORLD_H - 60);
+      e.cd -= dt;
+      if (e.cd <= 0) centEligeAtaque(e, a, ang);
+    }
+  }
+  e.alt = 34 + Math.sin(e.anim*2.5)*5;
+}
+function centEligeAtaque(e, a, ang){
+  const r = Math.random();
+  const op = a < 260 ? (r < 0.4 ? 'bombas' : r < 0.7 ? 'minigun' : 'embiste')
+           : (r < 0.22 ? 'embiste' : r < 0.42 ? 'misiles' : r < 0.62 ? 'minigun' : r < 0.8 ? 'corte' : 'bombas');
+  e.lanzo = 0;
+  if (op === 'embiste'){ e.fase = 'embisteAviso'; e.ft = 0.95; e.eA = ang; toast('¡EMBESTIDA!'); }
+  else if (op === 'bombas'){ e.fase = 'bombas'; e.ft = 0.6; }
+  else if (op === 'misiles'){ e.fase = 'misiles'; e.ft = 0.8; }
+  else if (op === 'minigun'){ e.fase = 'minigun'; e.ft = 2.2; e.mA = ang; e.tiroT = 0.3; }
+  else {
+    // el corte barre un arco de 1,6 rad que pasa por el invasor
+    const lado = Math.random() < 0.5 ? 1 : -1;
+    e.fase = 'corteCarga'; e.ft = 1.4; e.c0 = ang - lado*0.8; e.c1 = ang + lado*0.8;
+    toast('¡CORTE LÁSER! PONTE A CUBIERTO'); sfx('cargaM');
+  }
+}
+function edifEn(x, y){ for (const b of buildings) if (b.stage < 2 && x > b.x && x < b.x + b.w && y > b.y && y < b.y + b.h) return b; return null; }
+// El corte sale del reactor del pecho; la minigun, de la punta del cañón.
+function centBoca(e){
+  return { x: e.x + (e.facing < 0 ? -1 : 1)*2, y: e.y + 6 - (e.alt || 0) - 46*CENT_ESC };
+}
+function centCanon(e){
+  return { x: e.x + (e.facing < 0 ? -1 : 1)*48*CENT_ESC, y: e.y + 6 - (e.alt || 0) - 56*CENT_ESC };
+}
+// Bombas pegajosas: vuelan en arco y se pegan a lo que tocan al caer (a ti, a
+// lo que lleves agarrado o al suelo). Estallan a los dos segundos.
+function updateBombasPeg(dt){
+  for (let i = bombasPeg.length - 1; i >= 0; i--){
+    const b = bombasPeg[i];
+    if (b.t < b.vuelo){
+      b.t += dt;
+      const k = Math.min(1, b.t/b.vuelo);
+      b.x = b.x0 + (b.tx - b.x0)*k; b.y = b.y0 + (b.ty - b.y0)*k - Math.sin(k*Math.PI)*90;
+      if (k >= 1){
+        b.x = b.tx; b.y = b.ty;
+        if (heldObject && heldObject.ref && dist(b.x, b.y, heldObject.ref.x, heldObject.ref.y) < 34){ b.on = heldObject.ref; b.ox = b.x - b.on.x; b.oy = b.y - b.on.y; }
+        else if (dist(b.x, b.y, player.x, player.y) < 32 + F().r){ b.on = player; b.ox = rand(-8, 8); b.oy = -10; toast('¡TIENES UNA BOMBA PEGADA!'); }
+        sfx('grab');
+      }
+      continue;
+    }
+    if (b.on && !b.on.dead){ b.x = b.on.x + b.ox; b.y = b.on.y + b.oy; }
+    b.mecha -= dt;
+    if (b.mecha <= 0){
+      bombasPeg.splice(i, 1);
+      explode(b.x, b.y, 85, 30, false, true);
+      shake(6, 0.15);
+    }
+  }
+}
+function limpiaCenturion(){ bombasPeg.length = 0; }
+function drawCenturion(e){
+  const s = S(e.x, e.y), t = e.anim || 0, alt = e.alt || 0;
+  sombra(s.x, s.y + 10, 70, 18, 0.55);
+  const dy = s.y + 6 - alt;
+  // llamas de los propulsores
+  const fl = 0.8 + Math.random()*0.3;
+  ctx.globalAlpha = 0.85; ctx.fillStyle = '#ff8a2a';
+  for (const x of [-10, 8]){ ctx.beginPath(); ctx.moveTo(s.x + x*CENT_ESC - 5, dy); ctx.lineTo(s.x + x*CENT_ESC, dy + 18*fl); ctx.lineTo(s.x + x*CENT_ESC + 5, dy); ctx.closePath(); ctx.fill(); }
+  ctx.fillStyle = '#ffe07a';
+  for (const x of [-10, 8]){ ctx.beginPath(); ctx.moveTo(s.x + x*CENT_ESC - 2.5, dy); ctx.lineTo(s.x + x*CENT_ESC, dy + 10*fl); ctx.lineTo(s.x + x*CENT_ESC + 2.5, dy); ctx.closePath(); ctx.fill(); }
+  ctx.globalAlpha = 1;
+  const pose = e.fase === 'minigun' ? 'dispara' : (e.fase === 'corteCarga' || e.fase === 'corte') ? 'carga'
+             : (e.fase === 'embiste' || e.fase === 'embisteAviso') ? 'embiste' : 'vuela';
+  const c = centFrame(pose, Math.floor(t*14) % 2, !!e.roto);
+  const [W, H, cx, py] = CENT_TAM;
+  ctx.save(); ctx.translate(s.x, dy); ctx.scale((e.facing < 0 ? -1 : 1)*CENT_ESC, CENT_ESC);
+  const suave = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(c, -cx, -py);
+  ctx.imageSmoothingEnabled = suave; ctx.restore();
+  if (e.fase === 'corteCarga' || e.fase === 'corte'){
+    // el reactor se carga antes del corte
+    const k = e.fase === 'corte' ? 1 : 1 - e.ft/1.4, ry = dy - 46*CENT_ESC, rx = s.x + (e.facing < 0 ? -1 : 1)*2;
+    ctx.globalAlpha = 0.35 + k*0.4; ctx.fillStyle = '#ff3a2a'; ctx.beginPath(); ctx.arc(rx, ry, 6 + k*10 + Math.random()*3, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 0.9; ctx.fillStyle = '#ffe8e0'; ctx.beginPath(); ctx.arc(rx, ry, 3 + k*4, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+  if (showHpBars) hpBar(s.x, dy - 130, 110, e.hp, e.maxhp, '#c81f1f');
+}
+function drawCenturionAvisos(){
+  for (const e of enemies){
+    if (e.dead || e.type !== 'centurion') continue;
+    if (e.fase === 'embisteAviso'){
+      const s0 = S(e.x, e.y), s1 = S(e.x + Math.cos(e.eA)*560, e.y + Math.sin(e.eA)*560);
+      ctx.save(); ctx.globalAlpha = 0.85; ctx.strokeStyle = '#ff3a2a'; ctx.lineWidth = 5; ctx.setLineDash([16, 10]); ctx.lineDashOffset = -gameTime*90;
+      ctx.beginPath(); ctx.moveTo(s0.x, s0.y); ctx.lineTo(s1.x, s1.y); ctx.stroke(); ctx.setLineDash([]);
+      ctx.globalAlpha = 0.18; ctx.lineWidth = 90; ctx.beginPath(); ctx.moveTo(s0.x, s0.y); ctx.lineTo(s1.x, s1.y); ctx.stroke();
+      ctx.restore();
+    }
+    if (e.fase === 'corteCarga'){
+      // abanico que va a barrer el corte
+      const m = centBoca(e), o = S(m.x, m.y), p = 1 - e.ft/1.4;
+      ctx.save();
+      ctx.globalAlpha = 0.1 + p*0.15; ctx.fillStyle = '#ff3a2a';
+      ctx.beginPath(); ctx.moveTo(o.x, o.y); ctx.arc(o.x, o.y, CENT_CORTE_L, Math.min(e.c0, e.c1), Math.max(e.c0, e.c1)); ctx.closePath(); ctx.fill();
+      ctx.globalAlpha = 0.8; ctx.strokeStyle = '#ff6a4a'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(o.x, o.y); ctx.lineTo(o.x + Math.cos(e.c0)*CENT_CORTE_L, o.y + Math.sin(e.c0)*CENT_CORTE_L); ctx.stroke();
+      ctx.restore();
+    }
+  }
+}
+function drawCenturionEfectos(){
+  for (const e of enemies){
+    if (e.dead || e.type !== 'centurion') continue;
+    if (e.fase === 'corte' && e.cx2 !== undefined){
+      const m = centBoca(e), o = S(m.x, m.y), d = S(e.cx2, e.cy2);
+      ctx.lineCap = 'round';
+      ctx.globalAlpha = 0.35; ctx.strokeStyle = '#ff3a2a'; ctx.lineWidth = 26; ctx.beginPath(); ctx.moveTo(o.x, o.y); ctx.lineTo(d.x, d.y); ctx.stroke();
+      ctx.globalAlpha = 0.9; ctx.strokeStyle = '#ff7a5a'; ctx.lineWidth = 9; ctx.beginPath(); ctx.moveTo(o.x, o.y); ctx.lineTo(d.x, d.y); ctx.stroke();
+      ctx.globalAlpha = 1; ctx.strokeStyle = '#fff0ec'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(o.x, o.y); ctx.lineTo(d.x, d.y); ctx.stroke();
+      ctx.globalAlpha = 0.7 + Math.random()*0.3; ctx.fillStyle = '#ffd0c0'; ctx.beginPath(); ctx.arc(d.x, d.y, 12 + Math.random()*5, 0, Math.PI*2); ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+  }
+  for (const b of bombasPeg){
+    const s = S(b.x, b.y);
+    const parpadeo = b.t >= b.vuelo && Math.floor(b.mecha*(b.mecha < 0.8 ? 14 : 6)) % 2;
+    ctx.fillStyle = '#2a2f3a'; ctx.beginPath(); ctx.arc(s.x, s.y, 6, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#7aff5a'; ctx.beginPath(); ctx.arc(s.x - 1, s.y - 1, 3.5, 0, Math.PI*2); ctx.fill();
+    if (parpadeo){ ctx.fillStyle = '#ff3a2a'; ctx.beginPath(); ctx.arc(s.x, s.y, 3, 0, Math.PI*2); ctx.fill(); }
+    if (b.t >= b.vuelo){ ctx.globalAlpha = 0.22; ctx.strokeStyle = '#ff3a2a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(s.x, s.y, 85*(1 - b.mecha/2.1) + 10, (85*(1 - b.mecha/2.1) + 10)*0.6, 0, 0, Math.PI*2); ctx.stroke(); ctx.globalAlpha = 1; }
+  }
+}
 // Fichas del bestiario de lo nuevo.
 {
   const ficha = (k, c, esc)=>{ const o = document.createElement('canvas'); o.width = c.width*esc; o.height = c.height*esc;
@@ -11824,6 +12165,17 @@ function updateSpawnsAlien(dt, count){
   conDragon({ mirA:-0.2, anim:0.4 }, ()=> dibujaDragon(k.getContext('2d'), 85, 100, 0.9,
     { t:0.4, vol:false, lift:0, aleteoT:0, colaFase:'', colaT:0, rayos:true, mordT:0, mordCab:1, pal:KAI_PAL, paso:0, incl:0, anda:false }));
   const img = new Image(); img.src = k.toDataURL(); sprites.kaiyinF = { img, face:1 };
+}
+// Fichas del registro del Mundo Alienígena.
+{
+  const ficha = (k, c, esc)=>{ const o = document.createElement('canvas'); o.width = c.width*esc; o.height = c.height*esc;
+    const g = o.getContext('2d'); g.imageSmoothingEnabled = false; g.drawImage(c, 0, 0, o.width, o.height);
+    const img = new Image(); img.src = o.toDataURL(); sprites[k] = { img, face:1 }; };
+  ficha('centinelaF', tropaFrame('centinela', 1, 'aim', 4, 0), 2);
+  ficha('droideF', alienFrame('droide', 'ataca', 0), 2); ficha('cabezonF', alienFrame('cabezon', 'ataca', 0), 2);
+  ficha('escanerF', alienFrame('escaner', 'ataca', 0), 2); ficha('aranaF', alienFrame('arana', 'anda', 0), 1.3);
+  ficha('murcielagoF', alienFrame('murcielago', 'ataca', 0), 2); ficha('caza40kF', alienFrame('caza40k', 'ataca', 0), 1.4);
+  ficha('centurionF', centFrame('dispara', 0, false), 1.6);
 }
 // Relámpagos de la tormenta: caen desde lo alto de la pantalla.
 function drawRelampagos(){
@@ -14521,6 +14873,7 @@ function meleeDmg(e){
   if (e.type === 'tripode')   return 62;    // ~11 golpes, como el asedio
   if (e.type === 'flametank') return 60;
   if (e.type === 'kaiyin')    return 60;    // ~45 golpes: el gigante aguanta
+  if (e.type === 'centurion') return 58;    // ~38 golpes
   if (e.type === 'heroe')     return 58;    // ~23 golpes
   if (e.type === 'golem')     return 110;   // la roca aguanta tres
   if (e.type === 'siege')   return 65;    // ~10 golpes
@@ -14701,7 +15054,7 @@ function isScenery(o){ return !!SCENERY[o.kind]; }
 // Unidades que no se revientan de una pasada: hay que insistir.
 const BLINDADOS = { arana:1, tank:1, siege:1, gunship:1, heli:1, flametank:1, omni:1, artillero:1, superx:1, mbt:1, mbtFrio:1, tripode:1 };
 // Mini jefes: el viltrumita les hace más daño con lo que les arroja.
-const JEFES = { flametank:1, omni:1, artillero:1, superx:1, tripode:1, heroe:1, kaiyin:1 };
+const JEFES = { flametank:1, omni:1, artillero:1, superx:1, tripode:1, heroe:1, kaiyin:1, centurion:1 };
 const VIL_BOSS_MULT = 1.40;
 function throwDmgOn(o, tgt){
   const base = o.throwDmg;
@@ -15760,6 +16113,7 @@ function updateEnemies(dt){
     }
     if (e.type === 'heroe'){ updateHeroe(e, dt, a, ang); continue; }
     if (e.type === 'kaiyin'){ updateKaiyin(e, dt, a, ang); continue; }
+    if (e.type === 'centurion'){ updateCenturion(e, dt, a, ang); continue; }
     if (e.type === 'cabezon'){ updateCabezon(e, dt, a, ang); continue; }
     if (e.type === 'arana'){ updateArana(e, dt, a, ang); continue; }
     if (e.type === 'murcielago'){ updateMurcielago(e, dt, a, ang); continue; }
@@ -15968,7 +16322,7 @@ function updateBullets(dt){
     // standing buildings stop bullets too
     let blocked = false;
     if (!b.artillery && !b.pierce) for (const bl of buildings){
-      if (bl.stage >= 2) continue;
+      if (bl.stage >= 2 || bl === b.ignEdif) continue;     // el del que sale (el Centurión dispara desde lo alto)
       if (b.x>bl.x && b.x<bl.x+bl.w && b.y>bl.y && b.y<bl.y+bl.h){
         damageBuilding(bl, b.dmg*0.4);
         addParticles(b.x,b.y,'#9aa6ad',5,70);
@@ -16106,7 +16460,7 @@ function updateSpawns(dt){
   updateRegen(dt);
   updateHumoEdif(dt);
   updateJefes2(dt);
-  updateAlien(dt);
+  updateAlien(dt); updateBombasPeg(dt);
   updateBossMusic(dt);
   if (gameMode === 'vs'){
     // en el duelo solo el Jugador 2 despliega tropas; el resto de la ciudad sigue viva
@@ -16169,7 +16523,7 @@ function updateSpawns(dt){
       if (Math.random() < (enAsedio() ? BOSS_CHANCE_2 : BOSS_CHANCE)){
         // En invasión no se repite jefe seguido, y el de dos turnos atrás
         // sale con la mitad de probabilidad. Es memoria de una sola partida.
-        const cual = sorteaJefe();
+        const cual = esAlien() ? 'centurion' : sorteaJefe();
         penultimoJefe = ultimoJefe;
         ultimoJefe = cual;
         if (cual === 'marciana') lanzaInvasionMarciana();
@@ -16177,7 +16531,7 @@ function updateSpawns(dt){
           spawnEnemy(cual);
           toast(cual === 'omni' ? '¡OMNIDROIDE!' : cual === 'artillero' ? '¡EL ARTILLERO!'
               : cual === 'superx' ? '¡SUPER X2!' : cual === 'heroe' ? '¡EL HÉROE MÁGICO!'
-              : cual === 'kaiyin' ? '¡KAIYIN! EL CIELO SE OSCURECE' : '¡TANQUE DE FUEGO!');
+              : cual === 'kaiyin' ? '¡KAIYIN! EL CIELO SE OSCURECE' : cual === 'centurion' ? '¡EL CENTURIÓN!' : '¡TANQUE DE FUEGO!');
           if (cual === 'kaiyin') sfx('trueno');
           shake(24, 0.8);
         }
@@ -16640,12 +16994,17 @@ function lucesJefes(L, k, mx, Mx, my, My, tinta){
     else if (e.type === 'caza40k') luz(e.x - Math.cos(e.rumbo || 0)*30, e.y - alturaVisible(e), 50, luzFuego, 0.6);
     else if (e.type === 'cabezon' && e.fase === 'dispara' && e.rx !== undefined){ const m = bocaCabezon(e); luz((m.x + e.rx)/2, (m.y + e.ry)/2, 120, luzAzul, 0.7); }
     else if (FANT_TIPOS[e.type]) luz(e.x, e.y - 16, 50, luzAzul, 0.35);
+    else if (e.type === 'centurion'){
+      luz(e.x, e.y - (e.alt || 0) - 60, 80, luzAzul, 0.5); luz(e.x, e.y - (e.alt || 0) + 6, 60, luzFuego, 0.55);
+      if (e.fase === 'corte' && e.cx2 !== undefined){ const m = centBoca(e); for (const f of [0.25, 0.6, 1]) luz(m.x + (e.cx2 - m.x)*f, m.y + (e.cy2 - m.y)*f, 110, luzRoja, 0.8); }
+    }
     else if (e.type === 'kaiyin' && e.rayOn){
       for (let i = 0; i < 3; i++) if (e['r' + i + 'x'] !== undefined) luz(e['r' + i + 'x'], e['r' + i + 'y'], 70, luzAmarilla, 0.7);
       luz(e.x, e.y - 120 - (e.lift || 0), 90, luzAmarilla, 0.6);
     }
   }
   for (const m of meteoros) luz(m.x, m.y, METEORO_R, luzFuego, 0.25 + (1 - m.t/m.max)*0.5);
+  for (const b of bombasPeg) if (b.t >= b.vuelo) luz(b.x, b.y, 34, luzRoja, 0.5);
   for (const k of kaiAvisos) luz(k.x, k.y, 60, luzBlanca, 0.25*(1 - k.t/k.max));
   if (vil.intro && isMaq()) luz(player.x, player.y + 22, 110, luzFuego, 0.9);
   if (vil.intro && isMag()){ const P = portalMago(); luz(P.x, P.y, 100, luzAzul, 0.8); }
@@ -17549,6 +17908,7 @@ function drawEnemyBase(e){
   }
   if (e.type === 'tripode'){ drawTripode(e); return; }
   if (e.type === 'kaiyin'){ drawKaiyin(e); return; }
+  if (e.type === 'centurion'){ drawCenturion(e); return; }
   if (AL_TAM[e.type]){ drawUnidadAlien(e); return; }
   if (e.type === 'heroe'){ drawHeroe(e); return; }
   if (FANT_TIPOS[e.type]){ drawFantasmaUnidad(e); return; }
@@ -17866,7 +18226,7 @@ function draw(){
   drawBuildings(); drawPlanters(); drawLamps();
   // Las zonas marcadas del Artillero van DESPUÉS de los edificios: si no, los
   // escombros las tapaban justo donde más falta hace verlas.
-  drawFuegos(); drawArtAvisos(); drawTriAvisos(); drawDragonAvisos(); drawMaquinaAvisos(); drawMagoAvisos(); drawMbtRayos(); drawJefes2Avisos(); drawAlienSuelo();
+  drawFuegos(); drawArtAvisos(); drawTriAvisos(); drawDragonAvisos(); drawMaquinaAvisos(); drawMagoAvisos(); drawMbtRayos(); drawJefes2Avisos(); drawAlienSuelo(); drawCenturionAvisos();
 
   // Solo se encolan los objetos visibles: con ~200 props fuera de pantalla,
   // esto evita cientos de entradas y llamadas de dibujo por fotograma.
@@ -17924,7 +18284,7 @@ function draw(){
     }
   }
 
-  drawBullets(); drawTriRayos(); drawDragonRayos(); drawJefes2Rayos(); drawAlienEfectos(); drawMeteorosCayendo(); drawProyJ(proyJ); drawProyJ(proyRed);
+  drawBullets(); drawTriRayos(); drawDragonRayos(); drawJefes2Rayos(); drawAlienEfectos(); drawCenturionEfectos(); drawMeteorosCayendo(); drawProyJ(proyJ); drawProyJ(proyRed);
   if (dobleAnf() && Online.av && Online.av.pj) drawProyJ(Online.av.pj);
   drawMaquinaEfectos(); drawMagoEfectos();
   drawRelampagos(); drawHumos(); drawHumoEdif(); drawSonic(); drawWind(); drawRayosOjos(); drawFX(); drawAura(); drawP2Cursor();
@@ -17937,7 +18297,7 @@ function draw(){
 // Si un jefe queda fuera de la pantalla, una flecha en el borde señala
 // hacia dónde está (en píxeles del lienzo, encima de la noche).
 const JEFE_NOMBRE = { flametank:'TANQUE DE FUEGO', omni:'OMNIDROIDE', artillero:'ARTILLERO', superx:'SUPER X', tripode:'TRÍPODE',
-                      heroe:'HÉROE MÁGICO', kaiyin:'KAIYIN' };
+                      heroe:'HÉROE MÁGICO', kaiyin:'KAIYIN', centurion:'CENTURIÓN' };
 function drawFlechasJefe(){
   if (!running || esVisorVs()) return;
   const M = 30, cx = CW/2, cy = CH/2;
