@@ -4374,7 +4374,7 @@ function resetGame(){
   marcianaAvisoT = 0;
   comboReset(); comboBonus = 0; comboFlash = 0;
   venenoT = 0; venenoDosis = 0; venenoUlt = 0; paralizadoT = 0;
-  quemaT = 0; hieloT = 0;
+  quemaT = 0; hieloT = 0; lentoT = 0;
   miniOleada = null;
   clima = 'sol'; nubeK = 0; lluviaK = 0; climaMostrado = null;
   auraTxts.length = 0;
@@ -4522,7 +4522,7 @@ function edgeSpawnPos(dmin, dmax, vuela){
 
 const ENEMY_TYPES = { police:1, military:1, minigun:1, tank:1, heli:1, gunship:1, siege:1, flametank:1, plane:1, omni:1, artillero:1, superx:1, mbt:1, mbtFrio:1, ovni:1, tripode:1,
                       heroe:1, arquero:1, caballero:1, golem:1, kaiyin:1,
-                      centinela:1, droide:1, escaner:1, cabezon:1, arana:1, murcielago:1, caza40k:1, centurion:1, vengativo:1, bicho:1 };
+                      centinela:1, droide:1, escaner:1, cabezon:1, arana:1, murcielago:1, caza40k:1, centurion:1, vengativo:1, bicho:1, amalgama:1 };
 function spawnEnemy(type, atX, atY){
   if (!ENEMY_TYPES[type]) return;      // ignora tipos retirados o mal escritos
   // Lo que vuela puede aparecer sobre un tejado; el resto, no.
@@ -4568,7 +4568,7 @@ function spawnEnemy(type, atX, atY){
   if (type==='escaner')   Object.assign(base, {hp:28, maxhp:28, speed:130, w:30, h:28, grabbable:true, ligero:true, alt:48, bob:rand(0,6),
                             llama:9, flashCd:1.5, flashT:0});
   if (type==='arana')     Object.assign(base, {hp:190, maxhp:190, speed:150, w:66, h:44, grabbable:true, lado:1, paso:0});
-  if (type==='bicho')     Object.assign(base, {hp:110, maxhp:110, speed:rand(165, 195), w:62, h:46, grabbable:true, paso:0, golpeCd:0.5, tajo:0, semilla:rand(0, 6)});
+  if (type==='bicho')     Object.assign(base, {hp:240, maxhp:240, speed:rand(205, 235), w:66, h:50, grabbable:true, paso:0, golpeCd:0.5, tajo:0, semilla:rand(0, 6)});
   if (type==='murcielago')Object.assign(base, {hp:22, maxhp:22, speed:175, w:30, h:22, grabbable:true, ligero:true, alt:40, bob:rand(0,6),
                             cd:rand(1, 2.5), lado: Math.random() < 0.5 ? 1 : -1});
   if (type==='caza40k')   Object.assign(base, {hp:80, maxhp:80, speed:330, w:66, h:34, grabbable:true, ligero:true, alt:66, bob:rand(0,6),
@@ -4584,6 +4584,8 @@ function spawnEnemy(type, atX, atY){
   // Vengativo: sale del suelo del infierno, corre y se te echa encima.
   if (type==='vengativo') Object.assign(base, {hp:12, maxhp:12, speed:rand(185, 225), w:24, h:26, grabbable:true, person:true,
                             nace:0.8, cd:0, semilla:rand(0, 6)});
+  // Amalgama de almas: crece al tragarse almas en pena.
+  if (type==='amalgama') Object.assign(base, {hp:420, maxhp:420, speed:80, w:44, h:64, grabbable:false, k:1, fase:'', cd:2, embCd:4, golpeCd:0, paso:0});
   // El Centurión: armadura voladora, jefe del planeta marciano.
   if (type==='centurion') Object.assign(base, {hp:CENT_HP, maxhp:CENT_HP, speed:135, w:70, h:96, grabbable:false,
                             fase:'', ft:0, cd:2.4, alt:34, lado:1, mA:0, cA:0, c0:0, c1:0, eA:0});
@@ -4811,6 +4813,7 @@ function drawOmni(e){
   // ojo
   const cargando = e.beamPh === 'aim', disparando = e.beamPh === 'fire';
   const er = R*0.30 * (disparando ? 1.25 : cargando ? 1.1 : 1);
+  if (esInfierno()){ ojoHumanoOmni(e, s2.x, s2.y, er, cargando, disparando); return; }   // en el castigo, un ojo humano
   ctx.fillStyle = disparando ? '#fff0f0' : cargando ? '#ff6a5a' : '#c81f1f';
   ctx.beginPath(); ctx.arc(s2.x, s2.y, er, 0, Math.PI*2); ctx.fill();
   ctx.fillStyle = disparando ? '#ff4b3b' : '#7a0d0d';
@@ -5097,7 +5100,8 @@ function drawTripode(e){
     ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(kx, ky); ctx.lineTo(fx, fy); ctx.stroke();
     ctx.fillStyle = '#1d2322';
     ctx.beginPath(); ctx.arc(kx, ky, 5, 0, Math.PI*2); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(fx, fy, 9, 4, 0, 0, Math.PI*2); ctx.fill();
+    if (esInfierno()) pezunaTripode(fx, fy);                 // en el castigo, pezuñas
+    else { ctx.beginPath(); ctx.ellipse(fx, fy, 9, 4, 0, 0, Math.PI*2); ctx.fill(); }
   }
 
   // tentáculos colgando
@@ -5661,6 +5665,7 @@ function updateEstados(dt){
     if (Math.random() < 0.3)
       addParticles(player.x + rand(-11,11), player.y + rand(-14,4), '#9fe8ff', 1, 40);
   }
+  if (lentoT > 0) lentoT -= dt;
 }
 
 function envenenar(){
@@ -6563,7 +6568,8 @@ const REWARD = {
   kaiyin:   { pts:3200, heal:90 },
   centurion:{ pts:3000, heal:90 },
   vengativo:{ pts:12,   heal:2 },
-  bicho:    { pts:90,   heal:10 },
+  bicho:    { pts:140,  heal:14 },
+  amalgama: { pts:450,  heal:35 },
   arquero:  { pts:60,   heal:10 },
   caballero:{ pts:110,  heal:16 },
   golem:    { pts:180,  heal:24 }
@@ -6686,6 +6692,7 @@ function damageEnemy(e, dmg, fx, fy){
   if ((k === 'tank' || k === 'arana') && bajaArcana()) levantaAliado(e, 'ogro');
   if ((k === 'heli' || k === 'gunship' || k === 'caza40k') && bajaArcana()) levantaAliado(e, 'dragoncito');
   if (k === 'heroe') heroeCae(e);
+  if (k === 'amalgama'){ if (e.auto){ e.auto.presa = false; e.auto.presaDe = null; } addParticles(e.x, e.y - 50*(e.k || 1), '#cfe0ff', 40, 260); addParticles(e.x, e.y - 30, '#9ab8e8', 20, 180); shake(12, 0.3); }
   if (k === 'bicho'){ addParticles(e.x, e.y - 22, '#c8d84a', 18, 170); addParticles(e.x, e.y - 22, '#b0682a', 10, 120); }   // revienta en papilla verde
   if (FANT_TIPOS[k]){ addParticles(e.x, e.y - 14, '#bfe8ff', 14, 120); }
   addParticles(e.x, e.y, '#ffd27b', 16, 150);
@@ -8544,16 +8551,19 @@ const BESTIARY = [
   { id:'escaner', name:'OJO ESCÁNER', hp:28, dmg:'—', sprite:'escanerF',
     desc:'Ojo volador que da vueltas a tu alrededor sin atacar. Si no lo derribas a tiempo, emite una alarma y llegan tres centinelas; luego vuelve a contar. Es frágil y se puede agarrar al vuelo.' },
   { id:'arana', name:'TANQUE ARAÑA', hp:190, dmg:'16 + área (obús de plasma)', sprite:'aranaF', verb:'DESTRUIDOS',
-    desc:'Blindado sobre seis patas, muy rápido. Nunca se queda cerca: si te acercas huye corriendo de lado mientras te dispara obuses de plasma. Solo el COLOSO puede levantarlo.' },
+    desc:'Blindado sobre seis patas, muy rápido. Nunca se queda cerca: si te acercas huye corriendo de lado mientras te dispara obuses de plasma, que estallan con fuerza al impactar y, si te dan, te frenan un momento. Solo el COLOSO puede levantarlo.' },
   { id:'murcielago', name:'MURCIÉLAGO ÁCIDO', hp:22, dmg:'ácido y charco corrosivo', sprite:'murcielagoF',
-    desc:'Criatura voladora del planeta. Revolotea en círculos y escupe bolas de ácido que dejan un charco en el suelo durante unos segundos: no te quedes encima. Se agarra fácilmente.' },
+    desc:'Criatura voladora del planeta con aspecto de xenomorfo: cabeza larga y lisa, fauces con una segunda mandíbula, tubos en el lomo, alas de hueso y cola acabada en punta. Revolotea en círculos y escupe bolas de ácido que dejan un charco en el suelo durante unos segundos: no te quedes encima. Se agarra fácilmente.' },
   { id:'caza40k', name:'DRON KAMIKAZE', hp:80, dmg:'26 por misil, 34 al estrellarse', sprite:'caza40kF', verb:'DERRIBADOS',
     desc:'Dron de aspecto gótico y blindado, hecho para morir matando. De lejos suelta dos misiles autodirigidos, como el helicóptero artillado; luego pasa disparando, da media vuelta y, cuando te encara, se lanza en picado para estrellarse contra ti. Si esquivas el picado, se estrella igual y explota donde cae.' },
   { id:'centurion', name:'EL CENTURIÓN', hp:2200, dmg:'embestida, bombas, misiles, minigun y corte láser', sprite:'centurionF', verb:'DERROTADOS',
     hint:'El guardián del Mundo Alienígena. Aún no lo has derrotado.',
     desc:'La armadura robótica que protege el planeta marciano. Vuela a tu alrededor y alterna sus armas: embestida por una línea que marca en el suelo, bombas pegajosas que se te quedan encima (o en lo que lleves agarrado: lánzalo lejos), salvas de misiles guiados, ráfagas de su minigun láser y, lo peor, un gran corte láser que barre un abanico enorme marcado en rojo. Del corte solo te salva salir del abanico o ponerte detrás de algo. Por debajo de la mitad de vida pierde el blindaje y se vuelve más rápido.' },
-  { id:'bicho', name:'BICHO GUERRERO', hp:110, dmg:'9 por tajo', sprite:'bichoF', verb:'APLASTADOS',
-    desc:'Insecto de guerra del planeta marciano, primo lejano de los arácnidos que se ven en las películas de soldados contra bichos. Caparazón anaranjado lleno de púas, cuatro patas altas acabadas en punta y dos guadañas de hueso. No dispara: llega en enjambre, corre a la carga y te despedaza a tajos si te alcanza. Aguanta bastante; solo el COLOSO puede levantarlo.' },
+  { id:'bicho', name:'BICHO GUERRERO', hp:240, dmg:'12 por mordisco', sprite:'bichoF', verb:'APLASTADOS',
+    desc:'En su cruzada de la civilización por el espacio, los marcianos derrotaron a estas criaturas y las modificaron genéticamente para crear sus propios soldados, tomando como base a los bichos guerreros de élite. Caparazón negro azulado con aletas rojas, cabeza larga de fauces abiertas, dos garras alzadas acabadas en hoces rojas y cuatro patas de cuchillas dentadas. Es rápido, da buenos mordiscos y es resistente como un tanque. Llega en enjambre y a la carga; solo el COLOSO puede levantarlo.' },
+  { id:'amalgama', name:'AMALGAMA DE ALMAS', hp:'420+', dmg:'autos lanzados, embestida y manotazos', sprite:'amalgamaF', verb:'DISPERSADAS',
+    hint:'Algo grande se arrastra entre las almas de Castigo Divino.',
+    desc:'Un alma distinta a las demás: busca a las almas en pena y se las traga, y con cada una crece y gana vida. Le han salido brazos y piernas, y su cabeza es un amasijo de caras que gritan. Arranca los autos calcinados para lanzártelos y embiste en línea recta tras marcarla en el suelo. Mátala antes de que engorde.' },
   { id:'vengativo', name:'VENGATIVO', hp:12, dmg:'se te aferra y muerde', sprite:'vengativoF', verb:'DEVUELTOS AL SUELO',
     hint:'Algo se mueve bajo el suelo de Castigo Divino.',
     desc:'Lo que queda de los que mataste, retorcido por el castigo. Salen del suelo del infierno en grupo, corren en zigzag muy rápido y se te echan encima: los que te alcanzan se aferran a ti y te muerden hasta que se sueltan (corriendo te los quitas antes). Uno solo no aguanta nada; el peligro es que lleguen muchos. En Castigo Divino también te esperan el resto de las unidades de la ciudad y del planeta marciano, deformadas: más vida, más rápidas y más daño, pero valen más puntos. Hasta los jefes vuelven así.' },
@@ -9463,6 +9473,7 @@ const P2_INFIERNO = [
   { type:'tank',      name:'TANQUE D.',    cost:360, cool:7.0, sprite:'tank',       deforme:1 },
   { type:'arana',     name:'ARAÑA D.',     cost:420, cool:8.0, sprite:'aranaF',     deforme:1 },
   { type:'heli',      name:'HELICÓP. D.',  cost:420, cool:8.0, sprite:'heli',       deforme:1 },
+  { type:'amalgama',  name:'AMALGAMA',     cost:650, cool:16.0,sprite:'amalgamaF' },
   { type:'meteoro',   name:'FUEGO DEL CIELO', cost:500, cool:12.0, sprite:'meteoroF', especial:'meteoro' },
   { type:'tripode',   name:'TRÍPODE D.',   cost:1000,cool:22.0,sprite:null, especial:'tripodeN', deforme:1 },
   { type:'kaiyin',    name:'KAIYIN D.',    cost:1500,cool:30.0,sprite:'kaiyinF',    deforme:1 },
@@ -11920,8 +11931,8 @@ function drawAliadoMago(z){
 // Centinelas (con la figura animada de la tropa), droides, escáneres,
 // cabezones, arañas, murciélagos, cazas y trípodes como unidades normales,
 // más los meteoritos que hacen de artillería.
-const AL_TAM = { droide:[40,48,20,45], cabezon:[44,52,22,49], escaner:[40,36,20,18], arana:[84,60,42,50], bicho:[92,68,44,64],
-                 murcielago:[56,34,28,17], caza40k:[78,44,39,22] };
+const AL_TAM = { droide:[40,48,20,45], cabezon:[44,52,22,49], escaner:[40,36,20,18], arana:[84,60,42,50], bicho:[118,108,58,100],
+                 murcielago:[92,54,48,30], caza40k:[78,44,39,22] };
 const AL_VUELA = { escaner:1, murcielago:1, caza40k:1 };
 const alCache = new Map();
 function alienFrame(tipo, pose, f){
@@ -12015,42 +12026,77 @@ function dibArana(g, pose, f){
   jO(g, pose === 'ataca' ? '#e0b0ff' : '#7a4ab0', 8 + L, -34, 2.5, 2.5);
   pata(-14, 1, false); pata(0, 3, false); pata(12, 5, false);
 }
-// Bicho guerrero: el arácnido de las películas de soldados contra insectos.
-// Caparazón anaranjado con púas, cuatro patas altas acabadas en punta y dos
-// guadañas delante con las que despedaza. Llega en enjambre y a la carga.
+// Bicho guerrero: el arácnido de élite que los marcianos modificaron para su
+// ejército. Caparazón negro azulado con aletas rojas en el lomo, cabeza larga
+// de fauces abiertas llenas de dientes, dos garras alzadas que acaban en hoces
+// rojas dentadas y cuatro patas: muslos de hueso y cuchillas oscuras de sierra.
 function dibBicho(g, pose, f){
-  const cap = '#b0682a', capO = '#5a2e12', capL = '#e0985a', hueso = '#ecdcb8';
-  const pata = (x0, fase, lejos)=>{
+  const capa = '#1e2236', capaL = '#40466a', capaO = '#0c0d18', rojo = '#b0141c', rojoL = '#e8423a';
+  const hueso = '#a89848', huesoO = '#6a5e28', huesoL = '#dccc7c', hoja = '#3e3424', hojaL = '#8a7656';
+  const muerde = pose === 'ataca', cierra = muerde && f % 2;
+  const pata = (x0, fase, lejos, dir)=>{
     const ph = f/4*Math.PI*2 + fase, lev = Math.max(0, Math.sin(ph))*6, av = Math.cos(ph)*7;
-    const kx = x0 + (x0 > 0 ? 10 : -10) + av*0.4, ky = -52 - lev*0.5, fx = x0 + (x0 > 0 ? 18 : -18) + av, fy = -lev;
-    const c = lejos ? capO : cap;
-    jL(g, c, 4, x0, -30, kx, ky); jL(g, c, 3, kx, ky, (kx + fx)/2, (ky + fy)/2); jL(g, c, 2, (kx + fx)/2, (ky + fy)/2, fx, fy);
-    jR(g, lejos ? '#3a1a08' : capL, kx - 1.5, ky - 2, 3, 3);                       // la rodilla, con púa
-    jL(g, lejos ? '#3a1a08' : capL, 1.2, kx, ky, kx + (x0 > 0 ? 3 : -3), ky - 5);
+    const kx = x0 + dir*12 + av*0.4, ky = -50 - lev*0.4;          // rodilla alta
+    const fx = x0 + dir*34 + av, fy = -lev;                          // la punta clavada en el suelo
+    jL(g, lejos ? huesoO : hueso, 4.2, x0, -32, kx, ky);
+    if (!lejos) jL(g, huesoL, 1.2, x0 + 1, -33, kx + 1, ky - 1);
+    // la cuchilla: ancha en la rodilla, en punta abajo, con dientes de sierra por fuera
+    const dx = fx - kx, dy = fy - ky, L = Math.hypot(dx, dy) || 1, nx = -dy/L*dir, ny = dx/L*dir;
+    g.fillStyle = lejos ? '#221a10' : hoja;
+    g.beginPath(); g.moveTo(kx + nx*5, ky + ny*5); g.lineTo(fx, fy); g.lineTo(kx - nx*2, ky - ny*2); g.closePath(); g.fill();
+    g.fillStyle = lejos ? '#3a2e1e' : hojaL;
+    for (let k = 1; k < 5; k++){
+      const t = k/5.2, px = kx + dx*t + nx*5*(1 - t), py = ky + dy*t + ny*5*(1 - t);
+      g.beginPath(); g.moveTo(px, py); g.lineTo(px + nx*3*(1 - t) - dx/L*2, py + ny*3*(1 - t) - dy/L*2); g.lineTo(px + dx/L*3, py + dy/L*3); g.closePath(); g.fill();
+    }
+    jO(g, lejos ? huesoO : hueso, kx, ky, 3, 3);
   };
-  pata(-16, 0, true); pata(8, 2.2, true);
-  // abdomen grande detrás, con placas
-  jO(g, capO, -16, -32, 20, 13); jO(g, cap, -16, -34, 18, 11);
-  for (let i = 0; i < 4; i++) jR(g, capO, -30 + i*8, -42 + Math.abs(i - 1.5)*1.5, 2, 16 - Math.abs(i - 1.5)*3);
-  jO(g, capL, -20, -40, 7, 3);
-  // tórax y cabeza bajas, como un toro a punto de embestir
-  jO(g, capO, 6, -32, 13, 10); jO(g, cap, 6, -34, 12, 8);
-  for (let i = 0; i < 3; i++) jL(g, capL, 1.4, -2 + i*6, -41, 0 + i*6, -47);         // púas del lomo
-  jO(g, capO, 20, -30, 8, 7); jO(g, cap, 21, -31, 7, 6);
-  jO(g, '#1a0a04', 26, -28, 4, 3);                                                // boca
-  jL(g, hueso, 1.6, 26, -31, 32, -26); jL(g, hueso, 1.6, 26, -25, 32, -22);           // mandíbulas
-  jR(g, '#2a0a04', 21, -34, 2, 2); jR(g, '#2a0a04', 24, -33, 2, 2);
-  // las guadañas: arriba al cargar, abajo al tajar
-  const corta = pose === 'ataca', baja = corta && f % 2;
-  const guadana = (x0, lejos)=>{
-    const ex = x0 + 6, ey = baja ? -36 : -54, tx = x0 + (baja ? 22 : 18), ty = baja ? -6 : -42;
-    jL(g, lejos ? capO : cap, 3.6, x0, -36, ex, ey);
-    jL(g, lejos ? '#c8b890' : hueso, 2.6, ex, ey, tx, ty);
-    jL(g, lejos ? '#c8b890' : hueso, 1.2, tx, ty, tx + (baja ? 4 : 6), ty + (baja ? 2 : 6));
+  const garra = (x0, lejos)=>{
+    // brazo de hueso que sube desde el hombro y una hoz roja dentada arriba; al morder baja
+    const ex = x0 + (cierra ? 14 : 2), ey = cierra ? -56 : -68;
+    const tx = x0 + (cierra ? 30 : 12), ty = cierra ? -44 : -82;
+    jL(g, lejos ? huesoO : hueso, 4, x0, -44, ex, ey);
+    jL(g, lejos ? huesoO : hueso, 3.2, ex, ey, tx, ty);
+    jO(g, lejos ? huesoO : hueso, ex, ey, 2.6, 2.6);
+    g.fillStyle = lejos ? '#6a0a10' : rojo;
+    g.beginPath(); g.moveTo(tx - 3, ty + 3); g.quadraticCurveTo(tx + 8, ty - 7, tx + 20, ty + 1); g.lineTo(tx + 6, ty + 2); g.closePath(); g.fill();
+    for (let k = 0; k < 4; k++) jR(g, lejos ? '#8a1a1a' : rojoL, tx + 3 + k*4, ty - 1 - (k % 2), 1.5, 2);
   };
-  guadana(10, true);
-  pata(-6, 1.1, false); pata(16, 3.3, false);
-  guadana(14, false);
+  pata(-22, 0, true, -1); pata(0, 2.4, true, 1);
+  garra(10, true);
+  // cuerpo: cuña acorazada, más alta atrás
+  g.fillStyle = capaO;
+  g.beginPath(); g.moveTo(-40, -52); g.quadraticCurveTo(-20, -60, 6, -52); g.lineTo(24, -48);
+  g.quadraticCurveTo(28, -34, 14, -29); g.lineTo(-12, -27); g.quadraticCurveTo(-30, -32, -40, -52); g.closePath(); g.fill();
+  g.fillStyle = capa;
+  g.beginPath(); g.moveTo(-36, -51); g.quadraticCurveTo(-18, -57, 6, -50); g.lineTo(21, -46);
+  g.quadraticCurveTo(24, -36, 12, -32); g.lineTo(-12, -30); g.quadraticCurveTo(-27, -34, -36, -51); g.closePath(); g.fill();
+  g.strokeStyle = capaL; g.lineWidth = 1.3; g.beginPath(); g.moveTo(-32, -52); g.quadraticCurveTo(-14, -56, 8, -49); g.stroke();
+  g.strokeStyle = capaO; g.lineWidth = 1; for (let i = 0; i < 4; i++){ g.beginPath(); g.moveTo(-28 + i*10, -54 + i); g.lineTo(-24 + i*10, -32); g.stroke(); }   // placas
+  for (let i = 0; i < 3; i++){                                                         // aletas rojas del lomo
+    const x = -32 + i*12, y = -54 + i*1.5;
+    g.fillStyle = rojo; g.beginPath(); g.moveTo(x, y); g.lineTo(x - 9, y - 10); g.lineTo(x + 9, y - 1); g.closePath(); g.fill();
+    g.fillStyle = rojoL; g.fillRect(x - 5, y - 6, 2, 2);
+  }
+  jR(g, huesoO, -20, -31, 30, 3);                                                      // placas del vientre
+  // cabeza larga hacia delante con las fauces abiertas
+  const hx = muerde && !cierra ? 5 : 0;
+  g.fillStyle = capaO; g.beginPath(); g.moveTo(18 + hx, -48); g.lineTo(54 + hx, -40); g.lineTo(52 + hx, -36); g.lineTo(20 + hx, -35); g.closePath(); g.fill();
+  g.fillStyle = capa; g.beginPath(); g.moveTo(20 + hx, -47); g.lineTo(50 + hx, -40); g.lineTo(20 + hx, -37); g.closePath(); g.fill();
+  g.strokeStyle = capaL; g.lineWidth = 1; g.beginPath(); g.moveTo(22 + hx, -46); g.lineTo(48 + hx, -40); g.stroke();
+  const ab = muerde ? (cierra ? 2 : 11) : 6;                                         // la mandíbula se abre
+  g.fillStyle = huesoO; g.beginPath(); g.moveTo(20 + hx, -33); g.lineTo(52 + hx, -33 + ab); g.lineTo(48 + hx, -29 + ab); g.lineTo(20 + hx, -29); g.closePath(); g.fill();
+  g.fillStyle = hueso; g.beginPath(); g.moveTo(21 + hx, -32); g.lineTo(49 + hx, -32 + ab); g.lineTo(21 + hx, -30); g.closePath(); g.fill();
+  jR(g, '#3a0a08', 26 + hx, -35, 20, Math.max(1, ab - 1));                            // garganta
+  g.fillStyle = '#efe6c4';
+  for (let k = 0; k < 6; k++){
+    const x = 24 + hx + k*4.4;
+    g.beginPath(); g.moveTo(x, -36); g.lineTo(x + 1.5, -32); g.lineTo(x + 3, -36); g.fill();               // dientes de arriba
+    const yb = -32 + ab*(k/6);
+    g.beginPath(); g.moveTo(x, yb); g.lineTo(x + 1.5, yb - 4); g.lineTo(x + 3, yb); g.fill();               // de abajo
+  }
+  pata(-12, 1.2, false, -1); pata(8, 3.6, false, 1);
+  garra(14, false);
 }
 function updateBicho(e, dt, a, ang){
   e.anim = (e.anim || 0) + dt;
@@ -12058,7 +12104,7 @@ function updateBicho(e, dt, a, ang){
   if (e.golpeCd > 0) e.golpeCd -= dt;
   const B = blancoAlien(e, a, ang);
   e.facing = Math.cos(B.an) >= 0 ? 1 : -1;
-  const alcance = (B.T === player ? F().r : 12) + 40;
+  const alcance = (B.T === player ? F().r : 12) + 44;
   if (B.d > alcance - 6){
     // a la carga, zigzagueando un poco
     const zig = Math.sin(e.anim*5 + (e.semilla || 0))*0.35;
@@ -12068,30 +12114,64 @@ function updateBicho(e, dt, a, ang){
     e.paso = (e.paso || 0) + dist(x0, y0, e.x, e.y)*0.1;
   }
   if (B.d < alcance && e.golpeCd <= 0){
-    e.golpeCd = 1.1; e.tajo = 0.3;
+    e.golpeCd = 1.0; e.tajo = 0.32;                                   // un mordisco
     if (B.T === player){
-      if (!vil.intro){ const d0 = hp; hp = clamp(hp - recibe(e.deforme ? 12 : 9), 0, maxHp()); p2Gain(d0 - hp); shake(5, 0.12); sfx('hurt'); }
-    } else B.T.hp -= 14;
-    addParticles(B.T.x, B.T.y - 10, '#e8dcb8', 6, 110);
-    sfx('hachazo');
+      if (!vil.intro){ const d0 = hp; hp = clamp(hp - recibe(e.deforme ? 16 : 12), 0, maxHp()); p2Gain(d0 - hp); shake(6, 0.14); sfx('hurt'); }
+    } else B.T.hp -= 18;
+    addParticles(B.T.x, B.T.y - 10, '#c83a2a', 8, 120);
+    sfx('mordisco');
   }
 }
-// Murciélago ácido: alas membranosas, ojos verdes y boca que gotea.
+// Murciélago ácido con aspecto de xenomorfo: cabeza alargada y lisa, fauces
+// con mandíbula interior, tubos dorsales, alas de hueso y membrana negras y
+// una cola segmentada acabada en punta.
 function dibMurcielago(g, pose, f){
   const fl = [1, 0.3, -0.8, 0.3][f];
-  const ala = (lado)=>{
-    g.fillStyle = lado > 0 ? '#4a2a5a' : '#3a1e4a';
-    g.beginPath(); g.moveTo(0, -2);
-    g.lineTo(lado*10, -8 - fl*8); g.lineTo(lado*22, -4 - fl*10); g.lineTo(lado*26, 2 - fl*6);
-    g.quadraticCurveTo(lado*18, 4 - fl*3, lado*14, 2); g.quadraticCurveTo(lado*8, 5, 0, 3); g.closePath(); g.fill();
-    g.strokeStyle = '#2a1636'; g.lineWidth = 1; g.beginPath(); g.moveTo(0, -1); g.lineTo(lado*22, -4 - fl*10); g.stroke();
+  const negro = '#15151d', brillo = '#55557a', costilla = '#2e2e3e', diente = '#d4d4c4', acido = '#9aff4a';
+  const ala = (lejos)=>{
+    const s = lejos ? -1 : 1, bx = -6 + s*2, by = -4;
+    const p1 = [-18 + s*2, -22 - fl*10], p2 = [-2 + s*2, -28 - fl*12], p3 = [12 + s, -16 - fl*9];
+    g.fillStyle = lejos ? '#24202c' : '#3a3446';                 // membrana: más clara que la cabeza
+    g.beginPath(); g.moveTo(bx, by); g.lineTo(p1[0], p1[1]); g.lineTo(p2[0], p2[1]); g.lineTo(p3[0], p3[1]);
+    g.quadraticCurveTo(6, -10 - fl*4, 2, -6); g.quadraticCurveTo(-4, -10 - fl*3, bx + 4, -2); g.closePath(); g.fill();
+    g.strokeStyle = lejos ? '#14141c' : '#16161e'; g.lineWidth = 1.6;
+    for (const p of [p1, p2, p3]){ g.beginPath(); g.moveTo(bx, by); g.lineTo(p[0], p[1]); g.stroke(); }
   };
-  ala(-1);
-  jO(g, '#3a2a4a', 0, 0, 6, 7); jO(g, '#5a3a6a', 1, -2, 4, 4);
-  g.fillStyle = '#3a2a4a'; g.beginPath(); g.moveTo(-4, -5); g.lineTo(-3, -12); g.lineTo(-1, -6); g.fill(); g.beginPath(); g.moveTo(2, -6); g.lineTo(4, -12); g.lineTo(5, -5); g.fill();
-  jR(g, '#7aff5a', -2, -3, 2, 2); jR(g, '#7aff5a', 2, -3, 2, 2);
-  if (pose === 'ataca'){ jR(g, '#1a0a1a', -1, 1, 3, 3); jR(g, '#7aff5a', 0, 4, 1, 3); }
-  ala(1);
+  ala(true);
+  // cola segmentada con la punta en lanza
+  for (let i = 0; i < 7; i++){
+    const t = i/6, x = -8 - t*26, y = 4 + Math.sin(t*2.6 + f*0.8)*5 + t*4;
+    jO(g, i % 2 ? '#1a1a24' : negro, x, y, 3.4 - t*1.6, 2.6 - t*1.2);
+  }
+  const ty = 8 + Math.sin(2.6 + f*0.8)*5;
+  g.fillStyle = negro; g.beginPath(); g.moveTo(-33, ty); g.lineTo(-42, ty + 3); g.lineTo(-34, ty + 5); g.closePath(); g.fill();
+  // cuerpo con costillas y tubos dorsales
+  jO(g, negro, -2, 2, 9, 6);
+  g.strokeStyle = costilla; g.lineWidth = 1;
+  for (let i = 0; i < 3; i++){ g.beginPath(); g.arc(-1 - i*3, 2, 4, Math.PI*0.2, Math.PI*0.9); g.stroke(); }
+  jL(g, '#202030', 2.2, -6, -3, -13, -9); jL(g, '#202030', 2.2, -2, -4, -8, -11);
+  jO(g, brillo, -13, -9, 1.2, 1.2); jO(g, brillo, -8, -11, 1.2, 1.2);
+  // patas finas con garras
+  jL(g, '#1a1a24', 1.4, 0, 6, -2, 13); jL(g, '#1a1a24', 1.2, -2, 13, 2, 16);
+  jL(g, '#1a1a24', 1.4, 3, 6, 4, 13); jL(g, '#1a1a24', 1.2, 4, 13, 8, 15);
+  ala(false);
+  // la cabeza, por delante de todo: una cúpula larga hacia atrás, lisa y brillante
+  g.fillStyle = negro;
+  g.beginPath(); g.moveTo(24, 4); g.quadraticCurveTo(22, -8, 8, -11); g.quadraticCurveTo(-10, -14, -24, -22);
+  g.quadraticCurveTo(-10, -6, 8, -1); g.closePath(); g.fill();
+  g.strokeStyle = brillo; g.lineWidth = 1.4;
+  g.beginPath(); g.moveTo(19, -5); g.quadraticCurveTo(6, -11, -19, -19); g.stroke();
+  g.strokeStyle = '#2a2a3a'; g.lineWidth = 1;
+  for (let i = 0; i < 4; i++){ g.beginPath(); g.moveTo(10 - i*7, -9 - i*1.5); g.lineTo(13 - i*7, -2 - i*0.5); g.stroke(); }   // estrías
+  // fauces: labios, dientes y, al atacar, la mandíbula interior
+  const abre = pose === 'ataca';
+  g.fillStyle = '#0a0a10'; g.beginPath(); g.moveTo(12, 1); g.lineTo(25, 2); g.lineTo(24, abre ? 8 : 4); g.lineTo(12, 4); g.closePath(); g.fill();
+  g.fillStyle = diente;
+  for (let k = 0; k < 5; k++){ g.fillRect(13 + k*2.4, 1.4, 1, 1.8); g.fillRect(13 + k*2.4, abre ? 6 : 3, 1, 1.5); }
+  if (abre){
+    jL(g, '#3a3a48', 2.2, 16, 4, 31, 4); jR(g, diente, 30, 3, 2.4, 2.4);
+    jR(g, acido, 26, 8, 1, 3); jR(g, acido, 20, 8, 1, 2);
+  }
 }
 // Caza gótico: casco largo negro con filetes dorados, cabina en arco y
 // motores gemelos. Mira hacia +x; se gira con su rumbo.
@@ -12177,7 +12257,7 @@ function updateArana(e, dt, a, ang){
   e.shootCd -= dt;
   if (e.shootCd <= 0 && B.d < 640){
     e.shootCd = rand(1.5, 2.2); e.fogon = 0.15;
-    const b = mkBullet(e, B.an, 360, 16, '#c88aff', 6, true);
+    const b = mkBullet(e, B.an, 360, 16, '#c88aff', 6, true); b.arana = true;
     b.y = e.y - 30; b.blast = 60;
     if (B.T !== player) b._objZ = B.T;
     bullets.push(b); sfx('cohete');
@@ -12324,7 +12404,7 @@ function updateAlien(dt){
     shake(22, 0.6); sfx('bigboom');
   }
 }
-function limpiaAlien(){ acidoProy.length = 0; acidos.length = 0; meteoros.length = 0; limpiaCenturion(); }
+function limpiaAlien(){ acidoProy.length = 0; acidos.length = 0; meteoros.length = 0; limpiaCenturion(); charcosLava.length = 0; lentoT = 0; }
 
 // ---------- dibujo ----------
 function pintaAl(c, tipo, sx, sy, facing, rot){
@@ -13040,6 +13120,10 @@ function updateSpawnsInf(dt, count){
       T.dtri = rand(30, 40);
     }
   }
+  if (stage >= 2 && gameTime > 40 && tic('amal', 15)){
+    if (count('amalgama') < ((form >= 1 || score >= 2500) ? 2 : 1)){ spawnEnemy('amalgama'); toast('¡UNA AMALGAMA DE ALMAS!'); sfx('vengativos'); }
+    T.amal = rand(30, 40);
+  }
   if (tic('fuego', 30)){
     if (finalWave() || (stage >= 3 && gameTime > 70)) lanzaMeteorito();
     T.fuego = finalWave() ? rand(14, 18) : rand(24, 32);
@@ -13050,6 +13134,312 @@ function sorteaJefeInf(){
   if (Math.random() < 0.18) return 'centurion';
   const j = sorteaJefe();
   return j === 'marciana' ? 'centurion' : j;
+}
+// ================= AMALGAMA DE ALMAS =================
+// Un alma distinta a las demás: se traga a las almas en pena que encuentra y
+// crece con cada una. Le han salido brazos y piernas, y su cabeza es un
+// amasijo de caras. Arranca autos para lanzártelos y embiste.
+const AMAL_MAX = 2.2, AMAL_W = 100, AMAL_H = 136, AMAL_CX = 50, AMAL_PIE = 128;
+const amalCache = new Map();
+function amalFrame(pose, f){
+  const k = pose + f;
+  let c = amalCache.get(k);
+  if (c) return c;
+  c = document.createElement('canvas'); c.width = AMAL_W; c.height = AMAL_H;
+  const g = c.getContext('2d'); g.lineCap = 'round'; g.lineJoin = 'round';
+  g.translate(AMAL_CX, AMAL_PIE);
+  dibAmalgama(g, pose, f);
+  pixelArte(c, '#1a1426');
+  amalCache.set(k, c);
+  return c;
+}
+function caraAlma(g, x, y, r, grito){
+  g.fillStyle = '#241a30';
+  g.beginPath(); g.ellipse(x - r*0.38, y - r*0.15, r*0.24, r*0.32, 0.2, 0, Math.PI*2); g.fill();            // cuencas vacías
+  g.beginPath(); g.ellipse(x + r*0.38, y - r*0.15, r*0.24, r*0.32, -0.2, 0, Math.PI*2); g.fill();
+  g.fillStyle = '#4a1a2a';
+  g.beginPath(); g.ellipse(x, y + r*0.5, r*0.24, r*(grito ? 0.46 : 0.22), 0, 0, Math.PI*2); g.fill();     // boca que grita
+  g.fillStyle = '#e8eefa'; g.fillRect(x - r*0.42, y - r*0.2, 1, 1); g.fillRect(x + r*0.34, y - r*0.2, 1, 1);   // un brillo en el fondo
+}
+function dibAmalgama(g, pose, f){
+  const piel = '#b8c4dc', pielO = '#7884a4', pielL = '#e4ecfa', sombraC = '#56607e';
+  const ph = f/4*Math.PI*2, s = pose === 'anda' ? Math.sin(ph) : 0;
+  // piernas gruesas con rodilla, hechas de cuerpos
+  const pierna = (x0, lejos, sg)=>{
+    const kx = x0 + sg*4 + s*sg*3, ky = -24, fx = x0 + sg*2 + s*sg*7, fy = -3;
+    jL(g, lejos ? pielO : piel, 12, x0, -46, kx, ky); jL(g, lejos ? pielO : piel, 10, kx, ky, fx, fy);
+    jO(g, lejos ? sombraC : pielO, fx + sg*2, fy, 9, 4);
+    for (let k = 0; k < 3; k++) jR(g, '#3a3248', fx + sg*2 - 6 + k*5, fy + 2, 2, 2);            // dedos de los pies
+  };
+  pierna(-11, true, -1);
+  const brazo = (x0, lejos, sg)=>{
+    let hx, hy;
+    if (pose === 'lanza'){ hx = x0*0.35; hy = -118; }                        // alza el auto
+    else if (pose === 'embiste'){ hx = x0 + 30; hy = -64; }                   // por delante
+    else { hx = x0 + sg*6 + Math.sin(ph + (lejos ? 0 : Math.PI))*7; hy = -28; }
+    const ex = (x0 + hx)/2 + sg*10, ey = (-82 + hy)/2;
+    jL(g, lejos ? pielO : piel, lejos ? 8 : 10, x0, -82, ex, ey); jL(g, lejos ? pielO : piel, lejos ? 7 : 9, ex, ey, hx, hy);
+    jO(g, lejos ? pielO : piel, hx, hy, 5, 5);
+    for (let k = -1; k <= 1; k++) jL(g, lejos ? sombraC : pielL, 2.2, hx, hy, hx + k*4, hy + (pose === 'lanza' ? -9 : 9));   // garras
+  };
+  brazo(-24, true, -1);
+  // el cuerpo: torsos fundidos unos sobre otros, irregular
+  for (const [x, y, rx, ry, c] of [[-14, -54, 18, 22, sombraC], [12, -58, 18, 24, pielO], [0, -70, 24, 22, pielO],
+                                   [-8, -46, 16, 14, pielO], [-4, -60, 22, 24, piel], [8, -74, 14, 12, piel], [-14, -74, 12, 12, piel]])
+    jO(g, c, x, y, rx, ry);
+  jO(g, pielL, -12, -80, 6, 4); jO(g, pielL, 6, -66, 5, 3);
+  g.strokeStyle = 'rgba(70,80,120,0.6)'; g.lineWidth = 1;                                      // costuras entre cuerpos
+  g.beginPath(); g.moveTo(-20, -40); g.quadraticCurveTo(-6, -58, 16, -46); g.moveTo(-22, -66); g.quadraticCurveTo(0, -78, 22, -70); g.stroke();
+  for (const [x, y, a] of [[-26, -52, -2.5], [24, -50, -0.5], [-16, -38, 2.3], [20, -82, -1.0], [-24, -78, -2.0]]){
+    jL(g, pielO, 3.2, x, y, x + Math.cos(a)*11, y + Math.sin(a)*11);                          // brazos que asoman
+    for (let k = -1; k <= 1; k++) jL(g, sombraC, 1, x + Math.cos(a)*11, y + Math.sin(a)*11, x + Math.cos(a + k*0.5)*15, y + Math.sin(a + k*0.5)*15);
+  }
+  caraAlma(g, 6, -60, 7, true); caraAlma(g, -12, -52, 6, false); caraAlma(g, 12, -44, 5, true);
+  caraAlma(g, -8, -70, 5, true); caraAlma(g, 16, -72, 4.5, false); caraAlma(g, -2, -42, 4.5, true);
+  // la cabeza: un racimo de cabezas, todas gritando
+  for (const [x, y, r, c] of [[-10, -98, 13, pielO], [10, -102, 13, pielO], [0, -92, 15, pielO], [-9, -100, 11, piel], [10, -104, 11, piel], [0, -94, 13, piel]])
+    jO(g, c, x, y, r, r*0.92);
+  caraAlma(g, -9, -101, 6, true); caraAlma(g, 10, -105, 5.5, false); caraAlma(g, 0, -92, 7, true);
+  caraAlma(g, -16, -92, 3.5, true); caraAlma(g, 17, -95, 3.5, true);
+  brazo(24, false, 1);
+  pierna(11, false, 1);
+}
+function updateAmalgama(e, dt, a, ang){
+  e.anim = (e.anim || 0) + dt;
+  if (e.cd > 0) e.cd -= dt;
+  if (e.embCd > 0) e.embCd -= dt;
+  if (e.golpeCd > 0) e.golpeCd -= dt;
+  const k = e.k || 1;
+  // se traga a las almas en pena que toca y crece
+  for (const c of civilians){
+    if (c.dead || !c.alma || c.held || c.thrown || dist(c.x, c.y, e.x, e.y) > 30*k) continue;
+    c.dead = true;
+    addParticles(c.x, c.y - 10, '#cfe0ff', 14, 120);
+    if (k < AMAL_MAX){
+      e.k = Math.min(AMAL_MAX, k + 0.12);
+      e.maxhp += 90; e.hp += 90;
+      e.w = 44*e.k; e.h = 64*e.k;
+      if (!e.avisoCrece){ e.avisoCrece = 1; toast('¡LA AMALGAMA CRECE CON CADA ALMA!'); }
+    } else e.hp = Math.min(e.maxhp, e.hp + 60);
+    sfx('comeM');
+  }
+  if (e.fase === 'lanza'){
+    e.ft -= dt;
+    const o = e.auto;
+    if (!o || o.dead || o.held || o.thrown || !enPresa(o)){ e.fase = ''; e.auto = null; return; }
+    o.x = e.x; o.y = e.y - 100*k*0.9; o.rot = 0;
+    if (e.ft <= 0){
+      const an = Math.atan2(player.y - e.y, player.x - e.x);
+      // sale a ras de suelo por delante de ella: desde lo alto podía chocar con un tejado
+      o.x = e.x + Math.cos(an)*40*k; o.y = e.y + Math.sin(an)*40*k;
+      o.presa = false; o.presaDe = null;
+      o.thrown = true; o.held = false;
+      o.vx = Math.cos(an)*480; o.vy = Math.sin(an)*480;
+      o.spin = rand(-8, 8);
+      o.throwDmg = Math.min(46, objThrowDmg(o)); o.throwLife = 1.7;
+      o.restan = aguanteLanzado(o); o.golpeados = null; o.tocado = false;
+      o.byEnemy = true; o.porInv = false; o.marcianoT = gameTime + 1.5;
+      e.fase = ''; e.auto = null; e.cd = rand(3.5, 5);
+      sfx('throw'); shake(6, 0.15);
+    }
+    return;
+  }
+  if (e.fase === 'embAviso'){
+    e.ft -= dt; e.facing = Math.cos(e.eA) >= 0 ? 1 : -1;
+    if (e.ft <= 0){ e.fase = 'embiste'; e.rest = 440; e.golpeo = 0; sfx('dash'); }
+    return;
+  }
+  if (e.fase === 'embiste'){
+    const paso = 640*dt;
+    e.x = clamp(e.x + Math.cos(e.eA)*paso, 40, WORLD_W - 40); e.y = clamp(e.y + Math.sin(e.eA)*paso, 40, WORLD_H - 40);
+    e.rest -= paso;
+    for (const b of buildings){ if (b.stage < 2){ const cx = clamp(e.x, b.x, b.x + b.w), cy = clamp(e.y, b.y, b.y + b.h); if (dist(cx, cy, e.x, e.y) < 30*k) damageBuilding(b, 300*dt); } }
+    if (!e.golpeo && a < 30*k + F().r && !vil.intro){
+      e.golpeo = 1; const d0 = hp; hp = clamp(hp - recibe(28), 0, maxHp()); p2Gain(d0 - hp); shake(12, 0.3); sfx('hurt');
+    }
+    if (Math.random() < 0.5) addParticles(e.x, e.y, '#9aa8c8', 2, 90);
+    if (e.rest <= 0){ e.fase = ''; e.embCd = rand(5, 7); }
+    return;
+  }
+  // ¿un auto a mano para lanzárselo?
+  if (e.cd <= 0 && a < 650){
+    let mejor = null, md = 150*150;
+    for (const c of cars){
+      if (c.dead || c.held || c.thrown || enPresa(c)) continue;
+      const d2 = (c.x - e.x)*(c.x - e.x) + (c.y - e.y)*(c.y - e.y);
+      if (d2 < md){ md = d2; mejor = c; }
+    }
+    if (mejor){ e.fase = 'lanza'; e.ft = 0.7; e.auto = mejor; mejor.presa = true; mejor.presaDe = e; mejor.vx = 0; mejor.vy = 0; sfx('grab'); return; }
+    e.cd = 0.6;
+  }
+  if (e.embCd <= 0 && a > 130 && a < 430){ e.fase = 'embAviso'; e.ft = 0.85; e.eA = ang; return; }
+  // va a por las almas cercanas (mientras pueda crecer) o a por ti
+  let tx = player.x, ty = player.y;
+  if (k < AMAL_MAX){
+    let md = 380*380;
+    for (const c of civilians){
+      if (c.dead || !c.alma || c.held || c.thrown) continue;
+      const d2 = (c.x - e.x)*(c.x - e.x) + (c.y - e.y)*(c.y - e.y);
+      if (d2 < md){ md = d2; tx = c.x; ty = c.y; }
+    }
+  }
+  const an = Math.atan2(ty - e.y, tx - e.x);
+  e.facing = Math.cos(an) >= 0 ? 1 : -1;
+  if (dist(e.x, e.y, tx, ty) > 20*k){
+    const x0 = e.x, y0 = e.y;
+    e.x = clamp(e.x + Math.cos(an)*e.speed*dt, 40, WORLD_W - 40); e.y = clamp(e.y + Math.sin(an)*e.speed*dt, 40, WORLD_H - 40);
+    collideBuildings(e, 16*k, dt, 0);
+    e.paso = (e.paso || 0) + dist(x0, y0, e.x, e.y)*0.06/k;
+  }
+  // y si te tiene encima, manotazo
+  if (a < 32*k + F().r && e.golpeCd <= 0 && !vil.intro){
+    e.golpeCd = 1.2; const d0 = hp; hp = clamp(hp - recibe(14), 0, maxHp()); p2Gain(d0 - hp); shake(6, 0.14); sfx('hurt');
+  }
+}
+function drawAmalgama(e){
+  const s = S(e.x, e.y), k = e.k || 1;
+  sombra(s.x, s.y + 4, 46*k, 14*k, 0.6);
+  ctx.globalAlpha = 0.22; ctx.fillStyle = '#9ab8e8';
+  ctx.beginPath(); ctx.ellipse(s.x, s.y - 55*k, 40*k, 60*k, 0, 0, Math.PI*2); ctx.fill();
+  const pose = e.fase === 'lanza' ? 'lanza' : (e.fase === 'embiste' || e.fase === 'embAviso') ? 'embiste' : 'anda';
+  const c = amalFrame(pose, pose === 'anda' ? Math.floor(e.paso || 0) % 4 : 0);
+  ctx.globalAlpha = 0.86 + Math.sin(gameTime*3 + e.x*0.01)*0.08;
+  ctx.save(); ctx.translate(s.x, s.y + 4); ctx.scale((e.facing < 0 ? -1 : 1)*k*0.9, k*0.9);
+  const suave = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(c, -AMAL_CX, -AMAL_PIE);
+  ctx.imageSmoothingEnabled = suave; ctx.restore();
+  ctx.globalAlpha = 1;
+  hpBar(s.x, s.y - 112*k, 50 + 20*k, e.hp, e.maxhp, '#9ab8e8');
+}
+function drawAmalgamaAvisos(){
+  for (const e of enemies){
+    if (e.dead || e.type !== 'amalgama' || e.fase !== 'embAviso') continue;
+    const s0 = S(e.x, e.y), s1 = S(e.x + Math.cos(e.eA)*440, e.y + Math.sin(e.eA)*440);
+    ctx.save(); ctx.globalAlpha = 0.8; ctx.strokeStyle = '#9ab8e8'; ctx.lineWidth = 4; ctx.setLineDash([14, 10]); ctx.lineDashOffset = -gameTime*80;
+    ctx.beginPath(); ctx.moveTo(s0.x, s0.y); ctx.lineTo(s1.x, s1.y); ctx.stroke(); ctx.setLineDash([]);
+    ctx.globalAlpha = 0.14; ctx.lineWidth = 60*(e.k || 1); ctx.beginPath(); ctx.moveTo(s0.x, s0.y); ctx.lineTo(s1.x, s1.y); ctx.stroke();
+    ctx.restore();
+  }
+}
+
+// ---------- lluvia roja y charcos de lava ----------
+// Cuando llueve en el castigo, el suelo se abre en pequeños charcos de lava
+// que queman mucho al pisarlos. Duran unos segundos y se enfrían.
+const charcosLava = [];
+let charcoT = 0;
+const LAVA_DPS = 34;
+function updateCharcosLava(dt, crea){
+  if (crea && esInfierno() && lluviaK > 0.5 && !vil.caida){
+    charcoT -= dt;
+    if (charcoT <= 0){
+      charcoT = rand(0.5, 1.1);
+      if (charcosLava.length < 24){
+        for (let t = 0; t < 6; t++){
+          const an = Math.random()*Math.PI*2, d = rand(90, 520);
+          const x = clamp(player.x + Math.cos(an)*d, 40, WORLD_W - 40), y = clamp(player.y + Math.sin(an)*d*0.7, 40, WORLD_H - 40);
+          if (dentroDeEdificio(x, y, 20) || charcosLava.some(c=> dist(c.x, c.y, x, y) < 60)) continue;
+          charcosLava.push({ x, y, r: rand(18, 30), t: 0, max: rand(9, 14) });
+          break;
+        }
+      }
+    }
+  }
+  for (let i = charcosLava.length - 1; i >= 0; i--){ const c = charcosLava[i]; c.t += dt; if (c.t >= c.max) charcosLava.splice(i, 1); }
+  danoCharcosLava(dt);
+}
+function charcoActivo(c){ return c.t > 0.8 && c.t < c.max - 1.2; }            // recién abierto o enfriándose, no quema
+function danoCharcosLava(dt){
+  if (!charcosLava.length || vil.intro) return;
+  if ((isVil() || isDra()) && vil.flying) return;                         // por el aire no quema
+  for (const c of charcosLava){
+    if (!charcoActivo(c) || dist(player.x, player.y, c.x, c.y) > c.r + F().r*0.4) continue;
+    hp = clamp(hp - recibe(LAVA_DPS*dt), 0, maxHp());
+    if (Math.random() < 0.3) addParticles(player.x + rand(-8, 8), player.y, '#ff8a2a', 1, 80);
+    break;
+  }
+}
+function drawCharcosLava(){
+  for (const c of charcosLava){
+    if (c.x < camX - 60 || c.x > camX + VW + 60 || c.y < camY - 60 || c.y > camY + VH + 60) continue;
+    const s = S(c.x, c.y), abre = clamp(c.t/0.8, 0, 1), frio = clamp((c.max - c.t)/1.2, 0, 1), r = c.r*abre;
+    ctx.fillStyle = '#1a0806'; ctx.beginPath(); ctx.ellipse(s.x, s.y, r + 4, (r + 4)*0.6, 0, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = frio; ctx.fillStyle = '#c8320c'; ctx.beginPath(); ctx.ellipse(s.x, s.y, r, r*0.6, 0, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#ff8a2a'; ctx.beginPath(); ctx.ellipse(s.x - r*0.15, s.y - r*0.08, r*0.65, r*0.36, 0, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#ffd27a'; ctx.beginPath(); ctx.ellipse(s.x - r*0.25, s.y - r*0.14, r*0.25, r*0.12, 0, 0, Math.PI*2); ctx.fill();
+    const k = (gameTime*0.8 + c.x*0.01) % 1;
+    ctx.globalAlpha = frio*(1 - k); ctx.beginPath(); ctx.arc(s.x + r*0.3, s.y - k*4, 1.5 + k*2.5, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+}
+// La lluvia del castigo es roja.
+let _lluviaPatRoja = null;
+function lluviaPatRoja(){
+  if (_lluviaPatRoja) return _lluviaPatRoja;
+  const T = 256, cv = document.createElement('canvas'); cv.width = cv.height = T;
+  const g = cv.getContext('2d');
+  let sem = 9133;
+  const rnd = ()=>{ sem = (sem*1664525 + 1013904223) & 0x7fffffff; return sem / 0x7fffffff; };
+  g.lineCap = 'round';
+  for (let i = 0; i < 46; i++){
+    const x = rnd()*T, y = rnd()*T, l = 7 + rnd()*16;
+    g.strokeStyle = `rgba(220,40,30,${0.28 + rnd()*0.34})`;
+    g.lineWidth = rnd() < 0.2 ? 1.5 : 1;
+    for (const dx of [-T, 0, T]) for (const dy of [-T, 0, T]){ g.beginPath(); g.moveTo(x + dx, y + dy); g.lineTo(x + dx - l*0.28, y + dy + l); g.stroke(); }
+  }
+  _lluviaPatRoja = ctx.createPattern(cv, 'repeat');
+  return _lluviaPatRoja;
+}
+
+// ---------- disparo del tanque araña: estallido y ralentizado ----------
+let lentoT = 0;
+const LENTO_DUR = 1.6, LENTO_K = 0.65;                 // 35 % más lento durante 1,6 s
+function ralentizar(dur){
+  if (Online.objetivoInv){ Online.estInv.l = 1; return; }
+  if (lentoT <= 0) toast('¡RALENTIZADO!');
+  lentoT = Math.max(lentoT, dur || LENTO_DUR);
+}
+// Frena lo que se ha movido el invasor en este fotograma (no los teletransportes).
+function frenaJugador(px0, py0){
+  if (!(lentoT > 0)) return;
+  const dx = player.x - px0, dy = player.y - py0;
+  if (dx*dx + dy*dy > 40*40) return;
+  player.x = px0 + dx*LENTO_K; player.y = py0 + dy*LENTO_K;
+  if (Math.random() < 0.2) addParticles(player.x + rand(-10, 10), player.y + rand(-6, 6), '#c88aff', 1, 40);
+}
+function estallidoArana(b){
+  explode(b.x, b.y, 95, 0, true);
+  addParticles(b.x, b.y, '#c88aff', 22, 230);
+  addParticles(b.x, b.y, '#f0d0ff', 10, 160);
+  booms.push({ x: b.x, y: b.y, r: 10, max: 140, life: 0.5, maxlife: 0.5, ring: true });
+}
+
+// ---------- pezuñas y ojo humano en el infierno ----------
+function pezunaTripode(fx, fy){
+  ctx.fillStyle = '#3a2418'; ctx.beginPath(); ctx.ellipse(fx, fy - 7, 7, 5, 0, 0, Math.PI*2); ctx.fill();   // pelaje del menudillo
+  ctx.fillStyle = '#5a3a28'; ctx.fillRect(fx - 6, fy - 9, 2, 3); ctx.fillRect(fx + 3, fy - 8, 2, 3);
+  ctx.fillStyle = '#1a120c';                                                                             // la pezuña hendida
+  ctx.beginPath(); ctx.moveTo(fx - 9, fy + 3); ctx.lineTo(fx - 7, fy - 4); ctx.lineTo(fx - 1, fy - 4); ctx.lineTo(fx - 1, fy + 3); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(fx + 1, fy + 3); ctx.lineTo(fx + 1, fy - 4); ctx.lineTo(fx + 7, fy - 4); ctx.lineTo(fx + 9, fy + 3); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#4a3a2c'; ctx.fillRect(fx - 7, fy - 3, 5, 1); ctx.fillRect(fx + 2, fy - 3, 5, 1);
+}
+function ojoHumanoOmni(e, x, y, er, cargando, disparando){
+  // párpados de carne, globo blanco con venas, iris que te sigue y pupila
+  ctx.fillStyle = '#8a4a40'; ctx.beginPath(); ctx.ellipse(x, y, er*1.55, er*1.15, 0, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#efe6dc'; ctx.beginPath(); ctx.ellipse(x, y, er*1.35, er*0.92, 0, 0, Math.PI*2); ctx.fill();
+  ctx.strokeStyle = 'rgba(190,30,30,0.75)'; ctx.lineWidth = 1;
+  for (let i = 0; i < 6; i++){
+    const a = i*1.05 + 0.3, r0 = er*1.3, r1 = er*0.75;
+    ctx.beginPath(); ctx.moveTo(x + Math.cos(a)*r0, y + Math.sin(a)*r0*0.68);
+    ctx.quadraticCurveTo(x + Math.cos(a + 0.25)*er, y + Math.sin(a + 0.25)*er*0.6, x + Math.cos(a)*r1, y + Math.sin(a)*r1*0.68); ctx.stroke();
+  }
+  const an = Math.atan2(player.y - e.y, player.x - e.x), ix = x + Math.cos(an)*er*0.38, iy = y + Math.sin(an)*er*0.22;
+  ctx.fillStyle = disparando ? '#ff4a2a' : cargando ? '#c8402a' : '#5a7a3a';
+  ctx.beginPath(); ctx.arc(ix, iy, er*0.55, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#0a0606'; ctx.beginPath(); ctx.arc(ix, iy, er*(disparando ? 0.36 : cargando ? 0.3 : 0.22), 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(ix - er*0.18, iy - er*0.16, er*0.1, 0, Math.PI*2); ctx.fill();
+  // el párpado de arriba parpadea de vez en cuando
+  const parp = (gameTime*0.35 + e.x*0.001) % 1 < 0.04 ? 1 : 0.28;
+  ctx.fillStyle = '#9a5a4e'; ctx.beginPath(); ctx.ellipse(x, y - er*0.95*(1 - parp), er*1.45, er*0.95*parp + 0.5, 0, Math.PI, 0); ctx.fill();
 }
 // Fichas del bestiario de lo nuevo.
 {
@@ -13075,7 +13465,8 @@ function sorteaJefeInf(){
   ficha('murcielagoF', alienFrame('murcielago', 'ataca', 0), 2); ficha('caza40kF', alienFrame('caza40k', 'ataca', 0), 1.4);
   ficha('centurionF', centFrame('dispara', 0, false), 1.6);
   ficha('vengativoF', vengFrame('ataca', 0), 2.4);
-  ficha('bichoF', alienFrame('bicho', 'anda', 1), 1.4);
+  ficha('bichoF', alienFrame('bicho', 'ataca', 0), 1.3);
+  ficha('amalgamaF', amalFrame('lanza', 0), 1.1);
   { const m = document.createElement('canvas'); m.width = 40; m.height = 40; const g = m.getContext('2d');
     g.fillStyle = '#ff8a2a'; g.beginPath(); g.moveTo(36, 4); g.lineTo(22, 16); g.lineTo(28, 22); g.closePath(); g.fill();
     g.fillStyle = '#ffd27a'; g.beginPath(); g.moveTo(32, 8); g.lineTo(22, 18); g.lineTo(26, 20); g.closePath(); g.fill();
@@ -15785,7 +16176,8 @@ function meleeDmg(e){
   if (e.type === 'golem')     return 110;   // la roca aguanta tres
   if (e.type === 'siege')   return 65;    // ~10 golpes
   if (e.type === 'gunship') return 130;
-  if (e.type === 'tank' || e.type === 'arana') return 160;
+  if (e.type === 'tank' || e.type === 'arana' || e.type === 'bicho') return 160;
+  if (e.type === 'amalgama') return 120;
   return 9999;                            // el resto revienta de un tentacazo
 }
 
@@ -15959,7 +16351,7 @@ const SCENERY = { tree:1, lamp:1, bench:1, trash:1 };
 function isScenery(o){ return !!SCENERY[o.kind]; }
 
 // Unidades que no se revientan de una pasada: hay que insistir.
-const BLINDADOS = { arana:1, tank:1, siege:1, gunship:1, heli:1, flametank:1, omni:1, artillero:1, superx:1, mbt:1, mbtFrio:1, tripode:1 };
+const BLINDADOS = { bicho:1, amalgama:1, arana:1, tank:1, siege:1, gunship:1, heli:1, flametank:1, omni:1, artillero:1, superx:1, mbt:1, mbtFrio:1, tripode:1 };
 // Mini jefes: el viltrumita les hace más daño con lo que les arroja.
 const JEFES = { flametank:1, omni:1, artillero:1, superx:1, tripode:1, heroe:1, kaiyin:1, centurion:1 };
 const VIL_BOSS_MULT = 1.40;
@@ -16010,6 +16402,7 @@ function objLabel(o){
   if (o.type === 'minigun') return 'MINIGUNERO';
   if (o.type === 'vengativo') return 'VENGATIVO';
   if (o.type === 'bicho') return 'BICHO GUERRERO';
+  if (o.type === 'amalgama') return 'AMALGAMA';
   const AL_NOM = { centinela:'CENTINELA', droide:'DROIDE', escaner:'ESCÁNER', cabezon:'CABEZÓN', arana:'ARAÑA', murcielago:'MURCIÉLAGO', caza40k:'DRON' };
   if (AL_NOM[o.type]) return AL_NOM[o.type];
   return 'OBJETO';
@@ -16800,7 +17193,7 @@ function updateThrown(dt){
       for (const e of pool){
         if (e === o || e.dead || e.held) continue;
         if (o.golpeados && o.golpeados.indexOf(e) >= 0) continue;   // ya atravesado
-        if (e.type === 'tripode' && o.marcianoT > gameTime) continue;   // lo acaba de lanzar uno
+        if ((e.type === 'tripode' || e.type === 'amalgama') && o.marcianoT > gameTime) continue;   // lo acaba de lanzar uno
         // El alcance del choque va con el tamaño del proyectil: un edificio de
         // 272px no puede tener la misma caja que una farola.
         if (distCuerpo(o.x, o.y, e) < radioChoque(o)){ impact = {x:o.x, y:o.y, target:e}; break; }
@@ -17027,6 +17420,7 @@ function updateEnemies(dt){
     if (e.type === 'centurion'){ updateCenturion(e, dt, a, ang); continue; }
     if (e.type === 'vengativo'){ updateVengativo(e, dt, a, ang); continue; }
     if (e.type === 'bicho'){ updateBicho(e, dt, a, ang); continue; }
+    if (e.type === 'amalgama'){ updateAmalgama(e, dt, a, ang); continue; }
     if (e.type === 'cabezon'){ updateCabezon(e, dt, a, ang); continue; }
     if (e.type === 'arana'){ updateArana(e, dt, a, ang); continue; }
     if (e.type === 'murcielago'){ updateMurcielago(e, dt, a, ang); continue; }
@@ -17208,6 +17602,7 @@ function updateBullets(dt){
     }
 
     b.x += b.vx*dt; b.y += b.vy*dt; b.life -= dt;
+    if (b.arana && b.life <= 0){ estallidoArana(b); continue; }   // el obús del tanque araña revienta al acabar
 
     // SHIELD: the held object only protects if it is physically in the way
     if (hr && heldObject && !b.artillery &&
@@ -17220,7 +17615,7 @@ function updateBullets(dt){
           (b.src === 'police' || b.src === 'military' || b.src === 'minigun')) unlockAch('basura');
       addParticles(b.x, b.y, '#8fd7ff', 8, 100);
       const wear = b.shell ? 2 : b.homing ? 1.5 : 0.5;
-      if (b.blast) explode(b.x, b.y, b.blast, 0, false);
+      if (b.arana) estallidoArana(b); else if (b.blast) explode(b.x, b.y, b.blast, 0, false);
       shake(3, 0.08);
       // si el escudo se rompe con este impacto, el rectángulo deja de valer
       // para las balas restantes de este mismo fotograma
@@ -17239,6 +17634,7 @@ function updateBullets(dt){
       if (b.x>bl.x && b.x<bl.x+bl.w && b.y>bl.y && b.y<bl.y+bl.h){
         damageBuilding(bl, b.dmg*0.4);
         addParticles(b.x,b.y,'#9aa6ad',5,70);
+        if (b.arana) estallidoArana(b);
         b.life = 0; blocked = true; break;
       }
     }
@@ -17247,10 +17643,10 @@ function updateBullets(dt){
     // Doble Invasión: una bala también puede dar al invasor del otro jugador
     if (dobleAnf() && Online.av && !Online.av.caido && !b.artillery &&
         dist(b.x, b.y, Online.proxy.x, Online.proxy.y) < (Online.av.r || 20) + 6){
-      Online.danoInv += b.dmg; if (b.veneno) Online.estInv.v = 1; if (b.quema) Online.estInv.q = 1;
+      Online.danoInv += b.dmg; if (b.veneno) Online.estInv.v = 1; if (b.quema) Online.estInv.q = 1; if (b.arana) Online.estInv.l = 1;
       b.life = 0;
       addParticles(b.x, b.y, '#ff5b5b', 8, 90);
-      if (b.blast) explode(b.x, b.y, b.blast, 0, false);
+      if (b.arana) estallidoArana(b); else if (b.blast) explode(b.x, b.y, b.blast, 0, false);
       else if (b.shell) explode(b.x, b.y, 70, 0, false);
       continue;
     }
@@ -17262,11 +17658,12 @@ function updateBullets(dt){
       // la dosis acumulada te deja clavado un segundo.
       if (b.veneno) envenenar();
       if (b.quema) quemar(1.6);                    // droide: quemadura
+      if (b.arana) ralentizar();                   // tanque araña: te frena un poco
       b.life = 0;
       sfx('hurt');
       shake(b.shell?9:4, b.shell?0.2:0.1);
       addParticles(b.x, b.y, '#ff5b5b', 8, 90);
-      if (b.blast) explode(b.x, b.y, b.blast, 0, false);
+      if (b.arana) estallidoArana(b); else if (b.blast) explode(b.x, b.y, b.blast, 0, false);
       else if (b.shell) explode(b.x, b.y, 70, 0, false);
     }
   }
@@ -17375,7 +17772,7 @@ function updateSpawns(dt){
   updateRegen(dt);
   updateHumoEdif(dt);
   updateJefes2(dt);
-  updateAlien(dt); updateBombasPeg(dt); updateInfierno(dt);
+  updateAlien(dt); updateBombasPeg(dt); updateInfierno(dt); updateCharcosLava(dt, true);
   updateBossMusic(dt);
   if (gameMode === 'vs'){
     // en el duelo solo el Jugador 2 despliega tropas; el resto de la ciudad sigue viva
@@ -17574,11 +17971,11 @@ const CLIMAS = {
 let clima = 'sol', climaMostrado = null;
 let nubeK = 0, lluviaK = 0;          // intensidades actuales, 0..1, con transición
 function sorteaClima(){
+  if (esInfierno()){ clima = Math.random() < 0.4 ? 'lluvia' : 'sol'; return; }   // allí abajo, sol o lluvia roja
   const r = Math.random();
   clima = r < 0.55 ? 'sol' : r < 0.83 ? 'nube' : 'lluvia';
 }
 function updateClima(dt){
-  if (esInfierno() && clima !== 'lluvia') clima = 'sol';     // allí abajo no llueve
   const nubeObj   = (clima === 'sol') ? 0 : 1;
   const lluviaObj = (clima === 'lluvia') ? 1 : 0;
   const v = Math.min(1, dt * 0.35);             // unos 5-6 segundos de transición
@@ -17646,7 +18043,7 @@ function drawClima(){
   const velo = nubeK * 0.16 + lluviaK * 0.12;
   if (velo > 0.004){
     ctx.globalAlpha = velo;
-    ctx.fillStyle = '#39465a';
+    ctx.fillStyle = esInfierno() ? '#4a0c08' : '#39465a';
     ctx.fillRect(0, 0, CW, CH);
   }
   // 2) sombras de nubes deslizándose, ancladas al mundo
@@ -17662,7 +18059,7 @@ function drawClima(){
   }
   // 3) lluvia en dos capas a distinta velocidad, para dar profundidad
   if (lluviaK > 0.01){
-    const p = lluviaPat();
+    const p = esInfierno() ? lluviaPatRoja() : lluviaPat();
     const T = 256;
     for (let capa = 0; capa < 2; capa++){
       const vel = capa ? 620 : 900;
@@ -17687,7 +18084,7 @@ function drawSalpicaduras(){
     for (let i = 0; i < SALP_N; i++) salp.push({ x:0, y:0, t: Math.random() });
   }
   const dt = 1/60;
-  ctx.strokeStyle = 'rgba(210,228,245,0.55)';
+  ctx.strokeStyle = esInfierno() ? 'rgba(230,60,40,0.6)' : 'rgba(210,228,245,0.55)';
   ctx.lineWidth = 1;
   for (const p of salp){
     p.t += dt * 2.2;
@@ -18860,6 +19257,7 @@ function drawEnemyBase(e){
   if (e.type === 'kaiyin'){ drawKaiyin(e); return; }
   if (e.type === 'centurion'){ drawCenturion(e); return; }
   if (e.type === 'vengativo'){ drawVengativo(e); return; }
+  if (e.type === 'amalgama'){ drawAmalgama(e); return; }
   if (AL_TAM[e.type]){ drawUnidadAlien(e); return; }
   if (e.type === 'heroe'){ drawHeroe(e); return; }
   if (FANT_TIPOS[e.type]){ drawFantasmaUnidad(e); return; }
@@ -19174,12 +19572,12 @@ function draw(){
   if (shakeTime>0){ temblorX = rand(-shakeMag,shakeMag); temblorY = rand(-shakeMag,shakeMag); ctx.translate(temblorX, temblorY); }
   actualizaSol();
   drawBackground(); drawRoads();
-  if (esInfierno()){ drawRestosJefes(); drawCraterInf(); }
+  if (esInfierno()){ drawRestosJefes(); drawCraterInf(); drawCharcosLava(); }
   drawManchasLuz();                    // profundidad del suelo, un solo relleno
   drawBuildings(); drawPlanters(); drawLamps();
   // Las zonas marcadas del Artillero van DESPUÉS de los edificios: si no, los
   // escombros las tapaban justo donde más falta hace verlas.
-  drawFuegos(); drawArtAvisos(); drawTriAvisos(); drawDragonAvisos(); drawMaquinaAvisos(); drawMagoAvisos(); drawMbtRayos(); drawJefes2Avisos(); drawAlienSuelo(); drawCenturionAvisos();
+  drawFuegos(); drawArtAvisos(); drawTriAvisos(); drawDragonAvisos(); drawMaquinaAvisos(); drawMagoAvisos(); drawMbtRayos(); drawJefes2Avisos(); drawAlienSuelo(); drawCenturionAvisos(); drawAmalgamaAvisos();
 
   // Solo se encolan los objetos visibles: con ~200 props fuera de pantalla,
   // esto evita cientos de entradas y llamadas de dibujo por fotograma.
@@ -19531,7 +19929,8 @@ function loop(t){
     // Mientras cae en la entrada nada puede tocarle: se anota la vida antes
     // y se restaura después, en vez de parchear las cinco vías de daño.
     const vidaIntro = vil.intro ? hp : -1;          // cualquier personaje, mientras entra
-    updatePlayer(dt); updateProyJ(dt); updateCongelados(dt);
+    { const px0 = player.x, py0 = player.y; updatePlayer(dt); frenaJugador(px0, py0); }
+    updateProyJ(dt); updateCongelados(dt);
     updateCivilians(dt); updateCars(dt); updateTrees(dt); updateRam(dt); updateThrown(dt);
     Online.culpaInv = false;
     updateVS(dt);
@@ -19605,7 +20004,7 @@ function pintaHUD(){
       climaMostrado = clima;
       const c = CLIMAS[clima];
       document.getElementById('climaicon').textContent = c.icon;
-      document.getElementById('climaname').textContent = c.name;
+      document.getElementById('climaname').textContent = esInfierno() && clima === 'lluvia' ? 'LLUVIA ROJA' : c.name;
       document.getElementById('climahud').className = 'climahud ' + clima;
     }
     hudTxt('clockphase', ph.name);
@@ -21156,6 +21555,7 @@ function instantaneaAnfitrion(){
   { const c = centroVista(); _olCx = c.x; _olCy = c.y; }
   const i = { t:'i', n: ++Online.seq,
     gt: gameTime, sc: score, hp, form, kills, dem: demolished, stg: stage, vt: vsTimeLeft, mp: mapa,
+    lv: esInfierno() ? charcosLava.map(c => [Math.round(c.x), Math.round(c.y), Math.round(c.r), Math.round(c.t*10)/10, Math.round(c.max*10)/10]) : 0,
     dr: drawR, fase: phaseIdx, hero, sk: skinRed(), rayos: rayosOn ? 1 : 0,
     buff: [buffT, buffTipo], cl: [clima, nubeK, lluviaK],
     cb: [comboN, comboT, comboFase, comboBonus, comboFlash],
@@ -21180,9 +21580,9 @@ function instantaneaAnfitrion(){
   if (Online.modo === 'doble'){
     i.caido = Online.caidoYo ? 1 : 0;
     const E = Online.estInv;
-    if (Online.danoInv > 0 || E.q || E.h || E.v){
-      i.hi = { d: Math.round(Online.danoInv*10)/10, q:E.q, h:E.h, v:E.v };
-      Online.danoInv = 0; E.q = 0; E.h = 0; E.v = 0;
+    if (Online.danoInv > 0 || E.q || E.h || E.v || E.l){
+      i.hi = { d: Math.round(Online.danoInv*10)/10, q:E.q, h:E.h, v:E.v, l:E.l ? 1 : 0 };
+      Online.danoInv = 0; E.q = 0; E.h = 0; E.v = 0; E.l = 0;
     }
     const P = Online.premioInv;
     if (P.kills || P.heal || P.ovni){ i.pv = { k:P.kills, h:P.heal, o:P.ovni ? 1 : 0 }; P.kills = 0; P.heal = 0; P.ovni = false; }
@@ -21271,6 +21671,8 @@ function _sincroniza(datos, mapa){
 }
 function aplicaInstantanea(i){
   const doble = Online.modo === 'doble';
+  if (i.lv){ charcosLava.length = 0; for (const c of i.lv) charcosLava.push({ x:c[0], y:c[1], r:c[2], t:c[3], max:c[4] }); }
+  else if (i.lv === 0) charcosLava.length = 0;
   if (i.mp && i.mp !== mapa && MAPAS.includes(i.mp)){             // por si el mapa no llegó al empezar
     mapa = i.mp; aplicaMapa(); P2_UNITS = P2_SETS[mapa] || P2_CIUDAD; p2PanelSig = '';
   }
@@ -21287,7 +21689,7 @@ function aplicaInstantanea(i){
     if (i.hi && !vil.intro){                       // lo que te han hecho (mientras entras, nada)
       hp = clamp(hp - recibe(i.hi.d), 0, maxHp());
       if (i.hi.d > 0){ sfx('hurt'); shake(4, 0.1); }
-      if (i.hi.q) quemar(); if (i.hi.h) congelar(); if (i.hi.v) envenenar();
+      if (i.hi.q) quemar(); if (i.hi.h) congelar(); if (i.hi.v) envenenar(); if (i.hi.l) ralentizar();
     }
     if (i.pv){                                     // y lo que te has ganado
       if (i.pv.h) hp = clamp(hp + Math.round(i.pv.h * curaPorBaja()), 0, maxHp());
@@ -21680,7 +22082,8 @@ function loopInvitadoDoble(dt){
   const t = clamp((performance.now()/1000 - Online.tRecibida) / (Online.ritmo || Online.intervalo), 0, 1.25);
   _interpola(enemies, t); _interpola(civilians, t); _interpola(cars, t); _interpola(bullets, t);
   if (!Online.caidoYo){
-    updatePlayer(dt); updateSonic(dt); updateWind(dt); updateRam(dt); updateRayosOjos(dt);
+    { const px0 = player.x, py0 = player.y; updatePlayer(dt); frenaJugador(px0, py0); }
+    updateSonic(dt); updateWind(dt); updateRam(dt); updateRayosOjos(dt); danoCharcosLava(dt);
   }
   updateProyJ(dt);
   updateBuff(dt); updateEstados(dt); updateVeneno(dt); updateAura(dt); updateViento(dt); updateRelampagos(dt);
