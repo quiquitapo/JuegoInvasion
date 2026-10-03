@@ -126,6 +126,7 @@
               font-size:0.42rem; letter-spacing:0.5px; color:#8fd7ff;
               background:rgba(4,10,14,0.82); padding:1px 0; }
   .dexart .qmark { color:#4a5a50; font-size:1.9rem; font-weight:900; }
+  .dexstate.mapa { color:#ffb07a; }
   .dexinfo { flex:1; min-width:0; }
   .dexname { color:#7bffa0; font-size:0.85rem; letter-spacing:2px; font-weight:900; }
   .dexcard.locked .dexname { color:#5a6a60; }
@@ -597,6 +598,9 @@
               border-bottom:1px dashed #1f4a2c; }
   .pausacfg .volrow { margin-bottom:6px; }
   .pausacfg .small { margin-top:4px; width:100%; }
+  #pUiRow .vollbl { flex:0 1 auto; white-space:nowrap; }
+  #pUiRow > span:last-child { margin-left:auto; }
+  #pUiRow .togglebtn { min-width:0; padding:6px 10px; }
   .confirm-row { display:flex; gap:12px; justify-content:center; flex-wrap:wrap; }
   .clock-hud { background:rgba(5,10,7,0.62); border:1px solid #1f5c37; padding:4px 10px; border-radius:4px;
                display:flex; align-items:center; gap:8px; }
@@ -1258,6 +1262,15 @@
           <span class="vollbl">Volumen música</span>
           <input type="range" id="pVolMus" min="0" max="100" value="45">
           <span class="volval" id="pVolMusVal">45</span>
+        </div>
+        <div class="volrow" id="pUiRow" style="display:none">
+          <span class="vollbl">Mandos</span>
+          <span style="display:flex; gap:6px; align-items:center">
+            <button type="button" class="togglebtn" id="pUiAuto">AUTO</button>
+            <button type="button" class="togglebtn" id="pUiMenos">−</button>
+            <b id="pUiVal" style="min-width:44px; text-align:center; color:#7bffa0">AUTO</b>
+            <button type="button" class="togglebtn" id="pUiMas">+</button>
+          </span>
         </div>
         <button type="button" class="small" id="btnPantalla">PANTALLA COMPLETA</button>
       </div>
@@ -4814,6 +4827,12 @@ function angLerp(a, b, t){
 let omniIcon = null;
 function omniIconURL(){
   if (omniIcon) return omniIcon;
+  const c = omniIconCv();
+  try { omniIcon = c.toDataURL(); }
+  catch(e){ omniIcon = ''; }        // si el lienzo no puede exportarse, sin icono
+  return omniIcon;
+}
+function omniIconCv(){
   const c = document.createElement('canvas');
   c.width = c.height = 48;
   const g = c.getContext('2d');
@@ -4829,9 +4848,7 @@ function omniIconURL(){
   g.strokeStyle='#33383f'; g.lineWidth=2; g.stroke();
   g.fillStyle='#c81f1f'; g.beginPath(); g.arc(24,24,5,0,Math.PI*2); g.fill();
   g.fillStyle='#7a0d0d'; g.beginPath(); g.arc(24,24,2,0,Math.PI*2); g.fill();
-  try { omniIcon = c.toDataURL(); }
-  catch(e){ omniIcon = ''; }        // si el lienzo no puede exportarse, sin icono
-  return omniIcon;
+  return c;
 }
 
 function drawOmni(e){
@@ -5296,10 +5313,16 @@ function drawTriRayos(){
 let triIcon = null;
 function tripodeIconURL(){
   if (triIcon) return triIcon;
+  const c = tripodeIconCv();
+  if (!c) return '';
+  try { triIcon = c.toDataURL(); } catch(err){ triIcon = ''; }
+  return triIcon;
+}
+function tripodeIconCv(){
   const c = document.createElement('canvas');
   c.width = c.height = 48;
   const g = c.getContext('2d');
-  if (!g) return '';
+  if (!g) return null;
   g.lineCap = 'round';
   g.strokeStyle = '#2d3534'; g.lineWidth = 3.5;
   for (const [hx, kx, ky, fx, fy] of [[-6,-15,26,-18,44],[6,15,26,18,44],[0,2,32,0,46]]){
@@ -5313,8 +5336,7 @@ function tripodeIconURL(){
   g.beginPath(); g.ellipse(24, 21, 22, 6, 0, 0, Math.PI*2); g.fill();
   g.fillStyle = '#dff6ff';
   g.beginPath(); g.arc(37, 17, 3.5, 0, Math.PI*2); g.fill();
-  try { triIcon = c.toDataURL(); } catch(err){ triIcon = ''; }
-  return triIcon;
+  return c;
 }
 
 // ---- Humo negro del trípode derribado ----
@@ -8932,6 +8954,116 @@ function ostToggle(t){
   retuneMusic();
 }
 
+// ---------- versiones de cada mapa en el registro ----------
+// Al tocar la imagen de una ficha, después de sus estados se pasa a sus
+// versiones de los otros mapas: los edificios, autos, árboles, farolas,
+// basureros, bancas y civiles del Mundo Alienígena y de Castigo Divino, y la
+// versión D (deformada) de las unidades que vuelven en el castigo. Cada imagen
+// se genera la primera vez que se pide y queda guardada.
+const regVarCache = new Map();
+function conMapa(m, fn){ const ant = mapa; mapa = m; try { return fn(); } finally { mapa = ant; } }
+function regLibre(){ hoverNuevos = 0; autoNuevos = 0; civNuevas = 0; deformNuevos = 0; }   // en el menú no corre el reloj: sin cupo por fotograma
+function cvURL(src, esc){
+  if (!src) return '';
+  const W = src.naturalWidth || src.width, H = src.naturalHeight || src.height;
+  if (!W || !H) return '';
+  const c = document.createElement('canvas'); c.width = Math.round(W*esc); c.height = Math.round(H*esc);
+  const g = c.getContext('2d'); g.imageSmoothingEnabled = false; g.drawImage(src, 0, 0, c.width, c.height);
+  try { return c.toDataURL(); } catch(e){ return ''; }
+}
+function spriteListo(k){ const s = sprites[k]; return s && s.img.complete && s.img.naturalWidth ? s.img : null; }
+// deformado (con lo que no deba recolorearse pintado encima)
+function regD(src, esc, encima){
+  if (!src) return '';
+  const d = deformCv(src, true), c = document.createElement('canvas');
+  c.width = d.width; c.height = d.height;
+  const g = c.getContext('2d'); g.drawImage(d, 0, 0);
+  if (encima) encima(g);
+  return cvURL(c, esc);
+}
+function regEdif(m, set, cat, etapa){
+  return conMapa(m, ()=>{
+    const d = { set, cat, w: 140, h: 170, seed: 42, frente:'s' };
+    const c = document.createElement('canvas'); c.width = d.w; c.height = d.h;
+    const g = c.getContext('2d');
+    if (etapa === 1) g.drawImage(edifInterior(d), 0, 0);
+    g.drawImage(edifCanvas(d, etapa, true), 0, 0);
+    return cvURL(c, 1);
+  });
+}
+function regCiv(alien){
+  const C = Object.assign({}, CIV_FICHA, alien ? { alien:1, piel:'#9ad86a', corte:4, gafas:false, ropa:2, acc:0 } : { alma:1, gafas:false });
+  const hoja = civHoja(C), c = document.createElement('canvas'); c.width = CIV_W; c.height = CIV_H;
+  c.getContext('2d').drawImage(hoja, 8*CIV_W, 0, CIV_W, CIV_H, 0, 0, CIV_W, CIV_H);
+  return cvURL(c, 2);
+}
+// ojos y pezuñas del trípode del castigo, sobre su icono
+function regOjosTripode(g){
+  g.lineCap = 'round';
+  for (const [x, y, r] of [[13, 11, 2.4], [20, 7, 2.6], [29, 7, 2.6], [36, 11, 2.4], [24, 14, 2]]){
+    g.strokeStyle = '#5a2228'; g.lineWidth = 1.6; g.beginPath(); g.moveTo(x, y + 3); g.lineTo(x, y); g.stroke();
+    g.fillStyle = '#7a3438'; g.beginPath(); g.arc(x, y, r + 0.8, 0, Math.PI*2); g.fill();
+    g.fillStyle = '#efe6dc'; g.beginPath(); g.arc(x, y, r, 0, Math.PI*2); g.fill();
+    g.fillStyle = '#0a0606'; g.beginPath(); g.arc(x + 0.6, y + 0.4, r*0.45, 0, Math.PI*2); g.fill();
+  }
+  g.strokeStyle = '#2a1a1a'; g.lineWidth = 1;
+  for (const s of [-1, 1]){ g.beginPath(); g.moveTo(24 + s*8, 6); g.lineTo(24 + s*12, 0.5); g.stroke(); g.fillStyle = '#efe6dc'; g.fillRect(24 + s*12 - 1, 0, 2, 2); }
+  g.fillStyle = '#1a120c';
+  for (const [x, y] of [[6, 44], [42, 44], [24, 46]]){ g.fillRect(x - 3, y - 2, 2.6, 3); g.fillRect(x + 0.4, y - 2, 2.6, 3); }
+}
+function regOjoOmni(g){
+  g.fillStyle = '#8a4a40'; g.beginPath(); g.ellipse(24, 24, 8, 6, 0, 0, Math.PI*2); g.fill();
+  g.fillStyle = '#efe6dc'; g.beginPath(); g.ellipse(24, 24, 6.6, 4.6, 0, 0, Math.PI*2); g.fill();
+  g.fillStyle = '#5a7a3a'; g.beginPath(); g.arc(25, 24, 2.8, 0, Math.PI*2); g.fill();
+  g.fillStyle = '#0a0606'; g.beginPath(); g.arc(25, 24, 1.4, 0, Math.PI*2); g.fill();
+  g.fillStyle = '#ffffff'; g.fillRect(24, 22.5, 1, 1);
+}
+const AL = 'MUNDO ALIENÍGENA', INF = 'CASTIGO DIVINO', VD = 'VERSIÓN D · CASTIGO DIVINO';
+// Unidades que vuelven deformadas en el castigo: ficha de partida y escala.
+const REG_D = { police:['police', 1], military:['soldier', 1], minigun:['minigun', 1], tank:['tank', 1], heli:['heli', 1], gunship:['gunship', 1],
+  flametank:['flametank', 1], artillero:['artOk', 1], superx:['superx', 1], heroe:['heroeF', 1], kaiyin:['kaiyinF', 1], centinela:['centinelaF', 1],
+  droide:['droideF', 1], cabezon:['cabezonF', 1], murcielago:['murcielagoF', 1], caza40k:['caza40kF', 1], centurion:['centurionF', 1] };
+function regVariantes(b){
+  const id = b.id;
+  if (id === 'building') return [
+    [AL + ' · Torre aguja',        ()=> regEdif('alien', 'XA', 'torre', 0)],
+    [AL + ' · Torre platillo',     ()=> regEdif('alien', 'XC', 'torre', 0)],
+    [AL + ' · Hábitat de cúpula',  ()=> regEdif('alien', 'XB', 'medio', 0)],
+    [INF + ' · Ruina',             ()=> regEdif('infierno', 'R', 'medio', 1)],
+    [INF + ' · Ruina marciana',    ()=> regEdif('infierno', 'XD', 'medio', 1)]];
+  if (id === 'car') return [
+    [AL + ' · Cápsula',   ()=> cvURL(hoverFrame('capsula', HOVER_COL[1], 0, 'l'), 2)],
+    [AL + ' · Lancha',    ()=> cvURL(hoverFrame('lancha', HOVER_COL[2], 0, 'l'), 2)],
+    [AL + ' · Taxi',      ()=> cvURL(hoverFrame('taxi', '#ffd23a', 0, 'l'), 2)],
+    [INF + ' · Calcinado', ()=> cvURL(autoFrame('compacto', AUTO_COLORES[3], 2, 'l', 0), 2)]];
+  if (id === 'truck') return [
+    [AL,  ()=> cvURL(hoverFrame('tanque', '#9aa8b0', 0, 'l'), 2)],
+    [INF + ' · Calcinado', ()=> cvURL(autoFrame('cisterna', '#b8a468', 2, 'l', 0), 2)]];
+  if (id === 'civ') return [[AL + ' · Habitante', ()=> regCiv(true)], [INF + ' · Alma en pena', ()=> regCiv(false)]];
+  if (id === 'tree') return [[AL + ' · Cristal', ()=> cvURL(cristalCv(), 1.4)], [INF + ' · Árbol muerto', ()=> cvURL(arbolMuertoCv(), 1.4)]];
+  if (id === 'lamp' || id === 'trash' || id === 'bench'){
+    const k = id === 'bench' ? 'benchH' : id, A = id === 'lamp' ? TINTE_AL_LAMP : TINTE_AL_METAL, I = id === 'lamp' ? TINTE_INF_LAMP : TINTE_INF_METAL;
+    const e = id === 'lamp' ? 1 : 2.4;                     // basurero y banca son pequeños: se amplían
+    return [[AL, ()=> spriteListo(k) ? cvURL(spriteTenido(k, A[1]), e) : ''], [INF, ()=> spriteListo(k) ? cvURL(spriteTenido(k, I[1]), e) : '']];
+  }
+  if (id === 'arana') return [[VD + ' · patas de araña', ()=> regD(conMapa('infierno', ()=> alienFrame('arana', 'anda', 0)), 1.3)]];
+  if (id === 'desgarrador') return [[VD + ' · despellejado', ()=> conMapa('infierno', ()=>
+    regD(desFrame('corta', 0, 'carne'), 0.9, g=> g.drawImage(desFrame('corta', 0, 'huesos'), 0, 0)))]];
+  if (id === 'tripode') return [[VD + ' · ojos y pezuñas', ()=> regD(tripodeIconCv(), 1.6, regOjosTripode)]];
+  if (id === 'omni') return [[VD + ' · ojo humano', ()=> regD(omniIconCv(), 1.6, regOjoOmni)]];
+  if (REG_D[id]) return [[VD, ()=> regD(spriteListo(REG_D[id][0]), REG_D[id][1])]];
+  return [];
+}
+// La imagen de una versión (vacía si aún no se puede generar: se reintenta).
+function regVarURL(id, i, v){
+  const k = id + '|' + i;
+  if (regVarCache.has(k)) return regVarCache.get(k);
+  let u = '';
+  try { regLibre(); u = v[1]() || ''; } catch(e){ u = ''; }
+  if (u) regVarCache.set(k, u);
+  return u;
+}
+
 function renderDex(){
   const el = document.getElementById('dexlist');
   el.innerHTML = BESTIARY.map(b=>{
@@ -8945,20 +9077,29 @@ function renderDex(){
           <div class="dexdesc">${b.hint || 'Aún no has derrotado a esta unidad.'}</div>
         </div></div>`;
     }
-    // Con varios estados, la imagen se puede tocar para ir pasando por ellos.
-    const st = b.states || null;
-    const idx = st ? (dexState[b.id] || 0) % st.length : 0;
-    const key = st ? st[idx][0] : b.sprite;
-    let art = '<span class="qmark" style="color:#7bffa0">☻</span>';
-    const oic = b.id === 'omni' ? omniIconURL() : b.id === 'tripode' ? tripodeIconURL() : '';
-    if (oic){
-      art = `<img src="${oic}" alt="">`;
-    } else if (key && sprites[key]){
-      art = `<img src="${sprites[key].img.src}" alt="">`;
+    // La imagen se puede tocar para ir pasando por sus estados y luego por
+    // sus versiones de los otros mapas (o la deformada del castigo).
+    const st = b.states || null, nSt = st ? st.length : 1;
+    const vars = regVariantes(b), total = nSt + vars.length;
+    const idx = (dexState[b.id] || 0) % total;
+    let art = '<span class="qmark" style="color:#7bffa0">☻</span>', etiqueta = st ? st[Math.min(idx, nSt - 1)][1] : 'ORIGINAL';
+    if (idx >= nSt){
+      const v = vars[idx - nSt], u = regVarURL(b.id, idx - nSt, v);
+      etiqueta = v[0];
+      if (u) art = `<img src="${u}" alt="">`;
+    } else {
+      const key = st ? st[idx][0] : b.sprite;
+      const oic = b.id === 'omni' ? omniIconURL() : b.id === 'tripode' ? tripodeIconURL() : '';
+      if (oic){
+        art = `<img src="${oic}" alt="">`;
+      } else if (key && sprites[key]){
+        art = `<img src="${sprites[key].img.src}" alt="">`;
+      }
     }
-    const cls = st ? 'dexart tapable' : 'dexart';
-    const tag = st ? ` data-state="${b.id}" title="Toca para ver sus estados"` : '';
-    const cap = st ? `<div class="dexstate">${esc(st[idx][1])} · ${idx+1}/${st.length} ▸</div>` : '';
+    const tapa = total > 1;
+    const cls = tapa ? 'dexart tapable' : 'dexart';
+    const tag = tapa ? ` data-state="${b.id}" title="${vars.length ? 'Toca para ver sus estados y sus versiones de otros mapas' : 'Toca para ver sus estados'}"` : '';
+    const cap = tapa ? `<div class="dexstate${idx >= nSt ? ' mapa' : ''}">${esc(etiqueta)} · ${idx+1}/${total} ▸</div>` : '';
     return `<div class="dexcard">
       <div class="${cls}"${tag}>${art}${cap}</div>
       <div class="dexinfo">
@@ -21392,6 +21533,9 @@ function askQuit(){
   stopMusic();
   sfx('ui');
   refreshAudioUI();               // los mandos de la pausa, al día
+  const fu = document.getElementById('pUiRow');                 // en el móvil, el tamaño de los mandos
+  if (fu) fu.style.display = tactil() ? '' : 'none';
+  refreshUiSize();
   show('confirmquit');
 }
 function resumeFromQuit(){
@@ -21500,17 +21644,24 @@ function refreshFullUI(){
 }
 
 // ---- Tamaño manual de los mandos ----
+// (los mismos mandos están en Ajustes y, en el móvil, en la pausa)
 function refreshUiSize(){
-  const v = document.getElementById('uiSizeVal');
-  const a = document.getElementById('tgUiAuto');
   const w = document.getElementById('uiSizeWho');
   if (w) w.textContent = '(' + heroName(hero) + ')';
   const auto = uiCur().size === 'auto';
-  if (v) v.textContent = auto ? 'AUTO' : Math.round(uiCur().size*100) + '%';
-  if (a){ a.textContent = auto ? 'AUTO' : 'MANUAL'; a.classList.toggle('off', !auto); }
-  const m1 = document.getElementById('uiMenos'), m2 = document.getElementById('uiMas');
-  if (m1) m1.style.opacity = auto ? 0.45 : 1;
-  if (m2) m2.style.opacity = auto ? 0.45 : 1;
+  for (const [iv, ia, im, ip] of [['uiSizeVal', 'tgUiAuto', 'uiMenos', 'uiMas'], ['pUiVal', 'pUiAuto', 'pUiMenos', 'pUiMas']]){
+    const v = document.getElementById(iv), a = document.getElementById(ia);
+    if (v) v.textContent = auto ? 'AUTO' : Math.round(uiCur().size*100) + '%';
+    if (a){ a.textContent = auto ? 'AUTO' : 'MANUAL'; a.classList.toggle('off', !auto); }
+    const m1 = document.getElementById(im), m2 = document.getElementById(ip);
+    if (m1) m1.style.opacity = auto ? 0.45 : 1;
+    if (m2) m2.style.opacity = auto ? 0.45 : 1;
+  }
+}
+function alternaTamAuto(){
+  const c = uiCur();                       // el del personaje que llevas (antes cambiaba uno que nadie leía)
+  c.size = (c.size === 'auto') ? 1 : 'auto';
+  saveUICfg(); layoutUI(); refreshUiSize(); sfx('ui');
 }
 function ajustaTam(d){
   const c = uiCur();
@@ -21700,15 +21851,12 @@ function alternaPantalla(){
   } catch(e){}
   setTimeout(refreshAudioUI, 120);       // el botón se reetiqueta solo
 }
-const _uiAuto = document.getElementById('tgUiAuto');
-if (_uiAuto) _uiAuto.addEventListener('click', ()=>{
-  uiCfg.size = (uiCfg.size === 'auto') ? 1 : 'auto';
-  saveUICfg(); layoutUI(); refreshUiSize(); sfx('ui');
-});
-const _uiM = document.getElementById('uiMenos');
-if (_uiM) _uiM.addEventListener('click', ()=> ajustaTam(-0.05));
-const _uiP = document.getElementById('uiMas');
-if (_uiP) _uiP.addEventListener('click', ()=> ajustaTam(0.05));
+for (const [ia, im, ip] of [['tgUiAuto', 'uiMenos', 'uiMas'], ['pUiAuto', 'pUiMenos', 'pUiMas']]){
+  const a = document.getElementById(ia), m = document.getElementById(im), pl = document.getElementById(ip);
+  if (a) a.addEventListener('click', alternaTamAuto);
+  if (m) m.addEventListener('click', ()=> ajustaTam(-0.05));
+  if (pl) pl.addEventListener('click', ()=> ajustaTam(0.05));
+}
 const _uiEd = document.getElementById('btnUiEditor');
 if (_uiEd) _uiEd.addEventListener('click', ()=>{
   uiEdOrient = uiOrient();
