@@ -1684,6 +1684,9 @@ const TROPA_PAL = {
               bota:'#141414', botaL:'#3a3a3a', arma:'#262628', armaL:'#5e5e62', culata:'#3a3a3c', gorra:'#1a2660', placa:'#e8c040' },
   centinela:{ cl:'#9aa8b8', md:'#5e6c7e', os:'#3e4a5a', mo:'#262e3a', pantL:'#5a6676', pant:'#3e4856', pantO:'#262e3a',
               bota:'#141820', botaL:'#3a4250', arma:'#20262e', armaL:'#7fe8ff', culata:'#2a323c', mochila:'#3e4a5a' },
+  // Centinela de élite: armadura blanca acolchada, botas negras, brazalete rojo
+  centElite:{ cl:'#f4f6f8', md:'#d4d8de', os:'#9aa0a8', mo:'#5e646c', pantL:'#e2e6ea', pant:'#c4c8ce', pantO:'#7e848c',
+              bota:'#121216', botaL:'#34343a', arma:'#1c2026', armaL:'#8a96a4', culata:'#2a2e36', mochila:'#c4c8ce' },
   minigun:  { cl:'#c3cf74', md:'#95a44a', os:'#63722c', mo:'#3e4a18', pantL:'#a9b660', pant:'#7f8e3c', pantO:'#55621f',
               bota:'#2e2616', botaL:'#4a3e26', arma:'#5a5a58', armaL:'#9a9a96', culata:'#3a3a38',
               mochila:'#6a6452', mochilaL:'#8a8468', mochilaO:'#44402e' }
@@ -1727,7 +1730,7 @@ function tpierna(g, P, hx, hy, kx, ky, fx, fy, lejos, grosor){
 }
 function tropaCuerpo(g, tipo, v, pose, f, aim){
   const zb = pose === 'zombi';
-  const P = TROPA_PAL[tipo], S = zb ? TROPA_ZOMBI : tipo === 'centinela' ? ['#4a5464', '#323a48', '#1a2028'] : TROPA_PIEL[v & 3], bigote = !!(v & 4), extra = !!(v & 8);
+  const P = TROPA_PAL[tipo], S = zb ? TROPA_ZOMBI : (tipo === 'centinela' || tipo === 'centElite') ? ['#4a5464', '#323a48', '#1a2028'] : TROPA_PIEL[v & 3], bigote = !!(v & 4), extra = !!(v & 8);
   const mg = tipo === 'minigun', pol = tipo === 'police';
   const agarr = pose === 'grab' || pose === 'thrown' || zb, tumb = pose === 'tumbado';
   const lanz = pose === 'thrown';
@@ -1759,7 +1762,7 @@ function tropaCuerpo(g, tipo, v, pose, f, aim){
     tpx(g, P.mochilaO, 2, 20, 14, 1); tpx(g, P.mochilaO, 3, 24, 12, 1); tpx(g, P.mochilaO, 8, 9, 1, 19);
     for (const [x, y] of [[4, 16], [12, 16], [5, 26], [12, 26]]) tpx(g, '#b0a888', x, y, 1, 1);   // remaches
     tpx(g, '#8a7a3a', 6, 7, 2, 2); tpx(g, '#8a7a3a', 11, 8, 2, 2);                              // tapas
-  } else if (tipo === 'centinela'){
+  } else if (tipo === 'centinela' || tipo === 'centElite'){
     // batería de energía a la espalda
     tpx(g, '#262e3a', 8, 17, 6, 10); tpx(g, '#3e4a5a', 9, 18, 4, 3); tpx(g, '#7fe8ff', 10, 22, 2, 3);
   } else if (!pol){
@@ -1797,6 +1800,7 @@ function tropaCuerpo(g, tipo, v, pose, f, aim){
   } else {
     tpx(g, P.os, tx + 5, 20, 3, 3); tpx(g, P.cl, tx + 5, 20, 3, 1);  // bolsillo del pecho
     if (mg){ for (let k = 0; k < tw - 2; k += 2){ tpx(g, '#d8b43e', tx + 1 + k, 18 + (k % 4 ? 1 : 0), 1, 2); } }   // cinta de balas
+    else if (tipo === 'centElite'){ tpx(g, '#5e646c', tx + 1, 17, 1, 9); tpx(g, '#e8a020', tx + 6, 19, 3, 1); tpx(g, '#1a1a1e', tx + 6, 20, 3, 1); }   // correa e insignia
     else { tpx(g, '#4a3418', tx + 1, 17, 1, 9); }                   // correa cruzada
   }
   tpx(g, pol ? '#101010' : '#4a3418', tx - 1, hipY - 2, tw + 2, 2);   // cinturón
@@ -1839,6 +1843,7 @@ function tropaCuerpo(g, tipo, v, pose, f, aim){
     if (!mg) tpx(g, '#4a3418', hx - 4, hy - 1, 1, 5);               // barboquejo
   }
   if (tipo === 'centinela') tropaMascara(g, P, hx, hy);
+  if (tipo === 'centElite') tropaMascaraElite(g, hx, hy);
   // ---- brazo cercano y arma ----
   if (zb){
     tlinea(g, P.md, 3.6, 18, 19, 29, 19 + ((f + 1) % 2));
@@ -1889,7 +1894,7 @@ function tropaCuerpo(g, tipo, v, pose, f, aim){
     tpx(g, P.arma, 0, -1.5, 9, 3); tpx(g, P.armaL, 1, -1.5, 7, 1);
     tpx(g, P.arma, 9, -1, 7, 1.5); tpx(g, '#6a6a6e', 13, 0.5, 2, 1);   // cañón y linterna
     tpx(g, P.arma, 3, 1, 2, 3);                                      // cargador
-  } else if (tipo === 'centinela'){
+  } else if (tipo === 'centinela' || tipo === 'centElite'){
     // fusil de pulsos: cuerpo negro con el núcleo de energía encendido
     tpx(g, P.culata, -6, -1.5, 6, 3);
     tpx(g, P.arma, 0, -2, 15, 4); tpx(g, '#3a4250', 1, -2, 13, 1);
@@ -1920,6 +1925,7 @@ function tropaCuerpo(g, tipo, v, pose, f, aim){
   g.fillStyle = S[1]; g.beginPath(); g.arc(mA[0], mA[1], 1.7, 0, Math.PI*2); g.fill();
   tlinea(g, P.md, 3.8, 19, 19, mB[0] - 1, mB[1]);
   tlinea(g, P.cl, 1.2, 19, 18, mB[0] - 2, mB[1] - 1);
+  if (tipo === 'centElite'){ g.fillStyle = '#c0161e'; g.beginPath(); g.arc(19.6, 19.2, 2.2, 0, Math.PI*2); g.fill(); tpx(g, '#ff4a4a', 19, 17.6, 1, 1); }   // brazalete rojo
   g.fillStyle = S[0]; g.beginPath(); g.arc(mB[0], mB[1], 1.9, 0, Math.PI*2); g.fill();
   tpx(g, S[1], Math.round(mB[0]) - 1, Math.round(mB[1]) + 1, 2, 1);
 }
@@ -1932,6 +1938,18 @@ function tropaMascara(g, P, hx, hy){
   tpx(g, '#7fe8ff', hx + 1.5, hy - 2, 2, 2); tpx(g, '#7fe8ff', hx + 4, hy - 2, 1.6, 2);
   tpx(g, '#e8ffff', hx + 1.5, hy - 2, 1, 1);
   tpx(g, '#141820', hx + 2, hy + 2, 4, 3); tpx(g, '#5e6c7e', hx + 3, hy + 3, 2, 1);
+}
+// Casco del centinela de élite: blanco y cerrado, con un único ojo rojo que
+// brilla en el centro, el respirador negro debajo y el cuello alto.
+function tropaMascaraElite(g, hx, hy){
+  g.fillStyle = '#5e646c'; g.beginPath(); g.ellipse(hx, hy - 0.5, 5.9, 6.3, 0, 0, Math.PI*2); g.fill();
+  g.fillStyle = '#eef0f2'; g.beginPath(); g.ellipse(hx + 0.6, hy - 1, 5.1, 5.5, 0, 0, Math.PI*2); g.fill();
+  tpx(g, '#c4c8ce', hx - 4, hy - 1, 2, 4); tpx(g, '#ffffff', hx - 2, hy - 6, 4, 1);
+  g.fillStyle = '#2a2e34'; g.beginPath(); g.arc(hx + 3, hy - 1.6, 2.7, 0, Math.PI*2); g.fill();     // engaste del ojo
+  g.fillStyle = '#ff2a2a'; g.beginPath(); g.arc(hx + 3, hy - 1.6, 1.9, 0, Math.PI*2); g.fill();
+  tpx(g, '#ffd0c8', hx + 2, hy - 3, 1, 1);
+  tpx(g, '#1a1c20', hx + 2, hy + 2, 4, 3); tpx(g, '#5e646c', hx + 3, hy + 3, 2, 1);                    // respirador
+  tpx(g, '#1a1c20', hx - 4, hy + 4, 7, 2);                                                            // cuello alto
 }
 function tropaBoca(tipo, aim){
   const ang = aim*0.42, gx = 18, gy = tipo === 'minigun' ? 24 : 21, L = tipo === 'minigun' ? 22 : tipo === 'police' ? 16 : 19;
@@ -4556,7 +4574,7 @@ function edgeSpawnPos(dmin, dmax, vuela){
 
 const ENEMY_TYPES = { police:1, military:1, minigun:1, tank:1, heli:1, gunship:1, siege:1, flametank:1, plane:1, omni:1, artillero:1, superx:1, mbt:1, mbtFrio:1, ovni:1, tripode:1,
                       heroe:1, arquero:1, caballero:1, golem:1, kaiyin:1,
-                      centinela:1, droide:1, escaner:1, cabezon:1, arana:1, murcielago:1, caza40k:1, centurion:1, vengativo:1, bicho:1, amalgama:1, desgarrador:1 };
+                      centinela:1, centElite:1, droide:1, escaner:1, cabezon:1, arana:1, murcielago:1, caza40k:1, centurion:1, vengativo:1, bicho:1, amalgama:1, desgarrador:1 };
 function spawnEnemy(type, atX, atY){
   if (!ENEMY_TYPES[type]) return;      // ignora tipos retirados o mal escritos
   // Lo que vuela puede aparecer sobre un tejado; el resto, no.
@@ -4597,6 +4615,7 @@ function spawnEnemy(type, atX, atY){
   // El Héroe Mágico: no pelea, invoca, escuda y cura; su ejército son almas.
   // ---- planeta marciano ----
   if (type==='centinela') Object.assign(base, {hp:60, maxhp:60, speed:62, w:28, h:36, grabbable:true, person:true, var:(Math.random()*16) | 0});
+  if (type==='centElite') Object.assign(base, {hp:80, maxhp:80, speed:66, w:28, h:36, grabbable:true, person:true, var:(Math.random()*16) | 0});
   if (type==='droide')    Object.assign(base, {hp:30, maxhp:30, speed:70, w:22, h:38, grabbable:true, person:true});
   if (type==='cabezon')   Object.assign(base, {hp:45, maxhp:45, speed:58, w:26, h:40, grabbable:true, person:true, fase:'', ft:0, cd:rand(1.5, 3), rA:0});
   if (type==='escaner')   Object.assign(base, {hp:28, maxhp:28, speed:130, w:30, h:28, grabbable:true, ligero:true, alt:48, bob:rand(0,6),
@@ -6620,6 +6639,7 @@ const REWARD = {
   tripode:  { pts:900,  heal:60 },  // llegan varios: cada uno algo más que un asedio
   heroe:    { pts:2400, heal:76 },
   centinela:{ pts:70,   heal:14 },
+  centElite:{ pts:110,  heal:18 },
   droide:   { pts:45,   heal:8 },
   escaner:  { pts:120,  heal:14 },
   cabezon:  { pts:140,  heal:18 },
@@ -6756,7 +6776,7 @@ function damageEnemy(e, dmg, fx, fy){
   else hp = clamp(hp + Math.round(rw.heal * curaPorBaja()), 0, maxHp());
   if (!Online.culpaInv && culpaJug > 0 && isMaq()) maqRegenera();
   // con el poder arcano del mago, los agentes caídos se levantan como zombis
-  if ((k === 'police' || k === 'military' || k === 'minigun' || k === 'centinela') && bajaArcana()) levantaZombi(e);
+  if ((k === 'police' || k === 'military' || k === 'minigun' || k === 'centinela' || k === 'centElite') && bajaArcana()) levantaZombi(e);
   // el mago convierte los tanques en ogros y los helicópteros en dragones
   // (con el poder arcano del OVNI, igual que los zombis)
   if ((k === 'tank' || k === 'arana') && bajaArcana()) levantaAliado(e, 'ogro');
@@ -8755,6 +8775,9 @@ const BESTIARY = [
     desc:'El dragón de tres cabezas en tamaño colosal. Llega volando y desata una tormenta: los rayos caen donde se marca el suelo. Camina aplastando edificios y alterna ataques: aletazo que lo barre todo alrededor, embestida marcada que arrasa lo que hay en la línea, vuelo en picado con mordisco antes de aterrizar y, sobre todo, sus tres rayos. De esos rayos solo te salva un escudo: ponte detrás de un edificio, interpón un auto o lo que lleves agarrado, o usa la burbuja o los objetos del mago.' },
   { id:'centinela', name:'CENTINELA', hp:60, dmg:'8 por disparo', sprite:'centinelaF',
     desc:'Soldado de la guardia marciana, con máscara de visores y una mochila de energía a la espalda. Guarda la distancia y dispara ráfagas de su rifle de pulsos. Los ojos escáner los llaman de tres en tres. Se pueden agarrar como cualquier soldado.' },
+  { id:'centElite', name:'CENTINELA DE ÉLITE', hp:80, dmg:'9 por disparo', sprite:'centEliteF',
+    hint:'La guardia marciana guarda a sus mejores para cuando la cosa se pone seria.',
+    desc:'Lo mejor de la guardia marciana: armadura blanca acolchada, casco cerrado con un único ojo rojo, botas negras y un brazalete rojo. Es casi como el centinela, pero aguanta algo más, dispara desde un poco más lejos y no se deja alcanzar: si te le echas encima, retrocede sin dejar de disparar. Cuando pasas de 8000 puntos en el planeta marciano, sustituye a los centinelas normales (también los que llaman los escáneres).' },
   { id:'droide', name:'DROIDE DE BATALLA', hp:30, dmg:'7 + quemadura', sprite:'droideF',
     desc:'Robot flaco fabricado en serie. Sus láseres queman: cada impacto te deja ardiendo un momento. Es frágil, pero dispara desde más lejos que nadie y se queda atrás, a más de cuatrocientos metros, para no darte el gusto de alcanzarlo.' },
   { id:'cabezon', name:'CABEZÓN VERDE', hp:45, dmg:'38 (rayo desintegrador)', sprite:'cabezonF',
@@ -9683,6 +9706,7 @@ const P2_CIUDAD = [
 // El planeta marciano: su ejército, el meteorito y su jefe.
 const P2_ALIEN = [
   { type:'centinela', name:'CENTINELA',  cost:70,  cool:1.6, sprite:'centinelaF' },
+  { type:'centElite', name:'C. ÉLITE',   cost:110, cool:2.2, sprite:'centEliteF' },
   { type:'droide',    name:'DROIDE',     cost:60,  cool:1.4, sprite:'droideF' },
   { type:'murcielago',name:'MURCIÉLAGO', cost:90,  cool:2.0, sprite:'murcielagoF' },
   { type:'escaner',   name:'ESCÁNER',    cost:160, cool:6.0, sprite:'escanerF' },
@@ -12469,6 +12493,11 @@ function dibCaza(g, pose, f){
 }
 
 // ---------- comportamiento ----------
+// Centinela de élite: casi igual que el centinela, pero dispara desde algo más
+// lejos y retrocede si lo tienes encima. Pasados los 8000 puntos sustituye al
+// centinela normal en el planeta marciano.
+const CENT_ELITE_PTS = 8000, CENT_ELITE_ALC = 690, CENT_ELITE_RETRO = 200;
+function tipoCentinela(){ return esAlien() && score >= CENT_ELITE_PTS ? 'centElite' : 'centinela'; }
 function blancoAlien(e, a, ang){
   if (zombis.length){ const z = zombiObjetivo(e, a); if (z) return { T:z, d:dist(e.x, e.y, z.x, z.y), an:Math.atan2(z.y - e.y, z.x - e.x) }; }
   return { T:player, d:a, an:ang };
@@ -12572,13 +12601,13 @@ function updateEscaner(e, dt, a, ang){
   e.llama -= dt;
   if (e.llama <= 0){
     e.llama = 11;
-    let n = 0; for (const o of enemies) if (!o.dead && o.type === 'centinela') n++;
+    let n = 0; for (const o of enemies) if (!o.dead && (o.type === 'centinela' || o.type === 'centElite')) n++;
     if (n < 12){
       for (let i = 0; i < 3; i++){
         const an = Math.random()*Math.PI*2, r = 50 + Math.random()*40;
         let x = clamp(e.x + Math.cos(an)*r, 40, WORLD_W - 40), y = clamp(e.y + Math.sin(an)*r, 40, WORLD_H - 40);
         if (dentroDeEdificio(x, y, 16)){ const p = edgeSpawnPos(300, 420, false); x = p.x; y = p.y; }
-        spawnEnemy('centinela', x, y);
+        spawnEnemy(tipoCentinela(), x, y);
         addParticles(x, y, '#7fe8ff', 12, 140);
       }
       toast('¡EL ESCÁNER PIDIÓ REFUERZOS!');
@@ -12815,7 +12844,7 @@ function updateSpawnsAlien(dt, count){
     }
   };
   if (stage >= 2){
-    if (tic('cen', 0) && count('centinela') < Math.min(2 + Math.floor(gameTime/25), 8)){ grupo('centinela', 2, 30); T.cen = rand(4, 6); }
+    if (tic('cen', 0) && count('centinela') + count('centElite') < Math.min(2 + Math.floor(gameTime/25), 8)){ grupo(tipoCentinela(), 2, 30); T.cen = rand(4, 6); }
     else if (T.cen <= 0) T.cen = 1;
     if (tic('esc', 22) && gameTime > 25){ if (count('escaner') < (stage >= 3 ? 2 : 1)) spawnEnemy('escaner'); T.esc = rand(16, 24); }
   }
@@ -14432,6 +14461,7 @@ function drawMisilCayendo(m){
     const g = o.getContext('2d'); g.imageSmoothingEnabled = false; g.drawImage(c, 0, 0, o.width, o.height);
     const img = new Image(); img.src = o.toDataURL(); sprites[k] = { img, face:1 }; };
   ficha('centinelaF', tropaFrame('centinela', 1, 'aim', 4, 0), 2);
+  ficha('centEliteF', tropaFrame('centElite', 1, 'aim', 4, 0), 2);
   ficha('droideF', alienFrame('droide', 'ataca', 0), 2); ficha('cabezonF', alienFrame('cabezon', 'ataca', 0), 2);
   ficha('escanerF', alienFrame('escaner', 'ataca', 0), 2); ficha('aranaF', alienFrame('arana', 'anda', 0), 1.3);
   ficha('murcielagoF', alienFrame('murcielago', 'ataca', 0), 2); ficha('caza40kF', alienFrame('caza40k', 'ataca', 0), 1.4);
@@ -17414,7 +17444,7 @@ function objLabel(o){
   if (o.type === 'vengativo') return 'VENGATIVO';
   if (o.type === 'bicho') return 'BICHO GUERRERO';
   if (o.type === 'amalgama') return 'AMALGAMA';
-  const AL_NOM = { centinela:'CENTINELA', droide:'DROIDE', escaner:'ESCÁNER', cabezon:'CABEZÓN', arana:'ARAÑA', murcielago:'MURCIÉLAGO', caza40k:'DRON' };
+  const AL_NOM = { centinela:'CENTINELA', centElite:'CENTINELA ÉLITE', droide:'DROIDE', escaner:'ESCÁNER', cabezon:'CABEZÓN', arana:'ARAÑA', murcielago:'MURCIÉLAGO', caza40k:'DRON' };
   if (AL_NOM[o.type]) return AL_NOM[o.type];
   return 'OBJETO';
 }
@@ -17477,7 +17507,7 @@ function heldRect(){
 // Arrastrar un objeto sostenido contra alguien lo atropella sin necesidad de lanzarlo.
 // Blandos (civil / policía / militar) mueren al instante; blindados solo reciben
 // daño leve y salen empujados. El objeto usado se desgasta en cada impacto.
-const SOFT = { civ:1, police:1, military:1, centinela:1, droide:1, cabezon:1, vengativo:1 };   // mueren al instante por embestida
+const SOFT = { civ:1, police:1, military:1, centinela:1, centElite:1, droide:1, cabezon:1, vengativo:1 };   // mueren al instante por embestida
 let ramCd = 0;
 
 function updateRam(dt){
@@ -18495,12 +18525,17 @@ function updateEnemies(dt){
     if (e.type==='gunship'){ keepDist = 300; r = 0; e.bob += dt; }
     if (e.type==='minigun') keepDist = 210;
     if (e.type==='centinela') keepDist = blanco !== player ? 140 : 230;
+    if (e.type==='centElite') keepDist = blanco !== player ? 160 : 290;
     if (e.type==='droide') keepDist = blanco !== player ? 220 : 420;      // disparan desde lejos
     if (e.type==='siege'){ keepDist = 430; r = 44; }
 
     if (a > keepDist){
       e.x += Math.cos(ang)*e.speed*dt;
       e.y += Math.sin(ang)*e.speed*dt;
+    } else if (e.type === 'centElite' && blanco === player && a < CENT_ELITE_RETRO){
+      // el de élite no se deja alcanzar: si lo tienes encima, retrocede disparando
+      e.x = clamp(e.x - Math.cos(ang)*e.speed*1.2*dt, 20, WORLD_W - 20);
+      e.y = clamp(e.y - Math.sin(ang)*e.speed*1.2*dt, 20, WORLD_H - 20);
     }
     // helicopters fly over the city; everyone else is blocked by buildings
     if (e.type !== 'heli' && e.type !== 'gunship' && e.type !== 'plane')
@@ -18544,6 +18579,9 @@ function updateEnemies(dt){
       } else if (e.type==='centinela' && a < 600){
         e.shootCd = rand(0.9, 1.3);
         const b = mkBullet(e, ang + rand(-0.04, 0.04), 430, 8, '#7fe8ff', 3); b.laser = true; bullets.push(b);
+      } else if (e.type==='centElite' && a < CENT_ELITE_ALC){
+        e.shootCd = rand(0.85, 1.2);
+        const b = mkBullet(e, ang + rand(-0.035, 0.035), 460, 9, '#ff5a4a', 3); b.laser = true; b.life = 2.4; bullets.push(b);
       } else if (e.type==='droide' && a < 760){
         e.shootCd = rand(1.1, 1.7);
         const b = mkBullet(e, ang + rand(-0.06, 0.06), 470, 7, '#ff4a3a', 3); b.laser = true; b.quema = true; bullets.push(b);
@@ -18569,7 +18607,7 @@ function updateEnemies(dt){
         fired = false;
         e.shootCd = 0.35;
       }
-      if (fired){ sfx(e.type==='siege' ? 'boom' : (e.type === 'centinela' || e.type === 'droide') ? 'laserE' : 'shoot'); e._tiro = gameTime; }
+      if (fired){ sfx(e.type==='siege' ? 'boom' : (e.type === 'centinela' || e.type === 'centElite' || e.type === 'droide') ? 'laserE' : 'shoot'); e._tiro = gameTime; }
     }
   }
   enemies = enemies.filter(e=>!e.dead);
@@ -20287,7 +20325,7 @@ function drawEnemyBase(e){
          alt ? 0.62 : 0.95);
 
   const dy = s.y - alt;
-  if (e.type==='police' || e.type==='military' || e.type==='minigun' || e.type==='centinela'){
+  if (e.type==='police' || e.type==='military' || e.type==='minigun' || e.type==='centinela' || e.type==='centElite'){
     const grabbed = e.held;                     // en el tentáculo: patalea y grita
     const flying  = e.thrown;                   // volando tras el lanzamiento
     const stunned = !grabbed && !flying && e.stunT > 0 && !(e.hieloT > 0);   // derribado (congelado, de pie)
