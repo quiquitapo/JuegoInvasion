@@ -4689,7 +4689,7 @@ function spawnEnemy(type, atX, atY){
   if (type==='gravitron') Object.assign(base, {hp:GRAV_HP, maxhp:GRAV_HP, speed:60, w:130, h:70, grabbable:true, alt:96, bob:rand(0,6),
                             fase:'', ft:0, cd:2.5, gF:'', gT:0, gx:0, gy:0, gR:GRAV_R, bombas:0, tiroT:0});
   if (type==='desesperacion') Object.assign(base, {hp:DESES_HP, maxhp:DESES_HP, speed:230, w:50, h:150, grabbable:false, fase:'', ft:0, paso:0, etapa:0,
-                            lleva:0, golpeCd:0, lanzaCd:1, comeCd:3, espCd:4, empujeCd:0, sx:0, sy:0, eA:0, alt:0});
+                            lleva:0, golpeCd:0, lanzaCd:1, comeCd:3, espCd:4, empujeCd:0, ovniCd:1, sx:0, sy:0, eA:0, sA:0, alt:0, mancos:0, escupio:0});
   if (type==='aracnido')  Object.assign(base, {hp:ARAC_HP, maxhp:ARAC_HP, speed:120, w:200, h:140, grabbable:false, fase:'', ft:0, cd:2.2, paso:0,
                             tx:0, ty:0, tw:0, sx:0, sy:0, s0x:0, s0y:0, ax:0, ay:0, atrapa:0, muerde:0, lasN:0, lasT:0, pn:0, p0t:0, p1t:0, p2t:0});
   if (type==='heroe')     Object.assign(base, {hp:HEROE_HP, maxhp:HEROE_HP, speed:58, w:44, h:58, grabbable:false,
@@ -9016,7 +9016,7 @@ const BESTIARY = [
     desc:'Un alma distinta a las demás: busca a las almas en pena y se las traga, y con cada una crece y gana vida. Le han salido brazos y piernas, y su cabeza es un amasijo de caras que gritan. Arranca los autos calcinados para lanzártelos y embiste en línea recta tras marcarla en el suelo. Mátala antes de que engorde.' },
   { id:'desesperacion', name:'DESESPERACIÓN', hp:2600, dmg:'zarpazos, objetos lanzados, salto y embestida desenfrenada', sprite:'desesperacionF', verb:'DERROTADAS',
     hint:'En Castigo Divino algo corre hacia ti sin cansarse nunca.',
-    desc:'El jefe propio de Castigo Divino: un ser humanoide altísimo y escuálido, de piel gris tirante sobre las costillas, brazos que le llegan a los tobillos con dedos larguísimos, cuencas vacías con un punto de luz y una mandíbula descolgada llena de agujas. Corre hacia ti sin parar, agarra lo que pilla por el camino (autos, farolas, soldados) y te lo lanza; de cerca, zarpazos. Para curarse agarra a cualquiera de los suyos y se lo come, y además se regenera poco a poco. Algo pesado lanzado o el puño cargado del viltrumita lo mandan lejos, pero vuelve corriendo. Sus especiales: un salto sobre la zona que marca y una embestida desenfrenada de tres tramos que arrasa con todo. Cuanta menos vida tiene, peor se ve: primero se le cae la piel y asoman los huesos; al final corre a cuatro patas.' },
+    desc:'El jefe propio de Castigo Divino: un ser humanoide altísimo y escuálido, de piel gris tirante sobre las costillas, brazos larguísimos con garras, cuencas vacías con un punto de luz y una mandíbula descolgada llena de agujas. Empieza corriendo a cuatro patas: agarra lo que pilla por el camino (autos, farolas, soldados) y te lo lanza, y de cerca da zarpazos. Atraviesa los edificios como si no estuvieran y sus pisadas aplastan a la tropa menuda. Con el daño se le cae la piel y, al final, se le caen los dos brazos: entonces corre a dos patas y ataca a mordiscos, saltos y embestidas. A mitad de vida escupe un gran chorro de sangre que daña todo lo que toca. Cuando necesita curarse se abalanza al suelo a devorar a los suyos, apartándose un poco de ti, y además se regenera poco a poco. Si aparece el OVNI salta a por él: si lo destroza, se cura por completo. Algo pesado lanzado o el puño cargado del viltrumita lo mandan lejos, pero vuelve corriendo. Sus especiales: un salto sobre la zona que marca y una embestida desenfrenada de tres tramos.' },
   { id:'vengativo', name:'VENGATIVO', hp:12, dmg:'se te aferra y muerde', sprite:'vengativoF', verb:'DEVUELTOS AL SUELO',
     hint:'Algo se mueve bajo el suelo de Castigo Divino.',
     desc:'Lo que queda de los que mataste, retorcido por el castigo. Salen del suelo del infierno en grupo, corren en zigzag muy rápido y se te echan encima: los que te alcanzan se aferran a ti y te muerden hasta que se sueltan (corriendo te los quitas antes). Uno solo no aguanta nada; el peligro es que lleguen muchos. En Castigo Divino también te esperan el resto de las unidades de la ciudad y del planeta marciano, deformadas: más vida, más rápidas y más daño, pero valen más puntos. Hasta los jefes vuelven así.' },
@@ -9240,8 +9240,8 @@ function regVariantes(b){
     const e = id === 'lamp' ? 1 : 2.4;                     // basurero y banca son pequeños: se amplían
     return [[AL, ()=> spriteListo(k) ? cvURL(spriteTenido(k, A[1]), e) : ''], [INF, ()=> spriteListo(k) ? cvURL(spriteTenido(k, I[1]), e) : '']];
   }
-  if (id === 'desesperacion') return [[INF + ' · herida: asoman los huesos', ()=> cvURL(desespFrame(1, 'corre', 1), 0.85)],
-                                      [INF + ' · moribunda: a cuatro patas', ()=> cvURL(desespFrame(2, 'corre', 1), 0.85)]];
+  if (id === 'desesperacion') return [[INF + ' · herida: se le cae la piel', ()=> cvURL(desespFrame(1, 'corre', 1), 0.85)],
+                                      [INF + ' · sin brazos: a dos patas, a mordiscos', ()=> cvURL(desespFrame(2, 'corre', 1), 0.85)]];
   if (id === 'arana') return [[VD + ' · patas de araña', ()=> regD(conMapa('infierno', ()=> alienFrame('arana', 'anda', 0)), 1.3)]];
   if (id === 'desgarrador') return [[VD + ' · despellejado', ()=> conMapa('infierno', ()=>
     regD(desFrame('corta', 0, 'carne'), 0.9, g=> g.drawImage(desFrame('corta', 0, 'huesos'), 0, 0)))]];
@@ -14836,7 +14836,7 @@ function desespFrame(et, pose, f){
 function dibDesesperacion(g, et, pose, f){
   const piel = et ? '#8a8378' : '#9a948a', pielO = '#5e584f', pielD = '#3a3530', lejos = '#55504a';
   const hueso = '#efe6cc', huesoO = '#b4a98e', carne = '#7a1410', sangre = '#4e0606', boca = '#0a0204', diente = '#f2ecda';
-  const ph = f/4*Math.PI*2, cuatro = et >= 2;
+  const ph = f/4*Math.PI*2, cuatro = et < 2, sinBrazos = et >= 2;
   const P = (x, y)=>({ x, y });
   const desde = (o, a, L)=> P(o.x + Math.sin(a)*L, o.y + Math.cos(a)*L);
   let H, Sh, Hd, rotCab, piernas, brazos;
@@ -14866,13 +14866,13 @@ function dibDesesperacion(g, et, pose, f){
     }
   };
   if (!cuatro){
-    const incl = [0.3, 0.55][et] + (pose === 'embiste' ? 0.6 : pose === 'come' ? 0.55 : pose === 'salta' ? 0.5 : pose === 'golpe' ? 0.2 : 0);
+    const incl = 0.6 + (pose === 'embiste' ? 0.55 : pose === 'come' ? 0.8 : pose === 'salta' ? 0.45 : pose === 'muerde' ? (f ? 0.65 : 0.35) : pose === 'sangre' ? -0.2 : 0);
     H = P(0, -84); Sh = desde(H, Math.PI - incl, 66);
-    Hd = desde(Sh, Math.PI - incl - 0.75, 24); rotCab = incl*0.9 + 0.25;
+    Hd = desde(Sh, Math.PI - incl - 0.75, pose === 'muerde' && f ? 36 : 26); rotCab = incl*0.9 + 0.25;
   } else {
     const alza = pose === 'golpe' || pose === 'carga';
-    H = P(-40, -62); Sh = alza ? P(14, -124) : pose === 'come' ? P(36, -52) : P(38, -70);
-    Hd = alza ? P(Sh.x + 14, Sh.y - 8) : P(Sh.x + 24, Sh.y + 6); rotCab = alza ? 0.4 : 1.2;
+    H = P(-40, -62); Sh = alza ? P(14, -124) : pose === 'come' ? P(36, -48) : pose === 'sangre' ? P(30, -92) : P(38, -70);
+    Hd = alza ? P(Sh.x + 14, Sh.y - 8) : pose === 'sangre' ? P(Sh.x + 26, Sh.y - 4) : P(Sh.x + 24, Sh.y + 6); rotCab = alza ? 0.4 : pose === 'sangre' ? 0.5 : 1.2;
   }
   // piernas (desde la cadera) y brazos (desde el hombro)
   piernas = [0, 1].map(l => { const [a1, a2] = piernaAng(l); const K = desde(H, a1, 42); return { K, F: desde(K, a2, 46) }; });
@@ -14943,7 +14943,7 @@ function dibDesesperacion(g, et, pose, f){
   const cabeza = ()=>{
     jL(g, et >= 2 ? huesoO : pielO, 5, Sh.x, Sh.y, Hd.x, Hd.y);                    // el cuello, largo y flaco
     g.save(); g.translate(Hd.x, Hd.y); g.rotate(rotCab); g.scale(1.35, 1.35);
-    const abre = pose === 'come' ? (f % 2 ? 6 : 22) : pose === 'golpe' || pose === 'salta' || pose === 'embiste' ? 26 : 20;
+    const abre = pose === 'muerde' ? (f ? 4 : 28) : pose === 'sangre' ? 30 : pose === 'come' ? (f % 2 ? 6 : 22) : pose === 'golpe' || pose === 'salta' || pose === 'embiste' ? 26 : 20;
     const cr = et >= 2 ? hueso : piel, crO = et >= 2 ? huesoO : pielO;
     if (et < 2) for (const [x, L] of [[-9, 22], [-5, 30], [-1, 20], [3, 26]]) jL(g, '#120d0c', 1.1, x, -11, x - 4, -11 + L);   // pelo ralo
     // la mandíbula descolgada: piel de abajo, boca negra y agujas
@@ -14970,20 +14970,31 @@ function dibDesesperacion(g, et, pose, f){
     if (et >= 2){ jR(g, boca, 18, -6, 2, 1.6); jL(g, huesoO, 0.8, -8, -8, 2, -10); }  // nariz hueca y grietas
     g.restore();
   };
-  pierna(piernas[0], false); brazo(brazos[0], false);
+  // sin brazos: dos muñones que gotean, con el hueso asomando
+  const munon = (cerca)=>{ const dx = cerca ? 4 : -2;
+    jL(g, cerca ? piel : lejos, 8, Sh.x, Sh.y, Sh.x + dx, Sh.y + 10); jO(g, carne, Sh.x + dx, Sh.y + 11, 4.5, 3.5); jO(g, hueso, Sh.x + dx + 1, Sh.y + 12, 2, 2);
+    jL(g, carne, 1.3, Sh.x + dx, Sh.y + 13, Sh.x + dx, Sh.y + 20); };
+  pierna(piernas[0], false); if (sinBrazos) munon(false); else brazo(brazos[0], false);
   torso(); cabeza();
-  pierna(piernas[1], true); brazo(brazos[1], true);
+  pierna(piernas[1], true); if (sinBrazos) munon(true); else brazo(brazos[1], true);
 }
 // ---- comportamiento ----
-function desEtapa(e){ const k = e.hp/(e.maxhp || 1); return k > 0.66 ? 0 : k > 0.33 ? 1 : 2; }
+// Etapas: 0 a cuatro patas, entera; 1 a cuatro patas, despellejada; 2 sin
+// brazos (se le caen) y a dos patas, mordiendo. Los brazos no vuelven.
+const DESES_SANGRE_L = 420, DESES_SANGRE_T = 1.8, DESES_MUERDE = 18;
+function desEtapa(e){ const k = e.hp/(e.maxhp || 1); return e.mancos ? 2 : k > 0.66 ? 0 : k > 0.33 ? 1 : 2; }
 function desSuelta(e){
   const o = e._obj;
   if (o){ o.presa = false; o.presaDe = null; }
-  e._obj = null; e.lleva = 0; e.comeT = 0;
+  e._obj = null; e.lleva = 0;
+}
+function desBoca(e){
+  const f = e.facing || 1, alt = alturaVisible(e);
+  return (e.etapa || 0) >= 2 ? { x: e.x + f*42, y: e.y - alt - 150 } : { x: e.x + f*70, y: e.y - alt - 62 };
 }
 // Un golpe enorme lo manda lejos. Vuelve corriendo.
 function desEmpuja(e, an){
-  if (!e || e.dead || e.type !== 'desesperacion' || (e.empujeCd || 0) > 0) return;
+  if (!e || e.dead || e.type !== 'desesperacion' || (e.empujeCd || 0) > 0 || e.fase === 'saltoOvni') return;
   desSuelta(e);
   e.fase = 'volando'; e.ft = 0.7; e.vx = Math.cos(an)*900; e.vy = Math.sin(an)*900; e.empujeCd = 1.2;
   addParticles(e.x, e.y - 60, '#7a1410', 16, 200); shake(10, 0.25); sfx('bigboom');
@@ -14993,11 +15004,11 @@ function desBusca(e, R, comida){
   let mejor = null, md = R*R;
   const mira = o => {
     if (!o || o.dead || o.held || o.thrown || enPresa(o) || o === e) return;
-    if (o.type && (JEFES[o.type] || o.grabbable === false)) return;
+    if (o.type && (JEFES[o.type] || o.grabbable === false || o.type === 'ovni')) return;
     const d2 = (o.x - e.x)*(o.x - e.x) + (o.y - e.y)*(o.y - e.y);
     if (d2 < md){ md = d2; mejor = o; }
   };
-  for (const t of enemies) if (t.person || t.kind === 'civ' || (!comida && t.grabbable && !t.alt)) mira(t);
+  for (const t of enemies) if (t.person || (!comida && t.grabbable && !t.alt)) mira(t);
   for (const c of civilians) mira(c);
   if (!comida){ for (const c of cars) mira(c); for (const l of lamps) mira(l); for (const b of trash) mira(b); for (const b of benches) mira(b); }
   return mejor;
@@ -15016,24 +15027,63 @@ function desLanza(e){
   o.byEnemy = true; o.porInv = false; o.marcianoT = gameTime + 1.2;
   sfx('throw'); shake(6, 0.15);
 }
+// Sus pisadas aplastan a la tropa menuda.
+function desPisa(e, R){
+  for (const pool of [civilians, enemies]) for (const t of pool){
+    if (t === e || t.dead || t.held || t.thrown || enPresa(t) || alturaVisible(t) > 0) continue;
+    if (!(t.person || t.kind === 'civ' || t.type === 'vengativo')) continue;
+    if (Math.abs(t.x - e.x) > R || Math.abs(t.y - e.y) > R*0.7) continue;
+    damageEnemy(t, 999, t.x, t.y); addParticles(t.x, t.y, '#7a1410', 8, 90);
+  }
+}
+// El chorro de sangre: daña a todo lo que toca, sin que nada lo pare.
+function desSangre(e, dt){
+  const o = desBoca(e), L = DESES_SANGRE_L, an = e.sA, ox = o.x, oy = e.y;
+  const golpeo = (x, y, r)=> enLinea(x, y, ox, oy, an, L, 26 + r);
+  if (!vil.intro && golpeo(player.x, player.y, F().r)) golpeDesSuave(34*dt);
+  if (dobleAnf() && Online.av && !Online.av.caido && golpeo(Online.proxy.x, Online.proxy.y, 20)) Online.danoInv += 34*dt;
+  for (const pool of [civilians, enemies]) for (const t of pool){
+    if (t === e || t.dead || t.held || !golpeo(t.x, t.y, 10)) continue;
+    damageEnemy(t, t.kind === 'civ' ? 999 : 90*dt, t.x, t.y);
+  }
+  for (const z of zombis) if (z.sube <= 0 && golpeo(z.x, z.y, 10)) z.hp -= 90*dt;
+  for (const b of buildings){
+    if (b.stage >= 2) continue;
+    for (let k = 0.25; k <= 1; k += 0.25){ const x = ox + Math.cos(an)*L*k, y = oy + Math.sin(an)*L*k;
+      if (x > b.x && x < b.x + b.w && y > b.y && y < b.y + b.h){ damageBuilding(b, 140*dt); break; } }
+  }
+  e.charcoT = (e.charcoT || 0) - dt;
+  if (e.charcoT <= 0){                                     // deja charcos por donde pasa
+    e.charcoT = 0.18; const k = (e.cn || 0) % 6, r = rand(0.35, 1);
+    e['c' + k + 'x'] = Math.round(ox + Math.cos(an)*L*r); e['c' + k + 'y'] = Math.round(oy + Math.sin(an)*L*r); e['c' + k + 't'] = 9; e.cn = k + 1;
+  }
+}
 function updateDesesperacion(e, dt, a, ang){
   e.anim = (e.anim || 0) + dt;
-  for (const k of ['golpeCd', 'lanzaCd', 'comeCd', 'espCd', 'empujeCd']) if (e[k] > 0) e[k] -= dt;
-  if (e.hp < e.maxhp) e.hp = Math.min(e.maxhp, e.hp + DESES_REGEN*dt);          // se regenera solo
+  for (const k of ['golpeCd', 'lanzaCd', 'comeCd', 'espCd', 'empujeCd', 'ovniCd', 'brT']) if (e[k] > 0) e[k] -= dt;
+  for (let k = 0; k < 6; k++) if (e['c' + k + 't'] > 0) e['c' + k + 't'] -= dt;
+  if (e.hp < e.maxhp) e.hp = Math.min(e.maxhp, e.hp + DESES_REGEN*dt);          // se regenera sola
   const et = desEtapa(e);
   if (et > (e.etapa || 0)){
     e.etapa = et;
-    toast(et === 1 ? '¡A DESESPERACIÓN SE LE CAE LA PIEL!' : '¡DESESPERACIÓN CORRE A CUATRO PATAS!', 2);
-    addParticles(e.x, e.y - 80, '#7a1410', 30, 240); addParticles(e.x, e.y - 80, '#efe6cc', 12, 180);
+    if (et === 2){                                       // se le caen los dos brazos
+      e.mancos = 1; desSuelta(e); if (e.fase === 'golpe' || e.fase === 'lanzaAviso') e.fase = '';
+      const f = e.facing || 1;
+      e.b0x = Math.round(e.x + f*40); e.b0y = Math.round(e.y + 14); e.b1x = Math.round(e.x - f*30); e.b1y = Math.round(e.y + 22); e.brT = 30;
+      toast('¡SE LE CAEN LOS BRAZOS! AHORA CORRE A DOS PATAS', 2.2); sfx('crack');
+      addParticles(e.x, e.y - 90, '#7a1410', 40, 260); addParticles(e.x, e.y - 90, '#efe6cc', 14, 200); shake(14, 0.35);
+    } else {
+      toast('¡A DESESPERACIÓN SE LE CAE LA PIEL!', 2);
+      addParticles(e.x, e.y - 60, '#7a1410', 26, 220); addParticles(e.x, e.y - 60, '#efe6cc', 10, 160);
+    }
     rugido('desesperacion', 0.8); if (_fxRed) _fxRed.push(['r', 'desesperacion', 0.8]);
-  } else if (et < (e.etapa || 0)) e.etapa = et;                                  // curado: se recompone
-  const vel = [1, 1.15, 1.32][e.etapa || 0];
-  // lo que lleva va por encima de su cabeza (o junto a la boca, si se lo come)
+  } else if (et < (e.etapa || 0)) e.etapa = et;                                  // curada: se recompone (los brazos, no)
+  const vel = [1, 1.12, 1.3][e.etapa || 0];
   const o = e._obj;
   if (o && (o.dead || o.held || o.thrown || o.presaDe !== e)){ e._obj = null; e.lleva = 0; }
   else if (o){
-    if (e.fase === 'come'){ o.x = e.x + (e.facing || 1)*34; o.y = e.y - (e.etapa >= 2 ? 40 : 95); }
-    else { o.x = e.x; o.y = e.y - (e.etapa >= 2 ? 120 : 175); }
+    if (e.fase === 'come'){ const b = desBoca(e); o.x = b.x; o.y = e.y + 6; }
+    else { o.x = e.x; o.y = e.y - 170; }
   }
   e.ft -= dt;
   switch (e.fase){
@@ -15042,46 +15092,73 @@ function updateDesesperacion(e, dt, a, ang){
       e.x = clamp(e.x + e.vx*dt, 40, WORLD_W - 40); e.y = clamp(e.y + e.vy*dt, 40, WORLD_H - 40);
       e.vx *= Math.pow(0.08, dt); e.vy *= Math.pow(0.08, dt);
       e.alt = Math.sin(k*Math.PI)*90;
-      const b = edifEn(e.x, e.y);
-      if (b){ damageBuilding(b, 260); addParticles(e.x, e.y, '#9aa6ad', 16, 160); e.ft = 0; }
       if (e.ft <= 0){ e.alt = 0; e.fase = 'levanta'; e.ft = 0.7; shake(8, 0.2); sfx('caidaGolpe'); }
       return;
     }
     case 'levanta':
       if (e.ft <= 0){ e.fase = ''; rugido('desesperacion', 0.6); if (_fxRed) _fxRed.push(['r', 'desesperacion', 0.6]); }
       return;
-    case 'golpe':
-      if (!e.golpeo && e.ft <= 0.22){
+    case 'golpe': case 'muerde':
+      if (!e.golpeo && e.ft <= 0.2){
         e.golpeo = 1;
-        if (a < 92 + F().r){ golpeDesSuave(DESES_GOLPE*(1 + (e.etapa || 0)*0.12)); shake(8, 0.18); sfx('hurt'); addParticles(player.x, player.y - 10, '#ff5b5b', 8, 110); }
-        else sfx('whoosh');
+        if (a < 95 + F().r){ golpeDesSuave(e.fase === 'muerde' ? DESES_MUERDE : DESES_GOLPE*(1 + (e.etapa || 0)*0.12)); shake(8, 0.18); sfx(e.fase === 'muerde' ? 'mordisco' : 'hurt'); addParticles(player.x, player.y - 10, '#ff5b5b', 8, 110); }
       }
-      if (e.ft <= 0){ e.fase = ''; e.golpeCd = 0.55; }
+      if (e.ft <= 0){ e.fase = ''; e.golpeCd = 0.5; }
       return;
     case 'lanzaAviso':
       e.facing = Math.cos(ang) >= 0 ? 1 : -1;
       if (e.ft <= 0){ desLanza(e); e.fase = ''; e.lanzaCd = rand(1.4, 2.4); }
       return;
-    case 'come':
+    case 'abalanza': {                                   // se tira al suelo sobre su presa
+      const v = e._presa;
+      if (!v || v.dead || v.held || v.thrown || enPresa(v)){ e.fase = ''; e.alt = 0; e._presa = null; return; }
+      const k = clamp(1 - e.ft/0.4, 0, 1);
+      e.x += (v.x - e.x)*Math.min(1, dt*9); e.y += (v.y - e.y)*Math.min(1, dt*9); e.alt = Math.sin(k*Math.PI)*40;
+      e.facing = v.x >= e.x ? 1 : -1;
+      if (e.ft <= 0 || dist(e.x, e.y, v.x, v.y) < 30){
+        e.alt = 0; e._presa = null;
+        e._obj = v; v.presa = true; v.presaDe = e; v.vx = 0; v.vy = 0;
+        e.fase = 'come'; e.ft = 0.9; sfx('grab'); shake(5, 0.12);
+      }
+      return;
+    }
+    case 'come': {                                       // come en el suelo, apartándose de ti
       if (!e._obj){ e.fase = ''; return; }
-      if (Math.random() < 0.4) addParticles(e._obj.x, e._obj.y - 10, '#8a0a0a', 3, 90);
+      if (a < 650){ e.x = clamp(e.x - Math.cos(ang)*70*dt, 40, WORLD_W - 40); e.y = clamp(e.y - Math.sin(ang)*70*dt, 40, WORLD_H - 40); }
+      if (Math.random() < 0.45) addParticles(e._obj.x, e._obj.y - 8, '#8a0a0a', 3, 90);
       if (e.ft <= 0){
         const v = e._obj; desSuelta(e);
         v.dead = true; v.presa = false;
         e.hp = Math.min(e.maxhp, e.hp + e.maxhp*0.1);
-        addParticles(e.x + (e.facing || 1)*30, e.y - 20, '#8a0a0a', 26, 200);
-        sfx('comeM'); e.fase = ''; e.comeCd = rand(4, 6);
+        addParticles(v.x, v.y - 10, '#8a0a0a', 24, 200);
+        sfx('comeM'); e.fase = ''; e.comeCd = 0.4;                // si sigue herida, va a por el siguiente
         if (!e.avisoCome){ e.avisoCome = 1; toast('¡DESESPERACIÓN DEVORA A LOS SUYOS PARA CURARSE!', 2.4); }
       }
       return;
-    case 'saltoAviso':
-      if (e.ft <= 0){ e.fase = 'salto'; e.ft = 0.55; e.s0x = e.x; e.s0y = e.y; sfx('dash'); }
+    }
+    case 'saltoAviso': case 'ovniAviso':
+      if (e.ft <= 0){ e.fase = e.fase === 'ovniAviso' ? 'saltoOvni' : 'salto'; e.ft = e.fase === 'saltoOvni' ? 0.8 : 0.55; e.s0x = e.x; e.s0y = e.y; sfx('dash'); }
       return;
-    case 'salto': {
-      const k = clamp(1 - e.ft/0.55, 0, 1);
-      e.x = e.s0x + (e.sx - e.s0x)*k; e.y = e.s0y + (e.sy - e.s0y)*k; e.alt = Math.sin(k*Math.PI)*170;
+    case 'salto': case 'saltoOvni': {
+      const T = e.fase === 'saltoOvni' ? 0.8 : 0.55, k = clamp(1 - e.ft/T, 0, 1);
+      e.x = e.s0x + (e.sx - e.s0x)*k; e.y = e.s0y + (e.sy - e.s0y)*k;
+      e.alt = Math.sin(k*Math.PI)*(e.fase === 'saltoOvni' ? 230 : 170);
       e.facing = e.sx >= e.s0x ? 1 : -1;
-      if (e.ft <= 0){ e.alt = 0; e.x = e.sx; e.y = e.sy; aracGolpeSuelo(e, e.x, e.y, DESES_SALTO_R, DESES_SALTO_DMG); e.fase = 'levanta'; e.ft = 0.35; }
+      if (e.fase === 'saltoOvni' && k > 0.35){             // ¿alcanza al OVNI en el aire?
+        const ov = enemies.find(q => q.type === 'ovni' && !q.dead && !q.held);
+        if (ov && dist(e.x, e.y, ov.x, ov.y) < 120){
+          ov.dead = true; e.hp = e.maxhp; e.etapa = desEtapa(e);
+          explode(ov.x, ov.y, 120, 0, true); addParticles(ov.x, ov.y - 60, '#9fe8ff', 30, 260); addParticles(ov.x, ov.y - 60, '#7a1410', 20, 200);
+          toast('¡DESESPERACIÓN DESTROZA EL OVNI Y SE CURA POR COMPLETO!', 2.6);
+          rugido('desesperacion', 1); if (_fxRed) _fxRed.push(['r', 'desesperacion', 1]);
+          e.sx = e.x; e.sy = e.y; e.s0x = e.x; e.s0y = e.y;     // cae ahí mismo
+        }
+      }
+      if (e.ft <= 0){
+        e.alt = 0; e.x = e.sx; e.y = e.sy;
+        aracGolpeSuelo(e, e.x, e.y, DESES_SALTO_R, e.fase === 'salto' ? DESES_SALTO_DMG : 12);
+        e.fase = 'levanta'; e.ft = 0.35;
+      }
       return;
     }
     case 'embAviso':
@@ -15103,66 +15180,96 @@ function updateDesesperacion(e, dt, a, ang){
       if (Math.random() < 0.6) addParticles(e.x, e.y, '#5a3a32', 2, 100);
       if (e.rest <= 0){
         e.tramos = (e.tramos || 1) - 1;
-        if (e.tramos > 0){ e.fase = 'embAviso'; e.ft = 0.22; e.eA = ang; }             // vuelve a apuntar y sigue
+        if (e.tramos > 0){ e.fase = 'embAviso'; e.ft = 0.22; e.eA = ang; }
         else { e.fase = 'levanta'; e.ft = 0.6; e.espCd = rand(5, 7); }
       }
       return;
     }
+    case 'sangreAviso':
+      e.sA = giraHacia(e.sA, ang, 3*dt); e.facing = Math.cos(e.sA) >= 0 ? 1 : -1;
+      if (e.ft <= 0){ e.fase = 'sangre'; e.ft = DESES_SANGRE_T; sfx('incinera'); shake(10, 0.3); }
+      return;
+    case 'sangre':
+      e.sA = giraHacia(e.sA, ang, 0.9*dt); e.facing = Math.cos(e.sA) >= 0 ? 1 : -1;
+      desSangre(e, dt);
+      if (Math.random() < 0.3) sfx('escupe');
+      if (e.ft <= 0){ e.fase = ''; e.espCd = rand(4, 6); }
+      return;
   }
-  // ---- persigue: lanza, come, salta, embiste o golpea ----
+  // ---- libre: decide ----
   e.facing = Math.cos(ang) >= 0 ? 1 : -1;
-  if (e._obj && e.lleva){
-    if (a > 150 && a < 560 && e.lanzaCd <= 0){ e.fase = 'lanzaAviso'; e.ft = 0.4; return; }
-    if (a <= 150){ e.fase = 'lanzaAviso'; e.ft = 0.15; return; }                   // de cerca, a bocajarro
-  }
-  if (!e._obj && e.espCd <= 0 && a > 180 && a < 620){
-    if (Math.random() < 0.5){ e.fase = 'saltoAviso'; e.ft = 0.75; e.sx = Math.round(clamp(player.x, 60, WORLD_W - 60)); e.sy = Math.round(clamp(player.y, 60, WORLD_H - 60)); }
-    else { e.fase = 'embAviso'; e.ft = 0.7; e.eA = ang; e.tramos = 3; }
-    e.espCd = rand(5.5, 7.5);
-    return;
-  }
-  if (!e._obj && a < 78 + F().r && e.golpeCd <= 0){ e.fase = 'golpe'; e.ft = 0.42; e.golpeo = 0; return; }
-  // objetivo: si está herido, alguien a quien comerse; si no lleva nada, algo que lanzar; si no, tú
-  let tx = player.x, ty = player.y;
-  if (!e._obj){
-    const herido = e.hp < e.maxhp*0.8 && e.comeCd <= 0;
-    const cosa = herido ? desBusca(e, 340, true) : (e.lanzaCd <= 0 && a > 160 ? desBusca(e, 200, false) : null);
-    if (cosa){
-      tx = cosa.x; ty = cosa.y;
-      if (dist(e.x, e.y, cosa.x, cosa.y) < 40){
-        e._obj = cosa; cosa.presa = true; cosa.presaDe = e; cosa.vx = 0; cosa.vy = 0; sfx('grab');
-        if (herido && (cosa.person || cosa.kind === 'civ')){ e.fase = 'come'; e.ft = 1.2; e.lleva = 0; }
-        else e.lleva = 1;
-        return;
-      }
+  // el OVNI la vuelve loca: salta a por él
+  if (e.ovniCd <= 0){
+    const ov = enemies.find(q => q.type === 'ovni' && !q.dead && !q.held && dist(q.x, q.y, e.x, e.y) < 1100);
+    if (ov){
+      desSuelta(e); e.ovniCd = 7;
+      const r = ov.rumbo || 0, sp = ov.speed || 150;
+      e.sx = Math.round(clamp(ov.x + Math.cos(r)*sp*1.1, 60, WORLD_W - 60)); e.sy = Math.round(clamp(ov.y + Math.sin(r)*sp*1.1, 60, WORLD_H - 60));
+      e.fase = 'ovniAviso'; e.ft = 0.3; toast('¡DESESPERACIÓN VA A POR EL OVNI!', 1.6);
+      return;
     }
   }
+  // a mitad de vida, el chorro de sangre
+  if (!e.escupio && e.hp < e.maxhp*0.5){ e.escupio = 1; desSuelta(e); e.fase = 'sangreAviso'; e.ft = 0.75; e.sA = ang; toast('¡DESESPERACIÓN ESCUPE SANGRE!', 1.8); return; }
+  // herida: se abalanza al suelo a comerse a los suyos
+  if (e.hp < e.maxhp*0.7 && e.comeCd <= 0 && !e._obj){
+    const v = desBusca(e, 420, true);
+    if (v){ e._presa = v; e.fase = 'abalanza'; e.ft = 0.4; sfx('dash'); return; }
+    e.comeCd = 1;
+  }
+  if (e._obj && e.lleva){
+    if (a > 150 && a < 560 && e.lanzaCd <= 0){ e.fase = 'lanzaAviso'; e.ft = 0.4; return; }
+    if (a <= 150){ e.fase = 'lanzaAviso'; e.ft = 0.15; return; }
+  }
+  if (!e._obj && e.espCd <= 0 && a > 180 && a < 620){
+    const r = Math.random(), sangre = e.escupio && r < 0.3;
+    if (sangre){ e.fase = 'sangreAviso'; e.ft = 0.7; e.sA = ang; }
+    else if (r < 0.65){ e.fase = 'saltoAviso'; e.ft = 0.75; e.sx = Math.round(clamp(player.x, 60, WORLD_W - 60)); e.sy = Math.round(clamp(player.y, 60, WORLD_H - 60)); }
+    else { e.fase = 'embAviso'; e.ft = 0.7; e.eA = ang; e.tramos = 3; }
+    e.espCd = rand(5, 7)/vel;
+    return;
+  }
+  if (!e._obj && a < 78 + F().r && e.golpeCd <= 0){ e.fase = e.mancos ? 'muerde' : 'golpe'; e.ft = 0.4; e.golpeo = 0; return; }
+  // si tiene brazos, agarra algo por el camino para lanzártelo
+  let tx = player.x, ty = player.y;
+  if (!e._obj && !e.mancos && e.lanzaCd <= 0 && a > 160){
+    const cosa = desBusca(e, 200, false);
+    if (cosa){
+      tx = cosa.x; ty = cosa.y;
+      if (dist(e.x, e.y, cosa.x, cosa.y) < 40){ e._obj = cosa; cosa.presa = true; cosa.presaDe = e; cosa.vx = 0; cosa.vy = 0; e.lleva = 1; sfx('grab'); return; }
+    }
+  }
+  // corre: atraviesa los edificios y aplasta a la tropa que pisa
   const an = Math.atan2(ty - e.y, tx - e.x), sp = e.speed*vel*(e._obj ? 0.85 : 1);
   if (dist(e.x, e.y, tx, ty) > 30){
     const x0 = e.x, y0 = e.y;
     e.x = clamp(e.x + Math.cos(an)*sp*dt, 40, WORLD_W - 40); e.y = clamp(e.y + Math.sin(an)*sp*dt, 40, WORLD_H - 40);
-    collideBuildings(e, 18, dt, 0);
     e.paso = (e.paso || 0) + dist(x0, y0, e.x, e.y)*0.05;
+    e.pisaT = (e.pisaT || 0) - dt;
+    if (e.pisaT <= 0){ e.pisaT = 0.1; desPisa(e, (e.etapa || 0) < 2 ? 46 : 26); }
   }
   e.facing = Math.cos(an) >= 0 ? 1 : -1;
 }
 // ---- dibujo ----
 function desPose(e){
+  const sinB = (e.etapa || 0) >= 2;
   switch (e.fase){
-    case 'golpe': return ['golpe', e.ft > 0.22 ? 0 : 1];
+    case 'golpe': return ['golpe', e.ft > 0.2 ? 0 : 1];
+    case 'muerde': return ['muerde', e.ft > 0.2 ? 0 : 1];
     case 'lanzaAviso': return ['carga', 0];
-    case 'come': return ['come', Math.floor(e.anim*7) % 2];
-    case 'saltoAviso': return ['come', 0];
-    case 'salto': return ['salta', 0];
+    case 'come': return ['come', Math.floor(e.anim*8) % 2];
+    case 'saltoAviso': case 'ovniAviso': return ['come', 0];
+    case 'salto': case 'saltoOvni': case 'abalanza': return ['salta', 0];
     case 'embAviso': return ['embiste', 0];
     case 'embiste': return ['embiste', Math.floor(e.paso || 0) % 4];
+    case 'sangreAviso': case 'sangre': return ['sangre', 0];
     case 'volando': case 'levanta': return ['cae', 0];
   }
-  return [e.lleva ? 'carga' : 'corre', e.lleva ? 0 : Math.floor(e.paso || 0) % 4];
+  return [e.lleva && !sinB ? 'carga' : 'corre', e.lleva && !sinB ? 0 : Math.floor(e.paso || 0) % 4];
 }
 function drawDesesperacion(e){
   const s = S(e.x, e.y), alt = alturaVisible(e), et = e.etapa || 0;
-  sombra(s.x, s.y + 4, (et >= 2 ? 90 : 60)*(1 - alt/400), 16, 0.85);
+  sombra(s.x, s.y + 4, (et < 2 ? 90 : 60)*(1 - alt/400), 16, 0.85);
   const [pose, f] = desPose(e);
   const c = desespFrame(et, pose, f), [W, H, cx, py] = DESES_TAM;
   const pinta = (x, y, a)=>{
@@ -15183,6 +15290,29 @@ function drawDesesperacionAvisos(){
   for (const e of enemies){
     if (e.dead || e.type !== 'desesperacion') continue;
     ctx.save();
+    for (let k = 0; k < 6; k++){                          // charcos de sangre
+      const t = e['c' + k + 't']; if (!(t > 0)) continue;
+      const c = S(e['c' + k + 'x'], e['c' + k + 'y']), r = 16 + (9 - t)*1.6;
+      ctx.globalAlpha = Math.min(1, t/2)*0.8; ctx.fillStyle = '#4e0606'; ctx.beginPath(); ctx.ellipse(c.x, c.y, r, r*0.6, 0, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = '#7a1410'; ctx.beginPath(); ctx.ellipse(c.x - 3, c.y - 1, r*0.55, r*0.3, 0, 0, Math.PI*2); ctx.fill();
+    }
+    if (e.brT > 0){                                       // los brazos que se le cayeron
+      ctx.globalAlpha = Math.min(1, e.brT/3);
+      for (const [k, d] of [[0, 1], [1, -1]]){
+        const c = S(e['b' + k + 'x'], e['b' + k + 'y']);
+        ctx.fillStyle = '#4e0606'; ctx.beginPath(); ctx.ellipse(c.x, c.y + 2, 26, 9, 0, 0, Math.PI*2); ctx.fill();
+        ctx.strokeStyle = '#8a8378'; ctx.lineCap = 'round'; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(c.x - 22*d, c.y); ctx.lineTo(c.x, c.y - 3); ctx.lineTo(c.x + 20*d, c.y + 2); ctx.stroke();
+        ctx.lineWidth = 2; for (let q = -1; q <= 1; q++){ ctx.beginPath(); ctx.moveTo(c.x + 20*d, c.y + 2); ctx.lineTo(c.x + 30*d, c.y + 2 + q*5); ctx.stroke(); }
+        ctx.fillStyle = '#efe6cc'; ctx.beginPath(); ctx.arc(c.x - 23*d, c.y, 2.5, 0, Math.PI*2); ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    }
+    if (e.fase === 'sangreAviso'){
+      const o = desBoca(e), s0 = S(o.x, e.y), s1 = S(o.x + Math.cos(e.sA)*DESES_SANGRE_L, e.y + Math.sin(e.sA)*DESES_SANGRE_L);
+      ctx.globalAlpha = 0.8; ctx.strokeStyle = '#b0101a'; ctx.lineWidth = 3; ctx.setLineDash([12, 9]); ctx.lineDashOffset = -gameTime*90;
+      ctx.beginPath(); ctx.moveTo(s0.x, s0.y); ctx.lineTo(s1.x, s1.y); ctx.stroke(); ctx.setLineDash([]);
+      ctx.globalAlpha = 0.15; ctx.lineWidth = 52; ctx.stroke(); ctx.globalAlpha = 1;
+    }
     if (e.fase === 'saltoAviso' || e.fase === 'salto'){
       const t = S(e.sx, e.sy), k = e.fase === 'salto' ? 1 : 0.6 + Math.sin(gameTime*18)*0.3;
       ctx.fillStyle = 'rgba(140,0,0,0.2)'; ctx.beginPath(); ctx.ellipse(t.x, t.y, DESES_SALTO_R, DESES_SALTO_R*0.7, 0, 0, Math.PI*2); ctx.fill();
@@ -15197,6 +15327,25 @@ function drawDesesperacionAvisos(){
   }
 }
 
+// El chorro de sangre, de la boca al suelo, por encima de todo.
+function drawDesesperacionEfectos(){
+  for (const e of enemies){
+    if (e.dead || e.type !== 'desesperacion' || e.fase !== 'sangre') continue;
+    const o = desBoca(e), so = S(o.x, o.y), an = e.sA, L = DESES_SANGRE_L;
+    const se = S(o.x + Math.cos(an)*L, e.y + Math.sin(an)*L), cx = (so.x + se.x)/2, cy = Math.min(so.y, se.y) - 30;
+    ctx.save(); ctx.lineCap = 'round';
+    const curva = ()=>{ ctx.beginPath(); ctx.moveTo(so.x, so.y); ctx.quadraticCurveTo(cx, cy, se.x, se.y); };
+    curva(); ctx.strokeStyle = 'rgba(30,0,0,0.6)'; ctx.lineWidth = 18; ctx.stroke();
+    curva(); ctx.strokeStyle = '#8a0a0a'; ctx.lineWidth = 12; ctx.stroke();
+    curva(); ctx.strokeStyle = '#d0201a'; ctx.lineWidth = 6; ctx.setLineDash([16, 10]); ctx.lineDashOffset = -gameTime*400; ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = '#b0101a';
+    for (let i = 0; i < 10; i++){ const k = Math.random(), u = 1 - k;
+      const x = u*u*so.x + 2*u*k*cx + k*k*se.x + rand(-14, 14), y = u*u*so.y + 2*u*k*cy + k*k*se.y + rand(-14, 14);
+      ctx.beginPath(); ctx.arc(x, y, rand(1.5, 4), 0, Math.PI*2); ctx.fill(); }
+    ctx.fillStyle = 'rgba(120,8,8,0.5)'; ctx.beginPath(); ctx.ellipse(se.x, se.y, 34, 16, 0, 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+}
 // ================= PIERNAS DE POLLO =================
 // Aliado del mago: con el poder arcano, los MBT-MB92 (de fuego y de hielo) y
 // los cabezones que destruye se levantan como esta bestia de monta, un
@@ -21140,7 +21289,7 @@ function lucesJefes(L, k, mx, Mx, my, My, tinta){
   lucesDinamicas(luz);                                      // explosiones, relámpagos y rayos
   for (const e of enemies){
     if (e.dead) continue;
-    if (e.type === 'desesperacion') luz(e.x + (e.facing || 1)*24, e.y - alturaVisible(e) - ((e.etapa || 0) >= 2 ? 70 : 150), 34, luzRoja, 0.55);
+    if (e.type === 'desesperacion') luz(e.x + (e.facing || 1)*24, e.y - alturaVisible(e) - ((e.etapa || 0) < 2 ? 70 : 150), 34, luzRoja, 0.55);
     else if (e.type === 'aracnido'){ const o = aracOjos(e); luz(o.x, o.y, 54, luzRoja, 0.7); if (e.fase === 'tela' || e.atrapa) luz(e.tx, e.ty, 50, luzBlanca, 0.4); }
     else if (e.type === 'gravitron'){ luz(e.x - (e.facing || 1)*30, e.y - alturaVisible(e), 60, luzAzul, 0.6); if (e.gF === 'activo') luz(e.gx, e.gy, e.gR, luzAzul, 0.45); }
     else if (e.type === 'medico' && e.cura) luz(e.cx, e.cy, 40, luzRoja, 0.5);
@@ -22469,7 +22618,7 @@ function draw(){
     }
   }
 
-  drawBullets(); drawTriRayos(); drawDragonRayos(); drawJefes2Rayos(); drawAlienEfectos(); drawCenturionEfectos(); drawDesgarradorRayo(); drawRefuerzosEfectos(); drawAracnidoEfectos(); drawElectroJugador(); drawMeteorosCayendo(); drawProyJ(proyJ); drawProyJ(proyRed);
+  drawBullets(); drawTriRayos(); drawDragonRayos(); drawJefes2Rayos(); drawAlienEfectos(); drawCenturionEfectos(); drawDesgarradorRayo(); drawRefuerzosEfectos(); drawAracnidoEfectos(); drawDesesperacionEfectos(); drawElectroJugador(); drawMeteorosCayendo(); drawProyJ(proyJ); drawProyJ(proyRed);
   if (dobleAnf() && Online.av && Online.av.pj) drawProyJ(Online.av.pj);
   drawMaquinaEfectos(); drawMagoEfectos();
   drawRelampagos(); drawHumos(); drawHumoEdif(); drawSonic(); drawWind(); drawRayosOjos(); drawFX(); drawLucesDia(); drawBocadillos(); drawNumeros(); drawMarcaTutorial(); drawAura(); drawPortalCelestial(); if (vil.caida) drawCaidaJugador(); drawP2Cursor();
