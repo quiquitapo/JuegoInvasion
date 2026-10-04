@@ -4002,11 +4002,16 @@ function drawCenizas(){
 // ---------- música ----------
 // Pasado un rato, el castigo sube de marcha: metal frenético de doble bombo,
 // riffs graves de cuerda al aire y gritos de guitarra.
+// Do frigio con el tritono: coro, sintetizadores y guitarras afinadísimas.
 const INFIERNO_TRACK2 = {
-  scale: [65.41, 69.30, 77.78, 87.31, 92.50, 103.83, 116.54, 130.81],
-  bass:  [32.70, 32.70, 34.65, 30.87], tempo: 105, name:'MATANZA ETERNA', style:'metal',
-  riff:  [0,0,-1,0, 0,-1,0,0, 1,-1,0,0, 3,-1,2,1, 0,0,-1,0, 0,-1,0,0, 4,-1,3,-1, 5,4,3,1],
-  lead:  [7,-1,-1,6, -1,-1,5,-1, 4,-1,-1,-1, 5,-1,6,-1]
+  scale: [65.41, 69.30, 77.78, 87.31, 92.50, 98.00, 103.83, 116.54],
+  bass:  [32.70, 32.70, 34.65, 30.87], tempo: 111, name:'LO ÚNICO QUE TEMEN', style:'doom',
+  prog:  [0, 0, 6, 6, 5, 5, 1, 1],                                // Do, La♭, Sol, Re♭: un acorde cada dos compases
+  riff:  [0,0,-1,0, -1,0,0,-1, 1,-1,0,0, -1,3,-1,2],
+  riff2: [0,0,-1,0, -1,0,0,-1, 0,0,-1,0, 4,-1,3,1],
+  brk:   [0,-1,-1,0, -1,-1,0,-1, -1,-1,1,-1, 0,-1,-1,-1],
+  lead:  [0,-1,-1,-1, -1,-1,-1,-1, 3,-1,-1,-1, 5,-1,-1,-1,  6,-1,-1,-1, 5,-1,-1,-1, 3,-1,-1,-1, 2,-1,3,-1,
+          5,-1,-1,-1, -1,-1,-1,-1, 7,-1,-1,-1, 8,-1,-1,-1,  9,-1,-1,-1, 8,-1,7,-1, 6,-1,-1,-1, 5,-1,-1,-1]
 };
 const INF_CAMBIO_T = 100;          // segundos de LAMENTO ETERNO antes de que entre el metal
 const INFIERNO_TRACK = {
@@ -8564,17 +8569,65 @@ function musicStep(){
     if (s % 8 === 4) noise(0.12, 0.1, 400);
     return;
   }
-  if (bt && bt.style === 'metal'){
-    // MATANZA ETERNA: doble bombo, caja en el 2 y el 4, riff de sierra grave
-    // con su quinta (acorde de potencia) y una guitarra solista que grita.
-    const b = bt.bass[(s/16 | 0) % bt.bass.length], sec = (s/64 | 0) % 4;
-    if (sec !== 3 || s % 2 === 0){ mk(b*1.5, 0.07, 'sine', 0.3); noise(0.03, 0.14, 110); }   // doble bombo
-    if (s % 8 === 4){ noise(0.14, 0.24, 1900); mk(196, 0.06, 'triangle', 0.05); }            // caja
-    if (s % 2 === 1) noise(0.02, 0.05, 9000);                                                // platillo
-    if (s % 32 === 0) noise(0.6, 0.12, 5000);                                                // choque
-    const n = bt.riff[s % bt.riff.length];
-    if (n >= 0){ mk(sc[n], 0.09, 'sawtooth', 0.2); mk(sc[n]*1.5, 0.09, 'square', 0.09); mk(sc[n]*2, 0.09, 'sawtooth', 0.05); }
-    if (sec >= 2){ const l = bt.lead[s % bt.lead.length]; if (l >= 0){ mk(sc[l]*4, 0.3, 'square', 0.05); mk(sc[l]*4*1.006, 0.3, 'sawtooth', 0.03); } }
+  if (bt && bt.style === 'doom'){
+    // LO ÚNICO QUE TEMEN: metal industrial a lo Mick Gordon. Ciclos de ocho
+    // compases en cuatro secciones: el arranque (coro, arpegio de
+    // sintetizador, timbales y caídas de subgrave), el riff sincopado con doble
+    // bombo, el riff con la melodía heroica encima y un breakdown a medio
+    // tiempo que se corta en seco y vuelve a empezar.
+    const ac = audio.ctx;
+    const glide = (f0, f1, dur, type, vol)=>{
+      const o = ac.createOscillator(), g = ac.createGain();
+      o.type = type; o.frequency.setValueAtTime(f0, t0); o.frequency.exponentialRampToValueAtTime(f1, t0 + dur);
+      g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(vol, t0 + 0.03); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      o.connect(g); g.connect(audio.musGain); o.start(t0); o.stop(t0 + dur + 0.05);
+      o.onended = ()=>{ try { o.disconnect(); g.disconnect(); } catch(e){} };
+    };
+    const paso = s % 16, comp = (s/16 | 0) % 8, sec = (s/128 | 0) % 4;
+    const raiz = sc[bt.prog[comp]];
+    const chug = (n, k)=>{ const f = sc[n]; mk(f, 0.09*k, 'sawtooth', 0.2); mk(f*1.5, 0.09*k, 'square', 0.08); mk(f/2, 0.1*k, 'sawtooth', 0.09); noise(0.025, 0.05, 1600); };
+    const bombo = v => { mk(52, 0.11, 'sine', v); noise(0.03, 0.12, 110); };
+    const caja = ()=>{ noise(0.15, 0.24, 1900); mk(185, 0.06, 'triangle', 0.05); };
+    // el coro: una tríada menor sostenida por compás
+    if (paso === 0 && sec !== 1){
+      const d = 16*bt.tempo/1000;
+      mk(raiz*2, d, 'sawtooth', 0.04); mk(raiz*2*1.189, d, 'triangle', 0.035); mk(raiz*2*1.498, d, 'triangle', 0.035);
+      if (sec === 3) mk(raiz, d, 'sawtooth', 0.05);
+    }
+    if (sec === 0){
+      if (comp >= 2) mk(raiz*[2, 3, 4, 3][s % 4], 0.08, 'square', 0.03 + comp*0.004);   // arpegio que crece
+      if (paso === 0 && comp % 2 === 0) glide(90, 32, 1.1, 'sine', 0.32);                // caída de subgrave
+      if (comp >= 4 && (paso === 0 || paso === 6 || paso === 10)){ mk(110 - comp*4, 0.2, 'triangle', 0.12); noise(0.12, 0.1, 400); }   // timbales
+      if (comp === 7 && paso >= 8){ bombo(0.26); if (paso % 2) caja(); }                 // redoble de entrada
+      if (comp === 7 && paso === 0) glide(180, 1400, 1.7, 'sawtooth', 0.03);              // la subida
+      return;
+    }
+    if (sec === 3){
+      const p = bt.brk[paso];
+      if (comp < 7){
+        if (p >= 0){ chug(p, 1.8); bombo(0.3); }
+        if (paso === 8) caja();
+        if (paso === 0 && comp % 2 === 0){ glide(70, 28, 0.9, 'sine', 0.34); noise(0.6, 0.1, 3600); }
+      } else {                                                    // se corta en seco y vuelve
+        if (paso < 8 && p >= 0){ chug(p, 1.4); bombo(0.3); }
+        if (paso === 8) glide(160, 1600, 0.85, 'sawtooth', 0.035);
+        if (paso >= 12) caja();
+      }
+      return;
+    }
+    // el riff: semicorcheas sincopadas, doble bombo, caja en el 2 y el 4
+    const n = (comp % 2 ? bt.riff2 : bt.riff)[paso];
+    if (n >= 0) chug(n, n === 0 ? 1 : 1.3);
+    bombo(n >= 0 ? 0.3 : 0.18);
+    if (paso === 4 || paso === 12) caja();
+    if (paso % 2 === 1) noise(0.02, 0.045, 9000);
+    if (paso === 0 && comp % 2 === 0) noise(0.9, 0.12, 5000);
+    if (paso === 0 && comp === 0) glide(80, 30, 1.0, 'sine', 0.3);
+    if (sec === 2){                                               // la melodía heroica
+      const L = bt.lead[s % bt.lead.length];
+      if (L >= 0){ const f = sc[L % 8]*4*(L >= 8 ? 2 : 1); mk(f, 0.42, 'sawtooth', 0.045); mk(f*1.005, 0.42, 'square', 0.03); }
+      if (s % 4 === 2) mk(raiz*[3, 4][(s/4 | 0) % 2], 0.07, 'square', 0.025);
+    }
     return;
   }
   if (bt && bt.style === 'infierno'){
@@ -9001,8 +9054,8 @@ const OST_TEMAS = [
   { id:'mapa_infierno', icon:'\u{1F525}', name:'LAMENTO ETERNO', pista: ()=> INFIERNO_TRACK,
     bloqueo:'Juega una partida en CASTIGO DIVINO para desbloquearlo. Toca el icono para ver otro tema.',
     desc:'El tema de Castigo Divino. Un órgano grave que nunca se resuelve, un coro desafinado, el Dies irae arrastrado y un tambor lento como un latido.' },
-  { id:'mapa_infierno2', icon:'\u{1F918}', name:'MATANZA ETERNA', pista: ()=> INFIERNO_TRACK2,
-    desc:'El segundo tema de Castigo Divino, cuando la partida se alarga: metal frenético de doble bombo, riffs graves y una guitarra que grita.' }
+  { id:'mapa_infierno2', icon:'\u{1F918}', name:'LO ÚNICO QUE TEMEN', pista: ()=> INFIERNO_TRACK2,
+    desc:'El segundo tema de Castigo Divino, cuando la partida se alarga: metal industrial con coro, sintetizadores, caídas de subgrave, un riff sincopado de doble bombo, una melodía heroica y un breakdown que se corta en seco.' }
 ];
 let ostSel = 0;
 
@@ -20060,6 +20113,14 @@ function updateRegen(dt){
   regenPool('bench', benchSpots, benches);
 }
 
+// ¿Hay algún jefe en pie? (los trípodes que son tropa no cuentan; la flota de
+// refuerzos sí). Mientras lo haya, las tropas llegan un 25 % más despacio.
+const JEFE_FRENO = 0.75;
+function jefeEnPartida(){
+  if (refz) return true;
+  for (const e of enemies) if (!e.dead && JEFES[e.type] && !e.normal) return true;
+  return false;
+}
 function updateSpawns(dt){
   if (TUT.activo) return;                       // en el tutorial, solo lo que pone cada paso
   gameTime += dt;
@@ -20152,15 +20213,18 @@ function updateSpawns(dt){
       }
     }
   }
+  // Con un jefe en partida las tropas llegan algo más espaciadas. Es un solo
+  // freno: no se suma por tener varios jefes y se quita cuando caen todos.
+  const dtE = jefeEnPartida() ? dt*JEFE_FRENO : dt;
   // Con los marcianos en la ciudad el ejército humano no sale, ni siquiera
   // en pleno asedio.
   if (esAlien()){                                     // el planeta tiene su propio ejército
-    if (!(bossAlive && !enAsedio())) updateSpawnsAlien(dt, count);
+    if (!(bossAlive && !enAsedio())) updateSpawnsAlien(dtE, count);
     return;
   }
   if (esInfierno()){                                  // el castigo: vengativos y deformados
-    if (!(bossAlive && !enAsedio())) updateSpawnsInf(dt, count);
-    else if (spawnTimers.ven !== undefined && (spawnTimers.ven -= dt) <= 0){ hordaVengativa(4); spawnTimers.ven = rand(12, 16); }
+    if (!(bossAlive && !enAsedio())) updateSpawnsInf(dtE, count);
+    else if (spawnTimers.ven !== undefined && (spawnTimers.ven -= dtE) <= 0){ hordaVengativa(4); spawnTimers.ven = rand(12, 16); }
     return;
   }
   if (marcianosActivos()) return;
@@ -20168,7 +20232,7 @@ function updateSpawns(dt){
   if (bossAlive && !enAsedio()) return;
 
   if (stage>=2){
-    spawnTimers.pol -= dt;
+    spawnTimers.pol -= dtE;
     if (spawnTimers.pol<=0){
       // A los 9.000 puntos la policía se retira y entran los minigunero.
       if (score >= MINIGUN_SCORE){
@@ -20182,32 +20246,32 @@ function updateSpawns(dt){
   }
   // Infantería pesada a partir de la oleada 3
   if (stage>=3){
-    spawnTimers.mil -= dt;
+    spawnTimers.mil -= dtE;
     if (spawnTimers.mil<=0 && count('military') < Math.min(1+Math.floor(gameTime/35),5)){
       spawnEnemy('military'); spawnTimers.mil = rand(4,6.5);
     }
   }
   // OLEADA FINAL: lo más pesado del ejército
   if (finalWave()){
-    spawnTimers.gunship -= dt;
+    spawnTimers.gunship -= dtE;
     if (spawnTimers.gunship<=0 && count('gunship') < 2){ spawnEnemy('gunship'); spawnTimers.gunship = rand(12,18); }
-    spawnTimers.siege -= dt;
+    spawnTimers.siege -= dtE;
     if (spawnTimers.siege<=0 && count('siege') < 2){ spawnEnemy('siege'); spawnTimers.siege = rand(16,24); }
   }
   // El caza acompaña a la oleada final
   if (finalWave()){
-    spawnTimers.plane -= dt;
+    spawnTimers.plane -= dtE;
     if (spawnTimers.plane<=0 && count('plane') < 2){ spawnEnemy('plane'); spawnTimers.plane = rand(9,15); }
   }
   // armour only shows up once you are big enough to be worth it
   if (form >= 1){
-    spawnTimers.tank -= dt;
+    spawnTimers.tank -= dtE;
     if (spawnTimers.tank<=0 && count('tank') < 3){ spawnEnemy('tank'); spawnTimers.tank = rand(9,14); }
-    spawnTimers.heli -= dt;
+    spawnTimers.heli -= dtE;
     if (spawnTimers.heli<=0 && count('heli') < 3){ spawnEnemy('heli'); spawnTimers.heli = rand(8,12); }
     // Rareza parecida a la del camión cisterna, un poco más alta. La versión
     // congelante es la menos frecuente de las dos.
-    spawnTimers.mbt -= dt;
+    spawnTimers.mbt -= dtE;
     if (spawnTimers.mbt<=0 && count('mbt') + count('mbtFrio') < 2){
       spawnEnemy(Math.random() < 0.38 ? 'mbtFrio' : 'mbt');
       spawnTimers.mbt = rand(16,24);
