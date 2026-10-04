@@ -12,6 +12,7 @@
 // variable de entorno DATABASE_URL de Vercel.
 
 import { neon } from '@neondatabase/serverless';
+import { nombreInapropiado } from './_nombres.js';
 
 const MAX_SCORE    = 5000000;   // techo defensivo: por encima se rechaza
 const MAX_NOMBRE   = 14;
@@ -84,6 +85,8 @@ export default async function handler(req, res) {
             ORDER BY score DESC, created_at ASC
             LIMIT ${limit}
           `;
+      // un nombre inapropiado que se hubiera colado antes no se muestra
+      for (const f of filas) if (nombreInapropiado(f.player_name)) f.player_name = '???';
       return res.status(200).json({ ok: true, hero, mapa, scores: filas });
     }
 
@@ -100,6 +103,9 @@ export default async function handler(req, res) {
       const nombre = limpiarNombre(body.player_name);
       if (!nombre) {
         return res.status(400).json({ ok: false, error: 'Nombre inválido' });
+      }
+      if (nombreInapropiado(nombre)) {
+        return res.status(400).json({ ok: false, error: 'Nombre inapropiado' });
       }
 
       const score = Number(body.score);
