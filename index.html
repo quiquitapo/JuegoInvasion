@@ -4626,7 +4626,7 @@ function edgeSpawnPos(dmin, dmax, vuela){
 const ENEMY_TYPES = { police:1, military:1, minigun:1, tank:1, heli:1, gunship:1, siege:1, flametank:1, plane:1, omni:1, artillero:1, superx:1, mbt:1, mbtFrio:1, ovni:1, tripode:1,
                       heroe:1, arquero:1, caballero:1, golem:1, kaiyin:1,
                       centinela:1, centElite:1, droide:1, escaner:1, cabezon:1, arana:1, murcielago:1, caza40k:1, centurion:1, vengativo:1, bicho:1, amalgama:1, desgarrador:1,
-                      medico:1, voltio:1, machacador:1, ave:1, gravitron:1, aracnido:1, desesperacion:1 };
+                      medico:1, voltio:1, machacador:1, ave:1, gravitron:1, aracnido:1, desesperacion:1, muerteVeloz:1 };
 function spawnEnemy(type, atX, atY){
   if (!ENEMY_TYPES[type]) return;      // ignora tipos retirados o mal escritos
   // Lo que vuela puede aparecer sobre un tejado; el resto, no.
@@ -4690,6 +4690,8 @@ function spawnEnemy(type, atX, atY){
                             fase:'', ft:0, cd:2.5, gF:'', gT:0, gx:0, gy:0, gR:GRAV_R, bombas:0, tiroT:0});
   if (type==='desesperacion') Object.assign(base, {hp:DESES_HP, maxhp:DESES_HP, speed:230, w:50, h:150, grabbable:false, fase:'', ft:0, paso:0, etapa:0,
                             lleva:0, golpeCd:0, lanzaCd:1, comeCd:3, espCd:4, empujeCd:0, ovniCd:1, sx:0, sy:0, eA:0, sA:0, alt:0, mancos:0, escupio:0});
+  if (type==='muerteVeloz') Object.assign(base, {hp:MV_HP, maxhp:MV_HP, speed:320, w:60, h:100, grabbable:false, fase:'', ft:0, cd:2.5, paso:0,
+                            zx:0, zy:0, eA:0, d0x:0, d0y:0, dtx:0, dty:0, tajo:0, tajos:0, cortaCd:0, rn:0});
   if (type==='aracnido')  Object.assign(base, {hp:ARAC_HP, maxhp:ARAC_HP, speed:120, w:200, h:140, grabbable:false, fase:'', ft:0, cd:2.2, paso:0,
                             tx:0, ty:0, tw:0, sx:0, sy:0, s0x:0, s0y:0, ax:0, ay:0, atrapa:0, muerde:0, lasN:0, lasT:0, pn:0, p0t:0, p1t:0, p2t:0});
   if (type==='heroe')     Object.assign(base, {hp:HEROE_HP, maxhp:HEROE_HP, speed:58, w:44, h:58, grabbable:false,
@@ -5487,7 +5489,7 @@ let ultimoJefe = null, penultimoJefe = null;
 // Sorteo con pesos: el penúltimo pesa la mitad que el resto.
 // En el planeta marciano: sus dos guardianes, la Tejedora y los refuerzos
 // ('refuerzos' tampoco es una unidad: es la oleada de la flota).
-const TIPOS_JEFE_ALIEN = ['centurion', 'desgarrador', 'refuerzos', 'aracnido'];
+const TIPOS_JEFE_ALIEN = ['centurion', 'desgarrador', 'refuerzos', 'aracnido', 'muerteVeloz'];
 function sorteaJefe(lista){
   const bombo = (lista || TIPOS_JEFE).filter(t => t !== ultimoJefe);
   let suma = 0;
@@ -6743,6 +6745,7 @@ const REWARD = {
   ave:      { pts:200,  heal:22 },
   gravitron:{ pts:900,  heal:55 },
   aracnido: { pts:3200, heal:90 },
+  muerteVeloz:{ pts:3300, heal:90 },
   desesperacion:{ pts:3400, heal:95 }
 };
 
@@ -6896,6 +6899,7 @@ function damageEnemy(e, dmg, fx, fy){
                                if (esAlien()) unlockAch('conquistador'); }
   else if (k === 'desesperacion'){ desSuelta(e); explode(e.x, e.y, 200, 60, true); addParticles(e.x, e.y - 90, '#7a1410', 40, 280); addParticles(e.x, e.y - 90, '#efe6cc', 20, 220); shake(24, 0.8);
                                    rugido('desesperacion', 1); if (_fxRed) _fxRed.push(['r', 'desesperacion', 1]); }
+  else if (k === 'muerteVeloz'){ explode(e.x, e.y, 200, 60, true); addParticles(e.x, e.y - 50, '#3f9fae', 30, 260); addParticles(e.x, e.y - 50, '#bfe8ff', 20, 220); shake(22, 0.7); }
   else if (k === 'aracnido'){ explode(e.x, e.y, 230, 70, true); humoNegro(e.x, e.y); addParticles(e.x, e.y - 80, '#a0aab8', 30, 260); addParticles(e.x, e.y - 60, '#7ffcff', 16, 200); shake(24, 0.8);
                               if (tela && tela.e === e) sueltaTela(false); }
   else if (k === 'gravitron'){ e.gF = ''; explode(e.x, e.y, 170, 50, true); humoNegro(e.x, e.y); addParticles(e.x, e.y - 40, '#d07aff', 26, 240); }
@@ -8424,6 +8428,10 @@ const BOSS_TRACKS = {
   // sube y baja por semitonos como patas que se acercan.
   // Desesperación: terror de persecución. Racimo de cuerdas disonante, un
   // ostinato grave en 7 que no deja respirar, latidos y chillidos.
+  // Muerte Veloz: la máquina de guerra a toda prisa, con un riff que no para.
+  muerteVeloz: { scale:[164.81,174.61,196.00,220.00,246.94,261.63,293.66,329.63],
+               bass:[82.41,82.41,87.31,73.42], tempo:98, name:'BARRERA DEL SONIDO', style:'mecha',
+               mel:[0,2,4,2, 5,4,2,0, 0,2,4,7, 6,4,5,-1, 0,2,4,2, 5,4,2,0, 7,6,5,4, 2,-1,0,-1] },
   desesperacion: { scale:[65.41,69.30,77.78,82.41,92.50,98.00,103.83,123.47],
                bass:[32.70,34.65,32.70,30.87], tempo:95, name:'NO HAY ESCAPATORIA', style:'pavor',
                ost:[0,-1,0,1, 0,-1,0, 4,-1,0,1, 0,-1,3] },
@@ -8854,6 +8862,7 @@ function updateBossMusic(dt){
     if (e.type === 'desgarrador'){ cual = 'desgarrador'; break; }
     if (e.type === 'heroe'){ cual = 'heroe'; break; }
     if (e.type === 'aracnido'){ cual = 'aracnido'; break; }
+    if (e.type === 'muerteVeloz'){ cual = 'muerteVeloz'; break; }
     if (e.type === 'desesperacion'){ cual = 'desesperacion'; break; }
   }
   if (!cual && refz) cual = 'refuerzos';
@@ -8994,8 +9003,8 @@ const BESTIARY = [
     desc:'Robot negro con ribetes rojos que carga a la espalda un gran tanque de cristal lleno de líquido rojo. No ataca: busca al aliado más herido y lo riega con el chorro de su pistola de cura, y cada pocos segundos suelta un pulso verde que cura un poco a todos los que tenga alrededor (a los jefes, mucho menos). Huye si te acercas. Llega pocas veces, solo con los REFUERZOS marcianos: cuando lo veas, acaba con él primero.' },
   { id:'voltio', name:'DUENDE VOLTAICO', hp:55, dmg:'12 + descarga (te inmoviliza)', sprite:'voltioF',
     desc:'Bichito morado de cabeza verde, con una cresta y un lomo de púas amarillas y un bláster verde casi tan grande como él. Es rapidísimo: corretea en círculos a tu alrededor y cambia de sentido sin avisar. Cuando su bláster chisporrotea, dispara una potente bola eléctrica que, si te da, te deja sin poder moverte un momento. Llega con los REFUERZOS marcianos.' },
-  { id:'machacador', name:'MACHACADOR', hp:200, dmg:'34 (martillo en área)', sprite:'machacadorF', verb:'APLASTADOS',
-    desc:'Bruto de piel roja con un martillo mecánico por brazo. Avanza tras un escudo de energía que lo para todo hasta que lo rompes a golpes (vuelve a encenderse al rato). Cuando te tiene cerca alza el martillo y marca en rojo el área donde va a caer: sal de ella, porque aplasta lo que pille y tumba a quien esté dentro. Solo el COLOSO puede levantarlo. Llega con los REFUERZOS marcianos.' },
+  { id:'machacador', name:'MACHACADOR', hp:200, dmg:'34 (tajo de espada de energía en área)', sprite:'machacadorF', verb:'APLASTADOS',
+    desc:'Bruto de piel roja armado con una espada de energía de doble hoja. Avanza tras un escudo de energía que lo para todo hasta que lo rompes a golpes (vuelve a encenderse al rato). Cuando te tiene cerca alza la espada y marca en rojo el área de su tajo: sal de ella, porque corta lo que pille y tumba a quien esté dentro. Solo el COLOSO puede levantarlo. Llega con los REFUERZOS marcianos.' },
   { id:'ave', name:'AVE DE PRESA', hp:120, dmg:'7 por láser (ráfagas)', sprite:'aveF', verb:'DERRIBADAS',
     desc:'Caza marciano de casco gris con forma de ave: cabina morada, púas en el lomo y dos grandes pinzas segmentadas hacia delante. Vuela en pasadas, cruzándose contigo, y cuando te tiene delante suelta ráfagas de láser desde la punta de sus pinzas. Es ligero y se agarra al vuelo. Llega con los REFUERZOS marcianos.' },
   { id:'gravitron', name:'NAVE GRAVITATORIA', hp:650, dmg:'bombardeos (22 en área) y pozos de gravedad', sprite:'gravitronF', verb:'DERRIBADAS',
@@ -9006,6 +9015,9 @@ const BESTIARY = [
   { id:'centurion', name:'EL CENTURIÓN', hp:2200, dmg:'embestida, bombas, misiles, minigun, corte láser y rayo congelante', sprite:'centurionF', verb:'DERROTADOS',
     hint:'El guardián del Mundo Alienígena. Aún no lo has derrotado.',
     desc:'La armadura robótica que protege el planeta marciano. Vuela a tu alrededor y alterna sus armas: embestida por una línea que marca en el suelo, bombas pegajosas que se te quedan encima (o en lo que lleves agarrado: lánzalo lejos), salvas de misiles guiados, ráfagas de su minigun láser, un rayo congelante de muy largo alcance que te deja helado (marca su línea antes de disparar: sal de ella o ponte detrás de un edificio) y, lo peor, un gran corte láser que barre un abanico enorme marcado en rojo. Del corte solo te salva salir del abanico o ponerte detrás de algo. Por debajo de la mitad de vida pierde el blindaje y se vuelve más rápido.' },
+  { id:'muerteVeloz', name:'MUERTE VELOZ', hp:2400, dmg:'tajos supersónicos, embestida, sierras de plasma y tornado', sprite:'muerteVelozF', verb:'DERROTADAS',
+    hint:'Algo en el Mundo Alienígena se mueve más rápido que el sonido.',
+    desc:'Una criatura de un mundo lejano que el imperio encontró y modificó genéticamente para aprovechar su velocidad innata. Cuerpo negro con rayas turquesa, casco con visor verde, cola anillada, ruedas por pies y dos sierras de plasma girando en las manos. Marca en el suelo un área y la recorre a velocidad extrema en tajos de lado a lado, rompiendo la barrera del sonido: corta todo lo que pilla, también a los suyos, y los árboles se mecen a su paso. También embiste en línea recta por la línea que marca y gira sobre sí misma hasta volverse un tornado de sierras que te persigue. Tras cada carga derrapa un momento: es cuando más fácil es alcanzarla. Por debajo de la mitad de vida acelera todavía más.' },
   { id:'aracnido', name:'LA TEJEDORA', hp:2700, dmg:'telaraña y mordiscos, salto, pisotón y láseres', sprite:'aracnidoF', verb:'DERROTADOS',
     hint:'Otro guardián del Mundo Alienígena. Aún no lo has derrotado.',
     desc:'Araña robot gigante, guardiana del planeta marciano: ocho patas de acero, ocho ojos rojos, colmillos y un abdomen blindado con un núcleo cian. Marca en el suelo con una línea blanca por dónde lanzará su tela: si te alcanza, te atrae hacia sus colmillos y te muerde hasta que te liberes haciendo clic (o tocando la pantalla) varias veces. Un escudo, un edificio o lo que lleves agarrado paran la tela, y la que falla se queda pegada en el suelo un rato y frena a quien la pise. También salta sobre la zona que marca en rojo, pisotea todo a su alrededor si te pegas a ella y barre con los láseres de sus ojos. Por debajo de la mitad de vida enloquece y se vuelve más rápida.' },
@@ -10064,7 +10076,8 @@ const P2_ALIEN = [
   { type:'ave',       name:'AVE DE PRESA',cost:260, cool:5.0, sprite:'aveF' },
   { type:'gravitron', name:'N. GRAVITAT.',cost:750, cool:18.0,sprite:'gravitronF' },
   { type:'refuerzos', name:'REFUERZOS',  cost:1400,cool:40.0,sprite:'gravitronF', especial:'refuerzos' },
-  { type:'aracnido',  name:'TEJEDORA',   cost:1400,cool:30.0,sprite:'aracnidoF' }
+  { type:'aracnido',  name:'TEJEDORA',   cost:1400,cool:30.0,sprite:'aracnidoF' },
+  { type:'muerteVeloz',name:'MUERTE VELOZ',cost:1400,cool:30.0,sprite:'muerteVelozF' }
 ];
 // El castigo: hordas de vengativos y los de los otros dos mapas, deformados.
 const P2_INFIERNO = [
@@ -10195,6 +10208,7 @@ function p2Place(){
     if (u.type === 'centurion'){ toast('¡EL CENTURIÓN!'); shake(18, 0.6); }
     if (u.type === 'desgarrador'){ toast('¡EL DESGARRADOR!'); sfx('sierra'); shake(18, 0.6); }
     if (u.type === 'aracnido'){ toast('¡LA TEJEDORA!'); sfx('alarma'); shake(18, 0.6); }
+    if (u.type === 'muerteVeloz'){ toast('¡MUERTE VELOZ!'); sfx('sonicboom'); shake(18, 0.6); }
     if (u.type === 'desesperacion'){ toast('¡DESESPERACIÓN!'); shake(18, 0.6); }
   }
   if (u.type === 'tripode' && !u.especial){ toast(TRI_AVISO, 3); sfx('ulla'); shake(14, 0.5); }
@@ -13401,7 +13415,7 @@ function dibVoltio(g, pose, f){
   jL(g, morL, 3.2, 3, -28, bx + 4, by + 3);
 }
 // Machacador: bruto de piel roja, cresta negra y pantalón gris, con un
-// emisor de escudo en una muñeca y un martillo mecánico negro por brazo.
+// emisor de escudo en una muñeca y una espada de energía de doble hoja.
 function dibMachacador(g, pose, f){
   const piel = '#c8382a', pielL = '#e86a4a', pielO = '#7a1e14', pan = '#6a6e76', panO = '#44484e', neg = '#1c1c22', negL = '#44464f', ama = '#e8c020', ver = '#3ae0a0';
   const s = pose === 'anda' ? Math.sin(f/4*Math.PI*2)*5 : 0;
@@ -13417,14 +13431,25 @@ function dibMachacador(g, pose, f){
   jO(g, pielO, 3, -61, 6.5, 6.5); jO(g, piel, 3, -62, 6, 6);
   jR(g, neg, -2, -70, 9, 4.5); jR(g, neg, 0, -72, 5, 2);
   jR(g, '#ffd23a', 4, -63, 3, 1.6); jR(g, neg, 3, -65, 6, 1.3); jR(g, '#f0f0e0', 4, -58, 5, 1.6);
-  const a = pose === 'alza' ? -2.0 : pose === 'golpe' ? 0.5 : 1.25;
+  // brazo con brazal negro y, en el puño, la espada de energía de doble hoja
+  const a = pose === 'alza' ? -2.0 : pose === 'golpe' ? 0.9 : 1.25;
   const hx = 12, hy = -52, ex = hx + Math.cos(a)*14, ey = hy + Math.sin(a)*14;
   jL(g, pielO, 8, hx, hy, ex, ey); jL(g, piel, 6, hx, hy - 1, ex, ey - 1);
-  const L = 22, fx = ex + Math.cos(a)*L, fy = ey + Math.sin(a)*L, nx = Math.cos(a + 1.57), ny = Math.sin(a + 1.57);
-  jL(g, neg, 13, ex, ey, fx, fy); jL(g, negL, 2.5, ex - nx*4, ey - ny*4, fx - nx*4, fy - ny*4);
-  for (const k of [0.3, 0.65]){ const x = ex + (fx - ex)*k, y = ey + (fy - ey)*k; jL(g, ama, 3, x + nx*6, y + ny*6, x - nx*6, y - ny*6); }
-  g.save(); g.translate(fx, fy); g.rotate(a);
-  jR(g, neg, -3, -14, 17, 28); jR(g, negL, -3, -14, 17, 3); jR(g, ama, 12, -14, 2.5, 28); jR(g, ver, 3, -3, 5, 5);
+  const fx = ex + Math.cos(a)*16, fy = ey + Math.sin(a)*16;
+  jL(g, pielO, 7, ex, ey, fx, fy); jL(g, piel, 5.5, ex, ey - 1, fx, fy - 1);
+  jL(g, neg, 7, ex + (fx - ex)*0.35, ey + (fy - ey)*0.35, ex + (fx - ex)*0.8, ey + (fy - ey)*0.8); jR(g, ver, ex + (fx - ex)*0.55 - 1, ey + (fy - ey)*0.55 - 1, 2.5, 2.5);
+  g.save(); g.translate(fx, fy); g.rotate(a - 0.9);
+  // empuñadura de hueso con la guarda curva
+  jR(g, '#d8d4c4', -3, -4, 6, 8); g.fillStyle = '#e8e4d6';
+  g.beginPath(); g.moveTo(2, -9); g.quadraticCurveTo(7, -6, 5, -2); g.lineTo(3, -3); g.closePath(); g.fill();
+  g.beginPath(); g.moveTo(2, 9); g.quadraticCurveTo(7, 6, 5, 2); g.lineTo(3, 3); g.closePath(); g.fill();
+  jR(g, '#a8a494', -1, -2, 4, 4);
+  // las dos hojas de plasma, que se juntan en punta
+  for (const sg of [-1, 1]){
+    g.fillStyle = '#7a8cff'; g.beginPath(); g.moveTo(5, sg*9); g.lineTo(54, sg*1.5); g.lineTo(5, sg*3); g.closePath(); g.fill();
+    g.fillStyle = '#dfe8ff'; g.beginPath(); g.moveTo(6, sg*7.5); g.lineTo(48, sg*2); g.lineTo(6, sg*4.5); g.closePath(); g.fill();
+    g.fillStyle = '#ffffff'; g.beginPath(); g.moveTo(8, sg*6.5); g.lineTo(36, sg*2.6); g.lineTo(8, sg*5.3); g.closePath(); g.fill();
+  }
   g.restore();
 }
 // Ave de presa: caza gris de casco curvo, cabina morada, púas en el lomo,
@@ -13600,9 +13625,9 @@ function machGolpe(e){
   }
   for (const z of zombis) if (z.sube <= 0 && dist(z.x, z.y, x, y) < R) z.hp -= 80;
   for (const b of buildings){ if (b.stage < 2){ const cx = clamp(x, b.x, b.x + b.w), cy = clamp(y, b.y, b.y + b.h); if (dist(cx, cy, x, y) < R) damageBuilding(b, 60); } }
-  addParticles(x, y, '#c8b89a', 20, 220); addParticles(x, y, '#ffd27a', 8, 160);
-  booms.push({ x, y, r:10, max:R*1.3, life:0.45, maxlife:0.45, ring:true });
-  shake(10, 0.25); sfx('caidaGolpe');
+  addParticles(x, y, '#bfd0ff', 20, 220); addParticles(x, y, '#ffffff', 8, 160);
+  booms.push({ x, y, r:10, max:R*1.3, life:0.45, maxlife:0.45, ring:true, color:'#bfd0ff' });
+  shake(10, 0.25); sfx('hachazo'); sfx('laserE');
 }
 // El ave de presa vuela en pasadas cruzándose contigo y, cuando te tiene
 // delante, suelta ráfagas de láser desde la punta de sus pinzas.
@@ -13735,7 +13760,12 @@ function drawRefuerzosSuelo(){
   const t = gameTime;
   for (const e of enemies){
     if (e.dead) continue;
-    if (e.type === 'machacador' && e.fase === 'marca'){
+    if (e.type === 'machacador' && e.fase === 'golpe'){      // el tajo de la espada, un arco de luz
+      const s = S(e.mx, e.my), k = clamp(e.ft/0.35, 0, 1), f = e.facing || 1;
+      ctx.save(); ctx.globalAlpha = k; ctx.lineCap = 'round';
+      ctx.strokeStyle = '#7a8cff'; ctx.lineWidth = 12; ctx.beginPath(); ctx.ellipse(s.x, s.y - 20, MACH_R, MACH_R*0.6, 0, f > 0 ? -2.2 : 0.95, f > 0 ? -0.95 + 2.2 : 4.1 + 0.2); ctx.stroke();
+      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 4; ctx.stroke(); ctx.restore();
+    } else if (e.type === 'machacador' && e.fase === 'marca'){
       const s = S(e.mx, e.my), k = clamp(1 - e.ft/MACH_AVISO, 0, 1), pul = 0.55 + Math.sin(t*16)*0.3;
       ctx.save();
       ctx.fillStyle = 'rgba(255,60,40,' + (0.1 + k*0.25) + ')'; ctx.beginPath(); ctx.ellipse(s.x, s.y, MACH_R, MACH_R*0.7, 0, 0, Math.PI*2); ctx.fill();
@@ -14189,6 +14219,302 @@ function drawTelaAviso(){
   ctx.globalAlpha = 0.9; ctx.fillStyle = 'rgba(0,0,0,0.65)'; ctx.fillRect(sx - W/2 - 2, y + 12, W + 4, 9);
   ctx.fillStyle = '#e8f0f8'; ctx.fillRect(sx - W/2, y + 14, W*k, 5);
   ctx.restore();
+}
+
+// ================= MUERTE VELOZ =================
+// Jefe del planeta marciano. Una criatura de un mundo lejano que el imperio
+// encontró y modificó genéticamente para aprovechar su velocidad innata:
+// cuerpo negro de rayas turquesa, casco con visor, cola anillada, ruedas por
+// pies y dos sierras de plasma en las manos. Marca un área y la recorre a
+// velocidad extrema, en tajos de lado a lado, rompiendo la barrera del sonido
+// y cortando todo lo que pilla (también a los suyos). Además embiste en
+// línea recta y gira sobre sí misma hasta volverse un tornado de sierras.
+const MV_HP = 2400, MV_TAM = [170, 150, 80, 140];
+const MV_ZONA_R = 230, MV_DASH_VEL = 2600, MV_DASH_DMG = 14, MV_MAX_TAJOS_J = 4, MV_CORTE = 42, MV_TORN_R = 72, MV_TORN_T = 3.2, MV_EMB_L = 650;
+const mvCache = new Map();
+function mvFrame(pose, f){
+  const k = pose + f;
+  let c = mvCache.get(k);
+  if (c) return c;
+  const [W, H, cx, py] = MV_TAM;
+  c = document.createElement('canvas'); c.width = W; c.height = H;
+  const g = c.getContext('2d'); g.lineCap = 'round'; g.lineJoin = 'round';
+  g.translate(cx, py);
+  dibMuerteVeloz(g, pose, f);
+  pixelArte(c, '#05070a');
+  mvCache.set(k, c);
+  return c;
+}
+// Mira a +x, inclinada hacia delante como un velocista en la salida.
+function dibMuerteVeloz(g, pose, f){
+  const neg = '#0e1216', borde = '#5a5a78', tur = '#3f9fae', turL = '#7fd4de', turO = '#246a76', bla = '#e6ecee', blaO = '#a8b0b6', rueda = '#7a7e8c', ruedaO = '#3a3e4a';
+  const ph = f/4*Math.PI*2, carga = pose === 'carga';
+  const agach = carga ? 8 : 0;
+  // la cola anillada, hacia atrás y abajo, acabada en púa
+  const bz = (t, a, b, c, d)=>{ const u = 1 - t; return u*u*u*a + 3*u*u*t*b + 3*u*t*t*c + t*t*t*d; };
+  const ola = pose === 'corre' ? Math.sin(ph)*5 : 0;
+  const X = [-10, -50, -78, -68], Y = [-50 + agach, -58 + ola + agach, -34 + ola, -6];
+  for (let i = 0; i < 14; i++){
+    const t0 = i/14, t1 = (i + 1)/14, w = 10 - i*0.5;
+    const c = i % 2 ? tur : neg;
+    jL(g, borde, w + 2, bz(t0, ...X), bz(t0, ...Y), bz(t1, ...X), bz(t1, ...Y));
+    jL(g, c, w, bz(t0, ...X), bz(t0, ...Y), bz(t1, ...X), bz(t1, ...Y));
+  }
+  g.fillStyle = neg; g.beginPath(); g.moveTo(-70, -10); g.lineTo(-58, 8); g.lineTo(-64, -12); g.closePath(); g.fill();
+  // piernas: muslo negro, espinilla turquesa, una rueda por pie
+  const pierna = (fs, cerca)=>{
+    const sw = pose === 'corre' ? Math.sin(ph + fs) : carga ? 0.2 : 0, cs = pose === 'corre' ? Math.cos(ph + fs) : 0;
+    const hx = -6, hy = -48 + agach;
+    const kx = hx + 14 + sw*12, ky = hy + 18 - agach*0.5;
+    const ax = kx - 10 + sw*6, ay = -14 - Math.max(0, cs)*6;
+    const fx = ax + 6 + sw*6, fy = -7;
+    jL(g, cerca ? neg : '#1c2228', cerca ? 10 : 9, hx, hy, kx, ky);
+    jL(g, cerca ? neg : '#1c2228', 7, kx, ky, ax, ay);
+    jL(g, cerca ? tur : turO, 7, ax, ay, fx, fy - 2);
+    jO(g, ruedaO, fx, fy, 7.5, 7.5); jO(g, rueda, fx - 1, fy - 1, 6, 6); jO(g, '#c8ccd6', fx - 2.5, fy - 2.5, 1.8, 1.8);
+  };
+  pierna(Math.PI, false);
+  // torso inclinado: negro con el pecho blanco
+  const hx = -6, hy = -50 + agach, sx = 20, sy = -80 + agach*1.5;
+  jL(g, borde, 20, hx, hy, sx, sy); jL(g, neg, 17, hx, hy, sx, sy);
+  g.fillStyle = bla; g.beginPath(); g.moveTo(sx + 6, sy - 4); g.lineTo(sx + 9, sy + 10); g.lineTo(hx + 12, hy - 4); g.lineTo(hx + 8, hy - 10); g.closePath(); g.fill();
+  jR(g, blaO, sx + 4, sy + 6, 3, 6);
+  jO(g, neg, sx - 3, sy + 14, 5, 5); jO(g, tur, sx - 3, sy + 14, 3.2, 3.2); jL(g, neg, 1.2, sx - 5, sy + 12, sx - 1, sy + 16);   // emblema del imperio
+  // aletas turquesa en la espalda
+  for (const [x, y, L] of [[sx - 16, sy + 10, 26], [sx - 8, sy + 2, 20]]){
+    g.fillStyle = turO; g.beginPath(); g.moveTo(x, y); g.lineTo(x - L, y - 16); g.lineTo(x - 2, y - 5); g.closePath(); g.fill();
+    g.fillStyle = tur; g.beginPath(); g.moveTo(x, y - 1); g.lineTo(x - L + 4, y - 15); g.lineTo(x - 3, y - 5); g.closePath(); g.fill();
+  }
+  // brazos: turquesa con garras negras (las sierras se pintan aparte, girando)
+  const brazo = (dx, cerca)=>{
+    const ex = sx + 6 + dx, ey = sy + 14, wx = ex + 14 + (carga ? -6 : 0), wy = ey + 12 + (carga ? 6 : 0);
+    jL(g, cerca ? neg : '#1c2228', 6, sx + dx, sy + 2, ex, ey);
+    jL(g, cerca ? tur : turO, 5.5, ex, ey, wx, wy);
+    for (const d of [-0.4, 0, 0.4]){ const a = 0.6 + d; jL(g, neg, 1.6, wx, wy, wx + Math.cos(a)*8, wy + Math.sin(a)*8); }
+  };
+  brazo(-4, false);
+  // cabeza: casco negro con cresta hacia atrás, cara turquesa, visor verde
+  const cx = sx + 10, cy = sy - 12 + agach*0.3;
+  g.fillStyle = borde; g.beginPath(); g.moveTo(cx - 8, cy + 4); g.lineTo(cx - 16, cy - 30); g.lineTo(cx + 6, cy - 8); g.lineTo(cx + 12, cy + 2); g.closePath(); g.fill();
+  g.fillStyle = neg; g.beginPath(); g.moveTo(cx - 6, cy + 3); g.lineTo(cx - 14, cy - 27); g.lineTo(cx + 5, cy - 8); g.lineTo(cx + 10, cy + 2); g.closePath(); g.fill();
+  g.fillStyle = tur; g.beginPath(); g.moveTo(cx + 2, cy - 4); g.lineTo(cx + 14, cy + 2); g.lineTo(cx + 12, cy + 12); g.lineTo(cx + 2, cy + 10); g.closePath(); g.fill();
+  jR(g, turL, cx + 4, cy - 3, 6, 1.4);
+  g.fillStyle = '#a8f040'; g.beginPath(); g.moveTo(cx + 5, cy); g.lineTo(cx + 12, cy + 3); g.lineTo(cx + 6, cy + 4); g.closePath(); g.fill();
+  jR(g, neg, cx + 8, cy + 1.5, 2, 2);
+  g.fillStyle = blaO; g.beginPath(); g.moveTo(cx + 6, cy + 9); g.lineTo(cx + 15, cy + 10); g.lineTo(cx + 12, cy + 15); g.lineTo(cx + 5, cy + 13); g.closePath(); g.fill();
+  jL(g, neg, 1, cx + 8, cy + 12, cx + 14, cy + 12);
+  pierna(0, true);
+  brazo(4, true);
+}
+// Dónde lleva cada sierra (para pintarlas girando).
+function mvManos(e){
+  const f = e.facing || 1, alt = alturaVisible(e), ag = e.fase === 'zonaAviso' || e.fase === 'embAviso' ? 8 : 0;
+  return [{ x: e.x + f*34, y: e.y - alt - 54 + ag }, { x: e.x + f*42, y: e.y - alt - 50 + ag }];
+}
+function distSeg(px, py, x0, y0, x1, y1){
+  const dx = x1 - x0, dy = y1 - y0, L2 = dx*dx + dy*dy || 1;
+  const k = clamp(((px - x0)*dx + (py - y0)*dy)/L2, 0, 1);
+  return Math.hypot(px - (x0 + dx*k), py - (y0 + dy*k));
+}
+// Corta todo lo que haya en el tramo recorrido (o en el radio del tornado).
+function mvCorta(e, x0, y0, x1, y1, R, dmgUnid, dmgJug, unaVez){
+  const toca = (x, y, r)=> distSeg(x, y, x0, y0, x1, y1) < R + r;
+  if (!vil.intro && toca(player.x, player.y, F().r) && (!unaVez || e._golJ !== e.tajo) && (e.golJN || 0) < MV_MAX_TAJOS_J){ e._golJ = e.tajo; if (unaVez) e.golJN = (e.golJN || 0) + 1; golpeDesSuave(dmgJug); shake(8, 0.15); sfx('hurt'); addParticles(player.x, player.y - 10, '#bfe8ff', 8, 140); }
+  if (dobleAnf() && Online.av && !Online.av.caido && toca(Online.proxy.x, Online.proxy.y, 20) && (!unaVez || e._golI !== e.tajo)){ e._golI = e.tajo; Online.danoInv += dmgJug; }
+  for (const pool of [civilians, enemies]) for (const t of pool){
+    if (t === e || t.dead || t.held || alturaVisible(t) > 30 || !toca(t.x, t.y, 10)) continue;
+    if (unaVez && t._mvT === e.tajo) continue;
+    t._mvT = e.tajo;
+    damageEnemy(t, t.kind === 'civ' ? 999 : dmgUnid, t.x, t.y); addParticles(t.x, t.y - 10, '#9fd8ff', 6, 120);
+  }
+  for (const c of cars){ if (!c.dead && !c.held && !c.thrown && toca(c.x, c.y, 16)){ c.hp -= unaVez ? 60 : dmgUnid*0.5; addParticles(c.x, c.y, '#dfe4e8', 3, 90); } }
+  for (const z of zombis) if (z.sube <= 0 && toca(z.x, z.y, 10)) z.hp -= dmgUnid;
+}
+function mvBoom(e, an){                                    // rompe la barrera del sonido
+  for (let i = 0; i < 3; i++) sonicRings.push({ x: e.x, y: e.y - 40, ang: an, r: 8 + i*13, life: 0.5 - i*0.06, max: 0.5 });
+  sfx('sonicboom'); shake(6, 0.12);
+}
+function mvRastro(e, x0, y0, x1, y1){                      // estela de cada tajo
+  const k = (e.rn || 0) % 6;
+  e['r' + k + 'a'] = Math.round(x0); e['r' + k + 'b'] = Math.round(y0); e['r' + k + 'c'] = Math.round(x1); e['r' + k + 'd'] = Math.round(y1); e['r' + k + 't'] = 0.35; e.rn = k + 1;
+}
+function mvDash(e, tx, ty){                                // empieza un tajo a toda velocidad
+  e.d0x = e.x; e.d0y = e.y; e.dtx = clamp(tx, 40, WORLD_W - 40); e.dty = clamp(ty, 40, WORLD_H - 40);
+  e.tajo = (e.tajo || 0) + 1;
+  const an = Math.atan2(e.dty - e.y, e.dtx - e.x);
+  e.facing = Math.cos(an) >= 0 ? 1 : -1;
+  mvBoom(e, an);
+}
+// avanza el tajo en curso; devuelve true al llegar
+function mvAvanza(e, dt){
+  const d = dist(e.x, e.y, e.dtx, e.dty), paso = Math.min(d, MV_DASH_VEL*(e.roto ? 1.15 : 1)*dt);
+  const x0 = e.x, y0 = e.y;
+  if (d > 0.1){ e.x += (e.dtx - e.x)/d*paso; e.y += (e.dty - e.y)/d*paso; }
+  mvCorta(e, x0, y0, e.x, e.y, MV_CORTE, 120, MV_DASH_DMG, true);
+  for (const b of buildings){ if (b.stage < 2){ const cx = clamp(e.x, b.x, b.x + b.w), cy = clamp(e.y, b.y, b.y + b.h); if (dist(cx, cy, e.x, e.y) < 30) damageBuilding(b, 400*dt); } }
+  if (paso >= d - 0.5){ mvRastro(e, e.d0x, e.d0y, e.x, e.y); sacudeArboles((e.d0x + e.x)/2, (e.d0y + e.y)/2, 200, 0.55); return true; }
+  return false;
+}
+function updateMuerteVeloz(e, dt, a, ang){
+  e.anim = (e.anim || 0) + dt;
+  for (let k = 0; k < 6; k++) if (e['r' + k + 't'] > 0) e['r' + k + 't'] -= dt;
+  if (e.cortaCd > 0) e.cortaCd -= dt;
+  const f2 = e.hp < e.maxhp*0.5;
+  if (f2 && !e.roto){ e.roto = true; toast('¡MUERTE VELOZ ACELERA!'); rugido('muerteVeloz', 1); if (_fxRed) _fxRed.push(['r', 'muerteVeloz', 1]); }
+  if (e.hieloT > 0) return;
+  e.ft -= dt;
+  switch (e.fase){
+    case 'zonaAviso':
+      e.facing = e.zx >= e.x ? 1 : -1;
+      if (e.ft <= 0){ e.fase = 'zona'; e.tajos = e.roto ? 9 : 7; e.pausa = 0; e.golJN = 0;
+        mvDash(e, e.zx + Math.cos(ang)*MV_ZONA_R, e.zy + Math.sin(ang)*MV_ZONA_R); }
+      return;
+    case 'zona':
+      if (e.pausa > 0){ e.pausa -= dt; return; }
+      if (mvAvanza(e, dt)){
+        e.tajos--;
+        if (e.tajos <= 0){ e.fase = 'frena'; e.ft = 0.7; return; }
+        // el siguiente tajo cruza el área hacia el lado contrario
+        const a0 = Math.atan2(e.y - e.zy, e.x - e.zx), a1 = a0 + Math.PI + rand(-0.75, 0.75);
+        e.pausa = 0.06; mvDash(e, e.zx + Math.cos(a1)*MV_ZONA_R, e.zy + Math.sin(a1)*MV_ZONA_R);
+      }
+      return;
+    case 'embAviso':
+      e.facing = Math.cos(e.eA) >= 0 ? 1 : -1;
+      if (e.ft <= 0){ e.fase = 'embiste'; e.golJN = 0; mvDash(e, e.x + Math.cos(e.eA)*MV_EMB_L, e.y + Math.sin(e.eA)*MV_EMB_L); }
+      return;
+    case 'embiste':
+      if (mvAvanza(e, dt)){ e.fase = 'frena'; e.ft = 0.55; }
+      return;
+    case 'frena':                                          // derrapa: su momento débil
+      if (Math.random() < 0.5) addParticles(e.x - (e.facing || 1)*10, e.y, '#9aa6ad', 2, 80);
+      if (e.ft <= 0){ e.fase = ''; e.cd = rand(2.6, 3.6)/(e.roto ? 1.3 : 1); }
+      return;
+    case 'tornadoAviso':
+      if (e.ft <= 0){ e.fase = 'tornado'; e.ft = MV_TORN_T; e.tajo = (e.tajo || 0) + 1; e.golJN = -2; sfx('rafaga'); }
+      return;
+    case 'tornado': {
+      const sp = (e.roto ? 340 : 280)*dt, d = dist(e.x, e.y, player.x, player.y) || 1;
+      const x0 = e.x, y0 = e.y;
+      e.x = clamp(e.x + (player.x - e.x)/d*sp, 40, WORLD_W - 40); e.y = clamp(e.y + (player.y - e.y)/d*sp, 40, WORLD_H - 40);
+      e.giroK = (e.giroK || 0) - dt;
+      if (e.giroK <= 0){ e.giroK = 0.25; e.tajo++; mvCorta(e, x0, y0, e.x, e.y, MV_TORN_R, 40, 9, true); sacudeArboles(e.x, e.y, 260, 0.6); }
+      for (const b of buildings){ if (b.stage < 2){ const cx = clamp(e.x, b.x, b.x + b.w), cy = clamp(e.y, b.y, b.y + b.h); if (dist(cx, cy, e.x, e.y) < MV_TORN_R) damageBuilding(b, 220*dt); } }
+      for (const c of cars){ if (!c.dead && !c.held && !c.thrown && dist(c.x, c.y, e.x, e.y) < MV_TORN_R + 20){ const an = Math.atan2(c.y - e.y, c.x - e.x) + 1.2; c.x += Math.cos(an)*200*dt; c.y += Math.sin(an)*200*dt; } }
+      if (Math.random() < 0.15) sfx('sierra');
+      if (e.ft <= 0){ e.fase = 'frena'; e.ft = 0.8; }
+      return;
+    }
+    case 'corta':
+      if (!e.golpeo && e.ft <= 0.15){ e.golpeo = 1; e.tajo = (e.tajo || 0) + 1; const m = mvManos(e)[1]; mvCorta(e, e.x, e.y - 10, m.x + (e.facing || 1)*30, e.y, 30, 80, 16, true); sfx('hachazo'); }
+      if (e.ft <= 0){ e.fase = ''; e.cortaCd = 0.6; }
+      return;
+  }
+  // libre: rodea al invasor a toda velocidad, con las sierras zumbando
+  e.orb = (e.orb === undefined ? Math.atan2(e.y - player.y, e.x - player.x) : e.orb) + dt*(e.roto ? 1.1 : 0.85)*(e.lado || 1);
+  const tx = player.x + Math.cos(e.orb)*280, ty = player.y + Math.sin(e.orb)*210;
+  const d = dist(e.x, e.y, tx, ty) || 1, v = Math.min(e.speed*(e.roto ? 1.25 : 1), d*4);
+  const x0 = e.x;
+  e.x = clamp(e.x + (tx - e.x)/d*v*dt, 40, WORLD_W - 40); e.y = clamp(e.y + (ty - e.y)/d*v*dt, 40, WORLD_H - 40);
+  collideBuildings(e, 16, dt, 0);
+  e.paso = (e.paso || 0) + dt*12;
+  e.facing = e.x >= x0 ? 1 : -1;
+  e.ladoT = (e.ladoT || 3) - dt; if (e.ladoT <= 0){ e.ladoT = rand(2, 4); e.lado = -(e.lado || 1); }
+  if (a < 80 + F().r && e.cortaCd <= 0){ e.golJN = 0; e.fase = 'corta'; e.ft = 0.3; e.golpeo = 0; e.facing = Math.cos(ang) >= 0 ? 1 : -1; return; }
+  e.cd -= dt;
+  if (e.cd <= 0 && a < 700){
+    const r = Math.random();
+    if (r < 0.5){ e.fase = 'zonaAviso'; e.ft = 1.1; e.zx = Math.round(player.x); e.zy = Math.round(player.y); sfx('cargaM'); }
+    else if (r < 0.75){ e.fase = 'embAviso'; e.ft = 0.55; e.eA = ang; sfx('cargaM'); }
+    else { e.fase = 'tornadoAviso'; e.ft = 0.6; sfx('dash'); }
+  }
+}
+// ---- dibujo ----
+function sierraPlasma(x, y, r, giro){
+  ctx.save(); ctx.translate(x, y);
+  ctx.globalAlpha = 0.35; ctx.fillStyle = '#7fc8ff'; ctx.beginPath(); ctx.arc(0, 0, r + 6, 0, Math.PI*2); ctx.fill();
+  ctx.globalAlpha = 1; ctx.rotate(giro);
+  ctx.fillStyle = '#bfe8ff';
+  for (let i = 0; i < 8; i++){ const a = i*Math.PI/4; ctx.beginPath(); ctx.moveTo(Math.cos(a)*r, Math.sin(a)*r); ctx.lineTo(Math.cos(a + 0.3)*(r + 5), Math.sin(a + 0.3)*(r + 5)); ctx.lineTo(Math.cos(a + 0.45)*r, Math.sin(a + 0.45)*r); ctx.closePath(); ctx.fill(); }
+  ctx.strokeStyle = '#6fb8ff'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI*2); ctx.stroke();
+  ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.arc(0, 0, r - 2, 0.3, 2.4); ctx.stroke();
+  ctx.fillStyle = '#e8f6ff'; ctx.beginPath(); ctx.arc(0, 0, 2.5, 0, Math.PI*2); ctx.fill();
+  ctx.restore();
+}
+function drawMuerteVeloz(e){
+  const s = S(e.x, e.y), alt = alturaVisible(e), giro = gameTime*30;
+  if (e.fase === 'tornado' || e.fase === 'tornadoAviso'){
+    // el tornado: anillos que giran, cada vez más anchos hacia arriba, y las sierras orbitando
+    const k = e.fase === 'tornado' ? 1 : 1 - clamp(e.ft/0.6, 0, 1);
+    sombra(s.x, s.y + 4, 70*k + 30, 18, 0.7);
+    ctx.save(); ctx.lineCap = 'round';
+    for (let i = 0; i < 7; i++){
+      const y = s.y - i*16*k, r = (16 + i*9)*k + 8, a0 = gameTime*(14 - i) + i;
+      ctx.strokeStyle = i % 2 ? 'rgba(63,159,174,0.75)' : 'rgba(14,18,22,0.75)'; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.ellipse(s.x, y, r, r*0.3, 0, a0, a0 + 4.2); ctx.stroke();
+      ctx.strokeStyle = 'rgba(220,240,255,0.5)'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.ellipse(s.x, y, r*0.8, r*0.24, 0, a0 + 2, a0 + 3.4); ctx.stroke();
+    }
+    ctx.restore();
+    for (let i = 0; i < 2; i++){ const a = gameTime*18 + i*Math.PI; sierraPlasma(s.x + Math.cos(a)*MV_TORN_R*0.8*k, s.y - 40 + Math.sin(a)*14, 12, giro); }
+    return;
+  }
+  sombra(s.x, s.y + 4, 60, 14, 0.85);
+  const pose = (e.fase === 'zonaAviso' || e.fase === 'embAviso' || e.fase === 'frena') ? 'carga' : 'corre';
+  const f = pose === 'corre' ? Math.floor(e.paso || 0) % 4 : 0;
+  const c = mvFrame(pose, f), [W, H, cx, py] = MV_TAM;
+  const pinta = (x, y, aph)=>{
+    ctx.save(); ctx.globalAlpha = aph; ctx.translate(x, y); if ((e.facing || 1) < 0) ctx.scale(-1, 1);
+    const suave = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(c, -cx, -py); ctx.imageSmoothingEnabled = suave; ctx.restore();
+  };
+  if (e.fase === 'zona' || e.fase === 'embiste'){                // a esa velocidad deja copias de sí misma
+    const an = Math.atan2(e.dty - e.d0y, e.dtx - e.d0x);
+    for (let i = 3; i >= 1; i--) pinta(s.x - Math.cos(an)*i*26, s.y - alt - Math.sin(an)*i*26, 0.12 + (3 - i)*0.08);
+  }
+  pinta(s.x, s.y - alt, 1);
+  for (const m of mvManos(e)){ const sm = S(m.x, m.y); sierraPlasma(sm.x, sm.y, 9, giro); }
+}
+function drawMuerteVelozSuelo(){
+  for (const e of enemies){
+    if (e.dead || e.type !== 'muerteVeloz') continue;
+    ctx.save(); ctx.lineCap = 'round';
+    if (e.fase === 'zonaAviso' || e.fase === 'zona'){
+      const z = S(e.zx, e.zy), pul = e.fase === 'zonaAviso' ? 0.55 + Math.sin(gameTime*18)*0.35 : 0.5;
+      ctx.fillStyle = 'rgba(80,190,255,' + (e.fase === 'zona' ? 0.1 : 0.16) + ')'; ctx.beginPath(); ctx.ellipse(z.x, z.y, MV_ZONA_R, MV_ZONA_R*0.72, 0, 0, Math.PI*2); ctx.fill();
+      ctx.strokeStyle = 'rgba(150,220,255,' + pul + ')'; ctx.lineWidth = 3; ctx.setLineDash([16, 10]); ctx.lineDashOffset = -gameTime*120; ctx.stroke(); ctx.setLineDash([]);
+      if (e.fase === 'zonaAviso'){                            // tajos que se avecinan
+        ctx.strokeStyle = 'rgba(255,90,70,' + pul*0.7 + ')'; ctx.lineWidth = 2;
+        for (let i = 0; i < 4; i++){ const a = i*0.8 + gameTime*0.6; ctx.beginPath(); ctx.moveTo(z.x + Math.cos(a)*MV_ZONA_R, z.y + Math.sin(a)*MV_ZONA_R*0.72); ctx.lineTo(z.x - Math.cos(a)*MV_ZONA_R, z.y - Math.sin(a)*MV_ZONA_R*0.72); ctx.stroke(); }
+      }
+    } else if (e.fase === 'embAviso'){
+      const s0 = S(e.x, e.y), s1 = S(e.x + Math.cos(e.eA)*MV_EMB_L, e.y + Math.sin(e.eA)*MV_EMB_L);
+      ctx.globalAlpha = 0.85; ctx.strokeStyle = '#7fd4ff'; ctx.lineWidth = 4; ctx.setLineDash([14, 10]); ctx.lineDashOffset = -gameTime*160;
+      ctx.beginPath(); ctx.moveTo(s0.x, s0.y); ctx.lineTo(s1.x, s1.y); ctx.stroke(); ctx.setLineDash([]);
+      ctx.globalAlpha = 0.15; ctx.lineWidth = MV_CORTE*2; ctx.stroke();
+    } else if (e.fase === 'tornadoAviso' || e.fase === 'tornado'){
+      const t = S(e.x, e.y); ctx.strokeStyle = 'rgba(255,90,70,0.6)'; ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.ellipse(t.x, t.y, MV_TORN_R, MV_TORN_R*0.7, 0, 0, Math.PI*2); ctx.stroke();
+    }
+    ctx.restore();
+  }
+}
+function drawMuerteVelozEfectos(){
+  for (const e of enemies){
+    if (e.dead || e.type !== 'muerteVeloz') continue;
+    ctx.save(); ctx.lineCap = 'round';
+    for (let k = 0; k < 6; k++){                               // las estelas de los tajos
+      const t = e['r' + k + 't']; if (!(t > 0)) continue;
+      const a0 = S(e['r' + k + 'a'], e['r' + k + 'b'] - 34), a1 = S(e['r' + k + 'c'], e['r' + k + 'd'] - 34), q = t/0.35;
+      ctx.globalAlpha = q*0.5; ctx.strokeStyle = '#3f9fae'; ctx.lineWidth = 22*q; ctx.beginPath(); ctx.moveTo(a0.x, a0.y); ctx.lineTo(a1.x, a1.y); ctx.stroke();
+      ctx.globalAlpha = q; ctx.strokeStyle = '#dff6ff'; ctx.lineWidth = 3; ctx.stroke();
+    }
+    if (e.fase === 'zona' || e.fase === 'embiste'){
+      const a0 = S(e.d0x, e.d0y - 34), a1 = S(e.x, e.y - 34);
+      ctx.globalAlpha = 0.6; ctx.strokeStyle = '#bfe8ff'; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(a0.x, a0.y); ctx.lineTo(a1.x, a1.y); ctx.stroke();
+    }
+    ctx.restore();
+  }
 }
 
 // ================= EL CENTURIÓN =================
@@ -16328,6 +16654,12 @@ function drawMisilCayendo(m){
   ficha('bichoF', alienFrame('bicho', 'ataca', 0), 1.3);
   ficha('amalgamaF', amalFrame('lanza', 0), 1.1);
   ficha('desesperacionF', desespFrame(0, 'golpe', 0), 0.85);
+  { const c = document.createElement('canvas'), m = mvFrame('corre', 1); c.width = m.width; c.height = m.height;
+    const g = c.getContext('2d'); g.drawImage(m, 0, 0);
+    for (const [x, y] of [[MV_TAM[2] + 34, MV_TAM[3] - 54], [MV_TAM[2] + 42, MV_TAM[3] - 50]]){
+      g.strokeStyle = '#6fb8ff'; g.lineWidth = 3; g.beginPath(); g.arc(x, y, 9, 0, Math.PI*2); g.stroke();
+      g.fillStyle = '#e8f6ff'; g.beginPath(); g.arc(x, y, 2.5, 0, Math.PI*2); g.fill(); }
+    ficha('muerteVelozF', c, 1.2); }
   ficha('medicoF', alienFrame('medico', 'ataca', 0), 2); ficha('voltioF', alienFrame('voltio', 'ataca', 0), 2);
   ficha('machacadorF', alienFrame('machacador', 'alza', 0), 1.5); ficha('aveF', alienFrame('ave', 'anda', 0), 1.2);
   ficha('gravitronF', alienFrame('gravitron', 'anda', 0), 0.9); ficha('aracnidoF', aracFrame('anda', 0, false), 0.8);
@@ -19016,7 +19348,7 @@ function drawMisilCaza(b, s){
 const CUERPO_JEFE = {
   kaiyin:[70, 200, 30], desgarrador:[50, 190, 10], centurion:[26, 85, 6], heroe:[12, 52, 4],
   superx:[60, 35, 0], artillero:[60, 60, 60], flametank:[55, 35, 35], tripode:[40, 50, 40], omni:[25, 25, 25],
-  aracnido:[85, 115, 20], gravitron:[70, 28, 20], machacador:[18, 62, 4], desesperacion:[40, 140, 6],
+  aracnido:[85, 115, 20], gravitron:[70, 28, 20], machacador:[18, 62, 4], desesperacion:[40, 140, 6], muerteVeloz:[30, 100, 6],
 };
 function cajaCuerpo(e){
   const c = CUERPO_JEFE[e.type];
@@ -19078,6 +19410,7 @@ function meleeDmg(e){
   if (e.type === 'desgarrador') return 58;
   if (e.type === 'aracnido')  return 58;
   if (e.type === 'desesperacion') return 58;
+  if (e.type === 'muerteVeloz') return 58;
   if (e.type === 'machacador') return 120;
   if (e.type === 'gravitron') return 90;
   if (e.type === 'heroe')     return 58;    // ~23 golpes
@@ -19262,9 +19595,9 @@ const SCENERY = { tree:1, lamp:1, bench:1, trash:1 };
 function isScenery(o){ return !!SCENERY[o.kind]; }
 
 // Unidades que no se revientan de una pasada: hay que insistir.
-const BLINDADOS = { desesperacion:1, machacador:1, gravitron:1, aracnido:1, desgarrador:1, bicho:1, amalgama:1, arana:1, tank:1, siege:1, gunship:1, heli:1, flametank:1, omni:1, artillero:1, superx:1, mbt:1, mbtFrio:1, tripode:1 };
+const BLINDADOS = { muerteVeloz:1, desesperacion:1, machacador:1, gravitron:1, aracnido:1, desgarrador:1, bicho:1, amalgama:1, arana:1, tank:1, siege:1, gunship:1, heli:1, flametank:1, omni:1, artillero:1, superx:1, mbt:1, mbtFrio:1, tripode:1 };
 // Mini jefes: el viltrumita les hace más daño con lo que les arroja.
-const JEFES = { flametank:1, omni:1, artillero:1, superx:1, tripode:1, heroe:1, kaiyin:1, centurion:1, desgarrador:1, aracnido:1, desesperacion:1 };
+const JEFES = { flametank:1, omni:1, artillero:1, superx:1, tripode:1, heroe:1, kaiyin:1, centurion:1, desgarrador:1, aracnido:1, desesperacion:1, muerteVeloz:1 };
 const VIL_BOSS_MULT = 1.40;
 function throwDmgOn(o, tgt){
   let base = o.throwDmg;
@@ -20357,6 +20690,7 @@ function updateEnemies(dt){
     if (e.type === 'gravitron'){ updateGravitron(e, dt, a, ang); continue; }
     if (e.type === 'aracnido'){ updateAracnido(e, dt, a, ang); vozJefe(e, dt); continue; }
     if (e.type === 'desesperacion'){ updateDesesperacion(e, dt, a, ang); vozJefe(e, dt); continue; }
+    if (e.type === 'muerteVeloz'){ updateMuerteVeloz(e, dt, a, ang); vozJefe(e, dt); continue; }
     if (FANT_TIPOS[e.type]){ updateFantasma(e, dt, a, ang); continue; }
     if (e.type === 'omni'){
       const angP = Math.atan2(player.y-e.y, player.x-e.x);
@@ -20794,7 +21128,7 @@ function updateSpawns(dt){
           spawnEnemy(cual);
           toast(cual === 'omni' ? '¡OMNIDROIDE!' : cual === 'artillero' ? '¡EL ARTILLERO!'
               : cual === 'superx' ? '¡SUPER X2!' : cual === 'heroe' ? '¡EL HÉROE MÁGICO!'
-              : cual === 'kaiyin' ? '¡KAIYIN! EL CIELO SE OSCURECE' : cual === 'centurion' ? '¡EL CENTURIÓN!' : cual === 'desgarrador' ? '¡EL DESGARRADOR!' : cual === 'aracnido' ? '¡LA TEJEDORA!' : cual === 'desesperacion' ? '¡DESESPERACIÓN!' : '¡TANQUE DE FUEGO!');
+              : cual === 'kaiyin' ? '¡KAIYIN! EL CIELO SE OSCURECE' : cual === 'centurion' ? '¡EL CENTURIÓN!' : cual === 'desgarrador' ? '¡EL DESGARRADOR!' : cual === 'aracnido' ? '¡LA TEJEDORA!' : cual === 'muerteVeloz' ? '¡MUERTE VELOZ!' : cual === 'desesperacion' ? '¡DESESPERACIÓN!' : '¡TANQUE DE FUEGO!');
           if (cual === 'kaiyin') sfx('trueno');
           if (cual === 'desgarrador') sfx('sierra');
           const j = enemies[enemies.length - 1];
@@ -21289,7 +21623,8 @@ function lucesJefes(L, k, mx, Mx, my, My, tinta){
   lucesDinamicas(luz);                                      // explosiones, relámpagos y rayos
   for (const e of enemies){
     if (e.dead) continue;
-    if (e.type === 'desesperacion') luz(e.x + (e.facing || 1)*24, e.y - alturaVisible(e) - ((e.etapa || 0) < 2 ? 70 : 150), 34, luzRoja, 0.55);
+    if (e.type === 'muerteVeloz'){ for (const m of mvManos(e)) luz(m.x, m.y, 40, luzAzul, 0.6); if (e.fase === 'tornado') luz(e.x, e.y - 40, 110, luzAzul, 0.6); }
+    else if (e.type === 'desesperacion') luz(e.x + (e.facing || 1)*24, e.y - alturaVisible(e) - ((e.etapa || 0) < 2 ? 70 : 150), 34, luzRoja, 0.55);
     else if (e.type === 'aracnido'){ const o = aracOjos(e); luz(o.x, o.y, 54, luzRoja, 0.7); if (e.fase === 'tela' || e.atrapa) luz(e.tx, e.ty, 50, luzBlanca, 0.4); }
     else if (e.type === 'gravitron'){ luz(e.x - (e.facing || 1)*30, e.y - alturaVisible(e), 60, luzAzul, 0.6); if (e.gF === 'activo') luz(e.gx, e.gy, e.gR, luzAzul, 0.45); }
     else if (e.type === 'medico' && e.cura) luz(e.cx, e.cy, 40, luzRoja, 0.5);
@@ -22231,6 +22566,7 @@ function drawEnemyBase(e){
   if (e.type === 'amalgama'){ drawAmalgama(e); return; }
   if (e.type === 'aracnido'){ drawAracnido(e); return; }
   if (e.type === 'desesperacion'){ drawDesesperacion(e); return; }
+  if (e.type === 'muerteVeloz'){ drawMuerteVeloz(e); return; }
   if (AL_TAM[e.type]){ drawUnidadAlien(e); return; }
   if (e.type === 'heroe'){ drawHeroe(e); return; }
   if (FANT_TIPOS[e.type]){ drawFantasmaUnidad(e); return; }
@@ -22560,7 +22896,7 @@ function draw(){
   drawBuildings(); drawPlanters(); drawLamps();
   // Las zonas marcadas del Artillero van DESPUÉS de los edificios: si no, los
   // escombros las tapaban justo donde más falta hace verlas.
-  drawFuegos(); drawArtAvisos(); drawTriAvisos(); drawDragonAvisos(); drawMaquinaAvisos(); drawMagoAvisos(); drawMbtRayos(); drawJefes2Avisos(); drawAlienSuelo(); drawCenturionAvisos(); drawAmalgamaAvisos(); drawDesgarradorAvisos(); drawRefuerzosSuelo(); drawAracnidoSuelo(); drawDesesperacionAvisos(); drawCenizasSuelo(); drawNubesNegras();
+  drawFuegos(); drawArtAvisos(); drawTriAvisos(); drawDragonAvisos(); drawMaquinaAvisos(); drawMagoAvisos(); drawMbtRayos(); drawJefes2Avisos(); drawAlienSuelo(); drawCenturionAvisos(); drawAmalgamaAvisos(); drawDesgarradorAvisos(); drawRefuerzosSuelo(); drawAracnidoSuelo(); drawDesesperacionAvisos(); drawMuerteVelozSuelo(); drawCenizasSuelo(); drawNubesNegras();
 
   // Solo se encolan los objetos visibles: con ~200 props fuera de pantalla,
   // esto evita cientos de entradas y llamadas de dibujo por fotograma.
@@ -22618,7 +22954,7 @@ function draw(){
     }
   }
 
-  drawBullets(); drawTriRayos(); drawDragonRayos(); drawJefes2Rayos(); drawAlienEfectos(); drawCenturionEfectos(); drawDesgarradorRayo(); drawRefuerzosEfectos(); drawAracnidoEfectos(); drawDesesperacionEfectos(); drawElectroJugador(); drawMeteorosCayendo(); drawProyJ(proyJ); drawProyJ(proyRed);
+  drawBullets(); drawTriRayos(); drawDragonRayos(); drawJefes2Rayos(); drawAlienEfectos(); drawCenturionEfectos(); drawDesgarradorRayo(); drawRefuerzosEfectos(); drawAracnidoEfectos(); drawDesesperacionEfectos(); drawMuerteVelozEfectos(); drawElectroJugador(); drawMeteorosCayendo(); drawProyJ(proyJ); drawProyJ(proyRed);
   if (dobleAnf() && Online.av && Online.av.pj) drawProyJ(Online.av.pj);
   drawMaquinaEfectos(); drawMagoEfectos();
   drawRelampagos(); drawHumos(); drawHumoEdif(); drawSonic(); drawWind(); drawRayosOjos(); drawFX(); drawLucesDia(); drawBocadillos(); drawNumeros(); drawMarcaTutorial(); drawAura(); drawPortalCelestial(); if (vil.caida) drawCaidaJugador(); drawP2Cursor();
@@ -22647,6 +22983,7 @@ const JEFE_EST = {
   desgarrador:{ nom:'EL DESGARRADOR',    tit:'Sierra de acero',             img:'desgarradorF',barra:['#ff4a4a','#7a0a12'], borde:'#c4ccd6', fondo:['#0e0606','#3a161a'], deco:'sierra' },
   refuerzos:  { nom:'REFUERZOS',         tit:'La flota marciana responde',  img:'@refuerzos',  barra:['#d890ff','#4a1a8a'], borde:'#c8b8ff', fondo:['#0a0618','#2a1858'], deco:'flota' },
   desesperacion:{ nom:'DESESPERACIÓN',   tit:'Nunca deja de correr',        img:'desesperacionF', barra:['#efe6cc','#5a0806'], borde:'#b0201a', fondo:['#040102','#2a0606'], deco:'garras' },
+  muerteVeloz:{ nom:'MUERTE VELOZ',      tit:'Más rápida que el sonido',    img:'muerteVelozF', barra:['#7fd4de','#1a4a56'], borde:'#bfe8ff', fondo:['#04080c','#10303a'], deco:'velocidad' },
   aracnido:   { nom:'LA TEJEDORA',       tit:'Hilo de acero',               img:'aracnidoF',   barra:['#eef4fa','#5a626e'], borde:'#ff5a4a', fondo:['#06080c','#262c36'], deco:'telarana' }
 };
 const PRES_T = 2.0, CONGELA_T = 1.55, LENTA_T = 1.6, CAIDO_T = 2.4;
@@ -22788,6 +23125,10 @@ function drawBarraJefe(e, i){
       for (let q = 0; q < 5; q++){ const px = x + ((q*0.21 + t*0.12) % 1)*W, py = y - 5 - (q % 2)*3;
         ctx.beginPath(); ctx.moveTo(px + 7, py); ctx.lineTo(px - 4, py - 3); ctx.lineTo(px - 2, py); ctx.lineTo(px - 4, py + 3); ctx.closePath(); ctx.fill(); }
       break;
+    case 'velocidad':                               // rayas que pasan como si la barra corriera
+      ctx.save(); ctx.beginPath(); ctx.rect(x, y, W*k, H); ctx.clip(); ctx.fillStyle = 'rgba(255,255,255,0.3)';
+      for (let q = 0; q < 6; q++){ const px = x + ((q*0.19 + t*1.6) % 1)*W*1.2 - 30; ctx.fillRect(px, y + 2 + (q % 3)*3, 26, 1.5); }
+      ctx.restore(); break;
     case 'garras':                                  // tres zarpazos que rasgan la barra
       ctx.strokeStyle = '#1a0202'; ctx.lineWidth = 2;
       for (let q = 0; q < 3; q++){ const px = x + W*(0.22 + q*0.25); for (let z = 0; z < 3; z++){ ctx.beginPath(); ctx.moveTo(px + z*5, y - 5); ctx.lineTo(px + z*5 + 9, y + H + 5); ctx.stroke(); } }
@@ -22979,6 +23320,11 @@ function rugido(tipo, k){
       for (let i = 0; i < 3; i++){ notaEn(i*0.4, 660, 0.2, 'square', 0.05*k); notaEn(i*0.4 + 0.2, 494, 0.2, 'square', 0.05*k); }
       ruidoEn(0, 1.4, 0.14*k, 2400); grunido(90, 55, 1.4, 0.12*k, 'sawtooth', 14, 0.1);
       break;
+    case 'muerteVeloz':                                  // chillido agudo, sierras de plasma y el estampido
+      grunido(1500, 700, 0.7, 0.1*k, 'square', 85, 0); ruidoEn(0, 0.5, 0.14*k, 6000);
+      notaEn(0.15, 300, 0.9, 'sawtooth', 0.06*k, 1400); notaEn(0.15, 450, 0.9, 'sawtooth', 0.04*k, 2100);
+      grunido(90, 40, 0.6, 0.18*k, 'sine', 8, 0.6); ruidoEn(0.6, 0.6, 0.18*k, 900);
+      break;
     case 'desesperacion':                                // un chillido casi humano y un gemido que no acaba
       grunido(1150, 380, 1.3, 0.12*k, 'sawtooth', 72, 0); grunido(800, 260, 1.4, 0.09*k, 'square', 56, 0.08);
       grunido(170, 70, 1.6, 0.12*k, 'sawtooth', 18, 0.1); ruidoEn(0, 1.2, 0.16*k, 4200);
@@ -23029,6 +23375,8 @@ function vozJefe(e, dt){
       if ((f === 'vueloAviso' || f === 'colaAviso' || f === 'rayoCarga') && (e._rugT || 0) <= gameTime){ e._rugT = gameTime + 6; rugido('desgarrador', 0.75*k); if (_fxRed) _fxRed.push(['r', 'desgarrador', 0.75*k]); }
     } else if (e.type === 'kaiyin'){
       if (f && f !== 'anda' && f !== 'aterriza' && (e._rugT || 0) <= gameTime){ e._rugT = gameTime + 7; rugido('kaiyin', 0.6*k); if (_fxRed) _fxRed.push(['r', 'kaiyin', 0.6*k]); }
+    } else if (e.type === 'muerteVeloz'){
+      if ((f === 'zonaAviso' || f === 'tornadoAviso') && (e._rugT || 0) <= gameTime){ e._rugT = gameTime + 6; rugido('muerteVeloz', 0.6*k); if (_fxRed) _fxRed.push(['r', 'muerteVeloz', 0.6*k]); }
     } else if (e.type === 'desesperacion'){
       if ((f === 'saltoAviso' || f === 'embAviso') && (e._rugT || 0) <= gameTime){ e._rugT = gameTime + 5; rugido('desesperacion', 0.7*k); if (_fxRed) _fxRed.push(['r', 'desesperacion', 0.7*k]); }
     } else if (e.type === 'aracnido'){
@@ -23755,7 +24103,7 @@ function limpiaRestosPartida(){
 // Si un jefe queda fuera de la pantalla, una flecha en el borde señala
 // hacia dónde está (en píxeles del lienzo, encima de la noche).
 const JEFE_NOMBRE = { flametank:'TANQUE DE FUEGO', omni:'OMNIDROIDE', artillero:'ARTILLERO', superx:'SUPER X', tripode:'TRÍPODE',
-                      heroe:'HÉROE MÁGICO', kaiyin:'KAIYIN', centurion:'CENTURIÓN', desgarrador:'DESGARRADOR', aracnido:'TEJEDORA', desesperacion:'DESESPERACIÓN' };
+                      heroe:'HÉROE MÁGICO', kaiyin:'KAIYIN', centurion:'CENTURIÓN', desgarrador:'DESGARRADOR', aracnido:'TEJEDORA', desesperacion:'DESESPERACIÓN', muerteVeloz:'MUERTE VELOZ' };
 function drawFlechasJefe(){
   if (!running || esVisorVs()) return;
   const M = 30, cx = CW/2, cy = CH/2;
