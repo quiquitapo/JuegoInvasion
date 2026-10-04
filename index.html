@@ -4626,7 +4626,7 @@ function edgeSpawnPos(dmin, dmax, vuela){
 const ENEMY_TYPES = { police:1, military:1, minigun:1, tank:1, heli:1, gunship:1, siege:1, flametank:1, plane:1, omni:1, artillero:1, superx:1, mbt:1, mbtFrio:1, ovni:1, tripode:1,
                       heroe:1, arquero:1, caballero:1, golem:1, kaiyin:1,
                       centinela:1, centElite:1, droide:1, escaner:1, cabezon:1, arana:1, murcielago:1, caza40k:1, centurion:1, vengativo:1, bicho:1, amalgama:1, desgarrador:1,
-                      medico:1, voltio:1, machacador:1, ave:1, gravitron:1, aracnido:1 };
+                      medico:1, voltio:1, machacador:1, ave:1, gravitron:1, aracnido:1, desesperacion:1 };
 function spawnEnemy(type, atX, atY){
   if (!ENEMY_TYPES[type]) return;      // ignora tipos retirados o mal escritos
   // Lo que vuela puede aparecer sobre un tejado; el resto, no.
@@ -4688,6 +4688,8 @@ function spawnEnemy(type, atX, atY){
                             rumbo:rand(0, 6.28), wx:0, wy:0, wT:0, rafaga:0, tiroT:0, dispT:0, cd:rand(1.5, 2.5)});
   if (type==='gravitron') Object.assign(base, {hp:GRAV_HP, maxhp:GRAV_HP, speed:60, w:130, h:70, grabbable:true, alt:96, bob:rand(0,6),
                             fase:'', ft:0, cd:2.5, gF:'', gT:0, gx:0, gy:0, gR:GRAV_R, bombas:0, tiroT:0});
+  if (type==='desesperacion') Object.assign(base, {hp:DESES_HP, maxhp:DESES_HP, speed:230, w:50, h:150, grabbable:false, fase:'', ft:0, paso:0, etapa:0,
+                            lleva:0, golpeCd:0, lanzaCd:1, comeCd:3, espCd:4, empujeCd:0, sx:0, sy:0, eA:0, alt:0});
   if (type==='aracnido')  Object.assign(base, {hp:ARAC_HP, maxhp:ARAC_HP, speed:120, w:200, h:140, grabbable:false, fase:'', ft:0, cd:2.2, paso:0,
                             tx:0, ty:0, tw:0, sx:0, sy:0, s0x:0, s0y:0, ax:0, ay:0, atrapa:0, muerde:0, lasN:0, lasT:0, pn:0, p0t:0, p1t:0, p2t:0});
   if (type==='heroe')     Object.assign(base, {hp:HEROE_HP, maxhp:HEROE_HP, speed:58, w:44, h:58, grabbable:false,
@@ -6740,7 +6742,8 @@ const REWARD = {
   machacador:{ pts:260, heal:28 },
   ave:      { pts:200,  heal:22 },
   gravitron:{ pts:900,  heal:55 },
-  aracnido: { pts:3200, heal:90 }
+  aracnido: { pts:3200, heal:90 },
+  desesperacion:{ pts:3400, heal:95 }
 };
 
 // ---- ¿Quién causó esta muerte? ----
@@ -6891,6 +6894,8 @@ function damageEnemy(e, dmg, fx, fy){
   else if (k === 'desgarrador'){ explode(e.x, e.y, 220, 70, true); humoNegro(e.x, e.y); addParticles(e.x, e.y - 80, '#c4ccd6', 30, 260); shake(24, 0.8); }
   else if (k === 'centurion'){ explode(e.x, e.y, 210, 70, true); humoNegro(e.x, e.y); addParticles(e.x, e.y - 50, '#7fe8ff', 24, 240); shake(22, 0.7);
                                if (esAlien()) unlockAch('conquistador'); }
+  else if (k === 'desesperacion'){ desSuelta(e); explode(e.x, e.y, 200, 60, true); addParticles(e.x, e.y - 90, '#7a1410', 40, 280); addParticles(e.x, e.y - 90, '#efe6cc', 20, 220); shake(24, 0.8);
+                                   rugido('desesperacion', 1); if (_fxRed) _fxRed.push(['r', 'desesperacion', 1]); }
   else if (k === 'aracnido'){ explode(e.x, e.y, 230, 70, true); humoNegro(e.x, e.y); addParticles(e.x, e.y - 80, '#a0aab8', 30, 260); addParticles(e.x, e.y - 60, '#7ffcff', 16, 200); shake(24, 0.8);
                               if (tela && tela.e === e) sueltaTela(false); }
   else if (k === 'gravitron'){ e.gF = ''; explode(e.x, e.y, 170, 50, true); humoNegro(e.x, e.y); addParticles(e.x, e.y - 40, '#d07aff', 26, 240); }
@@ -8417,6 +8422,11 @@ const BOSS_TRACKS = {
                mel:[0,-1,4,-1, 3,-1,0,-1, 5,4,3,-1, 1,-1,-1,-1, 0,-1,4,-1, 3,-1,0,-1, 6,5,4,3, 4,-1,-1,-1] },
   // La Tejedora: órgano de villano sobre un bajo que baja, con un motivo que
   // sube y baja por semitonos como patas que se acercan.
+  // Desesperación: terror de persecución. Racimo de cuerdas disonante, un
+  // ostinato grave en 7 que no deja respirar, latidos y chillidos.
+  desesperacion: { scale:[65.41,69.30,77.78,82.41,92.50,98.00,103.83,123.47],
+               bass:[32.70,34.65,32.70,30.87], tempo:95, name:'NO HAY ESCAPATORIA', style:'pavor',
+               ost:[0,-1,0,1, 0,-1,0, 4,-1,0,1, 0,-1,3] },
   aracnido:  { scale:[110.00,116.54,130.81,146.83,155.56,174.61,196.00,220.00],
                bass:[55.00,51.91,49.00,46.25], tempo:165, name:'HILO DE ACERO', style:'villano',
                mel:[0,-1,1,0, 4,-1,3,-1, 0,1,0,-1, 6,-1,-1,-1, 0,-1,1,0, 4,-1,5,-1, 7,6,5,4, 1,-1,-1,-1] }
@@ -8630,6 +8640,32 @@ function musicStep(){
     }
     return;
   }
+  if (bt && bt.style === 'pavor'){
+    // NO HAY ESCAPATORIA: compases de 7 a toda prisa, un ostinato grave que se
+    // atropella, el latido, cuerdas que chirrían en un racimo de semitonos,
+    // golpes de piano grave cada pocos compases y un chillido que cae.
+    const ac = audio.ctx, paso = s % 14, comp = (s/14 | 0) % 8;
+    const cae = (f0, f1, dur, type, vol)=>{
+      const o = ac.createOscillator(), g = ac.createGain();
+      o.type = type; o.frequency.setValueAtTime(f0, t0); o.frequency.exponentialRampToValueAtTime(f1, t0 + dur);
+      g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(vol, t0 + 0.04); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      o.connect(g); g.connect(audio.musGain); o.start(t0); o.stop(t0 + dur + 0.05);
+      o.onended = ()=>{ try { o.disconnect(); g.disconnect(); } catch(e){} };
+    };
+    const o = bt.ost[paso];
+    if (o >= 0){ mk(sc[o]/2, 0.11, 'sawtooth', 0.15); if (comp >= 4) mk(sc[o], 0.09, 'square', 0.05); }
+    if (paso === 0 || paso === 3){ mk(44, 0.2, 'sine', 0.3); noise(0.05, 0.1, 110); }             // el latido
+    if (comp >= 2 && (paso === 7 || paso === 10)) noise(0.12, 0.18, 1700);                       // caja seca
+    if (paso === 0 && comp % 2 === 0){                                                           // cuerdas: semitonos que rozan
+      const d = 28*bt.tempo/1000;
+      mk(sc[7]*2, d, 'sawtooth', 0.022); mk(sc[7]*2*1.059, d, 'sawtooth', 0.02); mk(sc[4]*4, d, 'triangle', 0.02); mk(sc[4]*4*0.944, d, 'triangle', 0.016);
+    }
+    if (comp >= 4 && s % 2 === 1) mk(sc[[7, 4, 1, 4][(s/2 | 0) % 4]]*8, 0.05, 'square', 0.012);   // trémolo nervioso
+    if (paso === 12 && comp % 4 === 3){ mk(sc[0], 1.1, 'sawtooth', 0.09); mk(sc[1], 1.1, 'sawtooth', 0.07); mk(sc[4], 1.1, 'sawtooth', 0.06); noise(0.5, 0.1, 2600); }
+    if (comp === 7 && paso === 6) cae(1500, 420, 1.0, 'sawtooth', 0.03);                         // el chillido
+    if (paso === 5 || paso === 12) noise(0.03, 0.04, 7000);
+    return;
+  }
   if (bt && bt.style === 'infierno'){
     // LAMENTO ETERNO: órgano grave que nunca se resuelve, un coro desafinado,
     // el Dies irae arrastrado y un tambor lento como un latido.
@@ -8818,6 +8854,7 @@ function updateBossMusic(dt){
     if (e.type === 'desgarrador'){ cual = 'desgarrador'; break; }
     if (e.type === 'heroe'){ cual = 'heroe'; break; }
     if (e.type === 'aracnido'){ cual = 'aracnido'; break; }
+    if (e.type === 'desesperacion'){ cual = 'desesperacion'; break; }
   }
   if (!cual && refz) cual = 'refuerzos';
   const nuevo = cual ? BOSS_TRACKS[cual] : null;
@@ -8977,6 +9014,9 @@ const BESTIARY = [
   { id:'amalgama', name:'AMALGAMA DE ALMAS', hp:'420+', dmg:'autos lanzados, embestida y manotazos', sprite:'amalgamaF', verb:'DISPERSADAS',
     hint:'Algo grande se arrastra entre las almas de Castigo Divino.',
     desc:'Un alma distinta a las demás: busca a las almas en pena y se las traga, y con cada una crece y gana vida. Le han salido brazos y piernas, y su cabeza es un amasijo de caras que gritan. Arranca los autos calcinados para lanzártelos y embiste en línea recta tras marcarla en el suelo. Mátala antes de que engorde.' },
+  { id:'desesperacion', name:'DESESPERACIÓN', hp:2600, dmg:'zarpazos, objetos lanzados, salto y embestida desenfrenada', sprite:'desesperacionF', verb:'DERROTADAS',
+    hint:'En Castigo Divino algo corre hacia ti sin cansarse nunca.',
+    desc:'El jefe propio de Castigo Divino: un ser humanoide altísimo y escuálido, de piel gris tirante sobre las costillas, brazos que le llegan a los tobillos con dedos larguísimos, cuencas vacías con un punto de luz y una mandíbula descolgada llena de agujas. Corre hacia ti sin parar, agarra lo que pilla por el camino (autos, farolas, soldados) y te lo lanza; de cerca, zarpazos. Para curarse agarra a cualquiera de los suyos y se lo come, y además se regenera poco a poco. Algo pesado lanzado o el puño cargado del viltrumita lo mandan lejos, pero vuelve corriendo. Sus especiales: un salto sobre la zona que marca y una embestida desenfrenada de tres tramos que arrasa con todo. Cuanta menos vida tiene, peor se ve: primero se le cae la piel y asoman los huesos; al final corre a cuatro patas.' },
   { id:'vengativo', name:'VENGATIVO', hp:12, dmg:'se te aferra y muerde', sprite:'vengativoF', verb:'DEVUELTOS AL SUELO',
     hint:'Algo se mueve bajo el suelo de Castigo Divino.',
     desc:'Lo que queda de los que mataste, retorcido por el castigo. Salen del suelo del infierno en grupo, corren en zigzag muy rápido y se te echan encima: los que te alcanzan se aferran a ti y te muerden hasta que se sueltan (corriendo te los quitas antes). Uno solo no aguanta nada; el peligro es que lleguen muchos. En Castigo Divino también te esperan el resto de las unidades de la ciudad y del planeta marciano, deformadas: más vida, más rápidas y más daño, pero valen más puntos. Hasta los jefes vuelven así.' },
@@ -9200,6 +9240,8 @@ function regVariantes(b){
     const e = id === 'lamp' ? 1 : 2.4;                     // basurero y banca son pequeños: se amplían
     return [[AL, ()=> spriteListo(k) ? cvURL(spriteTenido(k, A[1]), e) : ''], [INF, ()=> spriteListo(k) ? cvURL(spriteTenido(k, I[1]), e) : '']];
   }
+  if (id === 'desesperacion') return [[INF + ' · herida: asoman los huesos', ()=> cvURL(desespFrame(1, 'corre', 1), 0.85)],
+                                      [INF + ' · moribunda: a cuatro patas', ()=> cvURL(desespFrame(2, 'corre', 1), 0.85)]];
   if (id === 'arana') return [[VD + ' · patas de araña', ()=> regD(conMapa('infierno', ()=> alienFrame('arana', 'anda', 0)), 1.3)]];
   if (id === 'desgarrador') return [[VD + ' · despellejado', ()=> conMapa('infierno', ()=>
     regD(desFrame('corta', 0, 'carne'), 0.9, g=> g.drawImage(desFrame('corta', 0, 'huesos'), 0, 0)))]];
@@ -10041,7 +10083,8 @@ const P2_INFIERNO = [
   { type:'tripode',   name:'TRÍPODE D.',   cost:1000,cool:22.0,sprite:null, especial:'tripodeN', deforme:1 },
   { type:'kaiyin',    name:'KAIYIN D.',    cost:1500,cool:30.0,sprite:'kaiyinF',    deforme:1 },
   { type:'centurion', name:'CENTURIÓN D.', cost:1500,cool:30.0,sprite:'centurionF', deforme:1 },
-  { type:'desgarrador',name:'DESGARRADOR D.',cost:1550,cool:30.0,sprite:'desgarradorF', deforme:1 }
+  { type:'desgarrador',name:'DESGARRADOR D.',cost:1550,cool:30.0,sprite:'desgarradorF', deforme:1 },
+  { type:'desesperacion',name:'DESESPERACIÓN',cost:1500,cool:30.0,sprite:'desesperacionF' }
 ];
 const P2_SETS = { ciudad:P2_CIUDAD, alien:P2_ALIEN, infierno:P2_INFIERNO };
 let P2_UNITS = P2_CIUDAD;
@@ -10152,6 +10195,7 @@ function p2Place(){
     if (u.type === 'centurion'){ toast('¡EL CENTURIÓN!'); shake(18, 0.6); }
     if (u.type === 'desgarrador'){ toast('¡EL DESGARRADOR!'); sfx('sierra'); shake(18, 0.6); }
     if (u.type === 'aracnido'){ toast('¡LA TEJEDORA!'); sfx('alarma'); shake(18, 0.6); }
+    if (u.type === 'desesperacion'){ toast('¡DESESPERACIÓN!'); shake(18, 0.6); }
   }
   if (u.type === 'tripode' && !u.especial){ toast(TRI_AVISO, 3); sfx('ulla'); shake(14, 0.5); }
   if (u.type === 'heroe'){ toast('¡EL HÉROE MÁGICO!'); sfx('conjuro'); }
@@ -14752,12 +14796,407 @@ function updateSpawnsInf(dt, count){
 }
 // En el infierno vuelven todos los jefes, deformados (el Centurión incluido).
 function sorteaJefeInf(){
-  const r = Math.random();
-  if (r < 0.16) return 'centurion';
-  if (r < 0.32) return 'desgarrador';
-  const j = sorteaJefe();
-  return j === 'marciana' ? 'centurion' : j;
+  for (let i = 0; i < 4; i++){                 // sin repetir el último
+    const r = Math.random();
+    let j = r < 0.22 ? 'desesperacion' : r < 0.36 ? 'centurion' : r < 0.5 ? 'desgarrador' : sorteaJefe();
+    if (j === 'marciana') j = 'centurion';
+    if (j !== ultimoJefe) return j;
+  }
+  return ultimoJefe === 'desesperacion' ? 'centurion' : 'desesperacion';
 }
+// ================= DESESPERACIÓN =================
+// Jefe único de Castigo Divino: un ser humanoide altísimo y escuálido, de
+// brazos que le llegan a los tobillos, cuencas vacías con un punto de luz y
+// una mandíbula descolgada llena de agujas. Corre hacia ti sin parar, agarra
+// lo que pilla por el camino y te lo lanza; de cerca, zarpazos. Para curarse
+// agarra a cualquiera de los suyos y se lo come, y además se regenera solo.
+// Un golpe enorme (el puño cargado del viltrumita o algo pesado lanzado) lo
+// manda lejos, pero vuelve corriendo. Cuanta menos vida le queda, peor se ve:
+// primero se le cae la piel y asoman los huesos; al final corre a cuatro patas.
+// Sus especiales: un salto sobre ti y una embestida desenfrenada de tres
+// tramos que arrasa con todo lo que se cruza.
+const DESES_HP = 2600, DESES_REGEN = 5, DESES_TAM = [250, 260, 125, 244];
+const DESES_GOLPE = 15, DESES_SALTO_R = 110, DESES_SALTO_DMG = 28, DESES_EMB_DMG = 26, DESES_EMB_L = 460, DESES_EMB_VEL = 950;
+const desespCache = new Map();
+function desespFrame(et, pose, f){
+  const k = et + pose + f;
+  let c = desespCache.get(k);
+  if (c) return c;
+  const [W, H, cx, py] = DESES_TAM;
+  c = document.createElement('canvas'); c.width = W; c.height = H;
+  const g = c.getContext('2d'); g.lineCap = 'round'; g.lineJoin = 'round';
+  g.translate(cx, py);
+  dibDesesperacion(g, et, pose, f);
+  pixelArte(c, '#050304');
+  desespCache.set(k, c);
+  return c;
+}
+// Se arma con un esqueleto de articulaciones (ángulos medidos desde la
+// vertical hacia abajo; positivo, hacia delante) y luego se viste.
+function dibDesesperacion(g, et, pose, f){
+  const piel = et ? '#8a8378' : '#9a948a', pielO = '#5e584f', pielD = '#3a3530', lejos = '#55504a';
+  const hueso = '#efe6cc', huesoO = '#b4a98e', carne = '#7a1410', sangre = '#4e0606', boca = '#0a0204', diente = '#f2ecda';
+  const ph = f/4*Math.PI*2, cuatro = et >= 2;
+  const P = (x, y)=>({ x, y });
+  const desde = (o, a, L)=> P(o.x + Math.sin(a)*L, o.y + Math.cos(a)*L);
+  let H, Sh, Hd, rotCab, piernas, brazos;
+  const brazoAng = (lado)=>{                                   // lado: 0 lejos, 1 cerca
+    const sw = Math.sin(ph + (lado ? 0 : Math.PI));
+    switch (pose){
+      case 'golpe': return lado ? (f ? [1.5, 1.85] : [-2.6, -2.15]) : [0.3, 0.55];
+      case 'carga': return [2.85 + lado*0.15, 3.05];
+      case 'come':  return [1.05 + lado*0.2, 2.6];
+      case 'salta': return [1.75 - lado*0.2, 1.5];
+      case 'embiste': return [-1.25 + sw*0.2, -1.0];
+      case 'cae':   return lado ? [2.4, 2.9] : [-2.2, -2.6];
+      default:      return cuatro ? [sw*0.85 + 0.25, sw*0.85 - 0.15] : [-sw*0.95 + 0.25, -sw*0.95 + 0.6];
+    }
+  };
+  const piernaAng = (lado)=>{
+    const fs = lado ? 0 : Math.PI, sw = Math.sin(ph + fs), cs = Math.cos(ph + fs);
+    switch (pose){
+      case 'salta': return [1.25, -0.35];
+      case 'cae':   return [1.5 + lado*0.4, 1.1];
+      case 'golpe': case 'carga': return cuatro ? [0.15 - lado*0.3, -0.3] : [lado ? 0.35 : -0.25, lado ? -0.05 : -0.6];
+      case 'come':  return [lado ? 0.9 : 0.5, -0.5];
+      default: {
+        const a1 = sw*(cuatro ? 0.8 : 0.78) + 0.1;
+        return [a1, a1 - 0.45 - Math.max(0, cs)*1.15];
+      }
+    }
+  };
+  if (!cuatro){
+    const incl = [0.3, 0.55][et] + (pose === 'embiste' ? 0.6 : pose === 'come' ? 0.55 : pose === 'salta' ? 0.5 : pose === 'golpe' ? 0.2 : 0);
+    H = P(0, -84); Sh = desde(H, Math.PI - incl, 66);
+    Hd = desde(Sh, Math.PI - incl - 0.75, 24); rotCab = incl*0.9 + 0.25;
+  } else {
+    const alza = pose === 'golpe' || pose === 'carga';
+    H = P(-40, -62); Sh = alza ? P(14, -124) : pose === 'come' ? P(36, -52) : P(38, -70);
+    Hd = alza ? P(Sh.x + 14, Sh.y - 8) : P(Sh.x + 24, Sh.y + 6); rotCab = alza ? 0.4 : 1.2;
+  }
+  // piernas (desde la cadera) y brazos (desde el hombro)
+  piernas = [0, 1].map(l => { const [a1, a2] = piernaAng(l); const K = desde(H, a1, 42); return { K, F: desde(K, a2, 46) }; });
+  brazos = [0, 1].map(l => { const [b1, b2] = brazoAng(l); const E = desde(Sh, b1, 44); return { E, W: desde(E, b2, 48), a: b2 }; });
+  // lo apoya en el suelo: el pie (o la mano, a cuatro patas) más bajo, a ras
+  let fondo = -999;
+  for (const p of piernas) fondo = Math.max(fondo, p.F.y);
+  if (cuatro && pose !== 'golpe' && pose !== 'carga') for (const b of brazos) fondo = Math.max(fondo, b.W.y);
+  g.translate(0, -fondo);
+  // ---- piezas ----
+  const huesoEn = (a, b, desdeK, hastaK, w)=>{                // hueso a la vista entre dos puntos
+    const x0 = a.x + (b.x - a.x)*desdeK, y0 = a.y + (b.y - a.y)*desdeK, x1 = a.x + (b.x - a.x)*hastaK, y1 = a.y + (b.y - a.y)*hastaK;
+    jL(g, carne, w + 2.5, x0, y0, x1, y1); jL(g, hueso, w, x0, y0, x1, y1); jO(g, hueso, x1, y1, w*0.8, w*0.8);
+  };
+  const pierna = (p, cerca)=>{
+    const c = cerca ? piel : lejos;
+    jL(g, c, cerca ? 9 : 8, H.x, H.y, p.K.x, p.K.y);
+    jL(g, c, cerca ? 6 : 5, p.K.x, p.K.y, p.F.x, p.F.y);
+    jO(g, cerca ? pielO : pielD, p.K.x, p.K.y, 4.5, 4.5);                       // rodilla huesuda
+    for (const d of [-0.25, 0.05, 0.35]){ const a = 1.45 + d; jL(g, cerca ? pielO : pielD, 2, p.F.x, p.F.y, p.F.x + Math.sin(a)*13, p.F.y + Math.cos(a)*13 - 2); }
+    if (et >= 1 && cerca) huesoEn(p.K, p.F, 0.2, 0.75, 2.4);
+    if (et >= 2 && !cerca) huesoEn(H, p.K, 0.3, 0.8, 2.6);
+  };
+  const brazo = (b, cerca)=>{
+    const c = cerca ? piel : lejos;
+    jL(g, c, cerca ? 7 : 6, Sh.x, Sh.y, b.E.x, b.E.y);
+    jL(g, c, cerca ? 5 : 4.5, b.E.x, b.E.y, b.W.x, b.W.y);
+    jO(g, cerca ? pielO : pielD, b.E.x, b.E.y, 3.5, 3.5);
+    // dedos larguísimos con garras negras
+    for (const d of [-0.38, -0.12, 0.14, 0.4]){
+      const a = b.a + d, m = desde(b.W, a, 11), t = desde(m, a + 0.35, 11);
+      jL(g, c, 2.4, b.W.x, b.W.y, m.x, m.y); jL(g, c, 1.8, m.x, m.y, t.x, t.y);
+      const u = desde(t, a + 0.7, 5); jL(g, '#140c0a', 1.6, t.x, t.y, u.x, u.y);
+    }
+    if (et >= 1 && cerca) huesoEn(b.E, b.W, 0.15, 0.7, 2.2);
+    if (et >= 2 && cerca) huesoEn(Sh, b.E, 0.25, 0.8, 2.4);
+  };
+  const torso = ()=>{
+    const dx = Sh.x - H.x, dy = Sh.y - H.y, L = Math.hypot(dx, dy) || 1, ux = dx/L, uy = dy/L, nx = -uy, ny = ux;
+    const at = k => P(H.x + dx*k, H.y + dy*k);
+    // cintura de avispa y caja torácica ancha
+    g.fillStyle = piel; g.beginPath();
+    const w = [[0, 6], [0.3, 5], [0.55, 12], [0.8, 15], [1, 11]];
+    for (const [k, a] of w){ const q = at(k); g.lineTo(q.x + nx*a, q.y + ny*a); }
+    for (let i = w.length - 1; i >= 0; i--){ const [k, a] = w[i], q = at(k); g.lineTo(q.x - nx*a*0.8, q.y - ny*a*0.8); }
+    g.closePath(); g.fill();
+    // costillas: sombras bajo la piel; luego, hueso a la vista
+    for (let i = 0; i < 6; i++){
+      const k = 0.5 + i*0.085, q = at(k), a = 13 - Math.abs(i - 2)*1.5;
+      const x0 = q.x + nx*a, y0 = q.y + ny*a, x1 = q.x - nx*a*0.75, y1 = q.y - ny*a*0.75;
+      const cx2 = q.x - ux*5, cy2 = q.y - uy*5;
+      g.strokeStyle = et >= 1 && (et >= 2 || i % 2 === 0) ? hueso : pielO; g.lineWidth = et >= 1 ? 2.2 : 1.6;
+      if (et >= 1 && (et >= 2 || i % 2 === 0)){ g.strokeStyle = carne; g.lineWidth = 4; g.beginPath(); g.moveTo(x0, y0); g.quadraticCurveTo(cx2, cy2, x1, y1); g.stroke(); g.strokeStyle = hueso; g.lineWidth = 2.2; }
+      g.beginPath(); g.moveTo(x0, y0); g.quadraticCurveTo(cx2, cy2, x1, y1); g.stroke();
+    }
+    // la columna, por la espalda: bultos y, al final, púas de vértebra
+    for (let i = 0; i < 8; i++){
+      const q = at(0.1 + i*0.11), bx = q.x - nx*(cuatro ? -7 : 7)*(cuatro ? -1 : 1), by = q.y - ny*7*(cuatro ? -1 : 1);
+      const sx = cuatro ? q.x + nx*9 : q.x - nx*6, sy = cuatro ? q.y + ny*9 : q.y - ny*6;
+      if (et >= 2){ g.fillStyle = hueso; g.beginPath(); g.moveTo(sx - ux*3, sy - uy*3); g.lineTo(sx + (cuatro ? nx : -nx)*7, sy + (cuatro ? ny : -ny)*7); g.lineTo(sx + ux*3, sy + uy*3); g.closePath(); g.fill(); }
+      else jO(g, pielO, sx, sy, 2.2, 2.2);
+      void bx; void by;
+    }
+    if (et >= 1){                                            // jirones de piel y sangre
+      const q = at(0.35); jO(g, carne, q.x + nx*3, q.y + ny*3, 4, 6); jL(g, sangre, 1.5, q.x, q.y, q.x + 1, q.y + 12);
+    }
+  };
+  const cabeza = ()=>{
+    jL(g, et >= 2 ? huesoO : pielO, 5, Sh.x, Sh.y, Hd.x, Hd.y);                    // el cuello, largo y flaco
+    g.save(); g.translate(Hd.x, Hd.y); g.rotate(rotCab); g.scale(1.35, 1.35);
+    const abre = pose === 'come' ? (f % 2 ? 6 : 22) : pose === 'golpe' || pose === 'salta' || pose === 'embiste' ? 26 : 20;
+    const cr = et >= 2 ? hueso : piel, crO = et >= 2 ? huesoO : pielO;
+    if (et < 2) for (const [x, L] of [[-9, 22], [-5, 30], [-1, 20], [3, 26]]) jL(g, '#120d0c', 1.1, x, -11, x - 4, -11 + L);   // pelo ralo
+    // la mandíbula descolgada: piel de abajo, boca negra y agujas
+    g.fillStyle = crO; g.beginPath(); g.moveTo(1, 2); g.lineTo(21, 1); g.lineTo(19, 4 + abre); g.lineTo(4, 5 + abre*0.9); g.closePath(); g.fill();
+    g.fillStyle = boca; g.beginPath(); g.moveTo(2, 2); g.lineTo(20, 1.5); g.lineTo(17.5, 2 + abre); g.lineTo(5, 3 + abre*0.85); g.closePath(); g.fill();
+    g.fillStyle = diente;
+    for (let i = 0; i < 8; i++){ const x = 2.5 + i*2.2; g.beginPath(); g.moveTo(x, 1.8); g.lineTo(x + 0.9, 7.5); g.lineTo(x + 1.8, 1.8); g.closePath(); g.fill(); }
+    for (let i = 0; i < 6; i++){ const x = 5.5 + i*2.1, y = 2.5 + abre*(0.86 + i*0.02); g.beginPath(); g.moveTo(x, y); g.lineTo(x + 0.9, y - 5); g.lineTo(x + 1.8, y); g.closePath(); g.fill(); }
+    jL(g, carne, 1.2, 16, 2 + abre, 16.5, 9 + abre); jL(g, carne, 1, 8, 3 + abre, 8, 7 + abre);   // babas de sangre
+    // el cráneo: nuca redonda y un morro largo hacia delante
+    const craneo = (c, d)=>{ g.fillStyle = c; g.beginPath(); g.ellipse(-2 + d, -4 + d, 10, 9, 0, 0, Math.PI*2); g.fill();
+      g.beginPath(); g.moveTo(-6 + d, -12 + d); g.quadraticCurveTo(14 + d, -13 + d, 22 + d, -2 + d); g.lineTo(21 + d, 2); g.lineTo(-4 + d, 3); g.closePath(); g.fill(); };
+    craneo(crO, 0); craneo(cr, -0.8);
+    jL(g, et >= 2 ? hueso : '#b0aa9e', 1.2, -6, -12, 14, -12);                     // brillo de la frente
+    // la sonrisa rajada hasta debajo de los ojos
+    jL(g, boca, 1.6, 2, 2, -6, -2); for (let i = 0; i < 3; i++) jR(g, diente, -4 + i*2, -1 + i*0.8, 0.8, 1.6);
+    if (et === 1){ g.fillStyle = hueso; g.beginPath(); g.ellipse(-3, -7, 8, 6, 0, Math.PI*0.85, Math.PI*1.95); g.fill(); jL(g, carne, 1, -8, -2, 0, -12); }
+    // cuencas hundidas y rasgadas, con un punto de luz al fondo
+    g.fillStyle = boca;
+    g.beginPath(); g.ellipse(12.5, -6, 4.4, 2, -0.35, 0, Math.PI*2); g.fill();
+    g.beginPath(); g.ellipse(4, -7, 3.8, 1.8, -0.35, 0, Math.PI*2); g.fill();
+    jO(g, et >= 1 ? '#ff2a1a' : '#ffffff', 13, -6.2, 0.7, 0.7); jO(g, '#ffffff', 4.5, -7.1, 0.6, 0.6);
+    if (et >= 1) jL(g, carne, 1, 12, -4, 12.5, 2);                                  // lágrima de sangre
+    if (et >= 2){ jR(g, boca, 18, -6, 2, 1.6); jL(g, huesoO, 0.8, -8, -8, 2, -10); }  // nariz hueca y grietas
+    g.restore();
+  };
+  pierna(piernas[0], false); brazo(brazos[0], false);
+  torso(); cabeza();
+  pierna(piernas[1], true); brazo(brazos[1], true);
+}
+// ---- comportamiento ----
+function desEtapa(e){ const k = e.hp/(e.maxhp || 1); return k > 0.66 ? 0 : k > 0.33 ? 1 : 2; }
+function desSuelta(e){
+  const o = e._obj;
+  if (o){ o.presa = false; o.presaDe = null; }
+  e._obj = null; e.lleva = 0; e.comeT = 0;
+}
+// Un golpe enorme lo manda lejos. Vuelve corriendo.
+function desEmpuja(e, an){
+  if (!e || e.dead || e.type !== 'desesperacion' || (e.empujeCd || 0) > 0) return;
+  desSuelta(e);
+  e.fase = 'volando'; e.ft = 0.7; e.vx = Math.cos(an)*900; e.vy = Math.sin(an)*900; e.empujeCd = 1.2;
+  addParticles(e.x, e.y - 60, '#7a1410', 16, 200); shake(10, 0.25); sfx('bigboom');
+}
+// Lo que puede agarrar: autos, mobiliario, civiles y soldados (nunca un jefe).
+function desBusca(e, R, comida){
+  let mejor = null, md = R*R;
+  const mira = o => {
+    if (!o || o.dead || o.held || o.thrown || enPresa(o) || o === e) return;
+    if (o.type && (JEFES[o.type] || o.grabbable === false)) return;
+    const d2 = (o.x - e.x)*(o.x - e.x) + (o.y - e.y)*(o.y - e.y);
+    if (d2 < md){ md = d2; mejor = o; }
+  };
+  for (const t of enemies) if (t.person || t.kind === 'civ' || (!comida && t.grabbable && !t.alt)) mira(t);
+  for (const c of civilians) mira(c);
+  if (!comida){ for (const c of cars) mira(c); for (const l of lamps) mira(l); for (const b of trash) mira(b); for (const b of benches) mira(b); }
+  return mejor;
+}
+function desLanza(e){
+  const o = e._obj;
+  desSuelta(e);
+  if (!o || o.dead) return;
+  const an = Math.atan2(player.y - e.y, player.x - e.x);
+  o.x = e.x + Math.cos(an)*44; o.y = e.y + Math.sin(an)*44;
+  o.thrown = true; o.held = false;
+  o.vx = Math.cos(an)*560; o.vy = Math.sin(an)*560;
+  o.spin = rand(-9, 9);
+  o.throwDmg = Math.min(44, objThrowDmg(o)); o.throwLife = 1.7;
+  o.restan = aguanteLanzado(o); o.golpeados = null; o.tocado = false;
+  o.byEnemy = true; o.porInv = false; o.marcianoT = gameTime + 1.2;
+  sfx('throw'); shake(6, 0.15);
+}
+function updateDesesperacion(e, dt, a, ang){
+  e.anim = (e.anim || 0) + dt;
+  for (const k of ['golpeCd', 'lanzaCd', 'comeCd', 'espCd', 'empujeCd']) if (e[k] > 0) e[k] -= dt;
+  if (e.hp < e.maxhp) e.hp = Math.min(e.maxhp, e.hp + DESES_REGEN*dt);          // se regenera solo
+  const et = desEtapa(e);
+  if (et > (e.etapa || 0)){
+    e.etapa = et;
+    toast(et === 1 ? '¡A DESESPERACIÓN SE LE CAE LA PIEL!' : '¡DESESPERACIÓN CORRE A CUATRO PATAS!', 2);
+    addParticles(e.x, e.y - 80, '#7a1410', 30, 240); addParticles(e.x, e.y - 80, '#efe6cc', 12, 180);
+    rugido('desesperacion', 0.8); if (_fxRed) _fxRed.push(['r', 'desesperacion', 0.8]);
+  } else if (et < (e.etapa || 0)) e.etapa = et;                                  // curado: se recompone
+  const vel = [1, 1.15, 1.32][e.etapa || 0];
+  // lo que lleva va por encima de su cabeza (o junto a la boca, si se lo come)
+  const o = e._obj;
+  if (o && (o.dead || o.held || o.thrown || o.presaDe !== e)){ e._obj = null; e.lleva = 0; }
+  else if (o){
+    if (e.fase === 'come'){ o.x = e.x + (e.facing || 1)*34; o.y = e.y - (e.etapa >= 2 ? 40 : 95); }
+    else { o.x = e.x; o.y = e.y - (e.etapa >= 2 ? 120 : 175); }
+  }
+  e.ft -= dt;
+  switch (e.fase){
+    case 'volando': {
+      const k = clamp(1 - e.ft/0.7, 0, 1);
+      e.x = clamp(e.x + e.vx*dt, 40, WORLD_W - 40); e.y = clamp(e.y + e.vy*dt, 40, WORLD_H - 40);
+      e.vx *= Math.pow(0.08, dt); e.vy *= Math.pow(0.08, dt);
+      e.alt = Math.sin(k*Math.PI)*90;
+      const b = edifEn(e.x, e.y);
+      if (b){ damageBuilding(b, 260); addParticles(e.x, e.y, '#9aa6ad', 16, 160); e.ft = 0; }
+      if (e.ft <= 0){ e.alt = 0; e.fase = 'levanta'; e.ft = 0.7; shake(8, 0.2); sfx('caidaGolpe'); }
+      return;
+    }
+    case 'levanta':
+      if (e.ft <= 0){ e.fase = ''; rugido('desesperacion', 0.6); if (_fxRed) _fxRed.push(['r', 'desesperacion', 0.6]); }
+      return;
+    case 'golpe':
+      if (!e.golpeo && e.ft <= 0.22){
+        e.golpeo = 1;
+        if (a < 92 + F().r){ golpeDesSuave(DESES_GOLPE*(1 + (e.etapa || 0)*0.12)); shake(8, 0.18); sfx('hurt'); addParticles(player.x, player.y - 10, '#ff5b5b', 8, 110); }
+        else sfx('whoosh');
+      }
+      if (e.ft <= 0){ e.fase = ''; e.golpeCd = 0.55; }
+      return;
+    case 'lanzaAviso':
+      e.facing = Math.cos(ang) >= 0 ? 1 : -1;
+      if (e.ft <= 0){ desLanza(e); e.fase = ''; e.lanzaCd = rand(1.4, 2.4); }
+      return;
+    case 'come':
+      if (!e._obj){ e.fase = ''; return; }
+      if (Math.random() < 0.4) addParticles(e._obj.x, e._obj.y - 10, '#8a0a0a', 3, 90);
+      if (e.ft <= 0){
+        const v = e._obj; desSuelta(e);
+        v.dead = true; v.presa = false;
+        e.hp = Math.min(e.maxhp, e.hp + e.maxhp*0.1);
+        addParticles(e.x + (e.facing || 1)*30, e.y - 20, '#8a0a0a', 26, 200);
+        sfx('comeM'); e.fase = ''; e.comeCd = rand(4, 6);
+        if (!e.avisoCome){ e.avisoCome = 1; toast('¡DESESPERACIÓN DEVORA A LOS SUYOS PARA CURARSE!', 2.4); }
+      }
+      return;
+    case 'saltoAviso':
+      if (e.ft <= 0){ e.fase = 'salto'; e.ft = 0.55; e.s0x = e.x; e.s0y = e.y; sfx('dash'); }
+      return;
+    case 'salto': {
+      const k = clamp(1 - e.ft/0.55, 0, 1);
+      e.x = e.s0x + (e.sx - e.s0x)*k; e.y = e.s0y + (e.sy - e.s0y)*k; e.alt = Math.sin(k*Math.PI)*170;
+      e.facing = e.sx >= e.s0x ? 1 : -1;
+      if (e.ft <= 0){ e.alt = 0; e.x = e.sx; e.y = e.sy; aracGolpeSuelo(e, e.x, e.y, DESES_SALTO_R, DESES_SALTO_DMG); e.fase = 'levanta'; e.ft = 0.35; }
+      return;
+    }
+    case 'embAviso':
+      e.facing = Math.cos(e.eA) >= 0 ? 1 : -1;
+      if (e.ft <= 0){ e.fase = 'embiste'; e.rest = DESES_EMB_L; e.golpeo = 0; e.embId = (e.embId || 0) + 1; sfx('dash'); }
+      return;
+    case 'embiste': {
+      const paso = DESES_EMB_VEL*vel*dt;
+      e.x = clamp(e.x + Math.cos(e.eA)*paso, 40, WORLD_W - 40); e.y = clamp(e.y + Math.sin(e.eA)*paso, 40, WORLD_H - 40);
+      e.rest -= paso; e.paso = (e.paso || 0) + paso*0.05;
+      e.facing = Math.cos(e.eA) >= 0 ? 1 : -1;
+      for (const b of buildings){ if (b.stage < 2){ const cx = clamp(e.x, b.x, b.x + b.w), cy = clamp(e.y, b.y, b.y + b.h); if (dist(cx, cy, e.x, e.y) < 40) damageBuilding(b, 520*dt); } }
+      for (const c of cars){ if (!c.dead && !c.held && !c.thrown && !enPresa(c) && dist(c.x, c.y, e.x, e.y) < 50){ c.x += Math.cos(e.eA)*paso*1.1; c.y += Math.sin(e.eA)*paso*1.1; c.hp -= 90*dt; } }
+      for (const pool of [civilians, enemies]) for (const t of pool){
+        if (t === e || t.dead || t.held || JEFES[t.type] || t._desG === e.embId || dist(t.x, t.y, e.x, e.y) > 46) continue;
+        t._desG = e.embId; damageEnemy(t, t.kind === 'civ' ? 999 : 60, t.x, t.y); if (!t.dead) t.stunT = Math.max(t.stunT || 0, 1);
+      }
+      if (!e.golpeo && a < 46 + F().r){ e.golpeo = 1; golpeDesSuave(DESES_EMB_DMG); shake(12, 0.3); sfx('hurt'); }
+      if (Math.random() < 0.6) addParticles(e.x, e.y, '#5a3a32', 2, 100);
+      if (e.rest <= 0){
+        e.tramos = (e.tramos || 1) - 1;
+        if (e.tramos > 0){ e.fase = 'embAviso'; e.ft = 0.22; e.eA = ang; }             // vuelve a apuntar y sigue
+        else { e.fase = 'levanta'; e.ft = 0.6; e.espCd = rand(5, 7); }
+      }
+      return;
+    }
+  }
+  // ---- persigue: lanza, come, salta, embiste o golpea ----
+  e.facing = Math.cos(ang) >= 0 ? 1 : -1;
+  if (e._obj && e.lleva){
+    if (a > 150 && a < 560 && e.lanzaCd <= 0){ e.fase = 'lanzaAviso'; e.ft = 0.4; return; }
+    if (a <= 150){ e.fase = 'lanzaAviso'; e.ft = 0.15; return; }                   // de cerca, a bocajarro
+  }
+  if (!e._obj && e.espCd <= 0 && a > 180 && a < 620){
+    if (Math.random() < 0.5){ e.fase = 'saltoAviso'; e.ft = 0.75; e.sx = Math.round(clamp(player.x, 60, WORLD_W - 60)); e.sy = Math.round(clamp(player.y, 60, WORLD_H - 60)); }
+    else { e.fase = 'embAviso'; e.ft = 0.7; e.eA = ang; e.tramos = 3; }
+    e.espCd = rand(5.5, 7.5);
+    return;
+  }
+  if (!e._obj && a < 78 + F().r && e.golpeCd <= 0){ e.fase = 'golpe'; e.ft = 0.42; e.golpeo = 0; return; }
+  // objetivo: si está herido, alguien a quien comerse; si no lleva nada, algo que lanzar; si no, tú
+  let tx = player.x, ty = player.y;
+  if (!e._obj){
+    const herido = e.hp < e.maxhp*0.8 && e.comeCd <= 0;
+    const cosa = herido ? desBusca(e, 340, true) : (e.lanzaCd <= 0 && a > 160 ? desBusca(e, 200, false) : null);
+    if (cosa){
+      tx = cosa.x; ty = cosa.y;
+      if (dist(e.x, e.y, cosa.x, cosa.y) < 40){
+        e._obj = cosa; cosa.presa = true; cosa.presaDe = e; cosa.vx = 0; cosa.vy = 0; sfx('grab');
+        if (herido && (cosa.person || cosa.kind === 'civ')){ e.fase = 'come'; e.ft = 1.2; e.lleva = 0; }
+        else e.lleva = 1;
+        return;
+      }
+    }
+  }
+  const an = Math.atan2(ty - e.y, tx - e.x), sp = e.speed*vel*(e._obj ? 0.85 : 1);
+  if (dist(e.x, e.y, tx, ty) > 30){
+    const x0 = e.x, y0 = e.y;
+    e.x = clamp(e.x + Math.cos(an)*sp*dt, 40, WORLD_W - 40); e.y = clamp(e.y + Math.sin(an)*sp*dt, 40, WORLD_H - 40);
+    collideBuildings(e, 18, dt, 0);
+    e.paso = (e.paso || 0) + dist(x0, y0, e.x, e.y)*0.05;
+  }
+  e.facing = Math.cos(an) >= 0 ? 1 : -1;
+}
+// ---- dibujo ----
+function desPose(e){
+  switch (e.fase){
+    case 'golpe': return ['golpe', e.ft > 0.22 ? 0 : 1];
+    case 'lanzaAviso': return ['carga', 0];
+    case 'come': return ['come', Math.floor(e.anim*7) % 2];
+    case 'saltoAviso': return ['come', 0];
+    case 'salto': return ['salta', 0];
+    case 'embAviso': return ['embiste', 0];
+    case 'embiste': return ['embiste', Math.floor(e.paso || 0) % 4];
+    case 'volando': case 'levanta': return ['cae', 0];
+  }
+  return [e.lleva ? 'carga' : 'corre', e.lleva ? 0 : Math.floor(e.paso || 0) % 4];
+}
+function drawDesesperacion(e){
+  const s = S(e.x, e.y), alt = alturaVisible(e), et = e.etapa || 0;
+  sombra(s.x, s.y + 4, (et >= 2 ? 90 : 60)*(1 - alt/400), 16, 0.85);
+  const [pose, f] = desPose(e);
+  const c = desespFrame(et, pose, f), [W, H, cx, py] = DESES_TAM;
+  const pinta = (x, y, a)=>{
+    ctx.save(); ctx.globalAlpha = a; ctx.translate(x, y);
+    if ((e.facing || 1) < 0) ctx.scale(-1, 1);
+    const suave = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(c, -cx, -py); ctx.imageSmoothingEnabled = suave; ctx.restore();
+  };
+  // a toda velocidad deja un rastro de sí mismo
+  if (e.fase === 'embiste' || e.fase === 'volando'){
+    const an = e.fase === 'embiste' ? e.eA : Math.atan2(e.vy || 0, e.vx || 1);
+    pinta(s.x - Math.cos(an)*44, s.y - alt - Math.sin(an)*44, 0.18);
+    pinta(s.x - Math.cos(an)*22, s.y - alt - Math.sin(an)*22, 0.32);
+  }
+  pinta(s.x, s.y - alt, 1);
+}
+function drawDesesperacionAvisos(){
+  for (const e of enemies){
+    if (e.dead || e.type !== 'desesperacion') continue;
+    ctx.save();
+    if (e.fase === 'saltoAviso' || e.fase === 'salto'){
+      const t = S(e.sx, e.sy), k = e.fase === 'salto' ? 1 : 0.6 + Math.sin(gameTime*18)*0.3;
+      ctx.fillStyle = 'rgba(140,0,0,0.2)'; ctx.beginPath(); ctx.ellipse(t.x, t.y, DESES_SALTO_R, DESES_SALTO_R*0.7, 0, 0, Math.PI*2); ctx.fill();
+      ctx.strokeStyle = 'rgba(255,40,30,' + k + ')'; ctx.lineWidth = 3; ctx.stroke();
+    } else if (e.fase === 'embAviso'){
+      const s0 = S(e.x, e.y), s1 = S(e.x + Math.cos(e.eA)*DESES_EMB_L, e.y + Math.sin(e.eA)*DESES_EMB_L);
+      ctx.globalAlpha = 0.85; ctx.strokeStyle = '#ff3a2a'; ctx.lineWidth = 4; ctx.setLineDash([14, 10]); ctx.lineDashOffset = -gameTime*120;
+      ctx.beginPath(); ctx.moveTo(s0.x, s0.y); ctx.lineTo(s1.x, s1.y); ctx.stroke(); ctx.setLineDash([]);
+      ctx.globalAlpha = 0.16; ctx.lineWidth = 70; ctx.stroke();
+    }
+    ctx.restore();
+  }
+}
+
 // ================= PIERNAS DE POLLO =================
 // Aliado del mago: con el poder arcano, los MBT-MB92 (de fuego y de hielo) y
 // los cabezones que destruye se levantan como esta bestia de monta, un
@@ -15739,6 +16178,7 @@ function drawMisilCayendo(m){
   ficha('desgarradorF', desFrame('corta', 0), 0.9);
   ficha('bichoF', alienFrame('bicho', 'ataca', 0), 1.3);
   ficha('amalgamaF', amalFrame('lanza', 0), 1.1);
+  ficha('desesperacionF', desespFrame(0, 'golpe', 0), 0.85);
   ficha('medicoF', alienFrame('medico', 'ataca', 0), 2); ficha('voltioF', alienFrame('voltio', 'ataca', 0), 2);
   ficha('machacadorF', alienFrame('machacador', 'alza', 0), 1.5); ficha('aveF', alienFrame('ave', 'anda', 0), 1.2);
   ficha('gravitronF', alienFrame('gravitron', 'anda', 0), 0.9); ficha('aracnidoF', aracFrame('anda', 0, false), 0.8);
@@ -18427,7 +18867,7 @@ function drawMisilCaza(b, s){
 const CUERPO_JEFE = {
   kaiyin:[70, 200, 30], desgarrador:[50, 190, 10], centurion:[26, 85, 6], heroe:[12, 52, 4],
   superx:[60, 35, 0], artillero:[60, 60, 60], flametank:[55, 35, 35], tripode:[40, 50, 40], omni:[25, 25, 25],
-  aracnido:[85, 115, 20], gravitron:[70, 28, 20], machacador:[18, 62, 4],
+  aracnido:[85, 115, 20], gravitron:[70, 28, 20], machacador:[18, 62, 4], desesperacion:[40, 140, 6],
 };
 function cajaCuerpo(e){
   const c = CUERPO_JEFE[e.type];
@@ -18488,6 +18928,7 @@ function meleeDmg(e){
   if (e.type === 'centurion') return 58;    // ~38 golpes
   if (e.type === 'desgarrador') return 58;
   if (e.type === 'aracnido')  return 58;
+  if (e.type === 'desesperacion') return 58;
   if (e.type === 'machacador') return 120;
   if (e.type === 'gravitron') return 90;
   if (e.type === 'heroe')     return 58;    // ~23 golpes
@@ -18672,9 +19113,9 @@ const SCENERY = { tree:1, lamp:1, bench:1, trash:1 };
 function isScenery(o){ return !!SCENERY[o.kind]; }
 
 // Unidades que no se revientan de una pasada: hay que insistir.
-const BLINDADOS = { machacador:1, gravitron:1, aracnido:1, desgarrador:1, bicho:1, amalgama:1, arana:1, tank:1, siege:1, gunship:1, heli:1, flametank:1, omni:1, artillero:1, superx:1, mbt:1, mbtFrio:1, tripode:1 };
+const BLINDADOS = { desesperacion:1, machacador:1, gravitron:1, aracnido:1, desgarrador:1, bicho:1, amalgama:1, arana:1, tank:1, siege:1, gunship:1, heli:1, flametank:1, omni:1, artillero:1, superx:1, mbt:1, mbtFrio:1, tripode:1 };
 // Mini jefes: el viltrumita les hace más daño con lo que les arroja.
-const JEFES = { flametank:1, omni:1, artillero:1, superx:1, tripode:1, heroe:1, kaiyin:1, centurion:1, desgarrador:1, aracnido:1 };
+const JEFES = { flametank:1, omni:1, artillero:1, superx:1, tripode:1, heroe:1, kaiyin:1, centurion:1, desgarrador:1, aracnido:1, desesperacion:1 };
 const VIL_BOSS_MULT = 1.40;
 function throwDmgOn(o, tgt){
   let base = o.throwDmg;
@@ -19375,6 +19816,7 @@ function vilPunch(carga, modo){
       // Contra los jefes, el puño cargado del viltrumita rinde la mitad.
       const d2 = (carga > 0 && JEFES[t.type]) ? dmg * VIL_JEFE_CARGA : dmg;
       porJugador(()=> damageEnemy(t, d2, t.x, t.y)); dio = true;
+      if (t.type === 'desesperacion' && (lleno || carga >= 0.6)) desEmpuja(t, ang);   // el puño cargado la manda lejos
     }
   }
   for (const c of cars){
@@ -19524,7 +19966,7 @@ function updateThrown(dt){
       for (const e of pool){
         if (e === o || e.dead || e.held) continue;
         if (o.golpeados && o.golpeados.indexOf(e) >= 0) continue;   // ya atravesado
-        if ((e.type === 'tripode' || e.type === 'amalgama') && o.marcianoT > gameTime) continue;   // lo acaba de lanzar uno
+        if ((e.type === 'tripode' || e.type === 'amalgama' || e.type === 'desesperacion') && o.marcianoT > gameTime) continue;   // lo acaba de lanzar uno
         // El alcance del choque va con el tamaño del proyectil: un edificio de
         // 272px no puede tener la misma caja que una farola.
         if (distCuerpo(o.x, o.y, e) < radioChoque(o)){ impact = {x:o.x, y:o.y, target:e}; break; }
@@ -19619,6 +20061,7 @@ function updateThrown(dt){
         }
         if (o.byEnemy) damageEnemy(tgt, throwDmgOn(o, tgt), impact.x, impact.y);
         else { critSig = lanzamientoCritico(o); try { porJugador(()=> damageEnemy(tgt, throwDmgOn(o, tgt), impact.x, impact.y)); } finally { critSig = false; } }
+        if (!o.byEnemy && tgt.type === 'desesperacion' && !tgt.dead && (lanzamientoCritico(o) || (o.throwDmg || 0) >= 90)) desEmpuja(tgt, Math.atan2(o.vy, o.vx));
         if (tgt.dead) unlockAch('provis');
         // deja aturdido 1s a la infantería que sobreviva al impacto
         else if (stunAmmo && tgt.person){
@@ -19764,6 +20207,7 @@ function updateEnemies(dt){
     if (e.type === 'ave'){ updateAve(e, dt, a, ang); continue; }
     if (e.type === 'gravitron'){ updateGravitron(e, dt, a, ang); continue; }
     if (e.type === 'aracnido'){ updateAracnido(e, dt, a, ang); vozJefe(e, dt); continue; }
+    if (e.type === 'desesperacion'){ updateDesesperacion(e, dt, a, ang); vozJefe(e, dt); continue; }
     if (FANT_TIPOS[e.type]){ updateFantasma(e, dt, a, ang); continue; }
     if (e.type === 'omni'){
       const angP = Math.atan2(player.y-e.y, player.x-e.x);
@@ -20201,11 +20645,11 @@ function updateSpawns(dt){
           spawnEnemy(cual);
           toast(cual === 'omni' ? '¡OMNIDROIDE!' : cual === 'artillero' ? '¡EL ARTILLERO!'
               : cual === 'superx' ? '¡SUPER X2!' : cual === 'heroe' ? '¡EL HÉROE MÁGICO!'
-              : cual === 'kaiyin' ? '¡KAIYIN! EL CIELO SE OSCURECE' : cual === 'centurion' ? '¡EL CENTURIÓN!' : cual === 'desgarrador' ? '¡EL DESGARRADOR!' : cual === 'aracnido' ? '¡LA TEJEDORA!' : '¡TANQUE DE FUEGO!');
+              : cual === 'kaiyin' ? '¡KAIYIN! EL CIELO SE OSCURECE' : cual === 'centurion' ? '¡EL CENTURIÓN!' : cual === 'desgarrador' ? '¡EL DESGARRADOR!' : cual === 'aracnido' ? '¡LA TEJEDORA!' : cual === 'desesperacion' ? '¡DESESPERACIÓN!' : '¡TANQUE DE FUEGO!');
           if (cual === 'kaiyin') sfx('trueno');
           if (cual === 'desgarrador') sfx('sierra');
           const j = enemies[enemies.length - 1];
-          if (esInfierno() && j && j.type === cual) hazDeforme(j, 1.5);
+          if (esInfierno() && j && j.type === cual && cual !== 'desesperacion') hazDeforme(j, 1.5);   // ella ya es de aquí
           if (j && j.type === cual) presentaJefe(j);
           shake(24, 0.8);
         }
@@ -20696,7 +21140,8 @@ function lucesJefes(L, k, mx, Mx, my, My, tinta){
   lucesDinamicas(luz);                                      // explosiones, relámpagos y rayos
   for (const e of enemies){
     if (e.dead) continue;
-    if (e.type === 'aracnido'){ const o = aracOjos(e); luz(o.x, o.y, 54, luzRoja, 0.7); if (e.fase === 'tela' || e.atrapa) luz(e.tx, e.ty, 50, luzBlanca, 0.4); }
+    if (e.type === 'desesperacion') luz(e.x + (e.facing || 1)*24, e.y - alturaVisible(e) - ((e.etapa || 0) >= 2 ? 70 : 150), 34, luzRoja, 0.55);
+    else if (e.type === 'aracnido'){ const o = aracOjos(e); luz(o.x, o.y, 54, luzRoja, 0.7); if (e.fase === 'tela' || e.atrapa) luz(e.tx, e.ty, 50, luzBlanca, 0.4); }
     else if (e.type === 'gravitron'){ luz(e.x - (e.facing || 1)*30, e.y - alturaVisible(e), 60, luzAzul, 0.6); if (e.gF === 'activo') luz(e.gx, e.gy, e.gR, luzAzul, 0.45); }
     else if (e.type === 'medico' && e.cura) luz(e.cx, e.cy, 40, luzRoja, 0.5);
   }
@@ -21636,6 +22081,7 @@ function drawEnemyBase(e){
   if (e.type === 'vengativo'){ drawVengativo(e); return; }
   if (e.type === 'amalgama'){ drawAmalgama(e); return; }
   if (e.type === 'aracnido'){ drawAracnido(e); return; }
+  if (e.type === 'desesperacion'){ drawDesesperacion(e); return; }
   if (AL_TAM[e.type]){ drawUnidadAlien(e); return; }
   if (e.type === 'heroe'){ drawHeroe(e); return; }
   if (FANT_TIPOS[e.type]){ drawFantasmaUnidad(e); return; }
@@ -21965,7 +22411,7 @@ function draw(){
   drawBuildings(); drawPlanters(); drawLamps();
   // Las zonas marcadas del Artillero van DESPUÉS de los edificios: si no, los
   // escombros las tapaban justo donde más falta hace verlas.
-  drawFuegos(); drawArtAvisos(); drawTriAvisos(); drawDragonAvisos(); drawMaquinaAvisos(); drawMagoAvisos(); drawMbtRayos(); drawJefes2Avisos(); drawAlienSuelo(); drawCenturionAvisos(); drawAmalgamaAvisos(); drawDesgarradorAvisos(); drawRefuerzosSuelo(); drawAracnidoSuelo(); drawCenizasSuelo(); drawNubesNegras();
+  drawFuegos(); drawArtAvisos(); drawTriAvisos(); drawDragonAvisos(); drawMaquinaAvisos(); drawMagoAvisos(); drawMbtRayos(); drawJefes2Avisos(); drawAlienSuelo(); drawCenturionAvisos(); drawAmalgamaAvisos(); drawDesgarradorAvisos(); drawRefuerzosSuelo(); drawAracnidoSuelo(); drawDesesperacionAvisos(); drawCenizasSuelo(); drawNubesNegras();
 
   // Solo se encolan los objetos visibles: con ~200 props fuera de pantalla,
   // esto evita cientos de entradas y llamadas de dibujo por fotograma.
@@ -22051,6 +22497,7 @@ const JEFE_EST = {
   centurion:  { nom:'EL CENTURIÓN',      tit:'Guardián del planeta rojo',   img:'centurionF',  barra:['#8af0ff','#1a7a9a'], borde:'#c8d4de', fondo:['#04101a','#173848'], deco:'segmentos' },
   desgarrador:{ nom:'EL DESGARRADOR',    tit:'Sierra de acero',             img:'desgarradorF',barra:['#ff4a4a','#7a0a12'], borde:'#c4ccd6', fondo:['#0e0606','#3a161a'], deco:'sierra' },
   refuerzos:  { nom:'REFUERZOS',         tit:'La flota marciana responde',  img:'@refuerzos',  barra:['#d890ff','#4a1a8a'], borde:'#c8b8ff', fondo:['#0a0618','#2a1858'], deco:'flota' },
+  desesperacion:{ nom:'DESESPERACIÓN',   tit:'Nunca deja de correr',        img:'desesperacionF', barra:['#efe6cc','#5a0806'], borde:'#b0201a', fondo:['#040102','#2a0606'], deco:'garras' },
   aracnido:   { nom:'LA TEJEDORA',       tit:'Hilo de acero',               img:'aracnidoF',   barra:['#eef4fa','#5a626e'], borde:'#ff5a4a', fondo:['#06080c','#262c36'], deco:'telarana' }
 };
 const PRES_T = 2.0, CONGELA_T = 1.55, LENTA_T = 1.6, CAIDO_T = 2.4;
@@ -22191,6 +22638,11 @@ function drawBarraJefe(e, i){
       ctx.fillStyle = C.borde;
       for (let q = 0; q < 5; q++){ const px = x + ((q*0.21 + t*0.12) % 1)*W, py = y - 5 - (q % 2)*3;
         ctx.beginPath(); ctx.moveTo(px + 7, py); ctx.lineTo(px - 4, py - 3); ctx.lineTo(px - 2, py); ctx.lineTo(px - 4, py + 3); ctx.closePath(); ctx.fill(); }
+      break;
+    case 'garras':                                  // tres zarpazos que rasgan la barra
+      ctx.strokeStyle = '#1a0202'; ctx.lineWidth = 2;
+      for (let q = 0; q < 3; q++){ const px = x + W*(0.22 + q*0.25); for (let z = 0; z < 3; z++){ ctx.beginPath(); ctx.moveTo(px + z*5, y - 5); ctx.lineTo(px + z*5 + 9, y + H + 5); ctx.stroke(); } }
+      if (Math.floor(t*2) % 5 === 0){ ctx.fillStyle = '#8a0a0a'; ctx.fillRect(x + W*k - 2, y + H, 2, 4 + (t*20 % 6)); }   // gotea
       break;
     case 'telarana':                                // hilos de telaraña sobre la barra
       ctx.strokeStyle = 'rgba(240,246,252,0.55)'; ctx.lineWidth = 1;
@@ -22378,6 +22830,10 @@ function rugido(tipo, k){
       for (let i = 0; i < 3; i++){ notaEn(i*0.4, 660, 0.2, 'square', 0.05*k); notaEn(i*0.4 + 0.2, 494, 0.2, 'square', 0.05*k); }
       ruidoEn(0, 1.4, 0.14*k, 2400); grunido(90, 55, 1.4, 0.12*k, 'sawtooth', 14, 0.1);
       break;
+    case 'desesperacion':                                // un chillido casi humano y un gemido que no acaba
+      grunido(1150, 380, 1.3, 0.12*k, 'sawtooth', 72, 0); grunido(800, 260, 1.4, 0.09*k, 'square', 56, 0.08);
+      grunido(170, 70, 1.6, 0.12*k, 'sawtooth', 18, 0.1); ruidoEn(0, 1.2, 0.16*k, 4200);
+      break;
     case 'aracnido':                                     // patas metálicas, un chirrido y el siseo
       for (let i = 0; i < 8; i++) notaEn(i*0.05, 1800 - i*120, 0.05, 'square', 0.035*k);
       grunido(900, 300, 0.9, 0.11*k, 'square', 60, 0.35); grunido(300, 120, 1.0, 0.13*k, 'sawtooth', 40, 0.4);
@@ -22424,9 +22880,15 @@ function vozJefe(e, dt){
       if ((f === 'vueloAviso' || f === 'colaAviso' || f === 'rayoCarga') && (e._rugT || 0) <= gameTime){ e._rugT = gameTime + 6; rugido('desgarrador', 0.75*k); if (_fxRed) _fxRed.push(['r', 'desgarrador', 0.75*k]); }
     } else if (e.type === 'kaiyin'){
       if (f && f !== 'anda' && f !== 'aterriza' && (e._rugT || 0) <= gameTime){ e._rugT = gameTime + 7; rugido('kaiyin', 0.6*k); if (_fxRed) _fxRed.push(['r', 'kaiyin', 0.6*k]); }
+    } else if (e.type === 'desesperacion'){
+      if ((f === 'saltoAviso' || f === 'embAviso') && (e._rugT || 0) <= gameTime){ e._rugT = gameTime + 5; rugido('desesperacion', 0.7*k); if (_fxRed) _fxRed.push(['r', 'desesperacion', 0.7*k]); }
     } else if (e.type === 'aracnido'){
       if ((f === 'telaAviso' || f === 'saltoAviso') && (e._rugT || 0) <= gameTime){ e._rugT = gameTime + 6; rugido('aracnido', 0.6*k); if (_fxRed) _fxRed.push(['r', 'aracnido', 0.6*k]); }
     }
+  }
+  if (e.type === 'desesperacion' && !e.fase && k > 0.2){       // la respiración rota mientras te persigue
+    e._ralT = (e._ralT || 0) - dt;
+    if (e._ralT <= 0){ e._ralT = rand(1.6, 2.6); ruidoEn(0, 0.45, 0.06*k, 1700); notaEn(0, 230, 0.5, 'sawtooth', 0.025*k, 150); }
   }
   if (e.type === 'desgarrador' && !e.fase && k > 0.15){
     e._ralT = (e._ralT || 0) - dt;
@@ -23144,7 +23606,7 @@ function limpiaRestosPartida(){
 // Si un jefe queda fuera de la pantalla, una flecha en el borde señala
 // hacia dónde está (en píxeles del lienzo, encima de la noche).
 const JEFE_NOMBRE = { flametank:'TANQUE DE FUEGO', omni:'OMNIDROIDE', artillero:'ARTILLERO', superx:'SUPER X', tripode:'TRÍPODE',
-                      heroe:'HÉROE MÁGICO', kaiyin:'KAIYIN', centurion:'CENTURIÓN', desgarrador:'DESGARRADOR', aracnido:'TEJEDORA' };
+                      heroe:'HÉROE MÁGICO', kaiyin:'KAIYIN', centurion:'CENTURIÓN', desgarrador:'DESGARRADOR', aracnido:'TEJEDORA', desesperacion:'DESESPERACIÓN' };
 function drawFlechasJefe(){
   if (!running || esVisorVs()) return;
   const M = 30, cx = CW/2, cy = CH/2;
