@@ -6887,6 +6887,8 @@ function damageEnemy(e, dmg, fx, fy){
   if ((k === 'heli' || k === 'gunship' || k === 'caza40k') && bajaArcana()) levantaAliado(e, 'dragoncito');
   // y los tanques especiales (MBT-MB92 de fuego y de hielo) y los cabezones, en Piernas de pollo
   if ((k === 'mbt' || k === 'mbtFrio' || k === 'cabezon') && bajaArcana()) levantaAliado(e, 'pollo');
+  // y cada jefe que cae, en un gigante de lava
+  if (JEFES[k] && !e.normal && bajaArcana()) levantaAliado(e, 'gigante');
   if (k === 'heroe') heroeCae(e);
   if (k === 'amalgama'){ if (e.auto){ e.auto.presa = false; e.auto.presaDe = null; } addParticles(e.x, e.y - 50*(e.k || 1), '#cfe0ff', 40, 260); addParticles(e.x, e.y - 30, '#9ab8e8', 20, 180); shake(12, 0.3); }
   if (k === 'bicho'){ addParticles(e.x, e.y - 22, '#c8d84a', 18, 170); addParticles(e.x, e.y - 22, '#b0682a', 10, 120); }   // revienta en papilla verde
@@ -12358,10 +12360,11 @@ function limpiaJefes2(){ kaiAvisos.length = 0; kaiOndas.length = 0; heroeOrbes.l
 const ALIADO_STATS = {
   ogro:       { hp:240, vel:78,  dmg:44, cd:1.2, alc:34,  vida:30 },
   dragoncito: { hp:150, vel:125, dmg:24, cd:0.6, alc:190, vida:30 },
-  pollo:      { hp:220, vel:120, dmg:30, cd:1.3, alc:40,  vida:30 }   // gira y barre con la cola
+  pollo:      { hp:220, vel:120, dmg:30, cd:1.3, alc:40,  vida:30 },  // gira y barre con la cola
+  gigante:    { hp:900, vel:40,  dmg:120, cd:2.2, alc:150, vida:40 }  // lento, pero su mazo llega lejos
 };
 const ALIADO_AVISO = { ogro:['#8dff6a', '¡UN OGRO SE UNE AL MAGO!'], dragoncito:['#ff9a4a', '¡UN DRAGÓN SE UNE AL MAGO!'],
-                       pollo:['#e070d0', '¡PIERNAS DE POLLO SE UNE AL MAGO!'] };
+                       pollo:['#e070d0', '¡PIERNAS DE POLLO SE UNE AL MAGO!'], gigante:['#ff8a2a', '¡UN GIGANTE DE LAVA SE UNE AL MAGO!'] };
 function levantaAliado(e, tipo){
   if (zombis.length >= ZOMBI_MAX) zombis.shift();
   const S0 = ALIADO_STATS[tipo];
@@ -12547,6 +12550,7 @@ function drawFlecha(b, s){
 // Ogros y dragones del mago.
 function drawAliadoMago(z){
   if (z.tipo === 'pollo'){ drawPolloAliado(z); return; }
+  if (z.tipo === 'gigante'){ drawGiganteAliado(z); return; }
   const s = S(z.x, z.y), fade = clamp(z.t/1.5, 0, 1), sube = clamp(1 - z.sube/0.7, 0, 1);
   const volador = z.tipo === 'dragoncito';
   const ataca = z.atT > 0;
@@ -15791,6 +15795,122 @@ function drawPolloAliado(z){
   ctx.globalAlpha = 1;
   if (showHpBars && z.hp < z.maxhp && sube >= 1) hpBar(s0.x, s0.y - 66, 36, z.hp, z.maxhp, '#5dcf4a');
 }
+// ================= EL GIGANTE DE LAVA =================
+// Aliado del mago: con el poder arcano del OVNI, cada jefe que derriba se
+// levanta como un gigante. Una figura negra y enorme, encorvada, con un
+// casco de metal de visor naranja y tres agujeros, que arrastra un mazo de
+// lava. Anda despacio, pero su mazo llega lejos: lo alza, lo deja caer y
+// aplasta todo lo que haya en la zona del golpe.
+const GIG_TAM = [270, 340, 115, 320], GIG_R = 95;
+const gigCache = new Map();
+function gigFrame(pose, f){
+  const k = pose + f;
+  let c = gigCache.get(k);
+  if (c) return c;
+  const [W, H, cx, py] = GIG_TAM;
+  c = document.createElement('canvas'); c.width = W; c.height = H;
+  const g = c.getContext('2d'); g.lineCap = 'round'; g.lineJoin = 'round';
+  g.translate(cx, py);
+  dibGigante(g, pose, f);
+  pixelArte(c, '#000000');
+  gigCache.set(k, c);
+  return c;
+}
+// Mira a +x. Ángulos desde la vertical hacia abajo; positivo, hacia delante.
+function dibGigante(g, pose, f){
+  const neg = '#0a0a0c', lejos = '#1c1c22';
+  const ph = f/4*Math.PI*2, P = (x, y)=>({ x, y }), desde = (o, a, L)=> P(o.x + Math.sin(a)*L, o.y + Math.cos(a)*L);
+  const H = P(0, -96), incl = pose === 'golpe' ? 0.85 : pose === 'alza' ? 0.15 : 0.55;
+  const Sh = desde(H, Math.PI - incl, 70);
+  const cab = desde(Sh, Math.PI - incl - 0.5, 22);
+  // piernas largas y flacas
+  const pierna = (fs, cerca)=>{
+    const sw = pose === 'anda' ? Math.sin(ph + fs) : (fs ? 0.35 : -0.3), cs = pose === 'anda' ? Math.cos(ph + fs) : 0;
+    const a1 = sw*0.45 + 0.05, K = desde(H, a1, 50), F = desde(K, a1 - 0.35 - Math.max(0, cs)*0.5, 50);
+    jL(g, cerca ? neg : lejos, 11, H.x, H.y, K.x, K.y); jL(g, cerca ? neg : lejos, 10, K.x, K.y, F.x, F.y);
+    jL(g, cerca ? neg : lejos, 9, F.x - 4, F.y - 1, F.x + 12, F.y - 1);
+    return F;
+  };
+  // dónde van las manos y hacia dónde apunta el mazo
+  const mano = pose === 'alza' ? desde(Sh, Math.PI + 0.25, 40) : pose === 'golpe' ? desde(Sh, 0.9, 58) : desde(Sh, Math.PI - 0.6, 18);
+  const mazoA = pose === 'alza' ? Math.PI + 0.75 : pose === 'golpe' ? 0.5 : Math.PI + 1.1;   // al golpear, el mazo llega al suelo
+  const pies = [pierna(Math.PI, false)];
+  // el mazo de lava: mango negro y una cabeza de roca fundida, irregular, acabada en púa
+  const mazo = ()=>{
+    g.save(); g.translate(mano.x, mano.y); g.rotate(-mazoA + Math.PI/2);
+    jL(g, '#1a0c08', 6, -6, 0, 30, 0);
+    g.fillStyle = '#5a0e06'; g.beginPath();
+    g.moveTo(26, -8); g.lineTo(44, -15); g.lineTo(58, -12); g.lineTo(70, -20); g.lineTo(84, -10); g.lineTo(98, -4);
+    g.lineTo(84, 6); g.lineTo(74, 15); g.lineTo(58, 12); g.lineTo(44, 17); g.lineTo(28, 9); g.closePath(); g.fill();
+    g.fillStyle = '#9a2208'; g.beginPath(); g.moveTo(32, -4); g.lineTo(50, -9); g.lineTo(70, -12); g.lineTo(84, -5); g.lineTo(72, 7); g.lineTo(50, 10); g.closePath(); g.fill();
+    g.strokeStyle = '#ff8a1a'; g.lineWidth = 2.2;                      // vetas de lava
+    for (const [x0, y0, x1, y1] of [[34, 1, 48, -6], [48, -6, 60, 2], [60, 2, 74, -8], [52, 7, 66, 9], [40, 6, 50, 11], [66, -10, 80, -2]]){ g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); }
+    g.strokeStyle = '#ffd23a'; g.lineWidth = 1.2;
+    for (const [x0, y0, x1, y1] of [[44, -3, 54, 0], [62, -2, 70, -6], [56, 6, 62, 5]]){ g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); }
+    g.fillStyle = '#ffb02a'; g.beginPath(); g.moveTo(90, -7); g.lineTo(112, -3); g.lineTo(92, 3); g.closePath(); g.fill();   // la púa ardiente
+    g.fillStyle = '#ffe680'; g.beginPath(); g.moveTo(94, -4); g.lineTo(108, -3); g.lineTo(95, 0); g.closePath(); g.fill();
+    g.restore();
+  };
+  if (pose !== 'golpe') mazo();                         // al hombro o en alto, por detrás del cuerpo
+  // brazo de atrás
+  jL(g, lejos, 9, Sh.x, Sh.y, (Sh.x + mano.x)/2 - 6, (Sh.y + mano.y)/2 + 8); jL(g, lejos, 8, (Sh.x + mano.x)/2 - 6, (Sh.y + mano.y)/2 + 8, mano.x, mano.y);
+  // tronco encorvado y cuello
+  jL(g, neg, 16, H.x, H.y, Sh.x, Sh.y);
+  jL(g, neg, 10, Sh.x, Sh.y, cab.x, cab.y);
+  // el casco: cúpula de metal gris pardo, visor naranja encendido y tres agujeros
+  g.save(); g.translate(cab.x, cab.y); g.rotate(incl*0.5); g.scale(1.3, 1.3);
+  jO(g, '#2a2620', 2, -2, 21, 19); jO(g, '#5e564a', 1, -4, 19, 17); jO(g, '#7a7060', -3, -10, 11, 7);
+  jR(g, '#3a342c', -16, -8, 34, 3); jR(g, '#4a4238', 2, -20, 3, 14);              // remaches y nervio
+  jR(g, '#8a8070', -9, -15, 5, 2); jR(g, '#8a8070', -9, -11, 5, 2);
+  g.fillStyle = '#ff9a1a'; g.beginPath(); g.moveTo(6, -6); g.lineTo(20, -8); g.lineTo(19, -1); g.lineTo(7, 0); g.closePath(); g.fill();
+  g.fillStyle = '#ffe680'; g.beginPath(); g.moveTo(9, -5); g.lineTo(18, -6); g.lineTo(17, -3); g.lineTo(9, -2); g.closePath(); g.fill();
+  for (const [x, y] of [[6, 6], [12, 5], [9, 11]]) jO(g, '#14100c', x, y, 2.4, 2.4);
+  g.restore();
+  pies.push(pierna(0, true));
+  // brazo de delante, con el mazo en la mano
+  jL(g, neg, 10, Sh.x, Sh.y, (Sh.x + mano.x)/2 + 6, (Sh.y + mano.y)/2 + 6); jL(g, neg, 9, (Sh.x + mano.x)/2 + 6, (Sh.y + mano.y)/2 + 6, mano.x, mano.y);
+  jO(g, neg, mano.x, mano.y, 7, 7);
+  if (pose === 'golpe') mazo();                         // estampado por delante, en el suelo
+}
+// Punto de la cabeza del mazo (para el brillo y para el golpe).
+function gigMazo(z){
+  const f = z.facing || 1;
+  if (z.alzaT > 0) return { x: z.x - f*20, y: z.y - 250 };
+  if (z.atT > 0) return { x: z.x + f*GIG_ALC_GOLPE, y: z.y - 10 };
+  return { x: z.x - f*70, y: z.y - 200 };
+}
+const GIG_ALC_GOLPE = 150;
+function gigGolpe(z){
+  const f = z.facing || 1, x = z.x + f*GIG_ALC_GOLPE*0.95, y = z.y + 4, dmg = ALIADO_STATS.gigante.dmg;
+  for (const o of enemies){
+    if (o.dead || o.held || o.thrown || o.pacifico || o.type === 'ovni' || alturaVisible(o) > 40) continue;
+    if (distCuerpo(x, y, o) > GIG_R) continue;
+    porJugador(()=> damageEnemy(o, dmg*(JEFES[o.type] ? 0.6 : 1), o.x, o.y));
+    if (!o.dead && !JEFES[o.type]) o.stunT = Math.max(o.stunT || 0, 0.8);
+  }
+  for (const c of civilians) if (!c.dead && !c.held && dist(c.x, c.y, x, y) < GIG_R) porJugador(()=> damageEnemy(c, 999, c.x, c.y));
+  for (const b of buildings){ if (b.stage < 2){ const cx = clamp(x, b.x, b.x + b.w), cy = clamp(y, b.y, b.y + b.h); if (dist(cx, cy, x, y) < GIG_R*0.7) damageBuilding(b, 90); } }
+  addParticles(x, y, '#ff7a1a', 22, 240); addParticles(x, y, '#ffd23a', 10, 180); addParticles(x, y, '#3a2a22', 12, 160);
+  booms.push({ x, y, r:10, max:GIG_R*1.4, life:0.5, maxlife:0.5, ring:true, color:'#ff8a2a' });
+  shake(9, 0.25); sfx('caidaGolpe'); sfx('incinera');
+}
+function drawGiganteAliado(z){
+  const s = S(z.x, z.y), fade = clamp(z.t/1.5, 0, 1), sube = clamp(1 - z.sube/0.7, 0, 1);
+  const pose = z.alzaT > 0 ? 'alza' : z.atT > 0 ? 'golpe' : 'anda';
+  const f = pose === 'anda' ? Math.floor(z.bob*0.35) % 4 : 0;
+  ctx.globalAlpha = 0.22*fade; ctx.fillStyle = '#8dff6a';                    // el aura arcana que lo trajo
+  ctx.beginPath(); ctx.ellipse(s.x, s.y + 2, 60, 18, 0, 0, Math.PI*2); ctx.fill(); ctx.globalAlpha = 1;
+  sombra(s.x, s.y + 2, 70, 16, 0.8*fade);
+  const c = gigFrame(pose, f), [W, H, cx, py] = GIG_TAM;
+  ctx.save(); ctx.globalAlpha = fade*sube; ctx.translate(s.x, s.y + (1 - sube)*40); if ((z.facing || 1) < 0) ctx.scale(-1, 1);
+  const suave = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(c, -cx, -py); ctx.imageSmoothingEnabled = suave; ctx.restore();
+  // el resplandor de la lava, que late
+  const m = gigMazo(z), sm = S(m.x, m.y), pul = 0.5 + Math.sin(gameTime*5 + z.x)*0.2;
+  ctx.save(); ctx.globalAlpha = 0.3*pul*fade*sube; ctx.fillStyle = '#ff7a1a';
+  ctx.beginPath(); ctx.arc(sm.x, sm.y, 34, 0, Math.PI*2); ctx.fill(); ctx.restore();
+  if (showHpBars && z.hp < z.maxhp && sube >= 1) hpBar(s.x, s.y - 230, 60, z.hp, z.maxhp, '#5dcf4a');
+}
 // ================= AMALGAMA DE ALMAS =================
 // Un alma distinta a las demás: se traga a las almas en pena que encuentra y
 // crece con cada una. Le han salido brazos y piernas, y su cabeza es un
@@ -18447,6 +18567,7 @@ function updateZombis(dt){
     if (z.hp <= 0 || z.t <= 0){ addParticles(z.x, z.y, '#5a7a4a', 14, 100); zombis.splice(i, 1); continue; }
     if (z.sube > 0){ z.sube -= dt; continue; }
     z.cd -= dt;
+    if (z.alzaT > 0){ z.alzaT -= dt; if (z.alzaT <= 0){ gigGolpe(z); z.atT = 0.45; } continue; }   // el gigante, con el mazo en alto
     // al enemigo de a pie más cercano; si no hay, junto al mago
     let obj = null, md = 700*700;
     for (const e of enemies){
@@ -18461,7 +18582,9 @@ function updateZombis(dt){
       const v = (SZ ? SZ.vel : ZOMBI_VEL)*(obj ? 1 : 1.3);
       z.x += (tx - z.x)/d*v*dt; z.y += (ty - z.y)/d*v*dt;
       z.facing = tx > z.x ? 1 : -1;
-      if (!vuela) collideBuildings(z, SZ ? 18 : 11, dt, 0);     // el dragón vuela por encima
+      if (!vuela && z.tipo !== 'gigante') collideBuildings(z, SZ ? 18 : 11, dt, 0);     // el dragón vuela por encima; el gigante pasa por encima
+    } else if (obj && z.cd <= 0 && z.tipo === 'gigante'){
+      z.cd = SZ.cd; z.facing = obj.x > z.x ? 1 : -1; z.alzaT = 0.55; sfx('cargaFuego');   // alza el mazo; cae en gigGolpe
     } else if (obj && z.cd <= 0){
       z.cd = SZ ? SZ.cd : ZOMBI_CD; z.atT = 0.3;
       z.facing = obj.x > z.x ? 1 : -1;
@@ -18520,7 +18643,8 @@ function zombiObjetivo(e, dJug){
 function balaEnZombi(b){
   for (const z of zombis){
     if (z.sube > 0 || z.hp <= 0) continue;
-    if (Math.abs(b.x - z.x) > 15 || b.y < z.y - 28 || b.y > z.y + 14) continue;
+    const gig = z.tipo === 'gigante';
+    if (Math.abs(b.x - z.x) > (gig ? 34 : 15) || b.y < z.y - (gig ? 150 : 28) || b.y > z.y + 14) continue;
     z.hp -= b.dmg;
     addParticles(b.x, b.y, '#6a8a3a', 6, 80);
     if (b.blast || b.shell) explode(b.x, b.y, b.blast || 70, 0, false);
@@ -21623,6 +21747,7 @@ function lucesJefes(L, k, mx, Mx, my, My, tinta){
   }
   for (const m of meteoros) luz(m.x, m.y, (MISIL_TIPOS[m.tipo] || MISIL_TIPOS.meteoro).R, m.tipo === 'hielo' ? luzAzul : luzFuego, 0.25 + (1 - m.t/m.max)*0.5);
   lucesDinamicas(luz);                                      // explosiones, relámpagos y rayos
+  for (const z of zombis) if (z.tipo === 'gigante' && z.sube <= 0){ const m = gigMazo(z); luz(m.x, m.y + 30, 90, luzFuego, 0.7); }
   for (const e of enemies){
     if (e.dead) continue;
     if (e.type === 'muerteVeloz'){ for (const m of mvManos(e)) luz(m.x, m.y, 40, luzAzul, 0.6); if (e.fase === 'tornado') luz(e.x, e.y - 40, 110, luzAzul, 0.6); }
@@ -25683,7 +25808,7 @@ function fichaHeroe(h){
           ['Mantén click der.', 'Telequinesis: levanta varias cosas, te escudan de las balas y al soltar salen lanzadas'],
           [K('draAle'), 'Congela todo a tu alrededor'], [K('draCola'), 'Escudo que para cualquier daño'],
           [K('magFue'), 'Columna de fuego donde apuntas'], [K('magTel'), 'Teletransporte al último sitio donde hiciste click'],
-          ['OVNI', 'Poder arcano: hechizos más fuertes y lo que mates se une a ti: agentes como zombis, tanques como ogros, helicópteros como dragones y MBT-MB92 y cabezones como Piernas de pollo']],
+          ['OVNI', 'Poder arcano: hechizos más fuertes y lo que mates se une a ti: agentes como zombis, tanques como ogros, helicópteros como dragones, MBT-MB92 y cabezones como Piernas de pollo y los jefes como gigantes de lava']],
       m: 'RAYO, MENTE, FUEGO y SALTO son joysticks (mantén, apunta y suelta; con un toque van a lo más cercano). HIELO y ESCUDO al tocarlos.' }
   };
   return f[normHeroe(h)];
