@@ -27,11 +27,14 @@ const NOMBRES_MALOS = (function(){
     'mamahuevo', 'mamaguevo', 'mamalo', 'mamala', 'mamame', 'mamamela', 'chupalo', 'chupala', 'chupame', 'chupamela', 'chupapija',
     'chupapolla', 'chupaverga', 'chupahuevo', 'chupapito', 'pene', 'violacion', 'violador', 'desnud', 'orgasmo', 'esperma', 'eyacul',
     'puñeta', 'panocha', 'pechugona', 'pajero', 'pajera', 'pajillero', 'prostitut', 'ramera', 'conchetu', 'conchatu', 'conchesu', 'conchasu',
-    'concha de tu', 'chichona',
+    'concha de tu', 'chichona', 'teton', 'tetotas', 'tetudo', 'tetuda',
     // español: insultos y odio
     'mierda', 'joder', 'pendej', 'cabron', 'maricon', 'malparid', 'malnacid', 'gilipolla', 'soplapolla', 'lameculo', 'imbecil', 'estupid',
     'boludo', 'boluda', 'pelotudo', 'pelotuda', 'huevon', 'huevona', 'weon', 'wevon', 'guevon', 'sorete', 'cornudo', 'carechimba',
-    'gonorrea', 'mongolic', 'mogolic', 'subnormal', 'retrasad', 'tortillera', 'bollera', 'sudaca', 'muerete', 'matate', 'qlo', 'qliao', 'qlia'];
+    'gonorrea', 'mongolic', 'mogolic', 'subnormal', 'retrasad', 'tortillera', 'bollera', 'sudaca', 'muerete', 'matate', 'qlo', 'qliao', 'qlia',
+    // a la madre de nadie
+    'tumama', 'tumami', 'tumamita', 'tumadre', 'tuvieja', 'tuvieha', 'tuhermana', 'tumae', 'tumai', 'tumaire',
+    'yomama', 'yomomma', 'yourmom', 'yourmum', 'yourmother', 'urmom', 'urmum', 'urmother', 'yomom', 'yamom', 'yamama'];
   // solo como palabra entera (dentro de otras serían falsos positivos)
   const enteras = ['ass', 'asses', 'arse', 'anal', 'anus', 'cum', 'tit', 'tits', 'hoe', 'hoes', 'fag', 'fags', 'fap', 'bj', 'rape', 'raped',
     'nazi', 'kkk', 'clit', 'semen', 'boner', 'thot', 'hooker', 'pimp', 'prick', 'tosser', 'moron', 'morons', 'spaz', 'spastic', 'chink',
@@ -45,7 +48,7 @@ const NOMBRES_MALOS = (function(){
     'cocktail', 'peacock', 'hancock', 'cockpit', 'cockroach', 'hitchcock', 'woodcock', 'babcock', 'cockatoo', 'cockatiel',
     'shuttlecock', 'cockney', 'cockerel', 'dickens', 'dickson', 'dickinson', 'dickey', 'dickie', 'benedick', 'shiitake', 'shitake', 'shiitac', 'shitac',
     'therapist', 'scunthorpe', 'thorny', 'georgy', 'porgy', 'semental', 'nudel', 'retardant', 'open', 'booboo', 'amputa', 'putativ', 'computo', 'penistone',
-    'ashita', 'mashita', 'ushita', 'ishita', 'oshita', 'shitara', 'sexag', 'sexen', 'swank', 'wankel', 'happen', 'sharpen', 'pened', 'pener', 'penetr', 'reputab', 'vergonz', 'puñetaz'];
+    'ashita', 'mashita', 'ushita', 'ishita', 'oshita', 'shitara', 'sexag', 'sexen', 'swank', 'wankel', 'tetonia', 'happen', 'sharpen', 'pened', 'pener', 'penetr', 'reputab', 'vergonz', 'puñetaz'];
   // nombres y palabras corrientes que, enteras, se parecen a una de las cortas
   const exactas = ['assess', 'dicke', 'bonner', 'marika', 'mph'];
   const re = w => new RegExp(w.replace(/ /g, '').replace(/(.)\1*/g, (m, c)=> m.length > 1 ? c + '{' + m.length + ',}' : c + '+'));
