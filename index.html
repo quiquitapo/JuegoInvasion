@@ -6879,16 +6879,13 @@ function damageEnemy(e, dmg, fx, fy){
   if (Online.culpaInv) Online.premioInv.heal += rw.heal;
   else hp = clamp(hp + Math.round(rw.heal * curaPorBaja()), 0, maxHp());
   if (!Online.culpaInv && culpaJug > 0 && isMaq()) maqRegenera();
-  // con el poder arcano del mago, los agentes caídos se levantan como zombis
-  if ((k === 'police' || k === 'military' || k === 'minigun' || k === 'centinela' || k === 'centElite') && bajaArcana()) levantaZombi(e);
-  // el mago convierte los tanques en ogros y los helicópteros en dragones
-  // (con el poder arcano del OVNI, igual que los zombis)
-  if ((k === 'tank' || k === 'arana') && bajaArcana()) levantaAliado(e, 'ogro');
-  if ((k === 'heli' || k === 'gunship' || k === 'caza40k') && bajaArcana()) levantaAliado(e, 'dragoncito');
-  // y los tanques especiales (MBT-MB92 de fuego y de hielo) y los cabezones, en Piernas de pollo
-  if ((k === 'mbt' || k === 'mbtFrio' || k === 'cabezon') && bajaArcana()) levantaAliado(e, 'pollo');
-  // y cada jefe que cae, en un gigante de lava
-  if (JEFES[k] && !e.normal && bajaArcana()) levantaAliado(e, 'gigante');
+  // con el poder arcano del OVNI, todo lo que mata el mago se le une: la
+  // tropa como zombis, lo pesado como ogros, lo que vuela como dragones...
+  // y cada jefe, como un gigante de lava (el trípode de una oleada, un ogro)
+  if (k !== 'civ' && bajaArcana()){
+    const conv = JEFES[k] ? (e.normal ? 'ogro' : 'gigante') : MAGO_CONVIERTE[k];
+    if (conv === 'zombi') levantaZombi(e); else if (conv) levantaAliado(e, conv);
+  }
   if (k === 'heroe') heroeCae(e);
   if (k === 'amalgama'){ if (e.auto){ e.auto.presa = false; e.auto.presaDe = null; } addParticles(e.x, e.y - 50*(e.k || 1), '#cfe0ff', 40, 260); addParticles(e.x, e.y - 30, '#9ab8e8', 20, 180); shake(12, 0.3); }
   if (k === 'bicho'){ addParticles(e.x, e.y - 22, '#c8d84a', 18, 170); addParticles(e.x, e.y - 22, '#b0682a', 10, 120); }   // revienta en papilla verde
@@ -12362,6 +12359,15 @@ const ALIADO_STATS = {
   dragoncito: { hp:150, vel:125, dmg:24, cd:0.6, alc:190, vida:30 },
   pollo:      { hp:220, vel:120, dmg:30, cd:1.3, alc:40,  vida:30 },  // gira y barre con la cola
   gigante:    { hp:900, vel:40,  dmg:120, cd:2.2, alc:150, vida:40 }  // lento, pero su mazo llega lejos
+};
+// En qué se levanta cada unidad (los jefes, aparte: en gigantes).
+const MAGO_CONVIERTE = {
+  police:'zombi', military:'zombi', minigun:'zombi', centinela:'zombi', centElite:'zombi', droide:'zombi', medico:'zombi',
+  voltio:'zombi', arquero:'zombi', caballero:'zombi', vengativo:'zombi',
+  tank:'ogro', arana:'ogro', siege:'ogro', machacador:'ogro', golem:'ogro', amalgama:'ogro',
+  heli:'dragoncito', gunship:'dragoncito', caza40k:'dragoncito', plane:'dragoncito', ovni:'dragoncito', ave:'dragoncito',
+  murcielago:'dragoncito', escaner:'dragoncito', gravitron:'dragoncito',
+  mbt:'pollo', mbtFrio:'pollo', cabezon:'pollo', bicho:'pollo'
 };
 const ALIADO_AVISO = { ogro:['#8dff6a', '¡UN OGRO SE UNE AL MAGO!'], dragoncito:['#ff9a4a', '¡UN DRAGÓN SE UNE AL MAGO!'],
                        pollo:['#e070d0', '¡PIERNAS DE POLLO SE UNE AL MAGO!'], gigante:['#ff8a2a', '¡UN GIGANTE DE LAVA SE UNE AL MAGO!'] };
@@ -24303,11 +24309,14 @@ const NOMBRES_MALOS = (function(){
     'mamahuevo', 'mamaguevo', 'mamalo', 'mamala', 'mamame', 'mamamela', 'chupalo', 'chupala', 'chupame', 'chupamela', 'chupapija',
     'chupapolla', 'chupaverga', 'chupahuevo', 'chupapito', 'pene', 'violacion', 'violador', 'desnud', 'orgasmo', 'esperma', 'eyacul',
     'puñeta', 'panocha', 'pechugona', 'pajero', 'pajera', 'pajillero', 'prostitut', 'ramera', 'conchetu', 'conchatu', 'conchesu', 'conchasu',
-    'concha de tu', 'chichona',
+    'concha de tu', 'chichona', 'teton', 'tetotas', 'tetudo', 'tetuda',
     // español: insultos y odio
     'mierda', 'joder', 'pendej', 'cabron', 'maricon', 'malparid', 'malnacid', 'gilipolla', 'soplapolla', 'lameculo', 'imbecil', 'estupid',
     'boludo', 'boluda', 'pelotudo', 'pelotuda', 'huevon', 'huevona', 'weon', 'wevon', 'guevon', 'sorete', 'cornudo', 'carechimba',
-    'gonorrea', 'mongolic', 'mogolic', 'subnormal', 'retrasad', 'tortillera', 'bollera', 'sudaca', 'muerete', 'matate', 'qlo', 'qliao', 'qlia'];
+    'gonorrea', 'mongolic', 'mogolic', 'subnormal', 'retrasad', 'tortillera', 'bollera', 'sudaca', 'muerete', 'matate', 'qlo', 'qliao', 'qlia',
+    // a la madre de nadie
+    'tumama', 'tumami', 'tumamita', 'tumadre', 'tuvieja', 'tuvieha', 'tuhermana', 'tumae', 'tumai', 'tumaire',
+    'yomama', 'yomomma', 'yourmom', 'yourmum', 'yourmother', 'urmom', 'urmum', 'urmother', 'yomom', 'yamom', 'yamama'];
   // solo como palabra entera (dentro de otras serían falsos positivos)
   const enteras = ['ass', 'asses', 'arse', 'anal', 'anus', 'cum', 'tit', 'tits', 'hoe', 'hoes', 'fag', 'fags', 'fap', 'bj', 'rape', 'raped',
     'nazi', 'kkk', 'clit', 'semen', 'boner', 'thot', 'hooker', 'pimp', 'prick', 'tosser', 'moron', 'morons', 'spaz', 'spastic', 'chink',
@@ -24321,7 +24330,7 @@ const NOMBRES_MALOS = (function(){
     'cocktail', 'peacock', 'hancock', 'cockpit', 'cockroach', 'hitchcock', 'woodcock', 'babcock', 'cockatoo', 'cockatiel',
     'shuttlecock', 'cockney', 'cockerel', 'dickens', 'dickson', 'dickinson', 'dickey', 'dickie', 'benedick', 'shiitake', 'shitake', 'shiitac', 'shitac',
     'therapist', 'scunthorpe', 'thorny', 'georgy', 'porgy', 'semental', 'nudel', 'retardant', 'open', 'booboo', 'amputa', 'putativ', 'computo', 'penistone',
-    'ashita', 'mashita', 'ushita', 'ishita', 'oshita', 'shitara', 'sexag', 'sexen', 'swank', 'wankel', 'happen', 'sharpen', 'pened', 'pener', 'penetr', 'reputab', 'vergonz', 'puñetaz'];
+    'ashita', 'mashita', 'ushita', 'ishita', 'oshita', 'shitara', 'sexag', 'sexen', 'swank', 'wankel', 'tetonia', 'happen', 'sharpen', 'pened', 'pener', 'penetr', 'reputab', 'vergonz', 'puñetaz'];
   // nombres y palabras corrientes que, enteras, se parecen a una de las cortas
   const exactas = ['assess', 'dicke', 'bonner', 'marika', 'mph'];
   const re = w => new RegExp(w.replace(/ /g, '').replace(/(.)\1*/g, (m, c)=> m.length > 1 ? c + '{' + m.length + ',}' : c + '+'));
@@ -25859,7 +25868,7 @@ function fichaHeroe(h){
           ['Mantén click der.', 'Telequinesis: levanta varias cosas, te escudan de las balas y al soltar salen lanzadas'],
           [K('draAle'), 'Congela todo a tu alrededor'], [K('draCola'), 'Escudo que para cualquier daño'],
           [K('magFue'), 'Columna de fuego donde apuntas'], [K('magTel'), 'Teletransporte al último sitio donde hiciste click'],
-          ['OVNI', 'Poder arcano: hechizos más fuertes y lo que mates se une a ti: agentes como zombis, tanques como ogros, helicópteros como dragones, MBT-MB92 y cabezones como Piernas de pollo y los jefes como gigantes de lava']],
+          ['OVNI', 'Poder arcano: hechizos más fuertes y todo lo que mates se une a ti: la tropa como zombis, tanques y bestias como ogros, todo lo que vuela como dragones, MBT-MB92, cabezones y bichos como Piernas de pollo y los jefes como gigantes de lava']],
       m: 'RAYO, MENTE, FUEGO y SALTO son joysticks (mantén, apunta y suelta; con un toque van a lo más cercano). HIELO y ESCUDO al tocarlos.' }
   };
   return f[normHeroe(h)];
