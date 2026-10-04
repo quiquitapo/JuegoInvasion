@@ -451,12 +451,33 @@
   .scorehdr { font-size:0.55rem; letter-spacing:1px; color:#9fb3a8;
               text-align:center; margin:-2px 0 6px; }
   /* cambio de personaje y, al lado, la ficha con sus controles */
-  .charbar { position:fixed; left:14px; bottom:14px; z-index:6; display:flex; gap:8px; align-items:stretch; }
+  .charcol { position:fixed; left:14px; bottom:14px; z-index:6; display:flex; flex-direction:column; gap:8px; align-items:stretch; }
+  .charbar { display:flex; gap:8px; align-items:stretch; }
   /* en pantallas estrechas y táctiles, en su sitio al final del menú: fija
      en la esquina tapaba el botón de LOGROS */
   @media (max-width: 820px), (hover: none) and (pointer: coarse) {
-    .charbar { position:static; margin:16px auto 0; justify-content:center; }
+    .charcol { position:static; margin:16px auto 0; align-items:center; }
+    .charbar { justify-content:center; }
   }
+  .tutbtn { cursor:pointer; border-radius:10px; padding:7px 11px; font-family:inherit; font-size:0.56rem; letter-spacing:2px;
+            background:linear-gradient(180deg, rgba(40,90,40,0.92), rgba(12,40,18,0.92)); border:2px solid #7bffa0; color:#e8ffe8;
+            box-shadow:0 0 12px rgba(123,255,160,0.25); }
+  .tutbtn b { color:#ffe14a; margin-left:6px; }
+  .tutbtn:hover { filter:brightness(1.2); }
+  #tutPanel { position:fixed; left:50%; transform:translateX(-50%); top:84px; z-index:12; width:min(560px, 92vw);
+              background:rgba(6,16,10,0.88); border:2px solid #7bffa0; border-radius:12px; padding:10px 14px;
+              color:#d8f0e0; text-align:center; box-shadow:0 0 18px rgba(0,0,0,0.5); pointer-events:auto; }
+  #tutPanel.hidden { display:none; }
+  /* en el móvil el HUD de la derecha baja más: el panel va debajo para no taparlo */
+  body.touch-ui #tutPanel { top:182px; padding:8px 12px; }
+  #tutPanel .tutpaso { font-size:0.5rem; letter-spacing:2px; color:#8fbfa2; }
+  #tutPanel .tuttit { font-size:0.85rem; letter-spacing:2px; color:#7bffa0; font-weight:900; margin:3px 0; }
+  #tutPanel .tutcuenta { color:#ffe14a; margin-left:8px; }
+  #tutPanel .tutbien { color:#ffe14a; }
+  #tutPanel .tuttxt { font-size:0.62rem; line-height:1.6; }
+  #tutPanel .tutbtns { display:flex; gap:8px; justify-content:center; margin-top:7px; }
+  #tutPanel .tutbtns button { font-family:inherit; font-size:0.5rem; letter-spacing:1px; padding:5px 10px; border-radius:6px; cursor:pointer;
+                              background:#0f2418; border:1px solid #2fe86e; color:#7bffa0; }
   /* ayuda del J2: táctil en el duelo local del teléfono, de teclado en el resto */
   .p2hinttel { display:none; }
   body.vstel .p2hinttel { display:block; }
@@ -871,6 +892,7 @@
     <div class="combobar"><div id="combofill"></div></div>
   </div>
   <div id="toast"></div>
+  <div id="tutPanel" class="hidden"></div>
   <div id="achtoast"></div>
 
   <div id="moveJoyBase" class="joy-base"><div class="joy-knob" id="moveJoyKnob"></div></div>
@@ -1063,11 +1085,14 @@
       <button class="imgbtn" id="btnLogros" aria-label="Logros"></button>
     </div>
     <div class="coinbar">MONEDAS: <b id="menucoins">0</b> ⬤</div>
+    <div class="charcol">
+    <button type="button" class="tutbtn" id="btnTutorial" aria-label="Tutorial del personaje">&#9654; TUTORIAL <b id="tutNombre">CRÍA</b></button>
     <div class="charbar">
       <button type="button" class="charbtn" id="btnHero" aria-label="Cambio de personaje">
         <img id="heroicon" alt=""><span>CAMBIO DE<br>PERSONAJE<br><b id="heroname">CRÍA</b></span>
       </button>
       <button type="button" class="charhelp" id="btnHeroAyuda" aria-label="Controles del personaje" title="Controles del personaje">?</button>
+    </div>
     </div>
   </div>
 
@@ -6142,6 +6167,7 @@ function updateOvni(e, dt){
 
 // Aparece cada mucho rato, y solo si no hay otro rondando.
 function updateOvniSpawn(dt){
+  if (TUT.activo) return;
   if (gameMode === 'vs' && !ovniEnVs) return;          // en el duelo, según ajustes
   ovniCd -= dt;
   if (ovniCd > 0) return;
@@ -10966,7 +10992,7 @@ const DRA_MORD_AUTO = 150;             // hasta dónde se estira el cuello a por
 function draMordisco(auto){
   if (vil.intro || dra.mordCd > 0 || dra.colaFase) return;
   if (vil.stam < DRA_MORD_STAM){ sinEstamina(); return; }
-  vil.stam -= DRA_MORD_STAM;
+  vil.stam -= DRA_MORD_STAM; tutEv('mordisco');
   dra.mordCd = DRA_MORD_CD; dra.mordT = DRA_MORD_T;
   dra.mordCab = (dra.mordCab + 1) % 3;
   dra.mordL = 0;
@@ -11005,7 +11031,7 @@ function draMordisco(auto){
 function draAleteo(){
   if (vil.intro || dra.aleteoCd > 0 || dra.colaFase) return;
   if (vil.stam < DRA_ALE_STAM){ sinEstamina(); return; }
-  vil.stam -= DRA_ALE_STAM;
+  vil.stam -= DRA_ALE_STAM; tutEv('aleteo');
   dra.aleteoCd = DRA_ALE_CD; dra.aleteoT = DRA_ALE_T;
   draDanaArea(player.x, player.y, DRA_ALE_R, DRA_ALE_DMG, 240, 0.9);
   sacudeArboles(player.x, player.y, DRA_ALE_R*1.3, 0.38);
@@ -11019,7 +11045,7 @@ function draAlternaRayos(){
   if (vil.intro) return;
   if (dra.rayos){ dra.rayos = false; sfx('ui'); return; }
   if (vil.stam < 10){ sinEstamina(); return; }
-  dra.rayos = true; dra.rayoTick = 0;
+  dra.rayos = true; dra.rayoTick = 0; tutEv('rayos');
   sfx('rayoDra');
 }
 function draColaApunta(){
@@ -11031,7 +11057,7 @@ function draColaSuelta(){
   dra.colaApunta = false;
   if (dra.colaFase) return;
   if (vil.stam < DRA_COLA_STAM){ sinEstamina(); return; }
-  vil.stam -= DRA_COLA_STAM;
+  vil.stam -= DRA_COLA_STAM; tutEv('cola');
   vil.flying = false; vil.joyFly = false;
   dra.colaFase = 'carga';
   dra.colaEX = clamp(player.x + Math.cos(dra.colaA)*dra.colaL, 30, WORLD_W-30);
@@ -12974,6 +13000,8 @@ function drawMeteorosCayendo(){
 function drawRayoLaser(b, s){
   const v = Math.hypot(b.vx, b.vy) || 1, ux = b.vx/v, uy = b.vy/v;
   ctx.lineCap = 'round';
+  ctx.strokeStyle = 'rgba(0,0,0,0.6)'; ctx.lineWidth = 7; ctx.globalAlpha = 1;          // sombra: se lee en cualquier suelo
+  ctx.beginPath(); ctx.moveTo(s.x - ux*15, s.y - uy*15); ctx.lineTo(s.x + ux, s.y + uy); ctx.stroke();
   ctx.strokeStyle = b.color; ctx.lineWidth = 4; ctx.globalAlpha = 0.7;
   ctx.beginPath(); ctx.moveTo(s.x - ux*14, s.y - uy*14); ctx.lineTo(s.x, s.y); ctx.stroke();
   ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.5; ctx.globalAlpha = 1;
@@ -14976,7 +15004,7 @@ function maqBoca(a){
 }
 function maqCambiaArma(){
   if (vil.intro) return;
-  maq.arma = (maq.arma + 1) % MAQ_ARMAS.length;
+  maq.arma = (maq.arma + 1) % MAQ_ARMAS.length; tutEv('cambia');
   maq.incCarga = 0; maq.incApunta = false; maq.rafN = 0; maq.armaT = 0.9;
   toast('ARMA: ' + maqNombreArma(maq.arma));
   sfx('recarga');
@@ -15167,6 +15195,7 @@ function maqSierraSuelta(){
 }
 // De camino a la zona, lo que pilla por delante se lleva un tajo (una vez cada uno).
 function maqArrolla(){
+  tutEv('sierras');
   const sob = maqSob(), dmg = MAQ_SIE_PASO*(sob ? MAQ_SOB : 1), R = MAQ_R + 24;
   if (!maqGolpeados) maqGolpeados = new Set();
   for (const pool of [civilians, enemies]){
@@ -15819,6 +15848,7 @@ function magFuego(x, y){
   sfx('cargaFuego');
 }
 function magErupcion(x, y, arc){
+  tutEv('fuego');
   const R = MAG_FUEGO_R*(arc ? 1.35 : 1), dmg = MAG_FUEGO_DMG*(arc ? 1.5 : 1);
   draDanaArea(x, y, R, dmg, 170, 0.7);
   for (const b of buildings){
@@ -15855,7 +15885,7 @@ function magTeleporta(x, y){
   if (d < 12) return;
   if (d > MAG_TELE_MAX){ dx *= MAG_TELE_MAX/d; dy *= MAG_TELE_MAX/d; }
   vil.stam -= MAG_TELE_MANA;
-  mag.teleCd = MAG_TELE_CD*(magArc() ? 0.6 : 1);
+  mag.teleCd = MAG_TELE_CD*(magArc() ? 0.6 : 1); tutEv('tele');
   proyJ.push({ k:'tele', x:player.x, y:player.y, t:0.45, max:0.45 });
   addParticles(player.x, player.y - 12, '#c77dff', 16, 160);
   const x0 = player.x, y0 = player.y;
@@ -15896,6 +15926,7 @@ function magLanzaRayo(ap){
   sfx('conjuro');
 }
 function magImpacto(x, y, arc){
+  tutEv('rayo');
   const R = MAG_RAYO_R*(arc ? 1.4 : 1), dmg = MAG_RAYO_DMG*(arc ? 1.5 : 1);
   relampagos.push({ x, y, t:0.35, max:0.35, sem:Math.random()*1000, col: arc ? 2 : 1 });
   draDanaArea(x, y, R, dmg, 120, 0.9);
@@ -15924,7 +15955,7 @@ function magImpacto(x, y, arc){
 function magTKEmpieza(){
   if (vil.intro) return;
   if (vil.stam < MAG_TK_MANA){ sinMana(); return; }
-  vil.stam -= MAG_TK_MANA;
+  vil.stam -= MAG_TK_MANA; tutEv('tk');
   mag.tkOn = true; mag.tkCd = 0;
   const ap = magApunta();
   const d = clamp(ap.d, 60, MAG_TK_ALC);
@@ -15970,6 +16001,7 @@ function magAgarraCerca(){
 // Suelta lo que sostiene: lanzándolo, o dejándolo caer (sin=true).
 function magSueltaTK(sin){
   if (!mag.tk.length){ mag.tkOn = false; return; }
+  tutEv('tksuelta');
   const arc = magArc();
   // dirección: la del gesto si fue rápido; si no, desde ti hacia el punto
   let ax = mag.tkX - player.x, ay = mag.tkY - player.y;
@@ -16007,7 +16039,7 @@ function magHielo(){
   const coste = MAG_HIELO_MANA*(arc ? 0.8 : 1);
   if (vil.stam < coste){ sinMana(); return; }
   vil.stam -= coste;
-  mag.hieloCd = MAG_HIELO_CD; mag.hieloT = 0.6;
+  mag.hieloCd = MAG_HIELO_CD; mag.hieloT = 0.6; tutEv('hielo');
   const R = MAG_HIELO_R*(arc ? 1.4 : 1), dur = MAG_HIELO_T*(arc ? 1.4 : 1), dmg = MAG_HIELO_DMG*(arc ? 2 : 1);
   const refs = [];
   for (const pool of [civilians, enemies]){
@@ -16043,7 +16075,7 @@ function magEscudo(){
   if (vil.intro || mag.escudoT > 0 || mag.escudoCd > 0) return;
   if (vil.stam < MAG_ESC_MANA){ sinMana(); return; }
   vil.stam -= MAG_ESC_MANA;
-  mag.escudoT = MAG_ESC_T*(magArc() ? 1.45 : 1);
+  mag.escudoT = MAG_ESC_T*(magArc() ? 1.45 : 1); tutEv('escudo');
   sfx('escudoMag');
 }
 function magEscudoR(){ return MAG_ESC_R*(magArc() ? 1.25 : 1); }
@@ -17489,6 +17521,7 @@ function onGrab(){
     const held = heldObject.ref;
     if (held && (held.person || held.kind === 'civ')){
       porJugador(()=> damageEnemy(held, 99999, held.x, held.y));
+      tutEv('remate');
       held.held = false;
       addParticles(held.x, held.y, '#c33', 18, 150);
       shake(5, 0.12);
@@ -17529,6 +17562,7 @@ function onThrow(){
   o.golpeados = [];
   o.x = tip.x; o.y = tip.y;
   o.vx = Math.cos(ang)*520; o.vy = Math.sin(ang)*520;
+  tutEv('lanza');
   o.throwDmg = objThrowDmg(o);
   o.throwLife = 1.5;
   // helicopters tumble end-over-end when hurled
@@ -18224,6 +18258,7 @@ function vilSmash(dt){
 function vilPunch(carga, modo){
   carga = carga || 0;
   if (vil.intro || vil.punchCd > 0) return;
+  tutEv(carga >= 0.4 || modo ? 'cargado' : 'golpe');
   const dir  = modo === 'dir';
   const clap = modo === 'clap';
   const lleno = dir || clap;
@@ -18977,6 +19012,7 @@ function updateRegen(dt){
 }
 
 function updateSpawns(dt){
+  if (TUT.activo) return;                       // en el tutorial, solo lo que pone cada paso
   gameTime += dt;
   updateCycle();
   achProgress();
@@ -20663,9 +20699,17 @@ function drawBullets(){
     if (b.laser){ drawRayoLaser(b, s); continue; }                        // arquero fantasma
     if (b.sprite && sprites[b.sprite] &&
         drawSprite(b.sprite, s.x, s.y, 34, 12, sprites[b.sprite].face, b.rot||0)) continue;
-    ctx.fillStyle=b.color;
-    ctx.beginPath(); ctx.arc(s.x,s.y,b.size,0,Math.PI*2); ctx.fill();
-    if (b.shell){ ctx.strokeStyle='rgba(255,180,80,0.6)'; ctx.lineWidth=2; ctx.stroke(); }
+    // se leen sobre cualquier fondo: estela, contorno oscuro y núcleo blanco
+    const v = Math.hypot(b.vx, b.vy) || 1, ux = b.vx/v, uy = b.vy/v, r = b.size;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = 'rgba(0,0,0,0.55)'; ctx.lineWidth = r*1.9;
+    ctx.beginPath(); ctx.moveTo(s.x - ux*r*3.2, s.y - uy*r*3.2); ctx.lineTo(s.x, s.y); ctx.stroke();
+    ctx.strokeStyle = b.color; ctx.globalAlpha = 0.55; ctx.lineWidth = r*1.1;
+    ctx.beginPath(); ctx.moveTo(s.x - ux*r*3, s.y - uy*r*3); ctx.lineTo(s.x, s.y); ctx.stroke(); ctx.globalAlpha = 1;
+    ctx.fillStyle = '#0a0606'; ctx.beginPath(); ctx.arc(s.x, s.y, r + 1.6, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = b.color; ctx.beginPath(); ctx.arc(s.x, s.y, r, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(s.x, s.y, r*0.45, 0, Math.PI*2); ctx.fill();
+    if (b.shell){ ctx.strokeStyle='rgba(255,180,80,0.8)'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(s.x, s.y, r + 2.5, 0, Math.PI*2); ctx.stroke(); }
   }
 }
 // Estampa de la bola de fuego, generada una vez.
@@ -20861,7 +20905,7 @@ function draw(){
   drawBullets(); drawTriRayos(); drawDragonRayos(); drawJefes2Rayos(); drawAlienEfectos(); drawCenturionEfectos(); drawDesgarradorRayo(); drawMeteorosCayendo(); drawProyJ(proyJ); drawProyJ(proyRed);
   if (dobleAnf() && Online.av && Online.av.pj) drawProyJ(Online.av.pj);
   drawMaquinaEfectos(); drawMagoEfectos();
-  drawRelampagos(); drawHumos(); drawHumoEdif(); drawSonic(); drawWind(); drawRayosOjos(); drawFX(); drawLucesDia(); drawBocadillos(); drawNumeros(); drawAura(); drawPortalCelestial(); if (vil.caida) drawCaidaJugador(); drawP2Cursor();
+  drawRelampagos(); drawHumos(); drawHumoEdif(); drawSonic(); drawWind(); drawRayosOjos(); drawFX(); drawLucesDia(); drawBocadillos(); drawNumeros(); drawMarcaTutorial(); drawAura(); drawPortalCelestial(); if (vil.caida) drawCaidaJugador(); drawP2Cursor();
   ctx.restore();
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   drawLighting();                                  // en píxeles del lienzo
@@ -21719,6 +21763,232 @@ function drawEscenaMenu(dt){
   ctx.drawImage(menuEsc.vin, 0, 0, W, H);
 }
 
+// ================= TUTORIAL =================
+// Una partida de práctica por pasos con el personaje elegido: en cada paso
+// aparece justo lo que hace falta (un auto que agarrar, un helicóptero que
+// dispara misiles, policías que no disparan...), una flecha lo señala y el
+// paso se da por hecho al hacer la acción. No hay oleadas, ni jefes, ni
+// puntaje, y el invasor no puede morir.
+const TUT = { activo:false, h:'alien', i:0, ev:{}, base:{}, t:0, ok:0, fin:0, marca:null, cosas:[], x0:0, y0:0, mapaAntes:'ciudad' };
+function tutEv(n){ if (TUT.activo) TUT.ev[n] = (TUT.ev[n] || 0) + 1; }
+function enTutorial(){ return TUT.activo && running; }
+const K_ = k => prettyKey(binds[k] || '');
+// sitio libre cerca del invasor
+function tutSitio(d, ang){
+  for (let q = 0; q < 16; q++){
+    const a = (ang || 0) + q*0.7, r = d + (q % 3)*30;
+    const x = clamp(player.x + Math.cos(a)*r, 60, WORLD_W - 60), y = clamp(player.y + Math.sin(a)*r*0.8, 60, WORLD_H - 60);
+    if (!dentroDeEdificio(x, y, 30)) return { x, y };
+  }
+  return { x: player.x + d, y: player.y };
+}
+function tutAuto(d, ang){
+  spawnCar();
+  const c = cars[cars.length - 1], p = tutSitio(d || 150, ang);
+  c.x = p.x; c.y = p.y; c.vx = 0; c.vy = 0; c.sentidoV = 0; c.tut = 1;
+  TUT.cosas.push(c);
+  return c;
+}
+function tutEnemigo(tipo, d, ang, dispara){
+  const p = tutSitio(d, ang);
+  spawnEnemy(tipo, p.x, p.y);
+  const e = enemies[enemies.length - 1];
+  if (!e) return null;
+  e.speed = 0; e.tut = 1; e.oleada = true;
+  if (!dispara) e.shootCd = 1e9;
+  TUT.cosas.push(e);
+  return e;
+}
+function tutCivil(d, ang){
+  spawnCivilian();
+  const c = civilians[civilians.length - 1], p = tutSitio(d, ang);
+  c.x = p.x; c.y = p.y; c.speed = 8; c.tut = 1;
+  TUT.cosas.push(c);
+  return c;
+}
+function tutLimpia(){
+  for (const o of TUT.cosas) if (o && !o.dead && !o.held) o.dead = true;
+  TUT.cosas.length = 0; TUT.marca = null;
+  bullets.length = 0;
+}
+const vivos = L => L.filter(o=> o && !o.dead).length;
+// ---- los pasos de cada personaje ----
+// t: texto en PC; m: en el móvil; prep: lo que aparece; ok: cuándo está hecho;
+// cuenta: progreso (opcional).
+function pasoMover(){
+  return { tit:'MOVERSE', t:'Muévete con ' + [K_('up'), K_('left'), K_('down'), K_('right')].join(' ') + '.', m:'Muévete con el joystick izquierdo.',
+    prep(){ TUT.x0 = player.x; TUT.y0 = player.y; }, ok: ()=> dist(player.x, player.y, TUT.x0, TUT.y0) > 220 };
+}
+function pasosTutorial(h){
+  if (h === 'viltrum') return [
+    pasoMover(),
+    { tit:'VUELO SÓNICO', t:'Toca dos veces una dirección y mantenla: vuelas a toda velocidad (gasta estamina).', m:'Lleva el joystick izquierdo hasta el tope: vuelas.',
+      ok: ()=> vil.flying },
+    { tit:'PUÑETAZO', t:'Acércate a los policías y dales con el clic izquierdo.', m:'Acércate y toca GOLPE.',
+      prep(){ TUT.lista = [0, 1, 2].map(i=> tutEnemigo('police', 170, i*0.6)); TUT.marca = TUT.lista[0]; },
+      ok: ()=> (TUT.ev.golpe || 0) + (TUT.ev.cargado || 0) >= 2 || vivos(TUT.lista) === 0, cuenta: ()=> Math.min(2, (TUT.ev.golpe || 0) + (TUT.ev.cargado || 0)) + '/2' },
+    { tit:'GOLPE CARGADO', t:'Mantén el clic izquierdo para cargar y suéltalo: golpe cargado, mucho más fuerte.', m:'Mantén GOLPE para cargar y suéltalo.',
+      prep(){ TUT.lista = [tutEnemigo('military', 140, 0.3)]; TUT.marca = TUT.lista[0]; }, ok: ()=> (TUT.ev.cargado || 0) >= 1 },
+    { tit:'AGARRAR Y LANZAR', t:'Clic derecho junto al auto para agarrarlo; otro clic derecho para lanzarlo contra el tanque.', m:'Toca ACCIÓN junto al auto para agarrarlo y otra vez para lanzarlo al tanque.',
+      prep(){ TUT.auto = tutAuto(110, 0); TUT.obj = tutEnemigo('tank', 300, 0.2); TUT.marca = TUT.auto; },
+      cada(){ TUT.marca = heldObject ? TUT.obj : TUT.auto; if (!heldObject && (!TUT.auto || TUT.auto.dead)){ TUT.auto = tutAuto(110, 0); } },
+      ok: ()=> TUT.obj && (TUT.obj.dead || TUT.obj.hp < TUT.obj.maxhp) }
+  ];
+  if (h === 'dragon') return [
+    pasoMover(),
+    { tit:'VOLAR', t:'Toca dos veces una dirección y mantenla: el dragón vuela por encima de los tejados.', m:'Lleva el joystick izquierdo hasta el tope para volar.',
+      ok: ()=> vil.flying },
+    { tit:'MORDISCO', t:'Clic izquierdo: mordisco hacia el ratón. Muerde a los policías.', m:'Toca MORDER: va solo a por lo más cercano.',
+      prep(){ TUT.lista = [0, 1].map(i=> tutEnemigo('police', 150, i*0.8)); TUT.marca = TUT.lista[0]; },
+      ok: ()=> (TUT.ev.mordisco || 0) >= 2, cuenta: ()=> Math.min(2, TUT.ev.mordisco || 0) + '/2' },
+    { tit:'RAYOS', t:'Clic derecho: rayos de las tres bocas hacia donde apuntas (cualquier clic los apaga).', m:'Mantén RAYOS, apunta y suelta.',
+      prep(){ TUT.lista = [tutEnemigo('tank', 260, 0)]; TUT.marca = TUT.lista[0]; }, ok: ()=> (TUT.ev.rayos || 0) >= 1 },
+    { tit:'ALETAZO', t:'Pulsa ' + K_('draAle') + ': un aletazo barre y derriba todo a tu alrededor.', m:'Toca ALETEO con enemigos cerca.',
+      prep(){ TUT.lista = [0, 1, 2].map(i=> tutEnemigo('police', 90, i*2.1)); }, ok: ()=> (TUT.ev.aleteo || 0) >= 1 },
+    { tit:'EMBESTIDA Y COLETAZO', t:'Mantén ' + K_('draCola') + ' para trazar la embestida y suéltalo: cargas y rematas con la cola.', m:'Mantén COLA, apunta y suelta.',
+      prep(){ TUT.lista = [tutEnemigo('military', 250, 0)]; TUT.marca = TUT.lista[0]; }, ok: ()=> (TUT.ev.cola || 0) >= 1 }
+  ];
+  if (h === 'maquina') return [
+    pasoMover(),
+    { tit:'TU ARMA', t:'Clic izquierdo (o ' + K_('grab') + '): usa el arma. Empiezas con el hacha: acaba con los policías.', m:'Mantén DISPARO y apunta (con un toque ataca a lo más cercano).',
+      prep(){ TUT.lista = [0, 1, 2].map(i=> tutEnemigo('police', 140, i*0.5)); TUT.marca = TUT.lista[0]; },
+      cada(){ TUT.marca = TUT.lista.find(o=> !o.dead) || null; }, ok: ()=> vivos(TUT.lista) === 0, cuenta: ()=> (3 - vivos(TUT.lista)) + '/3' },
+    { tit:'CAMBIAR DE ARMA', t:'Clic derecho (o ' + K_('throw') + '): hacha → ráfaga → incinerador → lanzacohetes. Pásalas todas.', m:'Toca ARMA para cambiar. Pásalas todas.',
+      ok: ()=> (TUT.ev.cambia || 0) >= 3, cuenta: ()=> Math.min(3, TUT.ev.cambia || 0) + '/3' },
+    { tit:'MOTOSIERRAS', t:'Mantén ' + K_('draCola') + ': marcas la zona; al soltar, saltas arrollando lo que haya en el camino.', m:'Mantén SIERRAS, apunta y suelta.',
+      prep(){ TUT.lista = [tutEnemigo('tank', 220, 0)]; TUT.marca = TUT.lista[0]; }, ok: ()=> (TUT.ev.sierras || 0) >= 1 }
+  ];
+  if (h === 'mago') return [
+    pasoMover(),
+    { tit:'RAYO', t:'Clic izquierdo: un rayo cae donde apuntas. Derriba a los policías.', m:'Mantén RAYO, apunta y suelta (un toque: a lo más cercano).',
+      prep(){ TUT.lista = [0, 1].map(i=> tutEnemigo('police', 200, i*0.7)); TUT.marca = TUT.lista[0]; },
+      ok: ()=> (TUT.ev.rayo || 0) >= 2, cuenta: ()=> Math.min(2, TUT.ev.rayo || 0) + '/2' },
+    { tit:'TELEQUINESIS', t:'Mantén el clic derecho sobre el auto: lo levantas con la mente (te escuda de las balas). Al soltar, sale lanzado.', m:'Mantén MENTE sobre el auto y suelta para lanzarlo.',
+      prep(){ TUT.auto = tutAuto(140, 0); TUT.marca = TUT.auto; }, ok: ()=> (TUT.ev.tk || 0) >= 1 && (TUT.ev.tksuelta || 0) >= 1 },
+    { tit:'HIELO', t:'Pulsa ' + K_('draAle') + ': congelas todo a tu alrededor.', m:'Toca HIELO con enemigos cerca.',
+      prep(){ TUT.lista = [0, 1, 2].map(i=> tutEnemigo('police', 90, i*2.1)); }, ok: ()=> (TUT.ev.hielo || 0) >= 1 },
+    { tit:'ESCUDO', t:'Llegan misiles: pulsa ' + K_('draCola') + ' para el escudo, que para cualquier daño.', m:'Toca ESCUDO cuando lleguen los misiles.',
+      prep(){ TUT.obj = tutEnemigo('gunship', 420, -0.4, true); if (TUT.obj){ TUT.obj.hp = TUT.obj.maxhp = 99999; TUT.obj.shootCd = 0.6; } TUT.marca = TUT.obj; },
+      ok: ()=> (TUT.ev.escudo || 0) >= 1 },
+    { tit:'COLUMNA DE FUEGO', t:'Pulsa ' + K_('magFue') + ': una columna de fuego brota donde apuntas.', m:'Mantén FUEGO, apunta y suelta.',
+      prep(){ TUT.lista = [tutEnemigo('military', 200, 0)]; TUT.marca = TUT.lista[0]; }, ok: ()=> (TUT.ev.fuego || 0) >= 1 },
+    { tit:'TELETRANSPORTE', t:'Haz clic en un sitio y pulsa ' + K_('magTel') + ': apareces allí.', m:'Mantén SALTO, apunta y suelta.',
+      ok: ()=> (TUT.ev.tele || 0) >= 1 }
+  ];
+  // la cría
+  return [
+    pasoMover(),
+    { tit:'AGARRAR', t:'Acércate al auto señalado y agárralo: clic izquierdo (o ' + K_('grab') + ') con el tentáculo apuntando hacia él.', m:'Apunta con el joystick derecho y toca ACCIÓN cerca del auto.',
+      prep(){ TUT.auto = tutAuto(150, 0); TUT.marca = TUT.auto; }, ok: ()=> !!heldObject },
+    { tit:'ESCUDO CONTRA MISILES', t:'¡Misiles! Pon lo que llevas entre tú y ellos: lo agarrado te protege. Para 3 impactos.', m:'Apunta con el joystick derecho hacia los misiles: lo que llevas los para.',
+      prep(){ TUT.obj = tutEnemigo('gunship', 420, -0.4, true); if (TUT.obj){ TUT.obj.hp = TUT.obj.maxhp = 99999; TUT.obj.shootCd = 0.8; } TUT.marca = TUT.obj; TUT.base.bl = runStats.blocks; },
+      cada(){ if (!heldObject && (!TUT.auto || TUT.auto.dead || !TUT.auto.held)){ if (!TUT.auto || TUT.auto.dead) TUT.auto = tutAuto(120, 2); TUT.marca = TUT.auto; } else TUT.marca = TUT.obj; },
+      ok: ()=> runStats.blocks - TUT.base.bl >= 3, cuenta: ()=> Math.min(3, Math.floor(runStats.blocks - TUT.base.bl)) + '/3' },
+    { tit:'LANZAR', t:'Lanza lo que llevas contra el tanque: clic derecho (o ' + K_('throw') + ').', m:'Apunta al tanque y toca ACCIÓN.',
+      prep(){ TUT.obj = tutEnemigo('tank', 280, 0.2); TUT.marca = TUT.obj; },
+      cada(){ if (!heldObject){ if (!TUT.auto || TUT.auto.dead || TUT.auto.thrown){ if (!TUT.auto || TUT.auto.dead) TUT.auto = tutAuto(120, 2); } TUT.marca = TUT.auto && !TUT.auto.thrown ? TUT.auto : TUT.obj; } else TUT.marca = TUT.obj; },
+      ok: ()=> TUT.obj && (TUT.obj.dead || TUT.obj.hp < TUT.obj.maxhp) },
+    { tit:'GOLPES CON EL TENTÁCULO', t:'Sin nada agarrado, el clic izquierdo golpea con el tentáculo: acaba con los policías.', m:'Toca ACCIÓN junto a los policías para golpearlos.',
+      prep(){ if (heldObject) onThrow(); TUT.lista = [0, 1, 2].map(i=> tutEnemigo('police', 130, i*0.6)); },
+      cada(){ TUT.marca = TUT.lista.find(o=> !o.dead) || null; }, ok: ()=> vivos(TUT.lista) === 0, cuenta: ()=> (3 - vivos(TUT.lista)) + '/3' },
+    { tit:'DEVORAR', t:'Agarra a un civil y vuelve a hacer clic: lo devoras y recuperas vida.', m:'Agarra a un civil con ACCIÓN y mantén ACCIÓN para devorarlo.',
+      prep(){ TUT.lista = [tutCivil(120, 0), tutCivil(150, 1)]; TUT.marca = TUT.lista[0]; },
+      cada(){ TUT.marca = TUT.lista.find(o=> !o.dead) || null; }, ok: ()=> (TUT.ev.remate || 0) >= 1 }
+  ];
+}
+// ---- marcha ----
+function empiezaTutorial(){
+  if (Online.activo) return;
+  TUT.mapaAntes = mapaElegido;
+  mapaElegido = 'ciudad';
+  TUT.activo = true; TUT.h = normHeroe(hero); TUT.i = -1; TUT.ev = {}; TUT.base = {}; TUT.ok = 0; TUT.fin = 0; TUT.cosas = []; TUT.marca = null;
+  TUT.pasos = pasosTutorial(TUT.h);
+  hide('menu');
+  startGame('invasion');
+  enemies.length = 0;
+  document.getElementById('tutPanel').classList.remove('hidden');
+  pintaTutorial();
+}
+function siguientePaso(){
+  tutLimpia();
+  TUT.i++; TUT.ev = {}; TUT.base = {}; TUT.ok = 0;
+  if (TUT.i >= TUT.pasos.length){ TUT.fin = 3; sfx('evolve'); pintaTutorial(); return; }
+  const P = TUT.pasos[TUT.i];
+  if (P.prep) P.prep();
+  pintaTutorial();
+}
+function updateTutorial(dt){
+  if (!enTutorial()) return;
+  hp = maxHp();                                         // aquí nadie muere
+  if (vil.intro) return;                                // espera a que termine la entrada
+  if (TUT.i < 0){ siguientePaso(); return; }
+  if (TUT.fin > 0){ TUT.fin -= dt; if (TUT.fin <= 0) salirTutorial(); return; }
+  const P = TUT.pasos[TUT.i];
+  if (isMaq() && (maq.fogon > 0 || maq.hachaT > 0)) tutEv('arma');
+  if (TUT.ok > 0){ TUT.ok -= dt; if (TUT.ok <= 0) siguientePaso(); return; }
+  if (P.cada) P.cada(dt);
+  if (P.ok()){ TUT.ok = 1.1; sfx('coin'); toast('¡BIEN!'); pintaTutorial(); return; }
+  if (P.cuenta){ const c = P.cuenta(); if (c !== TUT._cuenta){ TUT._cuenta = c; pintaTutorial(); } }
+}
+function pintaTutorial(){
+  const el = document.getElementById('tutPanel');
+  if (!el) return;
+  const n = TUT.pasos.length;
+  if (TUT.fin > 0 || TUT.i >= n){
+    el.innerHTML = `<div class="tutpaso">${esc(heroName(hero))}</div><div class="tuttit">¡TUTORIAL COMPLETADO!</div><div class="tuttxt">Ya sabes usarlo todo. ¡A invadir!</div>`;
+    return;
+  }
+  if (TUT.i < 0){ el.innerHTML = `<div class="tuttit">TUTORIAL: ${esc(heroName(hero))}</div><div class="tuttxt">Preparando…</div>`; return; }
+  const P = TUT.pasos[TUT.i], tx = tactil() ? P.m : P.t, c = P.cuenta ? P.cuenta() : '';
+  el.innerHTML = `<div class="tutpaso">PASO ${TUT.i + 1} DE ${n}${TUT.ok > 0 ? ' · <b class="tutbien">¡HECHO!</b>' : ''}</div>
+    <div class="tuttit">${esc(P.tit)}${c ? ' <span class="tutcuenta">' + esc(c) + '</span>' : ''}</div>
+    <div class="tuttxt">${esc(tx)}</div>
+    <div class="tutbtns"><button type="button" id="tutSalta">SALTAR PASO</button><button type="button" id="tutSale">SALIR</button></div>`;
+  document.getElementById('tutSalta').addEventListener('click', (ev)=>{ ev.stopPropagation(); sfx('ui'); siguientePaso(); });
+  document.getElementById('tutSale').addEventListener('click', (ev)=>{ ev.stopPropagation(); sfx('ui'); salirTutorial(); });
+}
+// La flecha que señala lo que toca usar.
+function drawMarcaTutorial(){
+  if (!enTutorial() || !TUT.marca || TUT.marca.dead || TUT.ok > 0) return;
+  const o = TUT.marca, alt = o.alt ? alturaVisible(o) : 0;
+  const s = S(o.x, o.y - (o.h || 30)*0.8 - alt - 18 - Math.abs(Math.sin(gameTime*5))*8);
+  ctx.save();
+  ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.beginPath(); ctx.moveTo(s.x - 11, s.y - 13); ctx.lineTo(s.x + 11, s.y - 13); ctx.lineTo(s.x, s.y + 3); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#ffe14a'; ctx.beginPath(); ctx.moveTo(s.x - 9, s.y - 12); ctx.lineTo(s.x + 9, s.y - 12); ctx.lineTo(s.x, s.y + 1); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = 'rgba(255,225,74,0.6)'; ctx.lineWidth = 2;
+  const so = S(o.x, o.y - alt); ctx.beginPath(); ctx.ellipse(so.x, so.y + 4, (o.w || 26)*0.7, (o.w || 26)*0.3, 0, 0, Math.PI*2); ctx.stroke();
+  ctx.restore();
+}
+// Fuera del tutorial, sin puntaje ni pantalla de fin: de vuelta al menú.
+function salirTutorial(){
+  if (!TUT.activo) return;
+  TUT.activo = false;
+  tutLimpia();
+  running = false; pausedForQuit = false;
+  bossTrack = null; heldObject = null;
+  try { ocultaIntroMapa(); } catch(e){}
+  hide('confirmquit');
+  document.getElementById('tutPanel').classList.add('hidden');
+  document.getElementById('hud').classList.add('hidden');
+  document.getElementById('bottomhud').classList.add('hidden');
+  document.getElementById('actionBtns').classList.remove('playing');
+  limpiaRestosPartida();
+  stopMusic();
+  mapaElegido = TUT.mapaAntes || 'ciudad';
+  show('menu');
+}
+// Lo que la partida deja a la vista (combo, avisos...) no debe seguir en el menú.
+function limpiaRestosPartida(){
+  comboReset(); comboFlash = 0;
+  const cb = document.getElementById('combo'); if (cb) cb.classList.add('hidden');
+  _cbN = -1; _cbF = -2;
+  toastTimer = 0;
+  const ts = document.getElementById('toast'); if (ts){ ts.style.opacity = '0'; ts.textContent = ''; }
+  const im = document.getElementById('introMapa'); if (im) im.classList.add('hidden');
+  limpiaPresentacion(); numsDano.length = 0; bocadillos.length = 0; charcosAgua.length = 0;
+  const tp = document.getElementById('tutPanel'); if (tp && !TUT.activo) tp.classList.add('hidden');
+}
+
 // Si un jefe queda fuera de la pantalla, una flecha en el borde señala
 // hacia dónde está (en píxeles del lienzo, encima de la noche).
 const JEFE_NOMBRE = { flametank:'TANQUE DE FUEGO', omni:'OMNIDROIDE', artillero:'ARTILLERO', superx:'SUPER X', tripode:'TRÍPODE',
@@ -22011,7 +22281,7 @@ function loop(t){
     updateCivilians(dt); updateCars(dt); updateTrees(dt); updateRam(dt); updateThrown(dt);
     Online.culpaInv = false;
     updateVS(dt);
-    updateEnemiesDoble(dt); updateZombis(dt); updateBullets(dt); updateFX(dt); updateSpawns(dt); updateNumeros(dt); updateBocadillos(dt);
+    updateEnemiesDoble(dt); updateZombis(dt); updateBullets(dt); updateFX(dt); updateSpawns(dt); updateNumeros(dt); updateBocadillos(dt); updateTutorial(dt);
     if (vidaIntro >= 0) hp = vidaIntro;      // intocable mientras aterriza
   }
   if (running){
@@ -22167,6 +22437,8 @@ function startGame(mode){
   if (esAlien()) muestraIntroMapa(); else ocultaIntroMapa();
 }
 async function endGame(){
+  if (TUT.activo){ salirTutorial(); return; }
+  limpiaRestosPartida();
   const enLinea = Online.activo;
   terminaEnLinea();
   running = false;
@@ -22742,6 +23014,8 @@ for (const [ia, im, ip] of [['tgUiAuto', 'uiMenos', 'uiMas'], ['pUiAuto', 'pUiMe
   if (m) m.addEventListener('click', ()=> ajustaTam(-0.05));
   if (pl) pl.addEventListener('click', ()=> ajustaTam(0.05));
 }
+const _btTut = document.getElementById('btnTutorial');
+if (_btTut) _btTut.addEventListener('click', ()=>{ sfx('ui'); empiezaTutorial(); });
 const _uiEd = document.getElementById('btnUiEditor');
 if (_uiEd) _uiEd.addEventListener('click', ()=>{
   uiEdOrient = uiOrient();
@@ -23164,6 +23438,7 @@ function refreshHeroUI(){
   const u = heroIconURL(hero);
   if (img && u) img.src = u;
   if (nm) nm.textContent = heroName(hero);
+  const tn = document.getElementById('tutNombre'); if (tn) tn.textContent = heroName(hero);
   // la cría y el dragón la devoran; el viltrumita, la máquina y el mago la destruyen
   const lema = document.getElementById('menuLema');
   if (lema) lema.textContent = 'La ciudad es tuya. ' + ((isVil() || isMaq() || isMag()) ? 'Destrúyela.' : 'Devórala.');
