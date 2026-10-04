@@ -4489,7 +4489,8 @@ function resetGame(){
   // spawn player on a road intersection so it isn't stuck inside a building
   player.x = 420*4; player.y = 420*3;
   // El viltrumita no aparece sin más: entra volando y aterriza en su sitio.
-  if (typeof vil === 'object'){ vil.stam = vil.maxStam; vil.flying = false; vil.joyFly = false; }
+  // el dragón de tres cabezas y el mago tienen algo más de estamina (maná)
+  if (typeof vil === 'object'){ vil.maxStam = hero === 'dragon' || hero === 'mago' ? 120 : 100; vil.stam = vil.maxStam; vil.flying = false; vil.joyFly = false; }
   if (typeof draReset === 'function') draReset();
   maqReset(); magReset();
   proyJ.length = 0; zombis.length = 0; congelados.clear(); proyRed.length = 0; limpiaJefes2(); limpiaAlien();
@@ -4675,7 +4676,7 @@ function spawnEnemy(type, atX, atY){
   if (type==='escaner')   Object.assign(base, {hp:28, maxhp:28, speed:130, w:30, h:28, grabbable:true, ligero:true, alt:48, bob:rand(0,6),
                             llama:9, flashCd:1.5, flashT:0});
   if (type==='arana')     Object.assign(base, {hp:190, maxhp:190, speed:150, w:66, h:44, grabbable:true, lado:1, paso:0});
-  if (type==='bicho')     Object.assign(base, {hp:240, maxhp:240, speed:rand(205, 235), w:66, h:50, grabbable:true, paso:0, golpeCd:0.5, tajo:0, semilla:rand(0, 6)});
+  if (type==='bicho')     Object.assign(base, {hp:240, maxhp:240, speed:rand(185, 210), w:66, h:50, grabbable:true, paso:0, golpeCd:0.5, tajo:0, semilla:rand(0, 6)});
   if (type==='murcielago')Object.assign(base, {hp:22, maxhp:22, speed:175, w:30, h:22, grabbable:true, ligero:true, alt:40, bob:rand(0,6),
                             cd:rand(1, 2.5), lado: Math.random() < 0.5 ? 1 : -1});
   if (type==='caza40k')   Object.assign(base, {hp:80, maxhp:80, speed:330, w:66, h:34, grabbable:true, ligero:true, alt:66, bob:rand(0,6),
