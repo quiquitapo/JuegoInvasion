@@ -468,6 +468,7 @@
               background:rgba(6,16,10,0.88); border:2px solid #7bffa0; border-radius:12px; padding:10px 14px;
               color:#d8f0e0; text-align:center; box-shadow:0 0 18px rgba(0,0,0,0.5); pointer-events:auto; }
   #tutPanel.hidden { display:none; }
+  #nameinput.nombremalo { border-color:#ff5a4a !important; box-shadow:0 0 8px rgba(255,90,74,0.6); }
   /* en el móvil el HUD de la derecha baja más: el panel va debajo para no taparlo */
   body.touch-ui #tutPanel { top:182px; padding:8px 12px; }
   #tutPanel .tutpaso { font-size:0.5rem; letter-spacing:2px; color:#8fbfa2; }
@@ -1563,6 +1564,7 @@
         <button class="small" id="btnSaveName" style="margin-top:0">Guardar</button>
       </div>
       <div id="namemsg" class="shopmsg"></div>
+      <button class="small ghost hidden" id="btnCambiarNombre" style="margin-top:6px">CAMBIAR NOMBRE</button>
       <div id="globalask" class="globalask hidden">
         <div class="globalq">¿Quieres subir este puntaje al ranking global?</div>
         <div class="globalbtns">
@@ -24149,6 +24151,63 @@ async function rememberName(name){
   await storeSet('invasion_names', JSON.stringify(a));
   return a;
 }
+// ---- Filtro de nombres inapropiados (español e inglés) ----
+// Detecta palabras sexuales, groserías e insultos aunque se escriban con
+// mayúsculas, acentos, letras repetidas, separadas por puntos o espacios, o
+// con números y símbolos en lugar de letras (P.U.T.4, $3XY, 4$$...). Para no
+// bloquear nombres normales: las palabras cortas o ambiguas solo cuentan como
+// palabra entera, y se ignoran las palabras corrientes que las contienen
+// (computadora, cálculo, Essex, peacock...).
+const NOMBRES_MALOS = (function(){
+  // en cualquier parte del nombre
+  const dentro = ['fuck', 'fukk', 'fuker', 'fukin', 'fukoff', 'fukyo', 'fukme', 'fck', 'fvck', 'phuck', 'motherf', 'shit', 'bitch', 'biatch', 'cunt', 'dick', 'cock', 'pussy',
+    'penis', 'vagina', 'clitoris', 'porn', 'hentai', 'milf', 'dildo', 'orgasm', 'orgy', 'blowjob', 'handjob', 'cumshot', 'jizz',
+    'masturba', 'horny', 'boob', 'titty', 'titties', 'nipple', 'slut', 'whore', 'rapist', 'asshole', 'dumbass', 'jackass', 'fatass',
+    'bigass', 'asswipe', 'nigger', 'nigga', 'faggot', 'retard', 'hitler', 'sex', 'nude',
+    'puta', 'puto', 'verga', 'mierda', 'joder', 'follar', 'chinga', 'pendej', 'cabron', 'maricon', 'coño', 'cojon', 'culiao',
+    'culiado', 'mamahuevo', 'mamaguevo', 'malparid', 'violacion', 'violador', 'desnud', 'pene', 'chupamela', 'chupala', 'orgasmo'];
+  // solo como palabra entera (dentro de otras serían falsos positivos)
+  const enteras = ['ass', 'asses', 'arse', 'anal', 'anus', 'cum', 'tit', 'tits', 'hoe', 'hoes', 'fag', 'fap', 'bj', 'rape', 'raped',
+    'nazi', 'kkk', 'clit', 'semen', 'culo', 'culos', 'tetas', 'teta', 'pito', 'polla', 'pija', 'zorra', 'perra', 'marica', 'pinga',
+    'mamada', 'hdp', 'ctm', 'ptm', 'csm', 'wtf', 'stfu', 'nudes', 'tetona', 'culona', 'putas', 'putos'];
+  // palabras corrientes que contienen alguna de las de arriba
+  const sanas = ['computa', 'disputa', 'disputo', 'imputad', 'imputaci', 'reputaci', 'reputati', 'diputad', 'deputati', 'vergara', 'penelope', 'peneque',
+    'sexto', 'sexta', 'sextant', 'sextet', 'essex', 'sussex', 'middlesex', 'unisex', 'bisexual', 'homosexual', 'heterosexual', 'asexual',
+    'cocktail', 'peacock', 'hancock', 'cockpit', 'cockroach', 'hitchcock', 'woodcock', 'babcock', 'cockatoo', 'cockatiel',
+    'shuttlecock', 'cockney', 'cockerel', 'dickens', 'dickson', 'dickinson', 'dickey', 'dickie', 'benedick', 'shiitake', 'shitake',
+    'therapist', 'scunthorpe', 'thorny', 'georgy', 'porgy', 'semental', 'nudel', 'retardant', 'open', 'booboo', 'amputa', 'putativ', 'computo', 'penistone',
+    'ashita', 'mashita', 'ushita', 'ishita', 'oshita', 'shitara', 'sexag', 'sexen'];
+  const re = w => new RegExp(w.replace(/(.)\1*/g, (m, c)=> m.length > 1 ? c + '{' + m.length + ',}' : c + '+'));
+  return { dentro: dentro.map(re), enteras: enteras.map(w => new RegExp('^' + re(w).source + '$')), sanas };
+})();
+function nombreInapropiado(nombre){
+  const base = String(nombre || '').toLowerCase().normalize('NFD').replace(/[̀-̂̄-ͯ]/g, '').normalize('NFC');
+  const sim = { '@':'a', '4':'a', '8':'b', '3':'e', '€':'e', '6':'g', '9':'g', '0':'o', '5':'s', '$':'s', '7':'t', '+':'t', '2':'z', '!':'i', '¡':'i' };
+  const variantes = [];
+  for (const uno of ['i', 'l']){                           // el 1 y la barra pueden ser una i o una l
+    let v = ''; for (const ch of base) v += ch === '1' || ch === '|' ? uno : (sim[ch] || ch);
+    variantes.push(v, v.replace(/v/g, 'u'));               // y la v, una u (pvta)
+  }
+  variantes.push(base.replace(/[0-9]+/g, ' '));            // los números, como relleno (CULO123)
+  for (const v of variantes){
+    // trozos de letras; los de una o dos letras se juntan con los vecinos (P U T A, PU TA, PUT A)
+    const trozos = v.split(/[^a-zñ]+/).filter(Boolean), grupos = [];
+    for (const t of trozos){
+      const g = grupos[grupos.length - 1];
+      if (g && (t.length <= 2 || g.ultimo <= 2)){ g.txt += t; g.ultimo = t.length; }
+      else grupos.push({ txt: t, ultimo: t.length });
+    }
+    const todo = trozos.join('');
+    for (const g of grupos.map(x => x.txt).concat(todo.length <= 14 && trozos.every(t => t.length <= 2) ? [todo] : [])){
+      if (NOMBRES_MALOS.enteras.some(r => r.test(g))) return true;
+      let limpio = g;
+      for (const s of NOMBRES_MALOS.sanas) limpio = limpio.split(s).join('|');
+      if (NOMBRES_MALOS.dentro.some(r => r.test(limpio))) return true;
+    }
+    for (const t of trozos) if (NOMBRES_MALOS.enteras.some(r => r.test(t))) return true;
+  }
+  return false;
+}
 function cleanName(n){
   return String(n||'').trim().replace(/[ \t]+/g,' ').slice(0,14).toUpperCase();
 }
@@ -24250,6 +24309,7 @@ async function postGlobal(nombre, sc){
       body: JSON.stringify({ player_name: nombre, score: sc, hero: hero, device: deviceKind(), mapa: MAPAS.includes(mapa) ? mapa : 'ciudad' })
     });
     const data = await r.json().catch(()=>null);
+    if (data && data.error === 'Nombre inapropiado') return { inapropiado: true };
     if (!data || !data.ok) return null;
     return data;
   } catch(e){ return null; }
@@ -24262,7 +24322,8 @@ function renderGlobalList(lista){
     ? lista.map((s,i)=>{
         const ic = s.device === 'movil' ? '\u{1F4F1}' : s.device === 'pc' ? '\u{1F5A5}\u{FE0F}' : '';
         const tt = s.device === 'movil' ? 'Jugado en móvil' : s.device === 'pc' ? 'Jugado en computador' : '';
-        return `<div class="score-row"><span>#${i+1} <b class="who">${esc(s.player_name || '—')}</b>` +
+        const quien = nombreInapropiado(s.player_name) ? '???' : (s.player_name || '—');
+        return `<div class="score-row"><span>#${i+1} <b class="who">${esc(quien)}</b>` +
                `<span class="devic" title="${tt}">${ic}</span></span><span>${s.score|0}</span></div>`;
       }).join('')
     : '<div class="score-row"><span>Sin registros globales aún</span><span>—</span></div>';
@@ -24723,8 +24784,11 @@ async function setupNameBox(){
   input.disabled = false; btn.disabled = false;
   btn.textContent = 'Guardar';
 
-  const prev = await loadNames();
+  const prev = (await loadNames()).filter(n => !nombreInapropiado(n));
   input.value = prev[0] || '';               // sugiere el último usado
+  input.classList.remove('nombremalo');
+  const msg0 = document.getElementById('namemsg'); msg0.style.color = '';
+  document.getElementById('btnCambiarNombre').classList.add('hidden');
   const wrap  = document.getElementById('nameprev');
   const chips = document.getElementById('namechips');
   if (prev.length){
@@ -24755,6 +24819,7 @@ async function flushPendingScore(){
 let globalPend = null;
 
 function ofrecerGlobal(nombre, sc){
+  if (nombreInapropiado(nombre)) return;      // nunca al global
   globalPend = { nombre, score: sc };
   const box = document.getElementById('globalask');
   if (box) box.classList.remove('hidden');
@@ -24775,6 +24840,17 @@ async function commitName(){
   if (pendingScore == null) return;
   const input = document.getElementById('nameinput');
   const name  = cleanName(input.value) || 'ANÓNIMO';
+  if (nombreInapropiado(name)){               // ni se guarda ni se sube: hay que cambiarlo
+    const m = document.getElementById('namemsg');
+    m.textContent = 'Se encontró algo inapropiado en el nombre. Cámbialo para guardar tu puntaje.';
+    m.style.color = '#ff6a5a'; m.style.opacity = '1';
+    input.classList.add('nombremalo'); input.focus(); input.select();
+    document.getElementById('btnCambiarNombre').classList.remove('hidden');
+    sfx('deny');
+    return;
+  }
+  document.getElementById('namemsg').style.color = '';
+  document.getElementById('btnCambiarNombre').classList.add('hidden');
   const sc = pendingScore;
   pendingScore = null;                        // evita registrar dos veces
   input.disabled = true;
@@ -24836,14 +24912,18 @@ document.querySelectorAll('#scoreMapas [data-pm]').forEach(b=> b.addEventListene
 // --- subir (o no) al ranking global ---
 const _bsg = document.getElementById('btnSubirGlobal');
 if (_bsg) _bsg.addEventListener('click', async ()=>{
-  if (!globalPend) return;
+  if (!globalPend || nombreInapropiado(globalPend.nombre)) return;
   const b1 = document.getElementById('btnSubirGlobal');
   const b2 = document.getElementById('btnSoloLocal');
   const m  = document.getElementById('globalaskmsg');
   b1.disabled = true; b1.textContent = 'SUBIENDO…';
   if (m){ m.textContent = ''; m.classList.remove('err'); }
   const r = await postGlobal(globalPend.nombre, globalPend.score);
-  if (r && r.mejorado){
+  if (r && r.inapropiado){                   // el servidor también lo comprueba
+    b1.textContent = 'NO SUBIDO'; b1.disabled = true;
+    if (m){ m.textContent = 'Se encontró algo inapropiado en el nombre: no se puede subir al global.'; m.classList.add('err'); }
+    sfx('deny'); globalPend = null;
+  } else if (r && r.mejorado){
     b1.textContent = 'SUBIDO';
     if (b2) b2.disabled = true;
     if (m) m.textContent = 'Puesto ' + r.rank + ' de ' + r.total + ' como ' + heroName(hero) + (mapa !== 'ciudad' ? ' en ' + MAPA_NOMBRE[mapa] : '');
@@ -24871,6 +24951,15 @@ if (_bsg) _bsg.addEventListener('click', async ()=>{
 });
 const _bsl = document.getElementById('btnSoloLocal');
 if (_bsl) _bsl.addEventListener('click', ()=>{ ocultarGlobalAsk(); sfx('ui'); });
+document.getElementById('btnCambiarNombre').addEventListener('click', ()=>{
+  const input = document.getElementById('nameinput');
+  input.value = ''; input.classList.remove('nombremalo'); input.focus();
+  document.getElementById('namemsg').textContent = 'Escribe otro nombre y pulsa Guardar.';
+  document.getElementById('namemsg').style.color = '';
+  document.getElementById('btnCambiarNombre').classList.add('hidden');
+  sfx('ui');
+});
+document.getElementById('nameinput').addEventListener('input', e=>{ e.target.classList.remove('nombremalo'); });
 document.getElementById('nameinput').addEventListener('keydown', e=>{
   e.stopPropagation();                        // no mover al alien al escribir
   if (e.key === 'Enter') commitName();
