@@ -14246,6 +14246,7 @@ const MV_HP = 2400, MV_TAM = [170, 150, 80, 140];
 const MV_ZONA_R = 230, MV_DASH_VEL = 2600, MV_DASH_DMG = 14, MV_MAX_TAJOS_J = 4, MV_CORTE = 42, MV_TORN_R = 72, MV_TORN_T = 3.2, MV_EMB_L = 650;
 // de cerca no da golpes: cruza en línea recta o gira sobre sí misma con las sierras
 const MV_LIN_L = 430, MV_GIRO_R = 95, MV_GIRO_T = 0.8;
+const MV_TORN_VEL = 145, MV_TORN_VEL_ROTO = 165;
 const mvCache = new Map();
 function mvFrame(pose, f){
   const k = pose + f;
@@ -14429,7 +14430,8 @@ function updateMuerteVeloz(e, dt, a, ang){
       if (e.ft <= 0){ e.fase = 'tornado'; e.ft = MV_TORN_T; e.tajo = (e.tajo || 0) + 1; e.golJN = -2; sfx('rafaga'); }
       return;
     case 'tornado': {
-      const sp = (e.roto ? 340 : 280)*dt, d = dist(e.x, e.y, player.x, player.y) || 1;
+      // más lento que la cría (205) y que el coloso (180): corriendo se le escapa
+      const sp = (e.roto ? MV_TORN_VEL_ROTO : MV_TORN_VEL)*dt, d = dist(e.x, e.y, player.x, player.y) || 1;
       const x0 = e.x, y0 = e.y;
       e.x = clamp(e.x + (player.x - e.x)/d*sp, 40, WORLD_W - 40); e.y = clamp(e.y + (player.y - e.y)/d*sp, 40, WORLD_H - 40);
       e.giroK = (e.giroK || 0) - dt;
