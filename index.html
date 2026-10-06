@@ -48,6 +48,21 @@
   .globalbtns { display:flex; gap:7px; flex-wrap:wrap; justify-content:center; }
   .small.ghost { background:rgba(10,22,14,0.85); color:#8fb3a0; border-color:#2f4a38; }
   .tabrow { display:flex; gap:6px; justify-content:center; margin:2px 0 8px; }
+  /* Ajustes en tres pestañas */
+  .ajtabs { display:flex; gap:6px; justify-content:center; flex-wrap:wrap; margin:4px 0 10px; width:min(620px, 94vw); }
+  .ajtab { flex:1 1 0; min-width:96px; padding:9px 8px; border-radius:8px; font-family:inherit; font-size:0.56rem; letter-spacing:1.5px;
+           cursor:pointer; border:2px solid #1f5c37; background:rgba(10,22,14,0.85); color:#6fa382; }
+  .ajtab:hover { border-color:#2fe86e; }
+  .ajtab.on { border-color:#2fe86e; color:#7bffa0; background:rgba(20,54,32,0.95); box-shadow:0 0 10px rgba(47,232,110,0.3); font-weight:900; }
+  .ajsec { display:flex; flex-direction:column; align-items:center; width:100%; }
+  .ajsec.hidden { display:none; }
+  .ajsub { margin:10px 0 4px; color:#8fd7ff; font-size:0.52rem; letter-spacing:2px; text-align:left; }
+  .ajficha { text-align:left; font-size:0.6rem; line-height:1.7; color:#b8d4c4; }
+  .ajficha .desc { margin-bottom:6px; }
+  .ajficha table { width:100%; border-collapse:collapse; font-size:0.58rem; }
+  .ajficha td { padding:4px 5px; border-top:1px solid rgba(47,122,74,0.4); vertical-align:top; line-height:1.5; }
+  .ajficha td.k { white-space:nowrap; color:#ffe27b; font-weight:900; width:1%; }
+  .ajficha td.k span { color:#ffe27b; }
   .tabbtn { padding:5px 16px; border-radius:6px; font-family:inherit; font-size:0.56rem;
             letter-spacing:2px; cursor:pointer; border:2px solid #1f5c37;
             background:rgba(10,22,14,0.8); color:#6fa382; }
@@ -1413,10 +1428,19 @@
   <!-- ============ CONTROLES ============ -->
   <div id="controles" class="overlay hidden">
     <h1 class="title" style="font-size:clamp(1.5rem,5vw,2.8rem)">AJUSTES</h1>
+    <div class="ajtabs" role="tablist">
+      <button type="button" class="ajtab on" data-ajtab="controles" role="tab">CONTROLES</button>
+      <button type="button" class="ajtab" data-ajtab="pantalla" role="tab">PANTALLA Y SONIDO</button>
+      <button type="button" class="ajtab" data-ajtab="extras" role="tab">EXTRAS Y GUARDADO</button>
+    </div>
+
+    <div class="ajsec" data-ajsec="controles">
     <div class="subtitle">Toca una tecla para reasignarla</div>
 
     <div class="panel" style="min-width:min(340px,92vw)">
-      <h3>Teclado</h3>
+      <h3>Jugador 1 · <span id="ajHeroNom" style="color:#8fd7ff">CRÍA</span></h3>
+      <div id="ajHeroFicha" class="ajficha"></div>
+      <div class="ajsub">TECLADO</div>
       <div id="keydiagram" class="keydiagram"></div>
       <div id="bindlist"></div>
       <button class="small" id="btnResetBinds" style="margin-top:12px">Restaurar por defecto</button>
@@ -1429,8 +1453,73 @@
       <button class="small" id="btnResetBindsP2" style="margin-top:12px">Restaurar por defecto</button>
     </div>
 
+    </div>
+
+    <div class="ajsec hidden" data-ajsec="pantalla">
     <div class="panel" style="min-width:min(340px,92vw)">
-      <h3>Partidas en línea</h3>
+      <h3>Pantalla y sonido</h3>
+      <div class="bindrow">
+        <span class="bindname">Botones táctiles</span>
+        <button type="button" class="togglebtn" id="tgTouch">AUTO</button>
+      </div>
+      <div class="bindrow">
+        <span class="bindname">Animaciones de menú</span>
+        <button type="button" class="togglebtn" id="tgAnim">ON</button>
+      </div>
+      <div class="bindrow">
+        <span class="bindname">Barras de vida</span>
+        <button type="button" class="togglebtn" id="tgHp">ON</button>
+      </div>
+      <div class="bindrow">
+        <span class="bindname">Números de daño</span>
+        <button type="button" class="togglebtn" id="tgNums">ON</button>
+      </div>
+      <div class="bindrow">
+        <span class="bindname">Tamaño de los mandos <b id="uiSizeWho" style="color:#8fd7ff"></b></span>
+        <span style="display:flex; gap:6px; align-items:center">
+          <button type="button" class="togglebtn" id="tgUiAuto">AUTO</button>
+          <button type="button" class="togglebtn" id="uiMenos">−</button>
+          <b id="uiSizeVal" style="min-width:44px; text-align:center; color:#7bffa0">AUTO</b>
+          <button type="button" class="togglebtn" id="uiMas">+</button>
+        </span>
+      </div>
+      <div class="bindrow">
+        <span class="bindname">Colocación de los mandos</span>
+        <button type="button" class="togglebtn" id="btnUiEditor">AJUSTAR…</button>
+      </div>
+      <div class="bindrow">
+        <span class="bindname">Pantalla completa</span>
+        <button type="button" class="togglebtn" id="tgFull">ACTIVAR</button>
+      </div>
+      <div class="bindrow">
+        <span class="bindname">Efectos</span>
+        <button type="button" class="togglebtn" id="tgSfx">ON</button>
+      </div>
+      <div class="volrow">
+        <span class="vollbl">Volumen efectos</span>
+        <input type="range" id="volSfx" min="0" max="100" value="70">
+        <span class="volval" id="volSfxVal">70</span>
+      </div>
+      <div class="bindrow">
+        <span class="bindname">Música</span>
+        <button type="button" class="togglebtn" id="tgMus">ON</button>
+      </div>
+      <div class="volrow">
+        <span class="vollbl">Volumen música</span>
+        <input type="range" id="volMus" min="0" max="100" value="45">
+        <span class="volval" id="volMusVal">45</span>
+      </div>
+    </div>
+
+    </div>
+
+    <div class="ajsec hidden" data-ajsec="extras">
+    <div class="panel" style="min-width:min(340px,92vw)">
+      <h3>Modo VS y partidas en línea</h3>
+      <div class="bindrow">
+        <span class="bindname">OVNI en el modo contra otro jugador</span>
+        <button type="button" class="togglebtn off" id="tgOvniVs">OFF</button>
+      </div>
       <div class="bindrow">
         <span class="bindname">Rayos láser del otro jugador</span>
         <button type="button" class="togglebtn" id="tgRayosOtro">ON</button>
@@ -1462,119 +1551,15 @@
       <div id="datamsg" class="shopmsg"></div>
     </div>
 
-    <div class="panel" style="min-width:min(340px,92vw)">
-      <h3>Pantalla y sonido</h3>
-      <div class="bindrow">
-        <span class="bindname">Botones táctiles</span>
-        <button type="button" class="togglebtn" id="tgTouch">AUTO</button>
-      </div>
-      <div class="bindrow">
-        <span class="bindname">Animaciones de menú</span>
-        <button type="button" class="togglebtn" id="tgAnim">ON</button>
-      </div>
-      <div class="bindrow">
-        <span class="bindname">Barras de vida</span>
-        <button type="button" class="togglebtn" id="tgHp">ON</button>
-      </div>
-      <div class="bindrow">
-        <span class="bindname">Números de daño</span>
-        <button type="button" class="togglebtn" id="tgNums">ON</button>
-      </div>
-      <div class="bindrow">
-        <span class="bindname">OVNI en el modo contra otro jugador</span>
-        <button type="button" class="togglebtn off" id="tgOvniVs">OFF</button>
-      </div>
-      <div class="bindrow">
-        <span class="bindname">Tamaño de los mandos <b id="uiSizeWho" style="color:#8fd7ff"></b></span>
-        <span style="display:flex; gap:6px; align-items:center">
-          <button type="button" class="togglebtn" id="tgUiAuto">AUTO</button>
-          <button type="button" class="togglebtn" id="uiMenos">−</button>
-          <b id="uiSizeVal" style="min-width:44px; text-align:center; color:#7bffa0">AUTO</b>
-          <button type="button" class="togglebtn" id="uiMas">+</button>
-        </span>
-      </div>
-      <div class="bindrow">
-        <span class="bindname">Colocación de los mandos</span>
-        <button type="button" class="togglebtn" id="btnUiEditor">AJUSTAR…</button>
-      </div>
-      <div class="bindrow">
-        <span class="bindname">Pantalla completa</span>
-        <button type="button" class="togglebtn" id="tgFull">ACTIVAR</button>
-      </div>
-      <div id="vilhelp" style="display:none; margin-top:10px; padding:10px 12px;
-           border:1px solid #3a4a5c; border-radius:8px; background:rgba(10,16,22,0.6);
-           font-size:0.5rem; line-height:1.9; letter-spacing:0.5px; color:#cfe2ee">
-        <b style="color:#8fd7ff; font-size:0.55rem">CONTROLES DEL VILTRUMITA</b><br>
-        Moverse: las mismas teclas de arriba (<b>WASD</b> por defecto).<br>
-        <b>Vuelo sónico</b>: pulsa dos veces seguidas una dirección. Se mantiene
-        mientras sigas apretando esa tecla y gasta estamina (barra azul).<br>
-        <b>Click izquierdo</b>: puñetazo. <b>Manteniéndolo</b>, golpe cargado
-        (hasta 210 de daño); también se puede cargar en pleno vuelo sónico.<br>
-        <b>Click derecho</b>: agarra lo que tengas al alcance del brazo, y con
-        algo en las manos vuelve a pulsarlo para lanzarlo.<br>
-        Con algo agarrado, el <b>ratón</b> solo elige hacia dónde apuntarlo: no
-        tiene tentáculos, así que el objeto va siempre pegado al cuerpo.<br>
-        Flota de forma constante y, volando, lo que sujeta va por delante y se
-        destroza contra lo que embistas.
-      </div>
-      <div id="drahelp" style="display:none; margin-top:10px; padding:10px 12px;
-           border:1px solid #5c5220; border-radius:8px; background:rgba(22,18,6,0.6);
-           font-size:0.5rem; line-height:1.9; letter-spacing:0.5px; color:#efe6c0">
-        <b style="color:#ffd84a; font-size:0.55rem">CONTROLES DEL DRAGÓN</b><br>
-        Moverse: las mismas teclas de arriba (<b>WASD</b> por defecto). <b>Volar</b>: doble toque de
-        una dirección; pasa por encima de los tejados y gasta estamina.<br>
-        <b>Click</b>: mordisco hacia el ratón. <b>Z</b>: aletazo, daña y derriba a todo lo que te rodea.<br>
-        <b>Click derecho</b>: rayos de las tres bocas hacia el ratón; siguen hasta que hagas otro
-        <b>click</b> (o se acabe la estamina).<br>
-        <b>Mantén C</b>: trazas con el ratón la línea de la embestida. Al <b>soltar</b>, cargas por ella
-        arrollando lo que haya y rematas con un <b>coletazo</b> de gran área.<br>
-        Todo gasta estamina (barra azul), que se recupera en tierra. El regalo del OVNI desata una
-        <b>tormenta eléctrica</b> que fulmina enemigos cercanos. Las teclas Z y C se cambian arriba (y
-        puedes asignar una tecla a los rayos). Al andar o volar bajo, pisotea lo que tenga debajo.
-      </div>
-      <div id="maqhelp" style="display:none; margin-top:10px; padding:10px 12px;
-           border:1px solid #2f4a7a; border-radius:8px; background:rgba(8,14,26,0.6);
-           font-size:0.5rem; line-height:1.9; letter-spacing:0.5px; color:#d6e2f2">
-        <b style="color:#8fb4ff; font-size:0.55rem">CONTROLES DE LA MÁQUINA ABERRANTE</b><br>
-        Moverse: las mismas teclas de arriba (<b>WASD</b> por defecto). <b>Manteniendo</b> la misma
-        dirección acelera poco a poco hasta correr a toda velocidad (y arrolla a quien se cruce);
-        frenar o dar media vuelta le quita el impulso.<br>
-        <b>Click</b>: dispara el arma elegida (mantenido, sigue disparando). <b>Click derecho</b>: cambia
-        de arma: <b>hacha</b> (tajos cuerpo a cuerpo) → <b>ráfaga</b> → <b>incinerador</b> (marca una zona y la calcina) → <b>lanzacohetes</b>.<br>
-        <b>Mantén C</b>: los brazos se vuelven motosierras y marcas con el ratón dónde caer. Al
-        <b>soltar</b>, salta arrollando lo que haya por el camino y lo destroza todo en esa zona.<br>
-        Tiene poca vida, pero cada baja le cura mucho y le deja un rato regenerándose. El regalo del
-        OVNI lo <b>sobrecarga</b>: más daño, el hacha se vuelve un <b>hacha de plasma</b> (más alcance, un tajo a cada clic y brilla), la ráfaga una <b>minigun</b> sin pausas y un escudo convierte el daño en vida.
-      </div>
-      <div class="bindrow">
-        <span class="bindname">Efectos</span>
-        <button type="button" class="togglebtn" id="tgSfx">ON</button>
-      </div>
-      <div class="volrow">
-        <span class="vollbl">Volumen efectos</span>
-        <input type="range" id="volSfx" min="0" max="100" value="70">
-        <span class="volval" id="volSfxVal">70</span>
-      </div>
-      <div class="bindrow">
-        <span class="bindname">Música</span>
-        <button type="button" class="togglebtn" id="tgMus">ON</button>
-      </div>
-      <div class="volrow">
-        <span class="vollbl">Volumen música</span>
-        <input type="range" id="volMus" min="0" max="100" value="45">
-        <span class="volval" id="volMusVal">45</span>
-      </div>
-    </div>
-
     <div class="panel" style="min-width:min(340px,92vw); text-align:left">
-      <h3>Cómo se juega</h3>
+      <h3>Guía: cómo se juega</h3>
       <div class="howto">
         <b>Mouse</b> dirige el tentáculo · <b>Click izq.</b> agarra o golpea · <b>Click der.</b> lanza.<br>
         En <b>móvil</b>: joystick izquierdo mueve, joystick derecho apunta, y el <b>botón de acción</b> hace todo:
         tócalo para <b>agarrar</b>, vuelve a tocarlo para <b>lanzar</b> lo que sostienes, y <b>mantenlo pulsado</b>
         para <b>golpear</b> con ello. El botón cambia de color y de texto según lo que lleves.<br><br>
         Empiezas como <b>CRÍA</b>: chocas contra los edificios. Devora suficientes víctimas y evolucionas a
-        <b>COLOSO</b>: más grande, más HP y capaz de <b>demoler edificios</b>. Ahí llegan <b>tanques y helicópteros</b>.<br><br>
+        <b>COLOSO</b>: más grande, más HP y capaz de <b>pasar por encima de los edificios</b>, hundiéndolos y viendo lo que hay dentro. Ahí llegan <b>tanques y helicópteros</b>.<br><br>
         Los edificios pasan por <b>3 etapas</b>: intacto, dañado y <b>escombros</b> (ya se puede caminar sobre ellos).<br><br>
         Sostén un auto, árbol o rehén <b>frente a los disparos</b> para bloquearlos: el escudo solo funciona si el
         objeto se interpone físicamente.<br><br>
@@ -9527,6 +9512,7 @@ function renderBinds(){
       </div>
       <div class="kd-lbl">Movimiento</div>`;
   }
+  try { pintaAjHeroe(); } catch(e){}                 // la ficha usa estas mismas teclas
 }
 function prettyKey(k){
   if (k === ' ') return 'ESPACIO';
@@ -17222,6 +17208,10 @@ const MAQ_ARMAS = ['HACHA', 'RÁFAGA', 'INCINERADOR', 'LANZACOHETES'];
 // Hacha: tajo en arco hacia la mira. A la carrera pega más fuerte.
 const MAQ_HACHA_CD = 0.36, MAQ_HACHA_T = 0.24, MAQ_HACHA_DMG = 60, MAQ_HACHA_ALC = 64, MAQ_HACHA_ARCO = 1.2;
 const MAQ_BALA_V = 950, MAQ_BALA_T = 0.62, MAQ_BALA_DMG = 15, MAQ_RAF_N = 5, MAQ_RAF_GAP = 0.055, MAQ_RAF_CD = 0.24;
+// La ráfaga suelta muchas más balas, más seguidas y más flojas: se siente más
+// tupida, pero entre todas pegan lo mismo que las 5 de siempre (75; con la
+// sobrecarga, las 7 de antes) y dura lo mismo.
+const MAQ_RAF_MULT = 2.4;
 const MAQ_INC_CARGA = 0.55, MAQ_INC_LEN = 440, MAQ_INC_W = 34, MAQ_INC_DMG = 75, MAQ_INC_CD = 0.9, MAQ_INC_T = 0.32;
 const MAQ_COH_V = 720, MAQ_COH_CD = 0.8, MAQ_COH_R = 96, MAQ_COH_DMG = 80, MAQ_COH_MAX = 640;
 const MAQ_SIE_MIN = 90, MAQ_SIE_MAX = 360, MAQ_SIE_R = 96, MAQ_SIE_VEL = 1050, MAQ_SIE_T = 0.6,
@@ -17237,7 +17227,7 @@ function maqNombreArma(i){
 const MAQ_SIE_PASO = 45;                      // lo que arrollan las motosierras de camino a la zona
 let maqGolpeados = null;
 const MAQ_ESCUDO = 160;                       // cuánto daño convierte en vida el escudo
-const maq = { arma:0, gatillo:false, pulso:false, rafN:0, rafT:0, disCd:0, mirA:0,
+const maq = { arma:0, gatillo:false, pulso:false, rafN:0, rafT:0, rafDmg:MAQ_BALA_DMG, disCd:0, mirA:0,
               incCarga:0, incA:0, incL:MAQ_INC_LEN, rayoT:0, rayoA:0, rayoL:0, rayoX:0, rayoY:0,
               impulso:0, rumbo:0, paso:0, regenT:0, escudo:0, retroceso:0, fogon:0,
               sierraApunta:false, sierraA:0, sierraL:180, sierraFase:'', sierraT:0, sierraX:0, sierraY:0,
@@ -17289,16 +17279,21 @@ function maqDisparo(dt, ap){
     if (maq.rafN > 0){
       maq.rafT -= dt;
       while (maq.rafN > 0 && maq.rafT <= 0){
-        maq.rafN--; maq.rafT += MAQ_RAF_GAP;
-        const a = ap.a + rand(-0.045, 0.045), m = maqBoca(ap.a);
-        proyJ.push({ k:'bala', x:m.x, y:m.y, vx:Math.cos(a)*MAQ_BALA_V, vy:Math.sin(a)*MAQ_BALA_V,
-                     t:MAQ_BALA_T, dmg: MAQ_BALA_DMG*(sob ? MAQ_SOB : 1), sob: sob ? 1 : 0 });
+        // si en este fotograma tocaban varias, cada una sale ya adelantada lo
+        // que le corresponde: van en hilera, no amontonadas
+        const atraso = -maq.rafT;
+        maq.rafN--; maq.rafT += MAQ_RAF_GAP/MAQ_RAF_MULT;
+        const a = ap.a + rand(-0.045, 0.045), m = maqBoca(ap.a), vx = Math.cos(a)*MAQ_BALA_V, vy = Math.sin(a)*MAQ_BALA_V;
+        proyJ.push({ k:'bala', x:m.x + vx*atraso, y:m.y + vy*atraso, vx, vy,
+                     t:MAQ_BALA_T - atraso, dmg: maq.rafDmg, sob: sob ? 1 : 0 });
         maq.retroceso = 1; maq.fogon = 0.06;
         sfx('rafaga');
         if (!maq.rafN) maq.disCd = MAQ_RAF_CD*(sob ? 0.7 : 1);
       }
     } else if (quiere && maq.disCd <= 0){
-      maq.rafN = MAQ_RAF_N + (sob ? 2 : 0); maq.rafT = 0; maq.pulso = false;
+      const n0 = MAQ_RAF_N + (sob ? 2 : 0), n = Math.round(n0*MAQ_RAF_MULT);
+      maq.rafN = n; maq.rafT = 0; maq.pulso = false;
+      maq.rafDmg = MAQ_BALA_DMG*(sob ? MAQ_SOB : 1)*n0/n;           // mismo daño por ráfaga, repartido
     }
   } else if (maq.arma === 2){                            // --- incinerador ---
     // Mientras se mantiene pulsado marca la zona, que sigue a la mira; al
@@ -25655,6 +25650,23 @@ function uiEdRestablecer(){
   saveUICfg(); uiEdRender(); applyUIPositions(); sfx('ui');
 }
 
+// Ajustes: pestañas. Controles muestra la ficha del personaje elegido con las
+// teclas que tenga asignadas (se rehace al reasignarlas).
+function ajPestana(t){
+  if (!['controles', 'pantalla', 'extras'].includes(t)) t = 'controles';
+  ajPestana.actual = t;
+  document.querySelectorAll('#controles .ajtab').forEach(b => b.classList.toggle('on', b.dataset.ajtab === t));
+  document.querySelectorAll('#controles .ajsec').forEach(s => s.classList.toggle('hidden', s.dataset.ajsec !== t));
+  const ov = document.getElementById('controles'); if (ov) ov.scrollTop = 0;
+}
+function pintaAjHeroe(){
+  const box = document.getElementById('ajHeroFicha'); if (!box) return;
+  const nm = document.getElementById('ajHeroNom'); if (nm) nm.textContent = heroName(hero);
+  const f = fichaHeroe(hero); if (!f) return;
+  box.innerHTML = '<div class="desc">' + f.desc + '</div><table>' + f.t.map(r => '<tr><td class="k">' + r[0] + '</td><td>' + r[1] + '</td></tr>').join('') + '</table>'
+                + '<div class="ajsub">EN MÓVIL</div><div class="desc">' + esc(f.m) + '</div>';
+}
+document.querySelectorAll('#controles .ajtab').forEach(b => b.addEventListener('click', ()=>{ ajPestana(b.dataset.ajtab); sfx('ui'); }));
 function refreshVilHelp(){
   const h = document.getElementById('vilhelp');
   if (h) h.style.display = isVil() ? '' : 'none';
@@ -25857,6 +25869,7 @@ document.getElementById('btnControles').addEventListener('click', ()=>{
   resumeAudio(); sfx('ui');
   listeningFor = null; renderBinds(); renderBindsP2(); refreshAudioUI(); refreshTouchUI(); refreshAnimUI(); refreshHpUI(); refreshNumUI();
   refreshVilHelp(); refreshUiSize(); refreshFullUI(); refreshSaveMode();
+  ajPestana('controles'); pintaAjHeroe();
   hide('menu'); show('controles');
 });
 document.getElementById('btnCtrlBack').addEventListener('click', ()=>{
