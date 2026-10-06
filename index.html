@@ -710,6 +710,22 @@
 
   #bottomhud { position:absolute; bottom:0; left:0; right:0; display:flex; justify-content:center;
                padding:8px calc(8px + env(safe-area-inset-bottom,0px)); pointer-events:none; z-index:5; }
+  /* los controles del personaje, unos segundos al empezar cada partida */
+  #ctrlHint { position:absolute; left:50%; bottom:calc(46px + env(safe-area-inset-bottom,0px)); transform:translate(-50%, 8px);
+              z-index:6; pointer-events:none; width:max-content; max-width:min(680px, 88vw); box-sizing:border-box;
+              background:rgba(5,10,7,0.8); border:1px solid #2f7a4a; border-radius:10px; padding:7px 14px;
+              color:#cfe8d8; font-size:0.58rem; letter-spacing:0.5px; line-height:1.7; text-align:center;
+              box-shadow:0 4px 14px rgba(0,0,0,0.5); opacity:0; transition:opacity .45s, transform .45s; }
+  #ctrlHint.ver { opacity:1; transform:translate(-50%, 0); }
+  #ctrlHint.fuera { opacity:0; transition:opacity .9s; }
+  #ctrlHint.hidden { display:none; }
+  #ctrlHint .tt { display:block; color:#7bffa0; font-size:0.5rem; letter-spacing:2px; margin-bottom:2px; }
+  #ctrlHint b { color:#ffe27b; }
+  /* en el móvil no puede tapar los mandos: en vertical va arriba, bajo el
+     marcador; en horizontal, abajo, entre el joystick y los botones */
+  body.touch-ui #ctrlHint { font-size:0.52rem; }
+  @media (orientation: portrait){ body.touch-ui #ctrlHint { bottom:auto; top:calc(190px + env(safe-area-inset-top,0px)); max-width:90vw; } }
+  @media (orientation: landscape){ body.touch-ui #ctrlHint { bottom:calc(48px + env(safe-area-inset-bottom,0px)); max-width:max(220px, calc(100vw - 500px)); } }
   #wavebadge { background:rgba(5,10,7,0.72); border:1px solid #5c1f1f; color:#ff9d3b; padding:5px 14px;
                border-radius:20px; font-size:0.7rem; letter-spacing:2px; text-transform:uppercase; }
 
@@ -933,6 +949,7 @@
     </div>
   </div>
   <div id="bottomhud" class="hidden"><div id="wavebadge">CIVILES</div></div>
+  <div id="ctrlHint" class="hidden" aria-live="polite"></div>
 
   <div id="p2arrow" class="hidden">
     <span id="p2arrowk">HOME</span>
@@ -1502,6 +1519,10 @@
       <div class="bindrow">
         <span class="bindname">Números de daño</span>
         <button type="button" class="togglebtn" id="tgNums">ON</button>
+      </div>
+      <div class="bindrow">
+        <span class="bindname">Temblor de pantalla</span>
+        <button type="button" class="togglebtn" id="tgTemblor">ON</button>
       </div>
       <div class="bindrow">
         <span class="bindname">Tamaño de los mandos <b id="uiSizeWho" style="color:#8fd7ff"></b></span>
@@ -8335,6 +8356,25 @@ function noise(dur, vol, freq, q){
   voiceStart(dur);
 }
 
+// Ruido para la batería de la música: como noise(), pero por el canal de la
+// música (sigue su volumen y su interruptor, no los de los efectos).
+function noiseMus(dur, vol, freq){
+  if (!audio.ctx || !audio.musOn || !audio.musGain) return;
+  const t0 = audio.ctx.currentTime;
+  const src = audio.ctx.createBufferSource();
+  src.buffer = getNoiseBuf(); src.loop = true;
+  src.playbackRate.value = 0.85 + Math.random()*0.3;
+  const flt = audio.ctx.createBiquadFilter();
+  flt.type = 'lowpass'; flt.frequency.setValueAtTime(freq || 900, t0);
+  flt.frequency.exponentialRampToValueAtTime(Math.max(80, (freq || 900)*0.45), t0 + dur);
+  const g = audio.ctx.createGain();
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(vol, t0 + 0.008);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  src.connect(flt); flt.connect(g); g.connect(audio.musGain);
+  src.start(t0, Math.random()*1.5, dur);
+  src.onended = ()=>{ try { src.disconnect(); flt.disconnect(); g.disconnect(); } catch(e){} };
+}
 const SFX = {
   // Barrera del sonido: chasquido seco y grave.
   // Barrera del sonido: latigazo agudo, cuerpo grave y cola de aire.
@@ -8540,6 +8580,48 @@ const MUSIC_SCALES = {
   atardecer:[196,233,262,311,349],
   noche:    [147,175,196,233,262]
 };
+// ---------- la música de la ciudad, por horas ----------
+// Cada hora del día tiene su tema, con batería, bajo, acordes y melodía, en un
+// ciclo de 4 compases de 16 semicorcheas y 4 secciones que se van sumando
+// (base · + arpegio · + melodía · todo, la melodía una octava arriba).
+//   MAÑANA: pop luminoso y saltarín.  DÍA: frenético, rock electrónico a 150.
+//   ATARDECER: tenso y melancólico.  NOCHE: synthwave oscuro, con eco.
+// Las notas van en semitonos sobre la raíz; los acordes, [raíz, menor?].
+const CIUDAD_PISTAS = {
+  manana: { name:'DESPERTAR', style:'urbe', fase:'manana', tempo:125, root:98.00,
+    prog:[[0,0],[7,0],[9,1],[5,0]], scale:[196,220,247,294,330,392,440,494],
+    bajo:[0,-1,0,7, -1,0,12,-1, 0,-1,0,7, -1,12,7,5], kicks:[0,8,10], cajas:[4,12], charles:2, abierto:14,
+    stab:[2,6,10,14], stabTipo:'triangle', stabVol:0.028, arp:'triangle', lead:'triangle', leadVol:0.06, brillo:true,
+    mel:[12,-1,14,16, 19,-1,16,-1, 14,-1,12,14, 16,-1,-1,-1,
+         14,-1,16,19, 21,-1,19,-1, 18,-1,16,14, 14,-1,-1,-1,
+         16,-1,19,21, 23,-1,21,19, 16,-1,19,-1, 21,-1,-1,-1,
+         24,-1,23,21, 19,-1,16,-1, 17,-1,16,14, 12,-1,-1,-1] },
+  dia: { name:'PLENA LUZ', style:'urbe', fase:'dia', tempo:100, root:82.41,
+    prog:[[0,1],[8,0],[3,0],[10,0]], scale:[165,185,196,220,247,262,294,330],
+    bajo:[0,0,12,0, 0,12,0,0, 0,0,12,0, 7,0,12,10], kicks:[0,4,8,10,12], cajas:[4,12], charles:1, abierto:14,
+    stab:[3,6,11,14], stabTipo:'sawtooth', stabVol:0.032, potencia:true, arp:'square', lead:'square', leadVol:0.06, doble:true, redoble:true,
+    mel:[12,-1,15,12, 19,-1,17,15, 12,-1,10,12, 15,-1,-1,-1,
+         12,-1,15,12, 20,-1,19,17, 15,-1,12,10, 12,-1,-1,-1,
+         15,-1,19,15, 22,-1,19,22, 24,-1,22,19, 17,-1,15,-1,
+         17,-1,14,17, 22,-1,21,19, 17,-1,14,10, 14,-1,-1,-1] },
+  atardecer: { name:'ÚLTIMA HORA', style:'urbe', fase:'atardecer', tempo:112, root:73.42,
+    prog:[[0,1],[10,0],[8,0],[7,0]], scale:[147,165,175,196,220,233,262,294],
+    bajo:[0,-1,0,-1, 12,-1,0,-1, 0,-1,0,-1, 10,-1,12,-1], kicks:[0,6,8], cajas:[4,12], mitad:true, charles:2, abierto:-1,
+    stab:[0], stabTipo:'triangle', stabVol:0.03, colchon:true, arp:'triangle', lead:'sawtooth', leadVol:0.045,
+    mel:[14,-1,-1,12, 14,-1,15,-1, 17,-1,15,14, 12,-1,-1,-1,
+         12,-1,-1,10, 12,-1,14,-1, 15,-1,14,12, 10,-1,-1,-1,
+         10,-1,-1,8, 10,-1,12,-1, 14,-1,12,10, 8,-1,-1,-1,
+         9,-1,13,-1, 16,-1,13,-1, 19,-1,16,13, 14,-1,-1,-1] },
+  noche: { name:'HORA MUERTA', style:'urbe', fase:'noche', tempo:118, root:55.00, noche:true,
+    prog:[[0,1],[8,0],[5,1],[7,1]], scale:[110,123,131,147,165,175,196,220],
+    bajo:[0,-1,12,-1, 0,-1,12,-1, 0,-1,12,-1, 0,-1,12,7], kicks:[0,8], cajas:[12], charles:1, abierto:-1,
+    stab:[0], stabTipo:'triangle', stabVol:0.026, colchon:true, arp:'triangle', lead:'square', leadVol:0.04, eco:true,
+    mel:[24,-1,-1,-1, 23,-1,24,-1, 28,-1,-1,-1, 26,-1,24,-1,
+         24,-1,-1,-1, 20,-1,-1,-1, 19,-1,20,-1, 24,-1,-1,-1,
+         21,-1,-1,-1, 20,-1,21,-1, 24,-1,-1,-1, 26,-1,-1,-1,
+         23,-1,-1,-1, 19,-1,-1,-1, 20,-1,23,-1, 26,-1,-1,-1] }
+};
+function pistaCiudad(){ try { return CIUDAD_PISTAS[phase().id] || CIUDAD_PISTAS.dia; } catch(e){ return CIUDAD_PISTAS.dia; } }
 // Tema de los menús: pentatónica mayor, lenta y sin percusión. Nada de
 // tensión, porque aquí no está pasando nada.
 const MENU_TRACK = {
@@ -8552,7 +8634,8 @@ let menuMusica = false;
 // El tema que manda: muestra del registro, jefe, menú o, en el planeta
 // marciano, su propio tema futurista.
 function pistaBase(){
-  return previewTrack || bossTrack || (menuMusica ? MENU_TRACK : null) || (running && esAlien() ? pistaAlien() : null) || (running && esInfierno() ? (gameTime > INF_CAMBIO_T ? INFIERNO_TRACK2 : INFIERNO_TRACK) : null);
+  return previewTrack || bossTrack || (menuMusica ? MENU_TRACK : null) || (running && esAlien() ? pistaAlien() : null) || (running && esInfierno() ? (gameTime > INF_CAMBIO_T ? INFIERNO_TRACK2 : INFIERNO_TRACK) : null)
+      || (running ? pistaCiudad() : null);                     // la ciudad: su tema de cada hora
 }
 function musicStep(){
   if (!audio.ctx || !audio.musOn) return;
@@ -8616,6 +8699,53 @@ function musicStep(){
     if (s % 16 === 14) mk(sc[7]*3, 0.36, 'triangle', 0.055);       // brillo lejano
     if (s % 4 === 0) noise(0.05, 0.09, 2600);                      // chasquido metálico
     if (s % 8 === 4) noise(0.10, 0.16, 520);                       // golpe sordo
+    return;
+  }
+  if (bt && bt.style === 'urbe'){
+    // LA CIUDAD (ver CIUDAD_PISTAS)
+    const V = bt, f = n => V.root*Math.pow(2, n/12), T = V.tempo/1000;
+    const paso = s % 16, comp = (s/16 | 0) % 4, sec = (s/64 | 0) % 4;
+    const [raiz, menor] = V.prog[comp], ac = [0, menor ? 3 : 4, 7];
+    const mitad = V.mitad && sec === 0;                                   // la tarde arranca a medio tiempo
+    // batería
+    const kick = mitad ? paso === 0 : (V.kicks.includes(paso) || (V.redoble && sec === 3 && paso === 6));
+    if (kick){ mk(V.noche ? 50 : 58, 0.14, 'sine', 0.3); mk(110, 0.03, 'triangle', 0.06); noiseMus(0.03, 0.09, 140); }
+    const caja = mitad ? paso === 8 : V.cajas.includes(paso);
+    if (caja){ noiseMus(V.noche ? 0.28 : 0.1, V.noche ? 0.1 : 0.16, V.noche ? 1800 : 2600); mk(V.noche ? 170 : 210, 0.05, 'triangle', 0.045); }
+    if (paso % V.charles === 0 && !(mitad && paso % 4)) noiseMus(0.018, paso % 4 === 2 ? 0.05 : 0.028, 9000);
+    if (paso === V.abierto && sec >= 1) noiseMus(0.14, 0.05, 6500);
+    if (s % 64 === 0) noiseMus(V.noche ? 1.2 : 0.9, V.noche ? 0.05 : 0.09, 5600);             // platillo al empezar el ciclo
+    if (V.redoble && comp === 3 && paso >= 12){ noiseMus(0.05, 0.12, 2800); mk([230, 190, 150, 120][paso - 12], 0.12, 'sine', 0.16); }   // redoble y toms
+    // bajo
+    const nb = V.bajo[paso];
+    if (nb >= 0){
+      mk(f(raiz + nb), V.noche ? 0.22 : 0.11, V.noche ? 'sine' : 'sawtooth', V.noche ? 0.16 : 0.15);
+      if (V.noche) mk(f(raiz + nb + 12), 0.1, 'triangle', 0.035);
+    }
+    // acordes: golpes cortos (de quintas, con distorsión de día) o colchón largo
+    if (V.colchon && paso === 0) for (const n of ac) mk(f(raiz + n + 24), 16*T, V.stabTipo, V.stabVol);
+    else if (!V.colchon && sec >= (V.potencia ? 0 : 1) && V.stab.includes(paso)){
+      const ns = V.potencia ? [0, 7, 12] : ac;
+      for (const n of ns){ mk(f(raiz + n + 12), 0.1, V.stabTipo, V.stabVol); if (V.potencia) mk(f(raiz + n + 12)*1.006, 0.1, 'square', V.stabVol*0.6); }
+    }
+    // arpegio de los acordes
+    if ((sec === 1 || sec === 3 || V.noche) && (V.noche || V.potencia ? true : paso % 2 === 0)){
+      const n = ac[paso % 3] + 24 + ((paso/3 | 0) % 2)*12;
+      const vol = V.noche ? 0.022 : V.potencia ? 0.026 : 0.03;
+      mk(f(raiz + n), 0.08, V.arp, vol);
+      if (V.eco && s >= 3){ const pa = (s - 3) % 16, ca = ((s - 3)/16 | 0) % 4; const [ra, me] = V.prog[ca]; mk(f(ra + [0, me ? 3 : 4, 7][pa % 3] + 24 + ((pa/3 | 0) % 2)*12), 0.08, V.arp, vol*0.4); }
+    }
+    // la melodía
+    if (sec >= 2){
+      const i = s % 64, m = V.mel[i];
+      if (m >= 0){
+        const d = sostenNota(V.mel, i, V.tempo), o = sec === 3 && !V.noche ? 12 : 0;
+        mk(f(m + 12 + o), d, V.lead, V.leadVol);
+        if (V.doble) mk(f(m + 12 + o)*1.004, d, 'sawtooth', V.leadVol*0.5);       // de día, más gorda
+        if (V.brillo) mk(f(m + 24 + o), d*0.6, 'sine', 0.02);
+      }
+      if (V.eco && i >= 3){ const e2 = V.mel[i - 3]; if (e2 >= 0) mk(f(e2 + 12), 0.16, 'triangle', 0.018); }
+    }
     return;
   }
   if (bt && bt.style === 'futuro'){
@@ -9184,13 +9314,13 @@ function achPopupNew(id){}                  // gancho reservado
 // ================= BANDA SONORA EN EL REGISTRO =================
 const OST_TEMAS = [
   { id:'manana',    icon:'\u{1F304}', name:'DESPERTAR',
-    desc:'El tema de la mañana. Escala mayor y ritmo tranquilo: la ciudad todavía no sabe lo que le espera.' },
+    desc:'El tema de la mañana. Pop luminoso y saltarín en tono mayor, con un arpegio que rebota: la ciudad todavía no sabe lo que le espera.' },
   { id:'dia',       icon:'\u{2600}\u{FE0F}', name:'PLENA LUZ',
-    desc:'El tema del mediodía. El más luminoso y movido, con el arpegio más alto de los cuatro.' },
+    desc:'El tema del mediodía. El más frenético: rock electrónico a toda velocidad, con bombo constante, bajo que salta de octava, acordes de potencia y redobles.' },
   { id:'atardecer', icon:'\u{1F305}', name:'ÚLTIMA HORA',
-    desc:'El tema del atardecer. Baja de tono y se vuelve melancólico, justo cuando llegan los blindados.' },
+    desc:'El tema del atardecer. Tenso y melancólico, con un bajo que desciende y una melodía de sierra que se va oscureciendo justo cuando llegan los blindados.' },
   { id:'noche',     icon:'\u{1F319}', name:'HORA MUERTA',
-    desc:'El tema nocturno. El más grave y espaciado; con las farolas encendidas y la ciudad a oscuras.' },
+    desc:'El tema nocturno. Synthwave oscuro: bajo profundo, arpegios con eco y una melodía inquietante, con las farolas encendidas y la ciudad a oscuras.' },
   // Los temas de los otros mapas: se desbloquean jugando una partida en ellos.
   { id:'mapa_alien',    icon:'\u{1FA90}', name:'PLANETA ROJO', pista: ()=> ALIEN_TRACK,
     bloqueo:'Juega una partida en el MUNDO ALIENÍGENA para desbloquearlo. Toca el icono para ver otro tema.',
@@ -9246,6 +9376,7 @@ function ostToggle(t){
   if (previewTrack && previewTrack.ostId === t.id){ stopBossPreview(); return; }
   const sc = MUSIC_SCALES[t.id] || MUSIC_SCALES.dia;
   previewTrack = t.pista ? Object.assign({}, t.pista(), { ostId: t.id })      // tema de otro mapa
+               : CIUDAD_PISTAS[t.id] ? Object.assign({}, CIUDAD_PISTAS[t.id], { ostId: t.id })   // la ciudad, como en partida
                          : { scale: sc, tempo: 260, name: t.name, ostId: t.id, style:'amb' };
   previewT = 20;
   if (!audio.musicTimer) startMusic();
@@ -19163,6 +19294,15 @@ async function loadGraficos(){
   aplicaGraficos();
 }
 function saveGraficos(){ storeSet('invasion_graficos', graficos); }
+// Temblor de pantalla (Ajustes > Pantalla y sonido): apagado, los golpes y
+// explosiones ya no sacuden la cámara (lo demás del impacto sigue igual).
+let temblorOn = true;
+async function loadTemblor(){ const v = await storeGet('invasion_temblor'); temblorOn = v !== 'off'; refreshTemblorUI(); }
+function saveTemblor(){ storeSet('invasion_temblor', temblorOn ? 'on' : 'off'); }
+function refreshTemblorUI(){
+  const b = document.getElementById('tgTemblor'); if (!b) return;
+  b.textContent = temblorOn ? 'ON' : 'OFF'; b.classList.toggle('off', !temblorOn);
+}
 async function loadHpBars(){
   const v = await storeGet('invasion_hpbars');
   showHpBars = (v === 'off') ? false : true;
@@ -23416,7 +23556,7 @@ function draw(){
   ctx.setTransform(ZOOM*DPR, 0, 0, ZOOM*DPR, 0, 0);   // todo el mundo se dibuja escalado
   ctx.save();
   temblorX = temblorY = 0;
-  if (shakeTime>0){ temblorX = rand(-shakeMag,shakeMag); temblorY = rand(-shakeMag,shakeMag); ctx.translate(temblorX, temblorY); }
+  if (shakeTime>0 && temblorOn){ temblorX = rand(-shakeMag,shakeMag); temblorY = rand(-shakeMag,shakeMag); ctx.translate(temblorX, temblorY); }   // se puede apagar en Ajustes
   actualizaSol();
   drawBackground(); drawRoads();
   if (esInfierno()){ drawRestosJefes(); drawCraterInf(); drawCharcosLava(); } else drawCharcosAgua();
@@ -25213,8 +25353,43 @@ function startGame(mode){
   document.getElementById('namebox').classList.add('hidden');
   pendingScore = null;
   if (esAlien()) muestraIntroMapa(); else ocultaIntroMapa();
+  ocultaAyudaControles();
+  muestraAyudaControles.t0 = setTimeout(muestraAyudaControles, 700);   // tras la entrada en escena
+}
+// ---- los controles, al empezar cada partida ----
+// Un recordatorio corto abajo, con las teclas que tenga asignadas y el
+// personaje elegido (o los mandos táctiles en el móvil). Se va solo.
+function textoControles(h){
+  const K = k => '<b>' + esc(prettyKey(binds[k] || '')) + '</b>';
+  const mov = '<b>' + [binds.up, binds.left, binds.down, binds.right].map(k => esc(prettyKey(k))).join('') + '</b>';
+  if (tactil()){
+    const f = fichaHeroe(h);
+    if (h === 'alien') return '<b>Joystick izquierdo</b> para moverte y <b>derecho</b> para apuntar · <b>Botón de acción</b>: toca para agarrar o lanzar, mantén para golpear';
+    if (h === 'viltrum') return '<b>Joystick al tope</b>: vuelo hipersónico · <b>GOLPE</b> (mantén para cargar) · <b>Acción</b>: agarra y lanza';
+    return esc(f ? f.m : '');
+  }
+  if (h === 'viltrum') return mov + ' moverte · <b>Clic</b> golpeas (se puede mantener para cargar) · <b>Doble toque</b> a ' + mov + ': vuelo hipersónico · <b>Clic derecho</b> agarras y lanzas';
+  if (h === 'dragon')  return mov + ' moverte · <b>Clic</b> mordisco · <b>Clic derecho</b> rayos · ' + K('draAle') + ' aletazo · <b>Mantén</b> ' + K('draCola') + ' embestida · <b>Doble toque</b> a ' + mov + ': volar';
+  if (h === 'maquina') return mov + ' moverte (mantén una dirección para acelerar) · <b>Clic</b> disparas (se puede mantener) · <b>Clic derecho</b> cambias de arma · <b>Mantén</b> ' + K('draCola') + ' motosierras';
+  if (h === 'mago')    return mov + ' flotar · <b>Clic</b> rayo · <b>Mantén clic derecho</b> telequinesis · ' + K('draAle') + ' hielo · ' + K('draCola') + ' escudo · ' + K('magFue') + ' fuego · ' + K('magTel') + ' teletransporte';
+  return mov + ' moverte · <b>Clic</b> agarras (' + K('grab') + ') y, con algo agarrado, golpeas · <b>Clic derecho</b> lanzas (' + K('throw') + ') · Devora para evolucionar a <b>COLOSO</b>';
+}
+function muestraAyudaControles(){
+  const el = document.getElementById('ctrlHint'); if (!el) return;
+  clearTimeout(muestraAyudaControles.t1); clearTimeout(muestraAyudaControles.t2); clearTimeout(muestraAyudaControles.t0);
+  el.classList.remove('ver', 'fuera');
+  if (!running || TUT.activo || gameMode === 'vs' || esVisorVs()){ el.classList.add('hidden'); return; }
+  el.innerHTML = '<span class="tt">CONTROLES · ' + esc(heroName(hero)) + '</span>' + textoControles(normHeroe(hero));
+  el.classList.remove('hidden'); void el.offsetWidth; el.classList.add('ver');
+  muestraAyudaControles.t1 = setTimeout(()=> el.classList.add('fuera'), 9000);
+  muestraAyudaControles.t2 = setTimeout(()=>{ el.classList.add('hidden'); el.classList.remove('ver', 'fuera'); }, 10000);
+}
+function ocultaAyudaControles(){
+  clearTimeout(muestraAyudaControles.t0); clearTimeout(muestraAyudaControles.t1); clearTimeout(muestraAyudaControles.t2);
+  const el = document.getElementById('ctrlHint'); if (el){ el.classList.add('hidden'); el.classList.remove('ver', 'fuera'); }
 }
 async function endGame(){
+  ocultaAyudaControles();
   if (TUT.activo){ salirTutorial(); return; }
   limpiaRestosPartida();
   const enLinea = Online.activo;
@@ -25358,7 +25533,7 @@ document.getElementById('importFile').addEventListener('change', e=>{
       SaveIO.data = obj;
       SaveIO.flush();
       await loadDex(); await loadBinds(); await loadShop(); await loadAudioPrefs();
-      await loadTouchPref(); await loadBindsP2(); await loadMenuAnim(); await loadHpBars(); await loadNumeros(); await loadGraficos();
+      await loadTouchPref(); await loadBindsP2(); await loadMenuAnim(); await loadHpBars(); await loadNumeros(); await loadGraficos(); await loadTemblor();
       sanitizeBinds(); renderBinds(); renderBindsP2();
       refreshCoinLabels(); refreshAudioUI(); refreshTouchUI(); refreshAnimUI(); refreshHpUI(); refreshNumUI();
       applyAudioVolumes(); await renderScoreList();
@@ -25902,6 +26077,7 @@ for (const [id, modo] of [['gfxNormal', 'normal'], ['gfxUltra', 'ultra']]){
   const b = document.getElementById(id);
   if (b) b.addEventListener('click', ()=>{ if (graficos === modo) return; graficos = modo; aplicaGraficos(); saveGraficos(); sfx('ui'); });
 }
+document.getElementById('tgTemblor').addEventListener('click', ()=>{ temblorOn = !temblorOn; saveTemblor(); refreshTemblorUI(); sfx('ui'); });
 document.getElementById('tgHp').addEventListener('click', ()=>{
   showHpBars = !showHpBars;
   saveHpBars(); refreshHpUI(); sfx('ui');
@@ -27754,7 +27930,7 @@ document.getElementById('btnMenu').addEventListener('click', async ()=>{
     ['Cargando controles',        async ()=>{ await loadBinds(); await loadBindsP2(); }],
     ['Cargando monedas y tienda', async ()=>{ await loadShop(); await loadImgSkins(); }],
     ['Cargando preferencias',     async ()=>{ await loadAudioPrefs(); await loadTouchPref();
-                                              await loadMenuAnim(); await loadHpBars(); await loadNumeros(); await loadGraficos(); await loadHero();
+                                              await loadMenuAnim(); await loadHpBars(); await loadNumeros(); await loadGraficos(); await loadTemblor(); await loadHero();
                                               await loadOvniVs(); refreshOvniVsUI();
                                               await loadOnlinePrefs(); refreshOnlineUI();
                                               await loadUICfg(); }],
