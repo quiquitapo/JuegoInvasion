@@ -317,6 +317,14 @@
                font-size:0.72rem; font-weight:900; cursor:pointer;
                background:#0f2418; border:1px solid #2fe86e; color:#7bffa0; }
   .togglebtn.off { background:#2a1010; border-color:#8a3a3a; color:#d98a8a; }
+  .gfxsel { display:flex; gap:0; border:1px solid #2f6a48; border-radius:6px; overflow:hidden; }
+  .gfxbtn { min-width:70px; padding:6px 10px; font-family:inherit; font-size:0.66rem; font-weight:900; letter-spacing:1px; cursor:pointer;
+            background:#0a160e; border:none; color:#5f8a72; }
+  .gfxbtn + .gfxbtn { border-left:1px solid #2f6a48; }
+  .gfxbtn.on { background:#1f6a3a; color:#d8ffe4; }
+  #gfxUltra.on { background:linear-gradient(90deg, #6a2ae0, #e04ab8 50%, #ffb02a); color:#fff; text-shadow:0 0 6px rgba(255,255,255,0.7); }
+  .gfxnota { margin:6px 0 4px; text-align:left; }
+  #controles .panel { max-width:min(740px, 94vw); box-sizing:border-box; }
   .volrow { display:flex; align-items:center; gap:10px; padding:6px 0; border-bottom:1px dashed #1f4a2c; }
   .volrow:last-of-type { border-bottom:none; }
   .vollbl { color:#8fbfa2; font-size:0.66rem; letter-spacing:1px; flex:1; }
@@ -1471,6 +1479,14 @@
     <div class="ajsec hidden" data-ajsec="pantalla">
     <div class="panel" style="min-width:min(340px,92vw)">
       <h3>Pantalla y sonido</h3>
+      <div class="bindrow">
+        <span class="bindname">Modo gráfico</span>
+        <span class="gfxsel">
+          <button type="button" class="gfxbtn on" id="gfxNormal">NORMAL</button>
+          <button type="button" class="gfxbtn" id="gfxUltra">ULTRA</button>
+        </span>
+      </div>
+      <div class="p2note gfxnota" id="gfxNota"></div>
       <div class="bindrow">
         <span class="bindname">Botones táctiles</span>
         <button type="button" class="togglebtn" id="tgTouch">AUTO</button>
@@ -4166,10 +4182,17 @@ let VW = CW / ZOOM, VH = CH / ZOOM;                    // mundo visible (unidade
 // dibuja a la densidad de la pantalla, con un tope de 2×. Si el equipo no
 // aguanta el ritmo, vigilaRendimiento() lo devuelve a 1× para que no haya lag.
 let DPR = 1, dprTope = 2;
+// Modo gráfico (Ajustes > Pantalla y sonido): 'normal' es el de siempre;
+// 'ultra' sube la resolución (hasta 3×, y al menos 1,5× aunque la pantalla
+// sea 1×: se dibuja de más y el navegador lo suaviza al reducir), afina la
+// iluminación, deja más luces y partículas y añade resplandor (aplicaGraficos).
+let graficos = 'normal';
 function resize(){
   CW = window.innerWidth; CH = window.innerHeight;
-  DPR = Math.max(1, Math.min(dprTope, window.devicePixelRatio || 1));
+  const dprPant = window.devicePixelRatio || 1;
+  DPR = Math.max(1, Math.min(dprTope, graficos === 'ultra' ? Math.max(1.5, dprPant) : dprPant));
   canvas.width = Math.round(CW*DPR); canvas.height = Math.round(CH*DPR);
+  ctx.imageSmoothingQuality = graficos === 'ultra' ? 'high' : 'low';   // al cambiar el tamaño se pierde
   canvas.style.width = CW + 'px'; canvas.style.height = CH + 'px';
   VW = CW / ZOOM; VH = CH / ZOOM;
   // layoutUI se declara más abajo: en el primer resize aún no existe.
@@ -5703,8 +5726,8 @@ function drawFlameCone(e){
 // Depósito de partículas de tamaño fijo. Antes cada chispa creaba un objeto y
 // cada fotograma se reconstruía el array entero con filter: mucha basura para
 // el recolector. Ahora se reciclan y se compactan intercambiando posiciones.
-const PART_MAX = 520;
-let partN = 0;
+const PART_MAX = 1100;                // el depósito; se usan partMax (más en ULTRA)
+let partN = 0, partMax = 520;
 (function initParticles(){
   for (let i=0;i<PART_MAX;i++)
     particles.push({x:0,y:0,vx:0,vy:0,life:0,maxlife:1,color:'#fff',r:3,drag:0.9,grow:0});
@@ -5712,7 +5735,7 @@ let partN = 0;
 function addParticles(x,y,color,n,spd){
   if (_fxRed && Math.abs(x-centroVista().x) < OL_CAJA_X && Math.abs(y-centroVista().y) < OL_CAJA_Y) _fxRed.push(['p', Math.round(x), Math.round(y), color, n, spd]);
   for (let i=0;i<n;i++){
-    if (partN >= PART_MAX) return;                 // techo duro: nunca se dispara
+    if (partN >= partMax) return;                  // techo duro: nunca se dispara
     const p = particles[partN++];
     const a = rand(0,Math.PI*2);
     p.x = x; p.y = y;
@@ -5731,16 +5754,16 @@ let humoCursor = 0;
 function addSmoke(x, y){
   if (_fxRed && Math.abs(x-centroVista().x) < OL_CAJA_X && Math.abs(y-centroVista().y) < OL_CAJA_Y) _fxRed.push(['h', Math.round(x), Math.round(y)]);
   let p;
-  if (partN < PART_MAX) p = particles[partN++];
+  if (partN < partMax) p = particles[partN++];
   else {
     // Depósito lleno (por ejemplo tras varias explosiones): en vez de perder
     // la columna de humo, se reaprovecha la chispa más gastada de un puñado.
-    let mejor = humoCursor % PART_MAX, vida = particles[mejor].life;
+    let mejor = humoCursor % partMax, vida = particles[mejor].life;
     for (let k = 1; k < 4; k++){
-      const j = (humoCursor + k*37) % PART_MAX;
+      const j = (humoCursor + k*37) % partMax;
       if (particles[j].life < vida){ vida = particles[j].life; mejor = j; }
     }
-    humoCursor = (humoCursor + 1) % PART_MAX;
+    humoCursor = (humoCursor + 1) % partMax;
     p = particles[mejor];
   }
   p.x = x; p.y = y;
@@ -19113,6 +19136,33 @@ function refreshOvniVsUI(){
   b.classList.toggle('off', !ovniEnVs);
 }
 
+function aplicaGraficos(){
+  const u = graficos === 'ultra';
+  dprTope = u ? 3 : 2; perf.t = 0; perf.n = 0; perf.lento = 0;
+  LIGHT_DS = u ? 2 : 4;             // ensureLightBuf rehace el búfer con el nuevo tamaño
+  partMax = u ? 1100 : 520;
+  lucesMax = u ? 64 : 28;
+  bloomApagado = false;
+  // ULTRA: un último realce de color y contraste sobre toda la imagen (lo
+  // aplica la tarjeta gráfica al componer la página, sin coste de dibujo)
+  canvas.style.filter = u ? 'saturate(1.14) contrast(1.06)' : '';
+  resize();
+  refreshGfxUI();
+}
+function refreshGfxUI(){
+  const n = document.getElementById('gfxNormal'), u = document.getElementById('gfxUltra'), t = document.getElementById('gfxNota');
+  if (n) n.classList.toggle('on', graficos !== 'ultra');
+  if (u) u.classList.toggle('on', graficos === 'ultra');
+  if (t) t.innerHTML = graficos === 'ultra'
+    ? '<b>ULTRA</b>: máxima resolución, iluminación y sombras de la noche más finas, resplandor en fuego, rayos, explosiones y neones, y más luces y partículas a la vez. Pide más al equipo: si no da el ritmo, baja la resolución sola para que no haya tirones.'
+    : '<b>NORMAL</b>: el de siempre, equilibrado para cualquier equipo.';
+}
+async function loadGraficos(){
+  const v = await storeGet('invasion_graficos');
+  graficos = v === 'ultra' ? 'ultra' : 'normal';
+  aplicaGraficos();
+}
+function saveGraficos(){ storeSet('invasion_graficos', graficos); }
 async function loadHpBars(){
   const v = await storeGet('invasion_hpbars');
   showHpBars = (v === 'off') ? false : true;
@@ -21890,7 +21940,7 @@ function drawLampProp(l){
 // Antes se hacía a pantalla completa con 'lighter' y un halo por farola.
 // Ahora todo se resuelve en un búfer a 1/3 de resolución (9x menos píxeles)
 // y se vuelca al lienzo con un único drawImage.
-const LIGHT_DS = 4;                       // factor de reducción del búfer
+let LIGHT_DS = 4;                         // factor de reducción del búfer (2 en ULTRA: luz más fina)
 let lightCv = null, lightCtx = null, lightW = 0, lightH = 0;
 let holeSprite = null, warmSprite = null;
 let focoHazM = null, luzAzul = null, luzFuego = null, luzBlanca = null, luzRoja = null, luzAmarilla = null;
@@ -23439,6 +23489,7 @@ function draw(){
   ctx.restore();
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   drawLighting();                                  // en píxeles del lienzo
+  drawBloom();                                     // resplandor (solo en ULTRA)
   drawFlechasJefe();                               // encima de la oscuridad
   drawTelaAviso();
   drawVinetaVida(); drawBarrasJefe(); drawJefeCaido(); drawPresentacion();
@@ -23702,6 +23753,34 @@ function drawJefeCaido(){
   ctx.font = 'bold ' + Math.round(fs*0.42) + 'px monospace';
   ctx.lineWidth = 4; ctx.strokeText(E.nom + (J.def ? ' D.' : ''), 0, fs*0.85);
   ctx.fillStyle = C.barra[0]; ctx.fillText(E.nom + (J.def ? ' D.' : ''), 0, fs*0.85);
+  ctx.restore();
+}
+// ---- resplandor del modo ULTRA ----
+// Se reduce la imagen a 1/5, se queda solo con lo muy brillante (fuego,
+// rayos, explosiones, neones, ventanas encendidas...), se difumina y se suma
+// encima: todo lo que brilla irradia luz. Si el navegador no tiene filtros de
+// lienzo, simplemente no se hace.
+let _bloomCv = null, _bloomCtx = null, _bloomOk = null, bloomApagado = false;
+const _bloomFiltro = {};
+function drawBloom(){
+  if (graficos !== 'ultra' || bloomApagado || (!running && !esVisorVs())) return;
+  if (_bloomOk === null){ try { _bloomOk = typeof document.createElement('canvas').getContext('2d').filter === 'string'; } catch(e){ _bloomOk = false; } }
+  if (!_bloomOk) return;
+  const w = Math.max(1, Math.round(CW/5)), h = Math.max(1, Math.round(CH/5));
+  if (!_bloomCv){ _bloomCv = document.createElement('canvas'); _bloomCtx = _bloomCv.getContext('2d'); }
+  if (_bloomCv.width !== w || _bloomCv.height !== h){ _bloomCv.width = w; _bloomCv.height = h; }
+  const g = _bloomCtx;
+  // de noche irradia todo lo que brilla; de día, con todo claro, solo lo más
+  // intenso y más flojo, para no quemar las fachadas blancas
+  const k = Math.round(clamp(oscuridadAhora()/0.62, 0, 1)*10)/10;
+  g.globalCompositeOperation = 'copy';
+  g.filter = _bloomFiltro[k] || (_bloomFiltro[k] = 'brightness(' + (0.5 + 0.12*k).toFixed(2) + ') contrast(' + (3 - 0.5*k).toFixed(2) + ') saturate(1.7) blur(3px)');
+  g.drawImage(canvas, 0, 0, w, h);
+  g.filter = 'none';
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.24 + 0.26*k;
+  ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(_bloomCv, 0, 0, CW, CH);
   ctx.restore();
 }
 // ---- viñeta casi imperceptible con poca vida ----
@@ -24087,6 +24166,7 @@ function lucesDinamicas(luz){
   }
   if (rayosOn && isVil()){ const o = vilCabeza(), a = vilRayoAng(o); for (const f of [0.3, 0.7]) luz(o.x + Math.cos(a)*RAYO_LARGO*f, o.y + Math.sin(a)*RAYO_LARGO*f, 80, luzRoja, 0.7); }
 }
+let lucesMax = 28;                // luces dinámicas a la vez (más en ULTRA)
 function drawLucesDia(){
   if (!running && !esVisorVs()) return;
   ensureLightBuf();
@@ -24095,7 +24175,7 @@ function drawLucesDia(){
   const k0 = 1 - oscuridadAhora()*0.6;                         // de noche ya alumbra la capa de luces
   ctx.save(); ctx.globalCompositeOperation = 'lighter';
   const luz = (x, y, r, sp, fuerza)=>{
-    if (n >= 28 || x < mx - r || x > Mx + r || y < my - r || y > My + r) return;
+    if (n >= lucesMax || x < mx - r || x > Mx + r || y < my - r || y > My + r) return;
     n++;
     const s = S(x, y);
     ctx.globalAlpha = clamp(fuerza*0.55*k0, 0, 1);
@@ -24929,13 +25009,20 @@ lastT = performance.now();
 // ~45 fps, se renuncia a ella (una sola vez) antes de que se note el tirón.
 const perf = { t:0, n:0, lento:0 };
 function vigilaRendimiento(ms){
-  if (DPR <= 1 || !running || document.hidden || ms <= 0 || ms > 250) return;
+  const extraUltra = graficos === 'ultra' && !bloomApagado;     // en ULTRA aún queda un escalón: el resplandor
+  if ((DPR <= 1 && !extraUltra) || !running || document.hidden || ms <= 0 || ms > 250) return;
   perf.t += ms; perf.n++;
   if (perf.t < 2000) return;
   const media = perf.t / perf.n;
   perf.t = 0; perf.n = 0;
   if (media > 1000/45){
-    if (++perf.lento >= 2){ dprTope = 1; resize(); }
+    if (++perf.lento >= 2){
+      perf.lento = 0;
+      // primero la resolución (en ULTRA de 3× a 2× y luego a 1×), al final el
+      // resplandor y el realce de color: así nunca se queda con tirones
+      if (DPR > 1){ dprTope = graficos === 'ultra' && DPR > 2 ? 2 : 1; resize(); }
+      else { bloomApagado = true; canvas.style.filter = ''; }
+    }
   } else perf.lento = 0;
 }
 function loop(t){
@@ -25271,7 +25358,7 @@ document.getElementById('importFile').addEventListener('change', e=>{
       SaveIO.data = obj;
       SaveIO.flush();
       await loadDex(); await loadBinds(); await loadShop(); await loadAudioPrefs();
-      await loadTouchPref(); await loadBindsP2(); await loadMenuAnim(); await loadHpBars(); await loadNumeros();
+      await loadTouchPref(); await loadBindsP2(); await loadMenuAnim(); await loadHpBars(); await loadNumeros(); await loadGraficos();
       sanitizeBinds(); renderBinds(); renderBindsP2();
       refreshCoinLabels(); refreshAudioUI(); refreshTouchUI(); refreshAnimUI(); refreshHpUI(); refreshNumUI();
       applyAudioVolumes(); await renderScoreList();
@@ -25811,6 +25898,10 @@ if (_edS) _edS.addEventListener('click', uiEdGuardar);
 const _edB = document.getElementById('uiEdBack');
 if (_edB) _edB.addEventListener('click', ()=>{ hide('uieditor'); show('controles'); sfx('ui'); });
 
+for (const [id, modo] of [['gfxNormal', 'normal'], ['gfxUltra', 'ultra']]){
+  const b = document.getElementById(id);
+  if (b) b.addEventListener('click', ()=>{ if (graficos === modo) return; graficos = modo; aplicaGraficos(); saveGraficos(); sfx('ui'); });
+}
 document.getElementById('tgHp').addEventListener('click', ()=>{
   showHpBars = !showHpBars;
   saveHpBars(); refreshHpUI(); sfx('ui');
@@ -27663,7 +27754,7 @@ document.getElementById('btnMenu').addEventListener('click', async ()=>{
     ['Cargando controles',        async ()=>{ await loadBinds(); await loadBindsP2(); }],
     ['Cargando monedas y tienda', async ()=>{ await loadShop(); await loadImgSkins(); }],
     ['Cargando preferencias',     async ()=>{ await loadAudioPrefs(); await loadTouchPref();
-                                              await loadMenuAnim(); await loadHpBars(); await loadNumeros(); await loadHero();
+                                              await loadMenuAnim(); await loadHpBars(); await loadNumeros(); await loadGraficos(); await loadHero();
                                               await loadOvniVs(); refreshOvniVsUI();
                                               await loadOnlinePrefs(); refreshOnlineUI();
                                               await loadUICfg(); }],
