@@ -4535,7 +4535,8 @@ function resetGame(){
   clima = 'sol'; nubeK = 0; lluviaK = 0; climaMostrado = null;
   auraTxts.length = 0;
   buffT = 0; buffTipo = null; ovniCd = rand(50, 90); rayosOn = false;
-  for (const b of buildings){ b.stage=0; b.hp=b.maxhp; b.hitFlash=0; b.downAt=undefined; }
+  for (const b of buildings){ b.stage=0; b.hp=b.maxhp; b.hitFlash=0; b.downAt=undefined; b._aguj = null; b._agCv = null; b._agBase = null; }
+  vilPaso.edif = null; vilPasoCompa.edif = null; vilPasoCompa.ok = false;
   for (const k in regenSeen) regenSeen[k] = {};
   // spawn player on a road intersection so it isn't stuck inside a building
   player.x = 420*4; player.y = 420*3;
@@ -19667,6 +19668,7 @@ function objDurability(o){
   if (o.type === 'plane') return 3;
   if (o.type === 'tank') return 6;
   if (o.type === 'siege') return 8;    // la mole del ejército: mejor escudo que el tanque
+  if (o.type === 'bicho') return 5;    // el caparazón del bicho guerrero: buena maza y buen escudo
   return 2;
 }
 // Radio de choque de lo que vuela: la mitad de su lado menor, con un mínimo
@@ -19842,7 +19844,7 @@ function esBlindado(t){ return !!BLINDADOS[t.type]; }
 // vale para autos y también para blindados como el tanque.
 function wearWeapon(o, amount){
   if (!o || o.maxhp === undefined) return;
-  if (o.kind === 'car' || o.type === 'tank' || o.type === 'heli' ||
+  if (o.kind === 'car' || o.type === 'tank' || o.type === 'heli' || o.type === 'bicho' ||
       o.type === 'gunship' || o.person || o.kind === 'civ'){
     o.hp = Math.max(1, o.hp - amount);
   }
@@ -19856,7 +19858,7 @@ function canRamProps(o){
   if (o.type === 'heli' || o.type === 'gunship' || o.type === 'plane') return false;
   return o.kind === 'edificio' || o.kind === 'civ' || o.kind === 'car' ||
          o.type === 'police' || o.type === 'military' ||
-         o.type === 'minigun' || o.type === 'tank' || o.type === 'siege';
+         o.type === 'minigun' || o.type === 'tank' || o.type === 'siege' || o.type === 'bicho';   // el bicho, con su caparazón, también
 }
 
 const AUTO_NOMBRE = { capsula:'CÁPSULA', lancha:'AERODESLIZADOR', transporte:'TRANSPORTE', compacto:'AUTO', sedan:'SEDÁN', deportivo:'DEPORTIVO', furgoneta:'FURGONETA', pickup:'PICKUP',
@@ -19905,7 +19907,7 @@ function damageHeld(amount){
   if (!heldObject) return false;
   // El cañón de asedio es una mole: los choques lo desgastan a la mitad.
   const r = heldObject.ref;
-  if (r && r.type === 'siege') amount *= 0.5;
+  if (r && (r.type === 'siege' || r.type === 'bicho')) amount *= 0.5;   // y el caparazón del bicho, igual
   heldObject.dur -= amount;
   if (heldObject.dur <= 0){ breakHeld(); return false; }
   return true;
@@ -20184,6 +20186,94 @@ function desatascar(r){
   player.y = clamp(player.y, 20, WORLD_H - 20);
 }
 
+// ================= BOQUETES DEL VILTRUMITA =================
+// El viltrumita atraviesa los edificios como si fueran de papel: justo donde
+// entra y donde sale queda un boquete de bordes rotos por el que se ve el
+// interior. Cada edificio guarda sus boquetes (unos pocos) y una copia de su
+// dibujo ya agujereada, que solo se toca cuando se abre uno nuevo o el
+// edificio cambia de etapa: el resto de fotogramas cuesta lo mismo que antes.
+const AGUJ_MAX = 10;
+function edifEn(x, y){
+  for (const b of buildings) if (b.stage < 2 && x > b.x && x < b.x + b.w && y > b.y && y < b.y + b.h) return b;
+  return null;
+}
+// El punto del muro por donde se cruza: el del borde más cercano.
+function bordeEdif(b, x, y){
+  if (x <= b.x || x >= b.x + b.w || y <= b.y || y >= b.y + b.h) return { x: clamp(x, b.x, b.x + b.w), y: clamp(y, b.y, b.y + b.h) };
+  const dI = x - b.x, dD = b.x + b.w - x, dA = y - b.y, dB = b.y + b.h - y, m = Math.min(dI, dD, dA, dB);
+  return m === dI ? { x: b.x, y } : m === dD ? { x: b.x + b.w, y } : m === dA ? { x, y: b.y } : { x, y: b.y + b.h };
+}
+// st recuerda en qué edificio estaba (el jugador o el compañero en línea).
+function vilAtraviesa(st, x0, y0, x1, y1, r, golpe){
+  const b = edifEn(x1, y1);
+  if (b === st.edif) return;
+  if (st.edif && st.edif.stage < 2){ const p = bordeEdif(st.edif, x1, y1); edifBoquete(st.edif, p.x, p.y, r, golpe); }   // sale
+  if (b){ const p = bordeEdif(b, x0, y0); edifBoquete(b, p.x, p.y, r, golpe); }                                          // entra
+  st.edif = b;
+}
+function edifBoquete(b, x, y, r, golpe){
+  const L = b._aguj || (b._aguj = []);
+  const lx = Math.round(x - b.x), ly = Math.round(y - b.y);
+  const col = esAlien() ? '#8a7ab8' : esInfierno() ? '#6a3a2a' : '#9aa6ad';
+  addParticles(x, y, col, 12, 160); addParticles(x, y, '#3a3a3e', 5, 110);
+  if (golpe){ shake(3, 0.08); sfx('crack'); damageBuilding(b, 15); }
+  for (const h of L) if (Math.abs(h.bx - lx) < r*0.8 && Math.abs(h.by - ly) < r*0.8) return;   // ya estaba abierto
+  if (L.length >= AGUJ_MAX){ L.shift(); b._agCv = null; }
+  // el centro se mete un poco hacia dentro: un mordisco claro en el muro
+  const dx = lx <= 0 ? 1 : lx >= b.w ? -1 : 0, dy = ly <= 0 ? 1 : ly >= b.h ? -1 : 0;
+  L.push({ x: lx + dx*r*0.4, y: ly + dy*r*0.4, bx: lx, by: ly, r, s: (Math.random()*1e9) | 0 });
+}
+// Copia del dibujo del edificio con sus boquetes recortados.
+function edifAgujereado(b, base){
+  if (b._agCv && b._agBase === base && b._agN === b._aguj.length) return b._agCv;
+  let c = b._agCv;
+  if (!c || b._agBase !== base){
+    c = document.createElement('canvas'); c.width = base.width; c.height = base.height;
+    c.getContext('2d').drawImage(base, 0, 0);
+    b._agBase = base; b._agN = 0;
+  }
+  const g = c.getContext('2d');
+  for (let i = b._agN; i < b._aguj.length; i++) cortaBoquete(g, b._aguj[i]);
+  b._agN = b._aguj.length; b._agCv = c;
+  return c;
+}
+function cortaBoquete(g, h){
+  const R = mulberry32(h.s), n = 14, pts = [];
+  for (let i = 0; i < n; i++){ const a = i/n*Math.PI*2, rr = h.r*(0.74 + R()*0.4); pts.push(h.x + Math.cos(a)*rr, h.y + Math.sin(a)*rr*0.92); }
+  const traza = k =>{ g.beginPath(); for (let i = 0; i < n; i++){ const X = h.x + (pts[i*2] - h.x)*k, Y = h.y + (pts[i*2 + 1] - h.y)*k; i ? g.lineTo(X, Y) : g.moveTo(X, Y); } g.closePath(); };
+  g.save(); g.lineJoin = 'round'; g.lineCap = 'round';
+  // alrededor: hollín, grietas y el canto del muro roto (solo sobre el edificio)
+  g.globalCompositeOperation = 'source-atop';
+  g.fillStyle = 'rgba(20,18,16,0.5)'; traza(1.32); g.fill();
+  g.strokeStyle = 'rgba(24,20,18,0.8)'; g.lineWidth = 1.3;
+  for (let i = 0; i < 8; i++){
+    const a = R()*Math.PI*2; let x = h.x + Math.cos(a)*h.r*0.95, y = h.y + Math.sin(a)*h.r*0.95;
+    g.beginPath(); g.moveTo(x, y);
+    for (let k = 0; k < 3; k++){ const d = a + (R() - 0.5)*1.1; x += Math.cos(d)*h.r*0.32; y += Math.sin(d)*h.r*0.32; g.lineTo(x, y); }
+    g.stroke();
+  }
+  g.strokeStyle = '#2a2622'; g.lineWidth = 6; traza(1.04); g.stroke();
+  g.strokeStyle = '#cfc6b4'; g.lineWidth = 3; traza(1.02); g.stroke();       // el canto claro del hormigón
+  // el boquete
+  g.globalCompositeOperation = 'destination-out'; g.fillStyle = '#000'; traza(1); g.fill();
+  // dentro: penumbra (se sigue viendo el interior) y cascotes
+  g.globalCompositeOperation = 'destination-over';
+  for (let i = 0; i < 9; i++){
+    const a = R()*Math.PI*2, d = h.r*(0.3 + R()*0.55), w = 2 + R()*5;
+    g.fillStyle = R() < 0.5 ? '#8a847a' : '#5a5650'; g.fillRect(h.x + Math.cos(a)*d - w/2, h.y + Math.sin(a)*d - w/2, w, w*0.8);
+  }
+  g.fillStyle = 'rgba(0,0,0,0.42)'; traza(1); g.fill();
+  // fierros retorcidos que asoman del borde
+  g.globalCompositeOperation = 'source-over';
+  g.strokeStyle = '#7a4a2a'; g.lineWidth = 1.3;
+  for (let i = 0; i < 4; i++){
+    const k = (R()*n) | 0, x = pts[k*2], y = pts[k*2 + 1], a = Math.atan2(h.y - y, h.x - x) + (R() - 0.5)*0.8, L = h.r*(0.2 + R()*0.25);
+    g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + Math.cos(a)*L*0.6, y + Math.sin(a)*L*0.6 + 2, x + Math.cos(a + 0.4)*L, y + Math.sin(a + 0.4)*L); g.stroke();
+  }
+  g.restore();
+}
+const vilPaso = { edif:null }, vilPasoCompa = { edif:null, x:0, y:0, ok:false };   // el jugador y el compañero en línea
+
 function updateViltrum(dt){
   const volabaAntes = vil.flying;
   // Entrada en escena: baja en picado y al tocar tierra empieza la partida.
@@ -20257,18 +20347,16 @@ function updateViltrum(dt){
     vil.stam = Math.min(vil.maxStam, vil.stam + VIL_STAM_REG*dt);
   }
   if (player.vx) player.facing = player.vx > 0 ? 1 : -1;
+  const x0 = player.x, y0 = player.y;
   player.x = clamp(player.x + player.vx*dt, 30, WORLD_W-30);
   player.y = clamp(player.y + player.vy*dt, 30, WORLD_H-30);
   drawR = lerp(drawR, 22, 0.06);
 
-  if (vil.flying){
-    // Volando embiste: arrasa edificios y lo que lleve delante recibe el golpe.
-    vilSmash(dt);
-  } else {
-    // Si toma tierra dentro de un edificio, se queda dentro (y ve el interior):
-    // ya no se le expulsa, y puede salir por su propio pie.
-    collideBuildings(player, 22, dt, 0, true);
-  }
+  // Volando embiste: arrasa edificios y lo que lleve delante recibe el golpe.
+  if (vil.flying) vilSmash(dt);
+  // Andando o volando, los muros no lo paran: los atraviesa y deja un boquete
+  // donde entra y otro donde sale (dentro ve el interior con rayos X).
+  vilAtraviesa(vilPaso, x0, y0, player.x, player.y, vil.flying ? 32 : 25, true);
 
   // El objeto agarrado va delante si vuela, o en la mano si no.
   if (heldObject && heldObject.ref){
@@ -22590,10 +22678,11 @@ function drawBuildings(){
     ctx.fillRect(s2.x + desX, s2.y + desY, b.w, b.h);
     ctx.globalAlpha = 1;
 
-    const cv = edifCanvas(b, b.stage);
+    const cv0 = edifCanvas(b, b.stage);
+    const cv = cv0 && b._aguj && b._aguj.length ? edifAgujereado(b, cv0) : cv0;   // con los boquetes del viltrumita
     const ruina = b.stage === 1 || esInfierno();
     if (cv){
-      if (ruina) ctx.drawImage(edifInterior(b), s2.x, s2.y);   // asoma por los agujeros
+      if (ruina || cv !== cv0) ctx.drawImage(edifInterior(b), s2.x, s2.y);   // asoma por los agujeros
       ctx.drawImage(cv, s2.x, s2.y);
       if (ruina && b._rotas) llamasVentanas(b, s2);
       if (isVil() && dentroDeEste(b)) drawRayosX(b, s2);
@@ -26141,7 +26230,7 @@ function fichaHeroe(h){
           ['OVNI', 'Tamaño colosal: con click derecho arrancas edificios enteros']],
       m: 'Joystick izquierdo para moverte, derecho para apuntar el tentáculo y el botón de acción: tócalo para agarrar o lanzar y mantenlo para golpear.' },
     viltrum: {
-      desc: 'Soldado viltrumita: no evoluciona, pero vuela. Cruza la ciudad en vuelo sónico y lo revienta todo a puñetazos.',
+      desc: 'Soldado viltrumita: no evoluciona, pero vuela. Cruza la ciudad en vuelo sónico y lo revienta todo a puñetazos. Ningún muro lo para: atraviesa los edificios andando o volando y deja un boquete por donde entra y por donde sale.',
       t: [[mover, 'Moverse'], ['Doble toque', 'Vuelo sónico mientras mantengas la dirección (gasta estamina)'],
           ['Click izq.', 'Puñetazo; mantenido, golpe cargado'], ['Click der.', 'Agarrar lo que tengas cerca y lanzarlo'],
           ['OVNI', 'Visión calórica: dos rayos que atraviesan lo que mires']],
@@ -27041,6 +27130,13 @@ function recibeAvatar(m){
   // sus relámpagos se ven aquí también (solo dibujo)
   relRed.length = 0; if (Array.isArray(m.rl)) for (const r of m.rl.slice(0, 20)) relRed.push(r);
   Online.tipInv = m.tip || { x:m.pl.x, y:m.pl.y };
+  // si el compañero es viltrumita, sus boquetes también se ven aquí (solo el dibujo)
+  if (m.hero === 'viltrum' && isFinite(m.pl.x) && isFinite(m.pl.y)){
+    const st = vilPasoCompa;
+    if (!st.ok){ st.ok = true; st.x = m.pl.x; st.y = m.pl.y; }
+    vilAtraviesa(st, st.x, st.y, m.pl.x, m.pl.y, m.vil && m.vil.flying ? 32 : 25, false);
+    st.x = m.pl.x; st.y = m.pl.y;
+  }
   Online.proxy.x = m.pl.x; Online.proxy.y = m.pl.y;
   Online.proxy.vx = m.pl.vx || 0; Online.proxy.vy = m.pl.vy || 0;
   if (primera) Online.cDib = null;
