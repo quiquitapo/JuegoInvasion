@@ -6104,6 +6104,22 @@ const RAYO_ANCHO = 16;
 const RAYO_DPS   = 260;
 let rayosOn = false;
 
+// Los ojos del viltrumita: la cabeza tal y como la dibuja drawViltrum, de pie
+// (encima del torso, con su flotación) o tumbado al volar (por delante, en el
+// rumbo del vuelo). Los rayos nacen ahí y lo siguen mientras vuela.
+function vilCabeza(){
+  if (vil.flying){
+    const th = Math.atan2(vil.fy, vil.fx), lx = 16.4, ly = vil.fx < 0 ? 0.82 : -0.82;
+    return { x: player.x + lx*Math.cos(th) - ly*Math.sin(th), y: player.y + lx*Math.sin(th) + ly*Math.cos(th) };
+  }
+  return { x: player.x + 0.82*(player.facing || 1), y: player.y - 15.6 + Math.sin(vil.capa*2.4)*2.2 };
+}
+// Hacia dónde miran: con el ratón, de los ojos al puntero (así el haz pasa por
+// él aunque la cabeza vaya adelantada); con joystick o en red, la puntería.
+function vilRayoAng(o){
+  if (_apCompa || (_apRed && esVisorVs()) || aimJoy.active) return aimAngle();
+  return Math.atan2(mouse.y / ZOOM + camY - o.y, mouse.x / ZOOM + camX - o.x);
+}
 function updateRayosOjos(dt){
   // En táctil no hay clic derecho que mantener: mientras dure el regalo, los
   // ojos están encendidos y se apunta con el joystick derecho, el mismo que
@@ -6111,8 +6127,7 @@ function updateRayosOjos(dt){
   if (tactil() && isVil() && buffActivo('rayos') && !heldObject) rayosOn = true;
   if (!rayosOn) return;
   if (!isVil() || !buffActivo('rayos')){ rayosOn = false; return; }
-  const a = aimAngle();
-  const ox = player.x, oy = player.y - 14;
+  const o = vilCabeza(), ox = o.x, oy = o.y, a = vilRayoAng(o);
   for (const pool of [civilians, enemies]){
     for (const t of pool){
       if (t.dead || t.held) continue;
@@ -6144,8 +6159,8 @@ function drawRayosOjos(){
   // Mandando al ejército, el viltrumita es el otro jugador: sus rayos se ven
   // o no según Ajustes. Los tuyos siempre, que hacen falta para apuntar.
   if (esVisorVs() && !verRayosOtro) return;
-  const a = aimAngle();
-  const s2 = S(player.x, player.y - 14);
+  const o = vilCabeza(), a = vilRayoAng(o);
+  const s2 = S(o.x, o.y);
   const fx = s2.x + Math.cos(a)*RAYO_LARGO, fy = s2.y + Math.sin(a)*RAYO_LARGO;
   // separación entre los dos ojos, perpendicular al rayo
   const nx = -Math.sin(a)*4, ny = Math.cos(a)*4;
@@ -22075,7 +22090,7 @@ function lucesJefes(L, k, mx, Mx, my, My, tinta){
   // Los rayos del viltrumita y del dragón alumbran un poco a lo largo del haz:
   // cuatro manchas de luz en el búfer reducido, nada más.
   if (rayosOn && isVil() && buffActivo('rayos')){
-    const a = aimAngle(), ox = player.x, oy = player.y - 14;
+    const o = vilCabeza(), ox = o.x, oy = o.y, a = vilRayoAng(o);
     for (const f of [0.12, 0.4, 0.7, 1]) luz(ox + Math.cos(a)*RAYO_LARGO*f, oy + Math.sin(a)*RAYO_LARGO*f, f === 1 ? 70 : 55, luzRoja, 0.55);
   }
   if (isDra() && dra.rayos){
@@ -24047,7 +24062,7 @@ function lucesDinamicas(luz){
     if (e.dead || e.type !== 'tripode' || e.rayFase !== 'dispara' || e.rayX === undefined) continue;
     const c0 = triCupula(e); for (const f of [0.3, 0.7, 1]) luz(c0.x + (e.rayX - c0.x)*f, c0.y + (e.rayY - c0.y)*f, 100, luzAzul, 0.85);
   }
-  if (rayosOn && isVil()){ const a = aimAngle(); for (const f of [0.3, 0.7]) luz(player.x + Math.cos(a)*RAYO_LARGO*f, player.y - 14 + Math.sin(a)*RAYO_LARGO*f, 80, luzRoja, 0.7); }
+  if (rayosOn && isVil()){ const o = vilCabeza(), a = vilRayoAng(o); for (const f of [0.3, 0.7]) luz(o.x + Math.cos(a)*RAYO_LARGO*f, o.y + Math.sin(a)*RAYO_LARGO*f, 80, luzRoja, 0.7); }
 }
 function drawLucesDia(){
   if (!running && !esVisorVs()) return;
