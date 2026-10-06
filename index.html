@@ -200,6 +200,15 @@
              text-align:center; text-transform:uppercase; }
   .bindkey.listening { background:#3a2a08; border-color:#ffe066; color:#ffe066; }
   .coinbar { margin-top:14px; color:#8fbfa2; font-size:0.7rem; letter-spacing:2px; }
+  /* pantalla completa, en la esquina del menú */
+  .btnfull { position:fixed; top:12px; right:12px; z-index:7; width:40px; height:40px; padding:8px; border-radius:10px;
+             background:rgba(8,14,10,0.8); border:2px solid #2f4a38; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+  .btnfull:hover { border-color:#7bffa0; box-shadow:0 0 10px rgba(123,255,160,0.4); }
+  .btnfull:active { transform:scale(0.92); }
+  .btnfull svg { width:100%; height:100%; fill:none; stroke:#7bffa0; stroke-width:2.6; stroke-linecap:round; stroke-linejoin:round; }
+  .btnfull .ico-cerrar, .btnfull.on .ico-abrir { display:none; }
+  .btnfull.on .ico-cerrar { display:block; }
+  .btnfull.nohay { display:none; }
   .coinbar b { color:#ffe066; font-size:0.95rem; }
   .coinbar.big { margin:0 0 10px; font-size:0.8rem; }
   .shopmsg { color:#ffe066; font-size:0.7rem; min-height:16px; opacity:0; transition:opacity .3s ease; letter-spacing:1px; }
@@ -1119,6 +1128,10 @@
   </div>
 
   <div id="menu" class="overlay hidden">
+    <button type="button" class="btnfull" id="btnMenuFull" aria-label="Pantalla completa" title="Pantalla completa">
+      <svg class="ico-abrir" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9V3h6M15 3h6v6M21 15v6h-6M9 21H3v-6"/></svg>
+      <svg class="ico-cerrar" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3v6H3M21 9h-6V3M15 21v-6h6M3 15h6v6"/></svg>
+    </button>
     <img id="gamelogo" class="gamelogo" alt="Invasión">
     <div class="subtitle" id="menuLema">La ciudad es tuya. Devórala.</div>
     <div class="panel">
@@ -25510,9 +25523,17 @@ function alternarPantallaCompleta(){
   setTimeout(()=>{ resize(); refreshFullUI(); }, 260);
 }
 function refreshFullUI(){
+  const on = enPantallaCompleta();
+  const bm = document.getElementById('btnMenuFull');
+  if (bm){
+    const el = document.documentElement;
+    bm.classList.toggle('nohay', !(el.requestFullscreen || el.webkitRequestFullscreen));   // el iPhone no la permite
+    bm.classList.toggle('on', on);
+    bm.title = on ? 'Salir de pantalla completa' : 'Pantalla completa';
+    bm.setAttribute('aria-label', bm.title);
+  }
   const b = document.getElementById('tgFull');
   if (!b) return;
-  const on = enPantallaCompleta();
   b.textContent = on ? 'SALIR' : 'ACTIVAR';
   b.classList.toggle('off', !on);
 }
@@ -25775,6 +25796,8 @@ for (const [id, v] of [['uiEdMaq', 'maquina'], ['uiEdMag', 'mago']]){
 }
 const _tgFull = document.getElementById('tgFull');
 if (_tgFull) _tgFull.addEventListener('click', ()=>{ alternarPantallaCompleta(); sfx('ui'); });
+document.getElementById('btnMenuFull').addEventListener('click', ()=>{ resumeAudio(); alternarPantallaCompleta(); sfx('ui'); });
+refreshFullUI();
 document.addEventListener('fullscreenchange', ()=>{ resize(); refreshFullUI(); });
 document.addEventListener('webkitfullscreenchange', ()=>{ resize(); refreshFullUI(); });
 const _edV = document.getElementById('uiEdVert');
