@@ -10608,7 +10608,7 @@ window.addEventListener('keydown', e=>{
     const dir = dirOfKey(k);
     if (dir){
       const ahora = performance.now()/1000;
-      if (vil.tapKey === dir && ahora - vil.tapT < VIL_DBL_TAP && vil.stam > 6){
+      if (vil.tapKey === dir && ahora - vil.tapT < VIL_DBL_TAP && vil.stam > 6 && !congelado() && !paralizado()){
         vil.flying = true; vil.flyDir = dir; vil.joyFly = false;
         const v = DIRV[dir];
         vil.fx = v[0]; vil.fy = v[1];
@@ -11399,7 +11399,7 @@ function updateDragon(dt){
   }
   if (moveJoy.active){
     const m = Math.hypot(moveJoy.dx, moveJoy.dy);
-    if (!vil.flying && m >= VIL_JOY_ON && vil.stam > 6){
+    if (!vil.flying && m >= VIL_JOY_ON && vil.stam > 6 && !congelado() && !paralizado()){
       vil.flying = true; vil.flyDir = ''; vil.joyFly = true;
       vil.fx = moveJoy.dx/m; vil.fy = moveJoy.dy/m;
       draDespega();
@@ -20056,6 +20056,20 @@ function updateRam(dt){
 function updatePlayer(dt){
   if (Online.caidoYo && esDoble()) return;
   if (vil.caida){ updateCaida(dt); return; }
+  // Congelado se queda clavado en el sitio, sea quien sea: sin seguir volando
+  // (el vuelo del joystick lo mantenía en marcha) ni deslizarse por la inercia.
+  // Lo demás de cada personaje (cargas, estamina, rayos...) sigue su curso.
+  if (congelado() && !vil.intro){
+    const x0 = player.x, y0 = player.y;
+    if (vil.flying){ vil.flying = false; vil.joyFly = false; }
+    updatePlayerLibre(dt);
+    player.x = x0; player.y = y0; player.vx = 0; player.vy = 0;
+    if (vil.flying){ vil.flying = false; vil.joyFly = false; }
+    return;
+  }
+  updatePlayerLibre(dt);
+}
+function updatePlayerLibre(dt){
   if (isVil()) return updateViltrum(dt);
   if (isDra()) return updateDragon(dt);
   if (isMaq()) return updateMaquina(dt);
@@ -20409,7 +20423,7 @@ function updateViltrum(dt){
   // salir, así no parpadea al vibrar el dedo.
   if (moveJoy.active){
     const m = Math.sqrt(moveJoy.dx*moveJoy.dx + moveJoy.dy*moveJoy.dy);
-    if (!vil.flying && m >= VIL_JOY_ON && vil.stam > 6){
+    if (!vil.flying && m >= VIL_JOY_ON && vil.stam > 6 && !congelado() && !paralizado()){
       vil.flying = true; vil.flyDir = '';        // lo gobierna el joystick
       vil.joyFly = true;
       vil.fx = moveJoy.dx/m; vil.fy = moveJoy.dy/m;
