@@ -766,11 +766,20 @@
     0%   { transform:scale(1.22); box-shadow:0 0 26px var(--cc); }
     100% { transform:scale(1);    box-shadow:0 0 14px rgba(0,0,0,0.5); }
   }
-  #toast { position:absolute; top:34%; left:50%; transform:translateX(-50%); z-index:9; pointer-events:none;
-           width:max-content; max-width:92vw;
+  /* el título de los avisos y, debajo, la explicación del regalo del OVNI:
+     van en una columna para que la explicación quede siempre bajo el título */
+  #toastCaja { position:absolute; top:34%; left:50%; transform:translateX(-50%); z-index:9; pointer-events:none;
+               width:max-content; max-width:92vw; display:flex; flex-direction:column; align-items:center; }
+  #toast { position:relative; max-width:92vw;
            color:#7bffa0; font-size:clamp(1.2rem,4vw,2.2rem); font-weight:900; letter-spacing:4px;
            text-shadow:0 0 18px #23ff6b, 2px 2px 0 #052b12; opacity:0; transition:opacity .4s ease; text-align:center; }
   /* segunda línea de un aviso ("TÍTULO\nexplicación"), más pequeña */
+  #avisoRegalo { margin-top:8px; padding:6px 14px; border-radius:9px; max-width:88vw; text-align:center;
+                 font-size:clamp(0.78rem,2.8vw,1.05rem); font-weight:800; letter-spacing:2px; color:#eafff0;
+                 background:rgba(4,26,12,0.72); border:1px solid rgba(123,255,160,0.6); box-shadow:0 0 14px rgba(35,255,107,0.35);
+                 text-shadow:0 0 8px #23ff6b; opacity:0; transition:opacity .4s ease; }
+  #avisoRegalo.ver { opacity:1; }
+  #avisoRegalo b { color:#ffe07a; }
   #toast .sub { display:block; margin-top:6px; font-size:0.48em; letter-spacing:2px; color:#eafff0;
                 text-shadow:0 0 10px #23ff6b, 1px 1px 0 #052b12; }
 
@@ -991,7 +1000,7 @@
     </div>
     <div class="combobar"><div id="combofill"></div></div>
   </div>
-  <div id="toast"></div>
+  <div id="toastCaja"><div id="toast"></div><div id="avisoRegalo"></div></div>
   <div id="tutPanel" class="hidden"></div>
   <div id="achtoast"></div>
 
@@ -1036,7 +1045,7 @@
     </div>
     <div class="actbtn maqbtn" id="btnIncinera">
       <span class="actlabel">INCINERAR</span>
-      <span class="acthint" id="maqIncHint">área</span>
+      <span class="acthint" id="maqIncHint">mantén, apunta, suelta</span>
     </div>
     <!-- solo con el mago -->
     <div class="actbtn magbtn" id="btnRayoMag">
@@ -5886,6 +5895,18 @@ function explode(x, y, radius, dmg, big, hurtPlayer){
 function explodeSmall(x,y){ explode(x,y,86,45,false); }
 
 let toastTimer = 0;
+// La explicación del regalo de la cría va en su propio rótulo, bajo el título:
+// así ningún otro aviso (una evolución, un combo...) la tapa antes de leerla.
+let avisoRegaloT = 0;
+function avisoRegalo(html, dur){
+  const el = document.getElementById('avisoRegalo'); if (!el) return;
+  el.innerHTML = html; el.classList.add('ver');
+  avisoRegaloT = dur || 7;
+}
+function quitaAvisoRegalo(){
+  avisoRegaloT = 0;
+  const el = document.getElementById('avisoRegalo'); if (el) el.classList.remove('ver');
+}
 function toast(msg, dur){
   if (_fxRed) _fxRed.push(dur ? ['t', msg, dur] : ['t', msg]);
   const el = document.getElementById('toast');
@@ -6374,8 +6395,9 @@ function ovniRecompensa(){
     buffTipo = 'gigante';
     unlockAch('colosal');
     updateZoom(0);
-    toast('¡COLOSAL! AHORA LEVANTAS EDIFICIOS\n' + (tactil() ? 'BOTÓN DE ACCIÓN' : 'CLIC DERECHO') +
-          ': AGARRAS Y TIRAS EDIFICIOS', 4);
+    toast('¡COLOSAL! AHORA LEVANTAS EDIFICIOS', 4);
+    // en Doble Invasión el invitado no puede arrancarlos (lo hace el anfitrión)
+    if (!dobleInv()) avisoRegalo('Ahora agarras edificios con <b>' + (tactil() ? 'el botón de acción' : 'clic derecho') + '</b> y los tiras', 7);
   }
   sfx('coin');
   addParticles(player.x, player.y, '#7bffa0', 26, 220);
@@ -9978,10 +10000,10 @@ function maqDemo(t){
   } else if (w === 3){                                       // un cohete
     const d = u - 0.8;
     if (d >= 0){ st.ret = Math.max(0, 1.6 - d*8); st.fogon = d < 0.1 ? 0.1 - d : 0; }
-  } else {                                                   // incineración
-    if (u >= 0.3 && u < 0.3 + MAQ_INC_CARGA) st.carga = Math.max(0.05, (u - 0.3)/MAQ_INC_CARGA);
-    const d = u - 0.3 - MAQ_INC_CARGA;
-    if (d >= 0 && d < 0.5) st.nova = 0.5 - d;
+  } else {                                                   // incineración: apunta y suelta la llamarada
+    st.a = -0.06;
+    if (u >= 0.3 && u < 1.0){ const k = Math.min(1, (u - 0.3)/0.4); st.carga = Math.max(0.05, k*0.8); st.apuntaZ = k; }
+    else if (u >= 1.0 && u < 1.8){ st.carga = 1; st.llama = Math.min(1, (u - 1.0)/0.2)*(u > 1.6 ? (1.8 - u)/0.2 : 1); st.nova = Math.max(0, 0.35 - (u - 1.0)); }
   }
   return st;
 }
@@ -10894,6 +10916,8 @@ window.addEventListener('keyup', e=>{
   if (isDra() && (k === binds.draCola || antes === binds.draCola)){
     if (running) draColaSuelta(); else dra.colaApunta = false;      // en pausa no embiste
   }
+  // la máquina lanza la incineración al soltar Z
+  if (isMaq() && (k === binds.draAle || antes === binds.draAle)) maqIncineraSuelta(!running);
   // la máquina salta con las motosierras al soltar C
   if (isMaq() && (k === binds.draCola || antes === binds.draCola)){
     if (running) maqSierraSuelta(); else maq.sierraApunta = false;
@@ -17291,10 +17315,9 @@ function updateProyJ(dt){
       if (p.t <= 0) proyJ.splice(i, 1);
       continue;
     }
-    if (p.k === 'nova'){                           // la ola de la incineración
-      const k = 1 - clamp(p.t / p.max, 0, 1);
-      if (p.t <= 0){ proyJ.splice(i, 1); maqNovaFin(p); }
-      else maqNova(p, p.R*(1 - (1 - k)*(1 - k)));
+    if (p.k === 'llama'){                          // la llamarada de la incineración
+      if (p.t <= 0){ proyJ.splice(i, 1); maqLlamaFin(p); }
+      else maqLlama(p, p.L*Math.min(1, (p.max - p.t)/MAQ_INC_FRENTE));
       continue;
     }
     if (p.k === 'onda'){                           // onda de la espada de plasma
@@ -17367,35 +17390,23 @@ function drawProyJ(lista){
       ctx.beginPath(); ctx.moveTo(W*0.28, -W*0.85); ctx.quadraticCurveTo(-W*1.4, 0, W*0.28, W*0.85);
       ctx.quadraticCurveTo(-W*0.25, 0, W*0.28, -W*0.85); ctx.fill();
       ctx.restore(); ctx.globalAlpha = 1;
-    } else if (p.k === 'nova'){
-      // la ola de fuego de la incineración: suelo al rojo y un frente de llamas
-      const k = 1 - clamp(p.t / p.max, 0, 1), r = p.R*(1 - (1 - k)*(1 - k)), vida = 1 - k*0.55;
-      if (r > 2){
-        ctx.save();
-        const gr = ctx.createRadialGradient(s.x, s.y, r*0.05, s.x, s.y, r);
-        gr.addColorStop(0, 'rgba(255,240,200,' + (0.4*(1 - k)).toFixed(3) + ')');
-        gr.addColorStop(0.55, 'rgba(255,110,30,' + (0.22*vida).toFixed(3) + ')');
-        gr.addColorStop(0.9, 'rgba(255,70,20,' + (0.55*vida).toFixed(3) + ')');
-        gr.addColorStop(1, 'rgba(255,60,10,0)');
-        ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(s.x, s.y, r, 0, Math.PI*2); ctx.fill();
-        ctx.globalCompositeOperation = 'lighter';
-        const N = 30;
-        for (let i = 0; i < N; i++){                                       // lenguas de fuego hacia fuera
-          const a = p.giro + i/N*Math.PI*2, h = (16 + 12*Math.sin(gameTime*31 + i*1.7))*(p.sob ? 1.3 : 1)*vida;
-          const ca = Math.cos(a), sa = Math.sin(a), da = 0.09;
-          ctx.globalAlpha = 0.55*vida; ctx.fillStyle = i % 3 ? '#ff6a1f' : '#ffb03a';
-          ctx.beginPath();
-          ctx.moveTo(s.x + Math.cos(a - da)*r*0.94, s.y + Math.sin(a - da)*r*0.94);
-          ctx.lineTo(s.x + ca*(r + h), s.y + sa*(r + h) - h*0.4);
-          ctx.lineTo(s.x + Math.cos(a + da)*r*0.94, s.y + Math.sin(a + da)*r*0.94);
-          ctx.closePath(); ctx.fill();
-        }
-        ctx.globalAlpha = 0.8*vida; ctx.strokeStyle = '#ffb03a'; ctx.lineWidth = 9;
-        ctx.beginPath(); ctx.arc(s.x, s.y, r*0.97, 0, Math.PI*2); ctx.stroke();
-        ctx.globalAlpha = vida; ctx.strokeStyle = '#fff3d0'; ctx.lineWidth = 2.5;
-        ctx.beginPath(); ctx.arc(s.x, s.y, r*0.97, 0, Math.PI*2); ctx.stroke();
-        ctx.restore();
+    } else if (p.k === 'llama'){
+      // la llamarada de la incineración: capas de rojo a blanco, como la del
+      // tanque de fuego; avanza hasta el fondo y se apaga al final
+      const f = Math.min(1, (p.max - p.t)/MAQ_INC_FRENTE), L = p.L*(0.12 + 0.88*f), vida = p.t < 0.22 ? p.t/0.22 : 1;
+      ctx.save(); ctx.globalAlpha = vida;
+      const capas = [[1.00, 1.00, p.sob ? 'rgba(255,120,20,0.55)' : 'rgba(196,40,10,0.55)'], [0.92, 0.78, 'rgba(255,110,25,0.70)'],
+                     [0.74, 0.52, 'rgba(255,180,50,0.85)'], [0.46, 0.28, 'rgba(255,246,205,0.95)']];
+      for (const [fl, fs, col] of capas){ conePath(s.x, s.y, p.a, L*fl, p.sp*fs, true); ctx.fillStyle = col; ctx.fill(); }
+      ctx.strokeStyle = 'rgba(255,150,40,0.75)'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+      for (let i = 0; i < 5; i++){                                         // lenguas sueltas
+        const a = p.a - p.sp + 2*p.sp*((i + 0.5)/5) + Math.sin(gameTime*11 + i)*0.05;
+        const d0 = L*0.55, d1 = L*(0.92 + Math.sin(gameTime*13 + i*2.1)*0.08);
+        ctx.beginPath(); ctx.moveTo(s.x + Math.cos(a)*d0, s.y + Math.sin(a)*d0); ctx.lineTo(s.x + Math.cos(a)*d1, s.y + Math.sin(a)*d1); ctx.stroke();
       }
+      ctx.globalAlpha = vida*(0.55 + Math.sin(gameTime*20)*0.25); ctx.fillStyle = '#fff3c4';
+      ctx.beginPath(); ctx.arc(s.x + Math.cos(p.a)*22, s.y + Math.sin(p.a)*22, 12, 0, Math.PI*2); ctx.fill();
+      ctx.restore();
     } else if (p.k === 'cohete'){
       const a = Math.atan2(p.vy, p.vx);
       ctx.save(); ctx.translate(s.x, s.y); ctx.rotate(a);
@@ -17481,7 +17492,8 @@ function drawProyJ(lista){
 //   mantener W (o cualquier dirección) -> acelera poco a poco hasta un tope
 //   clic        -> usa el arma elegida (mantenido, sigue atacando)
 //   clic der.   -> cambia de arma: espada de plasma -> ráfaga -> escopeta -> lanzacohetes
-//   Z           -> incineración: se planta, carga y lo calcina todo a su alrededor
+//   mantener Z  -> incineración: apunta una llamarada larga hacia la mira y, al
+//                  soltar, la lanza y calcina todo lo que haya en el cono
 //   mantener C  -> brazos-motosierra: marca una zona y, al soltar, salta sobre ella
 // Cada baja le devuelve mucha vida y le deja un rato regenerándose.
 // Regalo del OVNI: sobrecarga. Todo pega más y mejor, y un escudo convierte
@@ -17506,9 +17518,15 @@ const MAQ_RAF_MULT = 2.4, MAQ_RAF_ABRE = 0.07;
 const MAQ_ESC_N = 10, MAQ_ESC_ABRE = 0.22, MAQ_ESC_V = 1150, MAQ_ESC_T = 0.17, MAQ_ESC_DMG = 17,
       MAQ_ESC_CD = 0.95, MAQ_ESC_EMP = 240;
 const MAQ_COH_V = 720, MAQ_COH_CD = 0.8, MAQ_COH_R = 96, MAQ_COH_DMG = 80, MAQ_COH_MAX = 640;
-// Incineración (Z): se planta, las alas se ponen al rojo y suelta una ola de
-// fuego que crece a su alrededor y calcina todo lo que alcanza. Tarda en volver.
-const MAQ_INC_CARGA = 0.45, MAQ_INC_R = 270, MAQ_INC_DMG = 160, MAQ_INC_CD = 14, MAQ_INC_EXP = 0.5;
+// Incineración (Z): mientras se mantiene, marca en el suelo un cono largo hacia
+// la mira (como el del tanque de fuego) y las alas se ponen al rojo; al soltar,
+// se planta y lanza la llamarada, que avanza hasta el fondo del cono y calcina
+// todo lo que alcanza. Tarda en volver.
+const MAQ_INC_L = 470, MAQ_INC_ABRE = 0.36, MAQ_INC_DMG = 170, MAQ_INC_CD = 11, MAQ_INC_T = 0.8, MAQ_INC_FRENTE = 0.25;
+function maqIncDatos(){                       // largo, medio ángulo y daño (más con la sobrecarga)
+  const sob = maqSob();
+  return { L: MAQ_INC_L*(sob ? 1.2 : 1), sp: MAQ_INC_ABRE*(sob ? 1.15 : 1), dmg: MAQ_INC_DMG*(sob ? MAQ_SOB : 1), sob };
+}
 const MAQ_APUNTA = 440;                       // hasta dónde llega la mira (salvo los cohetes)
 const MAQ_SIE_MIN = 90, MAQ_SIE_MAX = 360, MAQ_SIE_R = 96, MAQ_SIE_VEL = 1050, MAQ_SIE_T = 0.6,
       MAQ_SIE_TICK = 0.1, MAQ_SIE_DMG = 30, MAQ_SIE_CD = 2.0;
@@ -17524,7 +17542,7 @@ const MAQ_SIE_PASO = 45;                      // lo que arrollan las motosierras
 let maqGolpeados = null;
 const MAQ_ESCUDO = 160;                       // cuánto daño convierte en vida el escudo
 const maq = { arma:0, gatillo:false, pulso:false, rafN:0, rafT:0, rafDmg:MAQ_BALA_DMG, disCd:0, mirA:0,
-              incFase:'', incT:0, incCarga:0, incCd:0, novaT:0, escT:0, plasmaT:0,
+              incFase:'', incT:0, incCarga:0, incCd:0, incA:0, novaT:0, escT:0, plasmaT:0,
               impulso:0, rumbo:0, paso:0, regenT:0, escudo:0, retroceso:0, fogon:0,
               sierraApunta:false, sierraA:0, sierraL:180, sierraFase:'', sierraT:0, sierraX:0, sierraY:0,
               sierraTick:0, sierraCd:0, armaT:0, hachaT:0, hachaLado:1 };
@@ -17536,7 +17554,7 @@ function maqReset(){
   maq.retroceso = 0; maq.fogon = 0; maq.hachaT = 0; maq.hachaLado = 1;
 }
 function maqSob(){ return buffActivo('sobrecarga'); }
-function maqApunta(){ return apuntaHeroe(['disparo', 'sierra'], -18, maq.arma === 3 ? MAQ_COH_MAX : MAQ_APUNTA, 560); }
+function maqApunta(){ return apuntaHeroe(['disparo', 'sierra', 'incinera'], -18, maq.arma === 3 ? MAQ_COH_MAX : MAQ_APUNTA, 560); }
 // Boca del arma, en el mundo.
 function maqBoca(a){
   const f = Math.cos(a) >= 0 ? 1 : -1;
@@ -17735,80 +17753,102 @@ function maqEscopetazo(ap){
   sfx('escopeta');
 }
 // ---- incineración (Z) ----
+// Al pulsar empieza a apuntar; al soltar, la lanza (cancelado: no la lanza).
 function maqIncinera(){
   if (vil.intro || maq.incFase || maq.sierraFase) return;
   if (maq.incCd > 0){ sfx('deny'); toast('INCINERACIÓN: ' + Math.ceil(maq.incCd) + ' s'); return; }
-  maq.incFase = 'carga'; maq.incT = MAQ_INC_CARGA; maq.incCarga = 0;
+  maq.incFase = 'apunta'; maq.incCarga = 0; maq.incA = maq.mirA;
   sfx('cargaInc');
 }
-function maqIncineraSuelta(){
-  const sob = maqSob();
-  maq.incFase = ''; maq.incCarga = 0; maq.novaT = 0.5;
-  maq.incCd = MAQ_INC_CD*(sob ? 0.6 : 1);
+function maqIncineraSuelta(cancelado){
+  if (maq.incFase !== 'apunta') return;
+  if (cancelado){ maq.incFase = ''; maq.incCarga = 0; return; }
+  const D = maqIncDatos();
+  maq.incFase = 'fuego'; maq.incT = MAQ_INC_T; maq.incCarga = 1; maq.novaT = 0.35;
+  maq.incCd = MAQ_INC_CD*(D.sob ? 0.6 : 1);
   tutEv('incinera');
-  proyJ.push({ k:'nova', x:player.x, y:player.y, t:MAQ_INC_EXP, max:MAQ_INC_EXP, R: MAQ_INC_R*(sob ? 1.25 : 1),
-               dmg: MAQ_INC_DMG*(sob ? MAQ_SOB : 1), sob: sob ? 1 : 0, giro: Math.random()*6.28 });
-  addParticles(player.x, player.y - 10, '#fff0c0', 18, 260);
-  addParticles(player.x, player.y, '#ff5a1f', 22, 320);
-  shake(14, 0.4);
+  const ox = player.x, oy = player.y - 14, a = maq.incA;
+  // los edificios que puede tocar el cono, apartados una vez: luego solo se miran esos
+  const edif = buildings.filter(b => b.stage < 2 && b.x < ox + D.L && b.x + b.w > ox - D.L && b.y < oy + D.L && b.y + b.h > oy - D.L);
+  proyJ.push({ k:'llama', x:ox, y:oy, a, L:D.L, sp:D.sp, t:MAQ_INC_T, max:MAQ_INC_T, dmg:D.dmg, sob: D.sob ? 1 : 0, _edif: edif });
+  addParticles(ox + Math.cos(a)*20, oy + Math.sin(a)*20, '#fff0c0', 14, 220);
+  shake(12, 0.35);
   sfx('incineraZ');
 }
-// La ola de fuego crece desde el sitio donde se plantó: todo lo que va
+// La llamarada avanza desde la máquina hasta el fondo del cono: todo lo que va
 // alcanzando se calcina (a cada cosa, una sola vez).
-function maqNova(p, r){
+function maqLlama(p, L){
   const hit = p._hit || (p._hit = new Set());
+  const ca = Math.cos(p.a), sa = Math.sin(p.a);
+  const enCono = (x, y, r)=>{
+    const dx = x - p.x, dy = y - p.y, d = Math.hypot(dx, dy);
+    if (d - r > L) return false;
+    if (d < 22 + r) return true;
+    if (dx*ca + dy*sa <= 0) return false;                         // por detrás
+    let da = Math.abs(Math.atan2(dy, dx) - p.a); if (da > Math.PI) da = Math.PI*2 - da;
+    return da <= p.sp + Math.atan2(r, d);
+  };
   for (const pool of [civilians, enemies]){
     for (const t of pool){
-      if (t.dead || t.held || hit.has(t) || Math.abs(t.x - p.x) > r + 60) continue;
-      if (distCuerpo(p.x, p.y, t) > r) continue;
+      if (t.dead || t.held || hit.has(t)) continue;
+      if (Math.abs(t.x - p.x) > L + 80 || Math.abs(t.y - p.y) > L + 80) continue;   // descarte barato
+      const b = cajaCuerpo(t) ? puntoCuerpo(t, p.x, p.y) : { x: t.x, y: t.y - alturaVisible(t) };
+      if (!enCono(b.x, b.y, 12)) continue;
       hit.add(t);
       const jf = JEFES[t.type] ? 0.6 : 1;
-      porJugador(()=> damageEnemy(t, p.dmg*jf, t.x, t.y - alturaVisible(t)));
-      addParticles(t.x, t.y - 10, Math.random() < 0.5 ? '#ff5a1f' : '#ffb03a', 6, 140);
+      porJugador(()=> damageEnemy(t, p.dmg*jf, b.x, b.y));
+      addParticles(b.x, b.y - 6, Math.random() < 0.5 ? '#ff5a1f' : '#ffb03a', 6, 140);
       if (!t.dead && t.person){
-        const a2 = Math.atan2(t.y - p.y, t.x - p.x);
-        t.stunT = Math.max(t.stunT || 0, 0.7); t.stunVx = Math.cos(a2)*260; t.stunVy = Math.sin(a2)*260;
+        t.stunT = Math.max(t.stunT || 0, 0.6); t.stunVx = ca*220; t.stunVy = sa*220;
       }
     }
   }
   for (const c of cars){
-    if (c.dead || c.held || hit.has(c) || dist(c.x, c.y, p.x, p.y) > r + 14) continue;
+    if (c.dead || c.held || hit.has(c) || !enCono(c.x, c.y, 18)) continue;
     hit.add(c); danaAuto(c, p.dmg*2);
     addParticles(c.x, c.y, '#ff8a2b', 8, 150);
   }
   for (const pool of [trees, benches, trash, lamps]){
     for (const pr of pool){
-      if (pr.dead || pr.held || pr.thrown || dist(pr.x, pr.y, p.x, p.y) > r) continue;
+      if (pr.dead || pr.held || pr.thrown || !enCono(pr.x, pr.y, 6)) continue;
       porJugador(()=> propAbatido(pr));
       addParticles(pr.x, pr.y, '#ff8a2b', 6, 110);
     }
   }
-  for (const b of buildings){
+  // edificios: unos pocos puntos del cono (ya alcanzados) contra los apartados
+  const edif = p._edif || buildings;
+  for (const b of edif){
     if (b.stage >= 2 || hit.has(b)) continue;
-    const cx = clamp(p.x, b.x, b.x + b.w), cy = clamp(p.y, b.y, b.y + b.h);
-    if (dist(p.x, p.y, cx, cy) > r) continue;
+    let toca = false;
+    for (let d = 30; d <= L && !toca; d += 35){
+      for (const f of [-0.75, 0, 0.75]){
+        const a = p.a + f*p.sp, x = p.x + Math.cos(a)*d, y = p.y + Math.sin(a)*d;
+        if (x > b.x && x < b.x + b.w && y > b.y && y < b.y + b.h){ toca = true; break; }
+      }
+    }
+    if (!toca) continue;
     hit.add(b); porJugador(()=> damageBuilding(b, p.dmg*1.5));
-    addParticles(cx, cy, '#ff8a2b', 8, 130);
+    addParticles(clamp(p.x + ca*L*0.6, b.x, b.x + b.w), clamp(p.y + sa*L*0.6, b.y, b.y + b.h), '#ff8a2b', 8, 130);
   }
-  // lenguas de fuego por el frente de la ola
-  for (let k = 0; k < 4; k++){
-    const a = Math.random()*Math.PI*2;
-    addParticles(p.x + Math.cos(a)*r, p.y + Math.sin(a)*r, k % 2 ? '#ffb03a' : '#ff4a1a', 1, 90);
+  // chispas en el frente de la llamarada
+  for (let k = 0; k < 3; k++){
+    const a = p.a + rand(-p.sp, p.sp), d = L*rand(0.75, 1);
+    addParticles(p.x + Math.cos(a)*d, p.y + Math.sin(a)*d, k % 2 ? '#ffb03a' : '#ff4a1a', 1, 90);
   }
 }
-// Al apagarse la ola, el suelo queda ardiendo.
-function maqNovaFin(p){
-  maqNova(p, p.R);
-  fuegoPropio(p.x, p.y, 64, 3.5);
-  for (let i = 0; i < 6; i++){
-    const a = p.giro + i*Math.PI/3;
-    fuegoPropio(p.x + Math.cos(a)*p.R*0.55, p.y + Math.sin(a)*p.R*0.55, 50*(p.sob ? 1.2 : 1), 3.2);
+// Al apagarse, el suelo del cono queda ardiendo.
+function maqLlamaFin(p){
+  maqLlama(p, p.L);
+  const r = 48*(p.sob ? 1.2 : 1);
+  for (const [f, lado] of [[0.28, 0], [0.52, 0], [0.78, 0], [0.7, 0.6], [0.7, -0.6], [0.95, 0.35], [0.95, -0.35]]){
+    const a = p.a + lado*p.sp;
+    fuegoPropio(p.x + Math.cos(a)*p.L*f, p.y + 14 + Math.sin(a)*p.L*f, r, 3.2);
   }
-  for (let i = 0; i < 6; i++) addSmoke(p.x + rand(-p.R*0.6, p.R*0.6), p.y + rand(-p.R*0.6, p.R*0.6));
+  for (let i = 0; i < 4; i++){ const f = rand(0.3, 0.95); addSmoke(p.x + Math.cos(p.a)*p.L*f, p.y + Math.sin(p.a)*p.L*f); }
 }
 // ---- motosierras ----
 function maqSierraApunta(){
-  if (vil.intro || maq.sierraFase) return;
+  if (vil.intro || maq.sierraFase || maq.incFase === 'fuego') return;
   maq.sierraApunta = true;
   sfx('sierra');
 }
@@ -17913,11 +17953,12 @@ function updateMaquina(dt){
   const ap = maqApunta();
   maq.mirA = ap.a;
   // ---- incineración: se planta, las alas se ponen al rojo y suelta la ola ----
-  if (maq.incFase === 'carga'){
-    maq.incT -= dt; maq.incCarga = clamp(1 - maq.incT/MAQ_INC_CARGA, 0, 1);
-    maq.impulso = 0;
-    if (Math.random() < 0.8) addParticles(player.x + rand(-16, 16), player.y - rand(4, 36), Math.random() < 0.5 ? '#ff5a1f' : '#ffb03a', 1, 90);
-    if (maq.incT <= 0) maqIncineraSuelta();
+  if (maq.incFase === 'apunta'){                 // el cono sigue a la mira mientras se mantiene
+    maq.incA = ap.a; maq.incCarga = Math.min(1, maq.incCarga + dt*2.5);
+    if (Math.random() < 0.4) addParticles(player.x + rand(-14, 14), player.y - rand(8, 34), Math.random() < 0.5 ? '#ff5a1f' : '#ffb03a', 1, 70);
+  } else if (maq.incFase === 'fuego'){           // plantada mientras sale la llamarada
+    maq.incT -= dt; maq.impulso = 0; maq.mirA = maq.incA;
+    if (maq.incT <= 0){ maq.incFase = ''; maq.incCarga = 0; }
   }
 
   // ---- salto y giro de las motosierras ----
@@ -17949,7 +17990,7 @@ function updateMaquina(dt){
 
   // ---- movimiento: cuanto más tiempo sigue en la misma dirección, más corre ----
   let dx = 0, dy = 0, mag = 1, joy = false;
-  if (maq.incFase){ /* plantada mientras carga la incineración */ }
+  if (maq.incFase === 'fuego'){ /* plantada mientras sale la llamarada */ }
   else if (moveJoy.active && !paralizado() && !congelado()){ dx = moveJoy.dx; dy = moveJoy.dy; mag = clamp(Math.hypot(dx, dy), 0, 1); joy = true; }
   else if (!paralizado() && !congelado()){
     if (pressed('up'))    dy -= 1;
@@ -18154,7 +18195,7 @@ function drawMaquina(){
     hacha: maq.hachaT, lado: maq.hachaLado, corta: maq.corta || 0, plasma: maq.plasmaT || 0, canon: maq.giraCanon || 0,
     vel: Math.hypot(player.vx || 0, player.vy || 0), imp: maq.impulso,
     sierras: maq.sierraApunta || !!maq.sierraFase, giro: maq.sierraFase === 'giro', salto: maq.sierraFase === 'salto',
-    ret: maq.retroceso, fogon: maq.fogon, carga: maq.incFase ? Math.max(0.05, maq.incCarga) : 0, nova: maq.novaT || 0,
+    ret: maq.retroceso, fogon: maq.fogon, carga: maq.incFase === 'fuego' ? 1 : maq.incFase ? Math.max(0.05, maq.incCarga*0.8) : 0, nova: maq.novaT || 0,
     esc: maq.escT || 0, sob: buffActivo('sobrecarga'), escudo: maq.escudo,
     intro: !!vil.intro, pal: maqPaleta()
   });
@@ -18442,6 +18483,21 @@ function dibujaMaquina(g, x, y, esc, st){
     }
     g.restore();
   }
+  // la incineración en pequeño (solo en el holograma: en partida el cono se
+  // dibuja en el suelo, a tamaño real)
+  if (st.apuntaZ > 0 || st.llama > 0){
+    const aZ = Math.atan2(Math.sin(st.a), Math.cos(st.a)*f) - inclina, ox = hx + 8, oy = hyA + 2, L = 64, sp = 0.36;
+    const cono = (l, w)=>{ g.beginPath(); g.moveTo(ox, oy); for (let i = 0; i <= 6; i++){ const a = aZ - w + 2*w*i/6; g.lineTo(ox + Math.cos(a)*l, oy + Math.sin(a)*l); } g.closePath(); };
+    if (st.llama > 0){
+      for (const [fl, fs, col] of [[1, 1, 'rgba(196,40,10,0.6)'], [0.9, 0.75, 'rgba(255,110,25,0.75)'], [0.7, 0.5, 'rgba(255,180,50,0.9)'], [0.42, 0.26, 'rgba(255,246,205,0.95)']]){
+        cono(L*st.llama*fl*(1 + Math.sin(t*30 + fl*9)*0.05), sp*fs); g.fillStyle = col; g.fill();
+      }
+    } else {
+      cono(L, sp); g.fillStyle = 'rgba(255,140,50,0.15)'; g.fill();
+      g.setLineDash([5, 4]); g.lineDashOffset = -t*30; g.strokeStyle = 'rgba(255,200,90,0.9)'; g.lineWidth = 1.2; g.stroke(); g.setLineDash([]);
+      cono(L*(0.25 + 0.75*st.apuntaZ), sp*0.94); g.fillStyle = 'rgba(255,74,32,0.25)'; g.fill();
+    }
+  }
   // hombrera enorme sobre el hombro de delante, por encima del brazo: azul con
   // ribete de oro y el emblema del capítulo
   g.save(); g.translate(hx + 5, hyA - 1.5); g.rotate(0.12);
@@ -18484,15 +18540,16 @@ function dibujaMaquina(g, x, y, esc, st){
 // Zona que va a calcinar la incineración y área de las motosierras.
 function drawMaquinaAvisos(){
   if (!isMaq()) return;
-  if (maq.incFase === 'carga'){
-    // el círculo que va a calcinar, llenándose mientras carga
-    const s0 = S(player.x, player.y), R = MAQ_INC_R*(buffActivo('sobrecarga') ? 1.25 : 1), k = maq.incCarga;
+  if (maq.incFase === 'apunta'){
+    // el cono que va a calcinar, hacia la mira; se va llenando mientras se mantiene
+    const D = maqIncDatos(), s0 = S(player.x, player.y - 14), k = maq.incCarga, a = maq.incA;
     ctx.save();
-    ctx.globalAlpha = 0.1 + k*0.2; ctx.fillStyle = '#ff5b2b';
-    ctx.beginPath(); ctx.arc(s0.x, s0.y, R*k, 0, Math.PI*2); ctx.fill();
-    ctx.globalAlpha = 0.55 + Math.sin(gameTime*26)*0.3; ctx.strokeStyle = '#ffd257'; ctx.lineWidth = 2.5;
-    ctx.setLineDash([12, 8]); ctx.lineDashOffset = -gameTime*90;
-    ctx.beginPath(); ctx.arc(s0.x, s0.y, R, 0, Math.PI*2); ctx.stroke(); ctx.setLineDash([]);
+    conePath(s0.x, s0.y, a, D.L, D.sp, false);
+    ctx.fillStyle = 'rgba(255,140,50,' + (0.1 + k*0.08).toFixed(3) + ')'; ctx.fill();
+    ctx.strokeStyle = 'rgba(255,200,90,0.9)'; ctx.lineWidth = 2.5;
+    ctx.setLineDash([12, 9]); ctx.lineDashOffset = -gameTime*80; ctx.stroke(); ctx.setLineDash([]);
+    conePath(s0.x, s0.y, a, D.L*(0.25 + 0.75*k), D.sp*0.94, false);
+    ctx.globalAlpha = 0.2 + Math.sin(gameTime*18)*0.08; ctx.fillStyle = '#ff4a20'; ctx.fill();
     ctx.restore();
   }
   if (maq.sierraApunta){
@@ -19855,7 +19912,7 @@ function bindHeroesBtns(){
   joystickBoton('btnDisparo', 'disparo', ()=>{ if (!vil.intro){ maq.gatillo = true; maq.pulso = true; } },
                 ()=>{ maq.gatillo = false; }, isMaq);
   toca('btnArma', isMaq, maqCambiaArma);
-  toca('btnIncinera', isMaq, maqIncinera);
+  joystickBoton('btnIncinera', 'incinera', ()=> maqIncinera(), (cancelado)=> maqIncineraSuelta(!!cancelado), isMaq);
   joystickBoton('btnSierras', 'sierra', ()=> maqSierraApunta(), (cancelado)=>{
     if (cancelado) maq.sierraApunta = false; else maqSierraSuelta();
   }, isMaq);
@@ -19980,8 +20037,8 @@ function refreshActionBtn(){
   if (isMaq()){
     const l = document.getElementById('maqArmaLbl'); if (l) l.textContent = maqNombreArma(maq.arma, true);
     const bi = document.getElementById('btnIncinera');
-    if (bi){ bi.classList.toggle('carga', !!maq.incFase); bi.classList.toggle('espera', maq.incCd > 0 && !maq.incFase); }
-    const hi = document.getElementById('maqIncHint'); if (hi) hi.textContent = maq.incCd > 0 ? Math.ceil(maq.incCd) + ' s' : 'área';
+    if (bi){ bi.classList.toggle('carga', maq.incFase === 'apunta'); bi.classList.toggle('espera', maq.incCd > 0 && maq.incFase !== 'apunta'); }
+    const hi = document.getElementById('maqIncHint'); if (hi) hi.textContent = maq.incCd > 0 ? Math.ceil(maq.incCd) + ' s' : 'mantén, apunta, suelta';
     const bd = document.getElementById('btnDisparo'); if (bd) bd.classList.toggle('on', maq.gatillo);
     const bs = document.getElementById('btnSierras'); if (bs) bs.classList.toggle('charging', maq.sierraApunta);
     return;
@@ -21971,6 +22028,7 @@ function updateFX(dt){
     toastTimer -= dt;
     if (toastTimer <= 0) document.getElementById('toast').style.opacity = '0';
   }
+  if (avisoRegaloT > 0){ avisoRegaloT -= dt; if (avisoRegaloT <= 0) quitaAvisoRegalo(); }
 }
 
 // ---- Reconstrucción de zonas alejadas ----
@@ -22596,13 +22654,14 @@ function lucesJefes(L, k, mx, Mx, my, My, tinta){
     if (p.k === 'cohete') luz(p.x, p.y, 60, luzFuego, 0.8);
     else if (p.k === 'erupcion') luz(p.x, p.y - p.R, p.R*2.4, luzFuego, clamp(p.t / p.max, 0, 1));
     else if (p.k === 'pilar') luz(p.x, p.y, p.R*1.2, luzFuego, 0.4*clamp(1 - p.t / p.max, 0, 1));
-    else if (p.k === 'nova'){ const k = 1 - clamp(p.t / p.max, 0, 1); luz(p.x, p.y, p.R*(0.5 + k)*1.3, luzFuego, 1 - k*0.5); }
+    else if (p.k === 'llama'){ const L = p.L*Math.min(1, (p.max - p.t)/MAQ_INC_FRENTE), v = Math.min(1, p.t/0.22);
+      for (const f of [0.3, 0.65, 0.95]) luz(p.x + Math.cos(p.a)*L*f, p.y + Math.sin(p.a)*L*f, 120, luzFuego, 0.9*v); }
     else if (p.k === 'onda') luz(p.x, p.y - 10, 70, p.sob ? luzFuego : luzRoja, 0.7);
   }
   if (isMaq()){
     // la espada de plasma alumbra en rojo, y destella con cada tajo
     if (maq.arma === 0 && !maq.sierraFase) luz(player.x + Math.cos(maq.mirA)*30, player.y - 18 + Math.sin(maq.mirA)*14, maq.plasmaT > 0 ? 90 : 50, maqSob() ? luzFuego : luzRoja, maq.plasmaT > 0 ? 0.9 : 0.5);
-    if (maq.incFase) luz(player.x, player.y - 14, 60 + maq.incCarga*90, luzFuego, 0.85);
+    if (maq.incFase === 'apunta') luz(player.x, player.y - 14, 50 + maq.incCarga*60, luzFuego, 0.75);
     if (maq.fogon > 0) luz(player.x + Math.cos(maq.mirA)*26, player.y - 16, 50, luzFuego, 0.7);
   }
   if (isMag() && mag.escudoT > 0) luz(player.x, player.y - 12, 90, luzAzul, 0.7);
@@ -23420,10 +23479,59 @@ function drawBench(b){
   }
 }
 
+// Lo que queda de un árbol arrancado en la ciudad: en la acera, un alcorque de
+// hormigón del mismo gris que las baldosas con la tierra revuelta y raíces
+// rotas; en el parque, un hoyo en el césped. Se dibujan una vez y se reutilizan.
+const ALCORQUE = { acera:null, cesped:null };
+function alcorqueCv(cesped){
+  const k = cesped ? 'cesped' : 'acera';
+  if (ALCORQUE[k]) return ALCORQUE[k];
+  const E = 2, W = cesped ? 48 : 30, H = 24, c = document.createElement('canvas'); c.width = W*E; c.height = H*E;
+  const g = c.getContext('2d'); g.scale(E, E);
+  let sem = cesped ? 7 : 3; const R = ()=> (sem = (sem*9301 + 49297) % 233280)/233280;
+  const cx = W/2, cy = H/2;
+  if (cesped){
+    // borde de césped levantado y terrones alrededor
+    g.fillStyle = '#3e6e30'; g.beginPath(); g.ellipse(cx, cy, 22, 10.5, 0, 0, Math.PI*2); g.fill();
+    for (let i = 0; i < 26; i++){ const a = R()*Math.PI*2; g.fillStyle = R() < 0.5 ? '#5a9a46' : '#447a34'; g.fillRect(cx + Math.cos(a)*(18 + R()*4), cy + Math.sin(a)*(8 + R()*2.5), 2, 2); }
+  } else {
+    // marco de hormigón, del gris de la acera
+    g.fillStyle = '#87858a'; g.fillRect(3, 3, W - 6, H - 4);                 // sombra del marco
+    g.fillStyle = '#a7a5aa'; g.fillRect(3, 2, W - 6, H - 5);
+    g.fillStyle = '#bcbabf'; g.fillRect(3, 2, W - 6, 1.5); g.fillRect(3, 2, 1.5, H - 5);
+    g.fillStyle = '#8e8c91'; g.fillRect(3, H - 4.5, W - 6, 1.5); g.fillRect(W - 4.5, 2, 1.5, H - 5);
+    g.fillStyle = '#77767b'; g.fillRect(12, 2, 1, 2.5); g.fillRect(31, H - 5, 1, 2);      // grietas
+  }
+  // la tierra removida
+  g.fillStyle = '#3a2d22';
+  if (cesped){ g.beginPath(); g.ellipse(cx, cy, 17, 7.5, 0, 0, Math.PI*2); g.fill(); }
+  else g.fillRect(7, 6, W - 14, H - 12);
+  for (let i = 0; i < 30; i++){ g.fillStyle = R() < 0.5 ? '#5a4634' : '#2a2018'; g.fillRect(cx - W*0.3 + R()*W*0.6, cy - 4 + R()*8, 1.5 + R()*1.5, 1.2); }
+  g.fillStyle = 'rgba(0,0,0,0.35)'; g.beginPath(); g.ellipse(cx, cy + 0.5, 6, 2.6, 0, 0, Math.PI*2); g.fill();   // el hoyo del tronco
+  // raíces rotas que asoman
+  g.strokeStyle = '#6b4a2a'; g.lineCap = 'round';
+  for (const [a, l, w] of [[-2.6, 9, 1.6], [-0.4, 10, 1.6], [0.5, 7, 1.2], [2.8, 8, 1.3], [1.9, 5, 1]].map(r => [r[0], r[1]*(cesped ? 1 : 0.75), r[2]])){
+    g.lineWidth = w; g.beginPath(); g.moveTo(cx + Math.cos(a)*3, cy + Math.sin(a)*1.5);
+    g.quadraticCurveTo(cx + Math.cos(a + 0.3)*l*0.6, cy + Math.sin(a + 0.3)*l*0.35, cx + Math.cos(a)*l, cy + Math.sin(a)*l*0.45); g.stroke();
+  }
+  g.fillStyle = '#8a6a44'; g.fillRect(cx - 2, cy - 1.5, 4, 2.5);                  // astillas del tronco
+  // hojas sueltas y algún trozo de hormigón
+  for (let i = 0; i < 6; i++){ g.fillStyle = R() < 0.5 ? '#5f8a3a' : '#7aa046'; g.fillRect(cx - W*0.38 + R()*W*0.76, cy - 8 + R()*16, 2, 1.5); }
+  if (!cesped) for (let i = 0; i < 4; i++){ g.fillStyle = '#9c9a9f'; g.fillRect(4 + R()*(W - 8), R() < 0.5 ? 0.5 : H - 2.5, 2, 1.5); }
+  return (ALCORQUE[k] = c);
+}
 function drawPlanters(){
+  const ciudad = !esAlien() && !esInfierno();
   for (const p of planters){
     if (p.x+p.w<camX || p.x-p.w>camX+VW || p.y+p.h<camY || p.y-p.h>camY+VH) continue;
     const s2 = S(p.x, p.y);
+    if (ciudad){
+      if (p.cesped === undefined) p.cesped = parques.some(q => p.x > q.x && p.x < q.x + q.w && p.y > q.y && p.y < q.y + q.h);
+      // en la acera, cuadrado y del ancho de la acera; en el césped, un hoyo más ancho
+      const w = p.cesped ? p.w*1.1 : 27, h = p.cesped ? p.h*1.2 : 22;
+      ctx.drawImage(alcorqueCv(p.cesped), s2.x - w/2, s2.y + 4 - h/2, w, h);
+      continue;
+    }
     if (!drawSpriteTint('planter', esAlien() || esInfierno() ? 1 : 0, esInfierno() ? TINTE_INF_METAL : TINTE_AL_METAL, s2.x, s2.y+6, p.w, p.h, 1, 0)){
       ctx.fillStyle='#6b6255'; ctx.fillRect(s2.x-p.w/2, s2.y, p.w, p.h);
     }
@@ -25008,8 +25116,8 @@ function pasosTutorial(h){
       cada(){ TUT.marca = TUT.lista.find(o=> !o.dead) || null; }, ok: ()=> vivos(TUT.lista) === 0, cuenta: ()=> (3 - vivos(TUT.lista)) + '/3' },
     { tit:'CAMBIAR DE ARMA', t:'Clic derecho (o ' + K_('throw') + '): espada → ráfaga → escopeta → lanzacohetes. Pásalas todas.', m:'Toca ARMA para cambiar. Pásalas todas.',
       ok: ()=> (TUT.ev.cambia || 0) >= 3, cuenta: ()=> Math.min(3, TUT.ev.cambia || 0) + '/3' },
-    { tit:'INCINERACIÓN', t:'Pulsa ' + K_('draAle') + ': te plantas, cargas y una ola de fuego calcina todo a tu alrededor. Tarda en recargarse.', m:'Toca INCINERAR con enemigos cerca.',
-      prep(){ TUT.lista = [0, 1, 2, 3].map(i=> tutEnemigo('police', 130, i*1.57)); }, ok: ()=> (TUT.ev.incinera || 0) >= 1 },
+    { tit:'INCINERACIÓN', t:'Mantén ' + K_('draAle') + ' y apunta: ves el cono que vas a quemar. Al soltar, la llamarada lo calcina todo. Tarda en recargarse.', m:'Mantén INCINERAR, apunta a los policías y suelta.',
+      prep(){ TUT.lista = [0, 1, 2].map(i=> tutEnemigo('police', 200 + i*30, -0.3 + i*0.3)); TUT.marca = TUT.lista[0]; }, ok: ()=> (TUT.ev.incinera || 0) >= 1 },
     { tit:'MOTOSIERRAS', t:'Mantén ' + K_('draCola') + ': marcas la zona; al soltar, saltas arrollando lo que haya en el camino.', m:'Mantén SIERRAS, apunta y suelta.',
       prep(){ TUT.lista = [tutEnemigo('tank', 220, 0)]; TUT.marca = TUT.lista[0]; }, ok: ()=> (TUT.ev.sierras || 0) >= 1 }
   ];
@@ -25139,6 +25247,7 @@ function limpiaRestosPartida(){
   _cbN = -1; _cbF = -2;
   toastTimer = 0;
   const ts = document.getElementById('toast'); if (ts){ ts.style.opacity = '0'; ts.textContent = ''; }
+  quitaAvisoRegalo();
   const im = document.getElementById('introMapa'); if (im) im.classList.add('hidden');
   limpiaPresentacion(); numsDano.length = 0; bocadillos.length = 0; charcosAgua.length = 0;
   const tp = document.getElementById('tutPanel');
@@ -25717,7 +25826,7 @@ function textoControles(h){
   }
   if (h === 'viltrum') return mov + ' moverte · <b>Clic</b> golpeas (se puede mantener para cargar) · <b>Doble toque</b> a ' + mov + ': vuelo hipersónico · <b>Clic derecho</b> agarras y lanzas';
   if (h === 'dragon')  return mov + ' moverte · <b>Clic</b> mordisco · <b>Clic derecho</b> rayos · ' + K('draAle') + ' aletazo · <b>Mantén</b> ' + K('draCola') + ' embestida · <b>Doble toque</b> a ' + mov + ': volar';
-  if (h === 'maquina') return mov + ' moverte (mantén una dirección para acelerar) · <b>Clic</b> atacas (se puede mantener) · <b>Clic derecho</b> cambias de arma · ' + K('draAle') + ' incineras todo a tu alrededor · <b>Mantén</b> ' + K('draCola') + ' motosierras';
+  if (h === 'maquina') return mov + ' moverte (mantén una dirección para acelerar) · <b>Clic</b> atacas (se puede mantener) · <b>Clic derecho</b> cambias de arma · <b>Mantén</b> ' + K('draAle') + ' apuntas la incineración y al soltar la lanzas · <b>Mantén</b> ' + K('draCola') + ' motosierras';
   if (h === 'mago')    return mov + ' flotar · <b>Clic</b> rayo · <b>Mantén clic derecho</b> telequinesis · ' + K('draAle') + ' hielo · ' + K('draCola') + ' escudo · ' + K('magFue') + ' fuego · ' + K('magTel') + ' teletransporte';
   return mov + ' moverte · <b>Clic</b> agarras (' + K('grab') + ') y, con algo agarrado, golpeas · <b>Clic derecho</b> lanzas (' + K('throw') + ') · Devora para evolucionar a <b>COLOSO</b>';
 }
@@ -26560,8 +26669,8 @@ function refreshModeText(){
       'con poca vida, pero que se recompone con cada víctima. Coge carrerilla, cambia de arma sobre la '+
       'marcha y no te pares nunca.<br>'+
       '<span class="moderec">Recomendado: <b>WASD</b> (mantener una dirección acelera). <b>Click</b> dispara, '+
-      '<b>click der.</b> cambia de arma (espada de plasma, ráfaga, escopeta, lanzacohetes), <b>Z</b> lo incinera todo '+
-      'a tu alrededor y <b>mantener C</b> marca dónde saltar con las motosierras: al soltar, cae sobre esa zona.</span>';
+      '<b>click der.</b> cambia de arma (espada de plasma, ráfaga, escopeta, lanzacohetes), <b>mantener Z</b> apunta una '+
+      'llamarada que lo incinera todo (al soltar, la lanza) y <b>mantener C</b> marca dónde saltar con las motosierras: al soltar, cae sobre esa zona.</span>';
     v.innerHTML = 'Dos jugadores en el mismo teclado. La <b>Máquina Aberrante</b> debe aguantar 2:30 mientras '+
       'el <b>Jugador 2</b> gasta materiales desplegando tropas donde quiera. Tiene poca vida: cura acabando '+
       'con lo que se le ponga delante.<br>'+
@@ -26894,7 +27003,7 @@ function holoMide(h){
   const g = c.getContext('2d');
   // la máquina cambia de pose (escopetazo, incineración...): se mide con todas
   // menos los tajos, que pueden salirse un poco
-  const poses = h === 'maquina' ? [0.3, 3.3, 5.5, 8.0, 10.2, 10.45] : [0.3];
+  const poses = h === 'maquina' ? [0.3, 3.3, 5.5, 8.0, 10.2, 10.45, 10.9] : [0.3];
   for (const tp of poses) holoFigura(g, h, 160, 190, tp);
   const px = g.getImageData(0, 0, 320, 320).data;
   let x0 = 320, y0 = 320, x1 = 0, y1 = 0;
@@ -27016,10 +27125,10 @@ function fichaHeroe(h){
       t: [[mover, 'Moverse (mantener la dirección acelera hasta correr a tope)'],
           ['Click izq. / ' + K('grab'), 'Usar el arma (mantenido, sigue atacando)'],
           ['Click der. / ' + K('throw'), 'Cambiar de arma: espada de plasma (tajos que lanzan una onda) → ráfaga → escopeta gigante (mucho daño, poco alcance) → lanzacohetes'],
-          [K('draAle'), 'Incineración: te plantas un instante y una ola de fuego calcina todo a tu alrededor (tarda en recargarse)'],
+          ['Mantén ' + K('draAle'), 'Incineración: marca un cono largo hacia la mira; al soltar, la llamarada calcina todo lo que haya dentro (tarda en recargarse)'],
           ['Mantén ' + K('draCola'), 'Motosierras: marca la zona y, al soltar, salta arrollando lo que haya en el camino'],
           ['OVNI', 'Sobrecarga: la espada se alarga, la ráfaga es una minigun sin pausas, la escopeta suelta más perdigones, más daño y un escudo que convierte el daño en vida']],
-      m: 'DISPARO es un joystick (mantén y apunta; con un toque ataca a lo más cercano), ARMA cambia de arma, INCINERAR al tocarlo y SIERRAS se mantiene, apunta y suelta.' },
+      m: 'DISPARO es un joystick (mantén y apunta; con un toque ataca a lo más cercano), ARMA cambia de arma, e INCINERAR y SIERRAS se mantienen, apuntan y sueltan.' },
     mago: {
       desc: 'Hechicero encapuchado que flota despacio. Rayos, telequinesis, hielo y fuego: todo gasta maná, que se recupera solo.',
       t: [[mover, 'Flotar'], ['Click izq.', 'Un rayo cae donde apuntas (mantenido, sigue lanzándolos)'],
