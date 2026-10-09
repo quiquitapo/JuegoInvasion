@@ -22550,7 +22550,7 @@ function drawLampProp(l){
 // y se vuelca al lienzo con un único drawImage.
 let LIGHT_DS = 4;                         // factor de reducción del búfer (2 en ULTRA: luz más fina)
 let lightCv = null, lightCtx = null, lightW = 0, lightH = 0;
-let holeSprite = null, warmSprite = null;
+let holeSprite = null, warmSprite = null, cianSprite = null;
 let focoHazM = null, luzAzul = null, luzFuego = null, luzBlanca = null, luzRoja = null, luzAmarilla = null;
 const LAMP_R = 128, PLAYER_R = 150;
 // Focos de los helicópteros: de noche barren el suelo y, si te tienen cerca,
@@ -22651,6 +22651,19 @@ function ultraSp(){
   ULTRA_SP.reflAl = makeRadial(32, [[0,'rgba(150,230,255,0.75)'],[0.45,'rgba(100,200,255,0.25)'],[1,'rgba(80,180,255,0)']]);
   return ULTRA_SP;
 }
+// En NORMAL, solo una lucecita en cada bombilla (sin cono ni reflejos).
+function drawBombillas(oscuro){
+  if (esInfierno() || !lucesEncendidas()) return;
+  const U = ultraSp(), halo = esAlien() ? U.haloAl : U.halo, a = Math.min(1, oscuro*1.5)*0.85, Z = ZOOM;
+  ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = a;
+  for (const l of lamps){
+    if (l.dead || l.held || l.thrown || l.presa) continue;
+    if (l.x < camX - 40 || l.x > camX + VW + 40 || l.y < camY - 20 || l.y > camY + VH + 60) continue;
+    const hx = (l.x + 7.6 - camX + temblorX)*Z, hy = (l.y - 41 - camY + temblorY)*Z;
+    ctx.drawImage(halo, hx - 12*Z, hy - 12*Z, 24*Z, 24*Z);
+  }
+  ctx.restore();
+}
 // Bombillas, conos y reflejos de las farolas, encima de la oscuridad.
 function drawFarolasUltra(oscuro){
   if (esInfierno() || !lucesEncendidas()) return;
@@ -22682,6 +22695,8 @@ function ensureLightBuf(){
     holeSprite = makeRadial(128, [[0,'rgba(0,0,0,0.72)'],[0.5,'rgba(0,0,0,0.34)'],[1,'rgba(0,0,0,0)']]);
     // tinte cálido de la farola
     warmSprite = makeRadial(128, [[0,'rgba(255,214,130,0.26)'],[0.5,'rgba(255,196,105,0.08)'],[1,'rgba(255,190,90,0)']]);
+    // en el planeta marciano las farolas dan una luz cian, leve
+    cianSprite = makeRadial(128, [[0,'rgba(130,225,255,0.24)'],[0.5,'rgba(100,200,255,0.08)'],[1,'rgba(90,190,255,0)']]);
     // claro y tinte del foco: blanco frío y flojo, para que no deslumbre
     focoSprite = makeRadial(96, [[0,'rgba(0,0,0,0.92)'],[0.55,'rgba(0,0,0,0.42)'],[1,'rgba(0,0,0,0)']]);
     focoHaz    = makeRadial(96, [[0,'rgba(226,240,255,0.34)'],[0.55,'rgba(210,230,255,0.12)'],[1,'rgba(200,225,255,0)']]);
@@ -23022,7 +23037,7 @@ function drawLighting(){
           continue;
         }
         const sx = (l.x - camX)*k, sy = (l.y + 20 - camY)*k;
-        L.drawImage(warmSprite, sx - r, sy - r, r*2, r*2);
+        L.drawImage(esAlien() ? cianSprite : warmSprite, sx - r, sy - r, r*2, r*2);
       }
       // y un tinte cálido muy leve dentro del haz, sin deslumbrar
       for (const c of cars){
@@ -23048,7 +23063,7 @@ function drawLighting(){
     }
     ctx.drawImage(lightCv, 0, 0, CW, CH);          // un solo volcado a pantalla
     drawVentanasNoche(oscuro);
-    if (u) drawFarolasUltra(oscuro);
+    if (u) drawFarolasUltra(oscuro); else drawBombillas(oscuro);
   }
   ctx.drawImage(overlayFase(), 0, 0, CW, CH);   // graduación + viñeta, de una vez
   drawClima();                                   // nubes y lluvia por encima
@@ -24235,7 +24250,7 @@ function draw(){
 // estela de aire. Se guardan unas pocas posiciones recientes en el propio
 // objeto mientras vuela y se pinta una cinta que se afina y se desvanece, con
 // dos trazos de viento a los lados. Lo que lanza el enemigo no deja estela.
-const ESTELA_T = 0.17;                  // lo que dura cada tramo, en segundos
+const ESTELA_T = 0.13;                  // lo que dura cada tramo, en segundos
 const ESTELA_POOLS = [];
 function drawEstelas(){
   ESTELA_POOLS.length = 0; ESTELA_POOLS.push(cars, civilians, enemies, trees, lamps, trash, benches);
@@ -24255,17 +24270,17 @@ function drawEstelas(){
       const h = arr[arr.length - 1], c = arr[0];
       if (h.x < camX - 200 || h.x > camX + VW + 200 || h.y < camY - 200 || h.y > camY + VH + 200) continue;
       const alto = (o.person || o.kind === 'civ') ? 14 : 0;        // la gente vuela por el torso
-      const w = clamp(Math.min(o.w || 22, o.h || 22)*0.6, 6, 30);
+      const w = clamp(Math.min(o.w || 22, o.h || 22)*0.48, 5, 22);
       const vida = vuela ? 1 : 0.6;
       ctx.save(); ctx.lineCap = 'round'; ctx.strokeStyle = '#eef8ff';
       for (let i = 1; i < arr.length; i++){                        // la cinta: gruesa en la cabeza, fina en la cola
         const f = i/(arr.length - 1), a = S(arr[i-1].x, arr[i-1].y - alto), b = S(arr[i].x, arr[i].y - alto);
-        ctx.globalAlpha = 0.24*f*vida; ctx.lineWidth = w*(0.2 + 0.8*f);
+        ctx.globalAlpha = 0.19*f*vida; ctx.lineWidth = w*(0.2 + 0.8*f);
         ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
       }
       const dx = h.x - c.x, dy = h.y - c.y, l = Math.hypot(dx, dy) || 1, ux = dx/l, uy = dy/l, nx = -uy, ny = ux;
       const sh = S(h.x, h.y - alto), sc = S(c.x, c.y - alto);
-      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.3; ctx.globalAlpha = 0.5*vida;
+      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.1; ctx.globalAlpha = 0.38*vida;
       for (const lado of [-1, 1]){                                  // trazos de viento a los lados
         const d = w*0.62*lado;
         ctx.beginPath(); ctx.moveTo(sh.x + nx*d - ux*w*0.5, sh.y + ny*d - uy*w*0.5);
