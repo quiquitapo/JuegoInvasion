@@ -1241,6 +1241,10 @@
 
   <!-- ============ ELEGIR MODO ============ -->
   <div id="modeselect" class="overlay hidden">
+    <button type="button" class="btnfull" id="btnModeFull" aria-label="Pantalla completa" title="Pantalla completa">
+      <svg class="ico-abrir" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9V3h6M15 3h6v6M21 15v6h-6M9 21H3v-6"/></svg>
+      <svg class="ico-cerrar" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3v6H3M21 9h-6V3M15 21v-6h6M3 15h6v6"/></svg>
+    </button>
     <img id="gamelogo2" class="gamelogo logo2" alt="Invasión">
     <div class="subtitle">¿Cómo quieres invadir?</div>
     <div class="mapslbl grande">MAPAS:</div>
@@ -1425,6 +1429,7 @@
           </span>
         </div>
         <button type="button" class="small" id="btnPantalla">PANTALLA COMPLETA</button>
+        <button type="button" class="small" id="btnPausaAjustes">⚙ AJUSTES</button>
       </div>
       <div class="confirm-row">
         <button class="small" id="btnQuitYes">Sí, salir</button>
@@ -10874,7 +10879,8 @@ window.addEventListener('keydown', e=>{
   }
   // Escape y la tecla de pausa (P por defecto, reasignable) abren lo mismo.
   if (k === 'escape' || k === binds.pausa){
-    if (pausedForQuit) resumeFromQuit();
+    if (pausedForQuit && ajustesDesdePausa){ cierraAjustes(); sfx('ui'); }
+    else if (pausedForQuit) resumeFromQuit();
     else if (running) askQuit();
     keys[k] = true;
     return;
@@ -25925,7 +25931,7 @@ function revisaMenu(){
     if (el && !el.classList.contains('hidden')){ visible = true; break; }
   }
   // Durante la partida o con la muestra de un jefe sonando, manda esa.
-  const quiere = visible && !running && !previewTrack;
+  const quiere = visible && !running && !previewTrack && !pausedForQuit;   // en la pausa, silencio
   const cambia = (quiere !== menuMusica);
   menuMusica = quiere;
   if (quiere){
@@ -25989,7 +25995,7 @@ document.getElementById('importFile').addEventListener('change', e=>{
       SaveIO.data = obj;
       SaveIO.flush();
       await loadDex(); await loadBinds(); await loadShop(); await loadAudioPrefs();
-      await loadTouchPref(); await loadBindsP2(); await loadMenuAnim(); await loadHpBars(); await loadNumeros(); await loadGraficos(); await loadTemblor();
+      await loadTouchPref(); await loadBindsP2(); await loadMenuAnim(); await loadHpBars(); await loadNumeros(); await loadGraficos(); await loadTemblor(); await loadMapa();
       sanitizeBinds(); renderBinds(); renderBindsP2();
       refreshCoinLabels(); refreshAudioUI(); refreshTouchUI(); refreshAnimUI(); refreshHpUI(); refreshNumUI();
       applyAudioVolumes(); await renderScoreList();
@@ -26121,6 +26127,7 @@ function askQuit(){
 }
 function resumeFromQuit(){
   pausedForQuit = false;
+  if (ajustesDesdePausa){ ajustesDesdePausa = false; hide('controles'); hide('uieditor'); }
   hide('confirmquit');
   running = true;
   lastT = performance.now();       // evita un salto de dt tras la pausa
@@ -26144,7 +26151,13 @@ const _tl = document.getElementById('tabLocal');
 if (_tl) _tl.addEventListener('click', ()=>{ showLocal(); sfx('ui'); });
 const _tg = document.getElementById('tabGlobal');
 if (_tg) _tg.addEventListener('click', ()=>{ showGlobal(false); sfx('ui'); });
-document.querySelectorAll('#scoreMapas [data-pm]').forEach(b=> b.addEventListener('click', ()=>{ cambiaMapaPuntaje(b.dataset.pm); sfx('ui'); }));
+// Elegir un mapa en la tabla del menú también lo deja elegido para jugar: al
+// pulsar INVADIR ya aparece marcado.
+document.querySelectorAll('#scoreMapas [data-pm]').forEach(b=> b.addEventListener('click', ()=>{
+  cambiaMapaPuntaje(b.dataset.pm);
+  mapaElegido = puntMapa; storeSet('invasion_mapa', mapaElegido); pintaBotonesMapa();
+  sfx('ui');
+}));
 
 // --- subir (o no) al ranking global ---
 const _bsg = document.getElementById('btnSubirGlobal');
@@ -26242,14 +26255,14 @@ function alternarPantallaCompleta(){
 }
 function refreshFullUI(){
   const on = enPantallaCompleta();
-  const bm = document.getElementById('btnMenuFull');
-  if (bm){
+  // el de la esquina del menú y el de la elección de modo (tras INVADIR)
+  document.querySelectorAll('.btnfull').forEach(bm=>{
     const el = document.documentElement;
     bm.classList.toggle('nohay', !(el.requestFullscreen || el.webkitRequestFullscreen));   // el iPhone no la permite
     bm.classList.toggle('on', on);
     bm.title = on ? 'Salir de pantalla completa' : 'Pantalla completa';
     bm.setAttribute('aria-label', bm.title);
-  }
+  });
   const b = document.getElementById('tgFull');
   if (!b) return;
   b.textContent = on ? 'SALIR' : 'ACTIVAR';
@@ -26514,7 +26527,7 @@ for (const [id, v] of [['uiEdMaq', 'maquina'], ['uiEdMag', 'mago']]){
 }
 const _tgFull = document.getElementById('tgFull');
 if (_tgFull) _tgFull.addEventListener('click', ()=>{ alternarPantallaCompleta(); sfx('ui'); });
-document.getElementById('btnMenuFull').addEventListener('click', ()=>{ resumeAudio(); alternarPantallaCompleta(); sfx('ui'); });
+document.querySelectorAll('.btnfull').forEach(b=> b.addEventListener('click', ()=>{ resumeAudio(); alternarPantallaCompleta(); sfx('ui'); }));
 refreshFullUI();
 document.addEventListener('fullscreenchange', ()=>{ resize(); refreshFullUI(); });
 document.addEventListener('webkitfullscreenchange', ()=>{ resize(); refreshFullUI(); });
@@ -26626,17 +26639,39 @@ document.getElementById('btnDexBack').addEventListener('click', ()=>{
   hide('registro'); show('menu');
 });
 
-document.getElementById('btnControles').addEventListener('click', ()=>{
+// Ajustes se abre desde el menú o desde la pausa de una partida; "Volver"
+// regresa a donde estabas (con la partida, a la pausa para seguir jugando).
+let ajustesDesdePausa = false;
+function abreAjustes(desdePausa){
   resumeAudio(); sfx('ui');
+  ajustesDesdePausa = !!desdePausa;
   listeningFor = null; renderBinds(); renderBindsP2(); refreshAudioUI(); refreshTouchUI(); refreshAnimUI(); refreshHpUI(); refreshNumUI();
   refreshVilHelp(); refreshUiSize(); refreshFullUI(); refreshSaveMode();
-  ajPestana('controles'); pintaAjHeroe();
-  hide('menu'); show('controles');
-});
-document.getElementById('btnCtrlBack').addEventListener('click', ()=>{
+  ajPestana(desdePausa ? 'pantalla' : 'controles'); pintaAjHeroe();
+  // en el móvil el botón va en la esquina, encima del título: ahí, corto
+  const v = document.getElementById('btnCtrlBack');
+  if (v) v.textContent = !desdePausa ? 'Volver' : document.body.classList.contains('movil') ? '◀ Pausa' : 'Volver a la pausa';
+  if (desdePausa) hide('confirmquit'); else hide('menu');
+  show('controles');
+}
+function cierraAjustes(){
   pararMuestraMusica();               // que no se quede sonando en el menú
-  listeningFor = null; hide('controles'); show('menu');
-});
+  listeningFor = null; hide('controles'); hide('uieditor');
+  if (ajustesDesdePausa && pausedForQuit){
+    ajustesDesdePausa = false;
+    // lo que se haya cambiado, ya aplicado a la partida
+    refreshAudioUI(); refreshUiSize(); refreshFullUI();
+    try { applyUIPositions(); } catch(e){}
+    const fu = document.getElementById('pUiRow'); if (fu) fu.style.display = tactil() ? '' : 'none';
+    show('confirmquit');
+    return;
+  }
+  ajustesDesdePausa = false;
+  show('menu');
+}
+document.getElementById('btnControles').addEventListener('click', ()=> abreAjustes(false));
+document.getElementById('btnPausaAjustes').addEventListener('click', ()=> abreAjustes(true));
+document.getElementById('btnCtrlBack').addEventListener('click', cierraAjustes);
 document.getElementById('btnResetBindsP2').addEventListener('click', ()=>{
   bindsP2 = Object.assign({}, DEFAULT_BINDS_P2); listeningFor = null;
   saveBindsP2(); renderBindsP2(); sfx('ui');
@@ -28355,8 +28390,14 @@ document.querySelectorAll('.mapbtn').forEach(b=> b.addEventListener('click', e=>
   pintaBotonesMapa(); sfx('ui');
   if (puntMapa !== mapaElegido){ puntMapa = mapaElegido; pintaMapasPuntaje(); if (scoreTab === 'global') showGlobal(false); else renderScoreList(); }
 }));
-(async ()=>{ try { const v = await storeGet('invasion_mapa'); if (v === 'alien' || v === 'infierno') mapaElegido = v; } catch(e){} pintaBotonesMapa();
-  puntMapa = mapaElegido; pintaMapasPuntaje(); if (mapaElegido !== 'ciudad') renderScoreList(); })();
+// El mapa elegido se recuerda entre sesiones. Se carga con las demás
+// preferencias, ya con el guardado abierto (antes se leía demasiado pronto y
+// al recargar siempre volvía a la ciudad).
+async function loadMapa(){
+  try { const v = await storeGet('invasion_mapa'); mapaElegido = (v === 'alien' || v === 'infierno') ? v : 'ciudad'; } catch(e){}
+  pintaBotonesMapa();
+  if (puntMapa !== mapaElegido){ puntMapa = mapaElegido; pintaMapasPuntaje(); if (scoreTab === 'global') showGlobal(false); else renderScoreList(); }
+}
 document.getElementById('btnModeInvasion').addEventListener('click', ()=> crackAndStart('btnModeInvasion', ()=> startGame('invasion')));
 document.getElementById('btnModeVs').addEventListener('click', ()=>{ sfx('ui'); show('vselige'); });
 document.getElementById('btnRetry').addEventListener('click', ()=> startGame(gameMode));
@@ -28392,7 +28433,7 @@ document.getElementById('btnMenu').addEventListener('click', async ()=>{
     ['Cargando controles',        async ()=>{ await loadBinds(); await loadBindsP2(); }],
     ['Cargando monedas y tienda', async ()=>{ await loadShop(); await loadImgSkins(); }],
     ['Cargando preferencias',     async ()=>{ await loadAudioPrefs(); await loadTouchPref();
-                                              await loadMenuAnim(); await loadHpBars(); await loadNumeros(); await loadGraficos(); await loadTemblor(); await loadHero();
+                                              await loadMenuAnim(); await loadHpBars(); await loadNumeros(); await loadGraficos(); await loadTemblor(); await loadHero(); await loadMapa();
                                               await loadOvniVs(); refreshOvniVsUI();
                                               await loadOnlinePrefs(); refreshOnlineUI();
                                               await loadUICfg(); }],
