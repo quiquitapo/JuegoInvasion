@@ -2572,11 +2572,17 @@ function autoFrente(g, m, M, col, estado, frente, prof){
   apx(g, autoMezcla(techo, -0.2), 1, fy - 2, W - 2, 2);
   if (m === 'cisterna'){ apx(g, autoMezcla(techo, 0.3), W/2 - 3, top + 3, 6, fy - 6); apx(g, '#6a6a6c', W/2 - 4, top + 8, 8, 4); }
   else if (!alto){
-    // luneta y parabrisas en el techo
-    g.fillStyle = estado === 2 ? '#0e0c0a' : '#2a3a4a';
-    g.beginPath(); g.moveTo(4, fy - 3); g.lineTo(W - 4, fy - 3); g.lineTo(W - 6, fy - prof*0.35); g.lineTo(6, fy - prof*0.35); g.closePath(); g.fill();
-    g.beginPath(); g.moveTo(6, top + prof*0.3); g.lineTo(W - 6, top + prof*0.3); g.lineTo(W - 5, top + prof*0.12); g.lineTo(5, top + prof*0.12); g.closePath(); g.fill();
-    if (estado < 2){ apx(g, '#8ab0c8', 8, fy - 6, 3, 2); }
+    // Visto desde arriba no hay cristales (el parabrisas o la luneta ya están
+    // en la cara): junto a la cara, el capó (o el maletero) con su nervio, y
+    // detrás el techo de la cabina, algo más estrecho y con su brillo.
+    const capo = Math.round(prof*0.34), yc = fy - capo;
+    g.fillStyle = base;
+    g.beginPath(); g.moveTo(estr, top + 2); g.lineTo(W - estr, top + 2); g.lineTo(W, fy); g.lineTo(0, fy); g.closePath(); g.fill();
+    apx(g, osc, W/2 - 0.5, yc + 2, 1, capo - 4);                                   // nervio del capó
+    g.fillStyle = luz;
+    g.beginPath(); g.moveTo(estr + 3, top + 3); g.lineTo(W - estr - 3, top + 3); g.lineTo(W - 4, yc); g.lineTo(4, yc); g.closePath(); g.fill();
+    apx(g, osc, 4, yc, W - 8, 1);                                                  // junta del techo con el capó
+    if (estado < 2) apx(g, autoMezcla(luz, 0.3), estr + 6, top + 5, W - estr*2 - 12, 1.2);   // brillo del techo
   } else {
     apx(g, osc, 4, top + 5, W - 8, 1); apx(g, osc, 4, top + prof*0.55, W - 8, 1);
   }
