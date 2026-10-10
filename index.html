@@ -317,13 +317,6 @@
                font-size:0.72rem; font-weight:900; cursor:pointer;
                background:#0f2418; border:1px solid #2fe86e; color:#7bffa0; }
   .togglebtn.off { background:#2a1010; border-color:#8a3a3a; color:#d98a8a; }
-  .gfxsel { display:flex; gap:0; border:1px solid #2f6a48; border-radius:6px; overflow:hidden; }
-  .gfxbtn { min-width:70px; padding:6px 10px; font-family:inherit; font-size:0.66rem; font-weight:900; letter-spacing:1px; cursor:pointer;
-            background:#0a160e; border:none; color:#5f8a72; }
-  .gfxbtn + .gfxbtn { border-left:1px solid #2f6a48; }
-  .gfxbtn.on { background:#1f6a3a; color:#d8ffe4; }
-  #gfxUltra.on { background:linear-gradient(90deg, #6a2ae0, #e04ab8 50%, #ffb02a); color:#fff; text-shadow:0 0 6px rgba(255,255,255,0.7); }
-  .gfxnota { margin:6px 0 4px; text-align:left; }
   #controles .panel { max-width:min(740px, 94vw); box-sizing:border-box; }
   .volrow { display:flex; align-items:center; gap:10px; padding:6px 0; border-bottom:1px dashed #1f4a2c; }
   .volrow:last-of-type { border-bottom:none; }
@@ -1521,14 +1514,6 @@
     <div class="ajsec hidden" data-ajsec="pantalla">
     <div class="panel" style="min-width:min(340px,92vw)">
       <h3>Pantalla y sonido</h3>
-      <div class="bindrow">
-        <span class="bindname">Modo gráfico</span>
-        <span class="gfxsel">
-          <button type="button" class="gfxbtn on" id="gfxNormal">NORMAL</button>
-          <button type="button" class="gfxbtn" id="gfxUltra">ULTRA</button>
-        </span>
-      </div>
-      <div class="p2note gfxnota" id="gfxNota"></div>
       <div class="bindrow">
         <span class="bindname">Botones táctiles</span>
         <button type="button" class="togglebtn" id="tgTouch">AUTO</button>
@@ -4228,17 +4213,12 @@ let VW = CW / ZOOM, VH = CH / ZOOM;                    // mundo visible (unidade
 // dibuja a la densidad de la pantalla, con un tope de 2×. Si el equipo no
 // aguanta el ritmo, vigilaRendimiento() lo devuelve a 1× para que no haya lag.
 let DPR = 1, dprTope = 2;
-// Modo gráfico (Ajustes > Pantalla y sonido): 'normal' es el de siempre;
-// 'ultra' sube la resolución (hasta 3×, y al menos 1,5× aunque la pantalla
-// sea 1×: se dibuja de más y el navegador lo suaviza al reducir), afina la
-// iluminación, deja más luces y partículas y añade resplandor (aplicaGraficos).
-let graficos = 'normal';
 function resize(){
   CW = window.innerWidth; CH = window.innerHeight;
   const dprPant = window.devicePixelRatio || 1;
-  DPR = Math.max(1, Math.min(dprTope, graficos === 'ultra' ? Math.max(1.5, dprPant) : dprPant));
+  DPR = Math.max(1, Math.min(dprTope, dprPant));
   canvas.width = Math.round(CW*DPR); canvas.height = Math.round(CH*DPR);
-  ctx.imageSmoothingQuality = graficos === 'ultra' ? 'high' : 'low';   // al cambiar el tamaño se pierde
+  ctx.imageSmoothingQuality = 'low';                 // al cambiar el tamaño se pierde
   canvas.style.width = CW + 'px'; canvas.style.height = CH + 'px';
   VW = CW / ZOOM; VH = CH / ZOOM;
   // layoutUI se declara más abajo: en el primer resize aún no existe.
@@ -5801,8 +5781,8 @@ function drawFlameCone(e){
 // Depósito de partículas de tamaño fijo. Antes cada chispa creaba un objeto y
 // cada fotograma se reconstruía el array entero con filter: mucha basura para
 // el recolector. Ahora se reciclan y se compactan intercambiando posiciones.
-const PART_MAX = 1100;                // el depósito; se usan partMax (más en ULTRA)
-let partN = 0, partMax = 520;
+const PART_MAX = 520;                 // el depósito de partículas
+let partN = 0, partMax = PART_MAX;
 (function initParticles(){
   for (let i=0;i<PART_MAX;i++)
     particles.push({x:0,y:0,vx:0,vy:0,life:0,maxlife:1,color:'#fff',r:3,drag:0.9,grow:0});
@@ -19697,33 +19677,6 @@ function refreshOvniVsUI(){
   b.classList.toggle('off', !ovniEnVs);
 }
 
-function aplicaGraficos(){
-  const u = graficos === 'ultra';
-  dprTope = u ? 3 : 2; perf.t = 0; perf.n = 0; perf.lento = 0;
-  LIGHT_DS = u ? 2 : 4;             // ensureLightBuf rehace el búfer con el nuevo tamaño
-  partMax = u ? 1100 : 520;
-  lucesMax = u ? 64 : 28;
-  bloomApagado = false;
-  // ULTRA: un último realce de color y contraste sobre toda la imagen (lo
-  // aplica la tarjeta gráfica al componer la página, sin coste de dibujo)
-  canvas.style.filter = u ? 'saturate(1.14) contrast(1.06)' : '';
-  resize();
-  refreshGfxUI();
-}
-function refreshGfxUI(){
-  const n = document.getElementById('gfxNormal'), u = document.getElementById('gfxUltra'), t = document.getElementById('gfxNota');
-  if (n) n.classList.toggle('on', graficos !== 'ultra');
-  if (u) u.classList.toggle('on', graficos === 'ultra');
-  if (t) t.innerHTML = graficos === 'ultra'
-    ? '<b>ULTRA</b>: máxima resolución, iluminación y sombras de la noche más finas, resplandor en fuego, rayos, explosiones y neones, y más luces y partículas a la vez. Pide más al equipo: si no da el ritmo, baja la resolución sola para que no haya tirones.'
-    : '<b>NORMAL</b>: el de siempre, equilibrado para cualquier equipo.';
-}
-async function loadGraficos(){
-  const v = await storeGet('invasion_graficos');
-  graficos = v === 'ultra' ? 'ultra' : 'normal';
-  aplicaGraficos();
-}
-function saveGraficos(){ storeSet('invasion_graficos', graficos); }
 // Temblor de pantalla (Ajustes > Pantalla y sonido): apagado, los golpes y
 // explosiones ya no sacuden la cámara (lo demás del impacto sigue igual).
 let temblorOn = true;
@@ -22430,58 +22383,53 @@ function lluviaPat(){
 
 function drawClima(){
   if (nubeK <= 0 && lluviaK <= 0) return;
-  // 1) el cielo se apaga: velo gris azulado, más espeso con lluvia
-  const ultra = graficos === 'ultra', nocheU = ultra && oscuridadAhora() > 0.3;
-  const velo = (nubeK * 0.16 + lluviaK * 0.12)*(nocheU ? 0.45 : 1);   // de noche en ULTRA, la lluvia no apaga las luces
+  // 1) el cielo se apaga: velo gris azulado, más espeso con lluvia. De noche
+  // es azul oscuro y más fino, para que la lluvia no apague las luces.
+  const noche = oscuridadAhora() > 0.3;
+  const velo = (nubeK * 0.16 + lluviaK * 0.12)*(noche ? 0.45 : 1);
   if (velo > 0.004){
     ctx.globalAlpha = velo;
-    // en ULTRA, de noche, el velo es azul oscuro: no apaga los charcos de luz
-    ctx.fillStyle = esInfierno() ? '#4a0c08' : nocheU ? '#14213d' : '#39465a';
+    ctx.fillStyle = esInfierno() ? '#4a0c08' : noche ? '#14213d' : '#39465a';
     ctx.fillRect(0, 0, CW, CH);
   }
-  // 2) sombras de nubes deslizándose, ancladas al mundo
-  if (nubeK > 0.01){
+  // 2) sombras de nubes deslizándose, ancladas al mundo. Son sombras del sol:
+  // se desvanecen al anochecer y de noche no se pintan (un relleno menos)
+  const sombraNube = nubeK*clamp(1 - (oscuridadAhora() - 0.15)/0.3, 0, 1);
+  if (sombraNube > 0.01){
     const p = nubePat();
     const T = 512;
     const ox = -(((camX*ZOOM - gameTime*22) % T) + T) % T;
     const oy = -(((camY*ZOOM - gameTime*9) % T) + T) % T;
-    ctx.globalAlpha = nubeK;
+    ctx.globalAlpha = sombraNube;
     ctx.save(); ctx.translate(ox, oy);
     ctx.fillStyle = p; ctx.fillRect(0, 0, CW + T, CH + T);
     ctx.restore();
   }
-  // 3) lluvia en dos capas a distinta velocidad, para dar profundidad
+  // 3) lluvia en dos capas: al fondo, gotas cortas; delante, gotas largas y
+  // brillantes que caen más rápido. Dos rellenos con patrón, como siempre.
   if (lluviaK > 0.01){
     const p = esInfierno() ? lluviaPatRoja() : lluviaPat();
     const T = 256;
-    for (let capa = 0; capa < 2; capa++){
-      const vel = capa ? 620 : 900;
-      const ox = -((((gameTime*vel*0.28) + capa*61) % T) + T) % T;
-      const oy = -((((-gameTime*vel) + capa*97) % T) + T) % T;
-      ctx.globalAlpha = lluviaK * (capa ? 0.45 : 0.75);
-      ctx.save(); ctx.translate(ox, oy);
-      if (capa) ctx.scale(1.35, 1.35);
-      ctx.fillStyle = p; ctx.fillRect(0, 0, (CW + T*2) / (capa ? 1.35 : 1), (CH + T*2) / (capa ? 1.35 : 1));
-      ctx.restore();
-    }
-    if (ultra){                                    // una capa más, cerca: gotas largas y brillantes
-      const pl = lluviaPatLarga(), T2 = 320, vel = 1250;
-      const ox = -((((gameTime*vel*0.3) + 37) % T2) + T2) % T2;
-      const oy = -((((-gameTime*vel) + 11) % T2) + T2) % T2;
-      ctx.globalAlpha = lluviaK*0.7;
-      ctx.save(); ctx.translate(ox, oy);
-      ctx.fillStyle = pl; ctx.fillRect(0, 0, CW + T2*2, CH + T2*2);
-      ctx.restore();
-    }
+    let ox = -((((gameTime*900*0.28)) % T) + T) % T, oy = -((((-gameTime*900)) % T) + T) % T;
+    ctx.globalAlpha = lluviaK*0.75;
+    ctx.save(); ctx.translate(ox, oy);
+    ctx.fillStyle = p; ctx.fillRect(0, 0, CW + T*2, CH + T*2);
+    ctx.restore();
+    const pl = lluviaPatLarga(), T2 = 320, vel = 1250;
+    ox = -((((gameTime*vel*0.3) + 37) % T2) + T2) % T2; oy = -((((-gameTime*vel) + 11) % T2) + T2) % T2;
+    ctx.globalAlpha = lluviaK*0.6;
+    ctx.save(); ctx.translate(ox, oy);
+    ctx.fillStyle = pl; ctx.fillRect(0, 0, CW + T2*2, CH + T2*2);
+    ctx.restore();
   }
   // 4) salpicaduras en el suelo: un puñado fijo que se recicla, nunca crece
   if (lluviaK > 0.25) drawSalpicaduras();
   ctx.globalAlpha = 1;
 }
 
-const SALP_N = 22, SALP_N_ULTRA = 64;
+const SALP_N = 36;
 const salp = [];
-// Gotas largas de la capa cercana de ULTRA (también una textura que se repite).
+// Gotas largas de la capa cercana (también una textura que se repite).
 const _lluviaLarga = {};
 function lluviaPatLarga(){
   const roja = esInfierno() ? 1 : 0;                 // en el castigo, lluvia roja
@@ -22503,7 +22451,7 @@ function lluviaPatLarga(){
   return (_lluviaLarga[roja] = ctx.createPattern(cv, 'repeat'));
 }
 function drawSalpicaduras(){
-  const n = graficos === 'ultra' ? SALP_N_ULTRA : SALP_N;
+  const n = SALP_N;
   while (salp.length < n) salp.push({ x: Math.random()*CW, y: Math.random()*CH, t: Math.random() });
   const dt = 1/60;
   ctx.strokeStyle = esInfierno() ? 'rgba(230,60,40,0.6)' : 'rgba(210,228,245,0.55)';
@@ -22548,7 +22496,7 @@ function drawLampProp(l){
 // Antes se hacía a pantalla completa con 'lighter' y un halo por farola.
 // Ahora todo se resuelve en un búfer a 1/3 de resolución (9x menos píxeles)
 // y se vuelca al lienzo con un único drawImage.
-let LIGHT_DS = 4;                         // factor de reducción del búfer (2 en ULTRA: luz más fina)
+const LIGHT_DS = 4;                       // factor de reducción del búfer de luz
 let lightCv = null, lightCtx = null, lightW = 0, lightH = 0;
 let holeSprite = null, warmSprite = null, cianSprite = null;
 let focoHazM = null, luzAzul = null, luzFuego = null, luzBlanca = null, luzRoja = null, luzAmarilla = null;
@@ -22620,66 +22568,25 @@ function makeRadial(radius, stops){
   g2.fillRect(0, 0, radius*2, radius*2);
   return c;
 }
-// ---- luces de ULTRA ----
-// Noche de ciudad como en una ilustración: farolas que dejan charcos de luz
-// amarilla muy marcados en el suelo, la bombilla encendida con su halo y el
-// cono de luz que baja hasta la acera; con lluvia, el reflejo alargado en el
-// suelo mojado. Todo son imágenes pequeñas hechas una vez y estampadas.
-const ULTRA_SP = {};
-function ultraSp(){
-  if (ULTRA_SP.hole) return ULTRA_SP;
-  ULTRA_SP.hole = makeRadial(128, [[0,'rgba(0,0,0,0.97)'],[0.35,'rgba(0,0,0,0.82)'],[0.7,'rgba(0,0,0,0.32)'],[1,'rgba(0,0,0,0)']]);
-  ULTRA_SP.warm = makeRadial(128, [[0,'rgba(255,212,128,0.62)'],[0.3,'rgba(255,186,92,0.36)'],[0.62,'rgba(255,160,70,0.10)'],[1,'rgba(255,150,60,0)']]);
-  ULTRA_SP.warmAl = makeRadial(128, [[0,'rgba(140,230,255,0.5)'],[0.3,'rgba(100,200,255,0.28)'],[0.62,'rgba(80,170,255,0.08)'],[1,'rgba(70,160,255,0)']]);
-  const bombilla = (c1, c2, c3)=> makeRadial(64, [[0,'rgba(255,255,248,1)'],[0.1,c1],[0.28,c2],[0.6,c3],[1,'rgba(0,0,0,0)']]);
-  ULTRA_SP.halo = bombilla('rgba(255,238,190,0.95)', 'rgba(255,200,110,0.38)', 'rgba(255,170,80,0.09)');
-  ULTRA_SP.haloAl = bombilla('rgba(200,245,255,0.95)', 'rgba(110,210,255,0.38)', 'rgba(80,180,255,0.09)');
-  const cono = (col)=>{
-    const c = document.createElement('canvas'); c.width = 64; c.height = 128;
-    const g = c.getContext('2d');
-    for (let i = 0; i < 4; i++){                         // capas cada vez más estrechas: borde suave
-      const f = i/3, ab = 32*(1 - f*0.55), ar = 3 + 2*(1 - f);
-      const gr = g.createLinearGradient(0, 0, 0, 128);
-      gr.addColorStop(0, 'rgba(' + col + ',0.075)'); gr.addColorStop(0.55, 'rgba(' + col + ',0.028)'); gr.addColorStop(1, 'rgba(' + col + ',0)');
-      g.fillStyle = gr;
-      g.beginPath(); g.moveTo(32 - ar, 0); g.lineTo(32 + ar, 0); g.lineTo(32 + ab, 128); g.lineTo(32 - ab, 128); g.closePath(); g.fill();
-    }
-    return c;
-  };
-  ULTRA_SP.cono = cono('255,214,140'); ULTRA_SP.conoAl = cono('150,225,255');
-  ULTRA_SP.refl = makeRadial(32, [[0,'rgba(255,214,140,0.75)'],[0.45,'rgba(255,190,100,0.25)'],[1,'rgba(255,170,80,0)']]);
-  ULTRA_SP.reflAl = makeRadial(32, [[0,'rgba(150,230,255,0.75)'],[0.45,'rgba(100,200,255,0.25)'],[1,'rgba(80,180,255,0)']]);
-  return ULTRA_SP;
+// La lucecita de cada bombilla encendida (halo cálido; cian en el planeta
+// marciano). Dos imágenes pequeñas, hechas una vez y estampadas.
+const BOMBILLA = {};
+function bombillaSp(alien){
+  const k = alien ? 'al' : 'c';
+  if (BOMBILLA[k]) return BOMBILLA[k];
+  const st = alien ? ['rgba(200,245,255,0.95)', 'rgba(110,210,255,0.38)', 'rgba(80,180,255,0.09)']
+                   : ['rgba(255,238,190,0.95)', 'rgba(255,200,110,0.38)', 'rgba(255,170,80,0.09)'];
+  return (BOMBILLA[k] = makeRadial(64, [[0,'rgba(255,255,248,1)'],[0.1,st[0]],[0.28,st[1]],[0.6,st[2]],[1,'rgba(0,0,0,0)']]));
 }
-// En NORMAL, solo una lucecita en cada bombilla (sin cono ni reflejos).
 function drawBombillas(oscuro){
   if (esInfierno() || !lucesEncendidas()) return;
-  const U = ultraSp(), halo = esAlien() ? U.haloAl : U.halo, a = Math.min(1, oscuro*1.5)*0.85, Z = ZOOM;
+  const halo = bombillaSp(esAlien()), a = Math.min(1, oscuro*1.5)*0.85, Z = ZOOM;
   ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = a;
   for (const l of lamps){
     if (l.dead || l.held || l.thrown || l.presa) continue;
     if (l.x < camX - 40 || l.x > camX + VW + 40 || l.y < camY - 20 || l.y > camY + VH + 60) continue;
     const hx = (l.x + 7.6 - camX + temblorX)*Z, hy = (l.y - 41 - camY + temblorY)*Z;
     ctx.drawImage(halo, hx - 12*Z, hy - 12*Z, 24*Z, 24*Z);
-  }
-  ctx.restore();
-}
-// Bombillas, conos y reflejos de las farolas, encima de la oscuridad.
-function drawFarolasUltra(oscuro){
-  if (esInfierno() || !lucesEncendidas()) return;
-  const U = ultraSp(), al = esAlien(), a = Math.min(1, oscuro*1.5), Z = ZOOM, moj = lluviaK;
-  const halo = al ? U.haloAl : U.halo, cono = al ? U.conoAl : U.cono, refl = al ? U.reflAl : U.refl;
-  ctx.save(); ctx.globalCompositeOperation = 'lighter';
-  for (const l of lamps){
-    if (l.dead || l.held || l.thrown || l.presa) continue;
-    if (l.x < camX - 80 || l.x > camX + VW + 80 || l.y < camY - 60 || l.y > camY + VH + 140) continue;
-    const hx = (l.x + 7.6 - camX + temblorX)*Z, hy = (l.y - 41 - camY + temblorY)*Z, gy = (l.y + 12 - camY + temblorY)*Z;
-    ctx.globalAlpha = a*0.8;  ctx.drawImage(cono, hx - 26*Z, hy + 2*Z, 52*Z, gy - hy + 10*Z);     // cono tenue hasta el suelo
-    if (moj > 0.05){                                                                              // reflejo en el suelo mojado
-      ctx.globalAlpha = a*0.45*moj*(0.85 + Math.sin(gameTime*3 + l.x*0.1)*0.15);
-      ctx.drawImage(refl, hx - 8*Z, gy - 2*Z, 16*Z, 70*Z);
-    }
-    ctx.globalAlpha = a; ctx.drawImage(halo, hx - 20*Z, hy - 20*Z, 40*Z, 40*Z);                  // la bombilla
   }
   ctx.restore();
 }
@@ -22973,17 +22880,14 @@ function overlayFase(){
 function drawLighting(){
   const p = phase();
   const oscuro = oscuridadAhora();
-  const u = graficos === 'ultra', U = u ? ultraSp() : null;
   if (oscuro > 0.004){
     ensureLightBuf();
     const L = lightCtx, k = ZOOM/LIGHT_DS;
     L.setTransform(1,0,0,1,0,0);
     L.globalCompositeOperation = 'source-over';
     L.clearRect(0,0,lightW,lightH);
-    // en ULTRA la noche de la ciudad es de un azul más profundo: así los
-    // charcos de luz de las farolas destacan como en una ilustración
-    L.fillStyle = esAlien() ? `rgba(16,8,34,${oscuro})` : esInfierno() ? `rgba(30,4,4,${oscuro})`
-                : u ? `rgba(4,9,32,${Math.min(0.86, oscuro*1.12).toFixed(3)})` : `rgba(6,10,26,${oscuro})`;
+    // la noche de la ciudad, de un azul algo más hondo (misma oscuridad)
+    L.fillStyle = esAlien() ? `rgba(16,8,34,${oscuro})` : esInfierno() ? `rgba(30,4,4,${oscuro})` : `rgba(5,10,32,${oscuro})`;
     L.fillRect(0,0,lightW,lightH);
 
     if (lucesEncendidas()){
@@ -22995,11 +22899,6 @@ function drawLighting(){
       for (const l of lamps){
         if (l.dead || infOscuro) continue;          // farola destruida = calle a oscuras (en el infierno, todas)
         if (l.x < mx || l.x > Mx || l.y < my || l.y > My) continue;
-        if (u){                                      // el charco, bajo la bombilla
-          const sx = (l.x + 8 - camX)*k, sy = (l.y + 12 - camY)*k, ru = r*1.06;
-          L.drawImage(U.hole, sx - ru, sy - ru*0.82, ru*2, ru*1.64);
-          continue;
-        }
         const sx = (l.x - camX)*k, sy = (l.y + 20 - camY)*k;
         L.drawImage(holeSprite, sx - r, sy - r, r*2, r*2);
       }
@@ -23031,11 +22930,6 @@ function drawLighting(){
       for (const l of lamps){
         if (l.dead || infOscuro) continue;
         if (l.x < mx || l.x > Mx || l.y < my || l.y > My) continue;
-        if (u){
-          const sx = (l.x + 8 - camX)*k, sy = (l.y + 12 - camY)*k, ru = r*1.06;
-          L.drawImage(esAlien() ? U.warmAl : U.warm, sx - ru, sy - ru*0.82, ru*2, ru*1.64);
-          continue;
-        }
         const sx = (l.x - camX)*k, sy = (l.y + 20 - camY)*k;
         L.drawImage(esAlien() ? cianSprite : warmSprite, sx - r, sy - r, r*2, r*2);
       }
@@ -23063,7 +22957,7 @@ function drawLighting(){
     }
     ctx.drawImage(lightCv, 0, 0, CW, CH);          // un solo volcado a pantalla
     drawVentanasNoche(oscuro);
-    if (u) drawFarolasUltra(oscuro); else drawBombillas(oscuro);
+    drawBombillas(oscuro);
   }
   ctx.drawImage(overlayFase(), 0, 0, CW, CH);   // graduación + viñeta, de una vez
   drawClima();                                   // nubes y lluvia por encima
@@ -23342,11 +23236,15 @@ function llamasVentanas(b, s2){
 // Ventanas encendidas y neones de noche, encima de la oscuridad. Cada ventana
 // decide por su cuenta si hay alguien en casa, y alguna se apaga o enciende
 // de vez en cuando.
+// Colores de las ventanas: fijos, para no componer un texto por ventana y
+// fotograma (la transparencia va en globalAlpha).
+const VENT_TONOS = ['rgb(255,214,140)', 'rgb(255,236,190)', 'rgb(190,220,255)'], VENT_TONOS_INF = ['rgb(255,150,60)', 'rgb(255,110,40)'];
 function drawVentanasNoche(oscuro){
   if (oscuro < 0.08 || !lucesEncendidas()) return;
-  const Z = ZOOM, a = Math.min(1, oscuro*1.4);
+  const Z = ZOOM, a = Math.min(1, oscuro*1.4), inf = esInfierno(), tope = inf ? 16 : 44;
+  const aHalo = a*0.11, aVid = a*0.7;
   const x0 = camX - 10, x1 = camX + VW + 10, y0 = camY - 10, y1 = camY + VH + 10;
-  const cambio = Math.floor(gameTime/14), ultra = graficos === 'ultra';
+  const cambio = Math.floor(gameTime/14);
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
   for (const b of buildings){
@@ -23356,17 +23254,13 @@ function drawVentanasNoche(oscuro){
       const v = b._win[i];
       let n = ((sd*131 + i*977) % 100 + 100) % 100;
       if (n < 12 && ((cambio + i) % 3 === 0)) n = 99 - n;          // se encienden y apagan
-      if (n > (esInfierno() ? 16 : 44)) continue;
-      const tono = esInfierno() ? (n % 2 ? '255,110,40' : '255,150,60') : n % 3 === 0 ? '255,214,140' : n % 3 === 1 ? '255,236,190' : '190,220,255';
-      if (ultra){                                                   // halo que se derrama por la fachada
-        ctx.fillStyle = 'rgba(' + tono + ',' + (a*0.06).toFixed(3) + ')';
-        ctx.fillRect(bx + (v[0] - 8)*Z, by + (v[1] - 6)*Z, (v[2] + 16)*Z, (v[3] + 14)*Z);
-      }
-      ctx.fillStyle = 'rgba(' + tono + ',' + (a*0.16).toFixed(3) + ')';
-      ctx.fillRect(bx + (v[0] - 3)*Z, by + (v[1] - 2)*Z, (v[2] + 6)*Z, (v[3] + 5)*Z);
-      ctx.fillStyle = 'rgba(' + tono + ',' + (a*(ultra ? 0.8 : 0.62)).toFixed(3) + ')';
-      ctx.fillRect(bx + v[0]*Z, by + v[1]*Z, v[2]*Z, v[3]*Z);
+      if (n > tope) continue;
+      ctx.fillStyle = inf ? VENT_TONOS_INF[n % 2] : VENT_TONOS[n % 3];
+      // un halo que se derrama por la fachada y el cristal encendido
+      ctx.globalAlpha = aHalo; ctx.fillRect(bx + (v[0] - 5)*Z, by + (v[1] - 4)*Z, (v[2] + 10)*Z, (v[3] + 9)*Z);
+      ctx.globalAlpha = aVid;  ctx.fillRect(bx + v[0]*Z, by + v[1]*Z, v[2]*Z, v[3]*Z);
     }
+    ctx.globalAlpha = 1;
     if (b._neon && !esInfierno()){
       const pul = 0.75 + Math.sin(gameTime*3 + sd)*0.25;
       for (const n of b._neon){
@@ -24239,7 +24133,6 @@ function draw(){
   ctx.restore();
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   drawLighting();                                  // en píxeles del lienzo
-  drawBloom();                                     // resplandor (solo en ULTRA)
   drawFlechasJefe();                               // encima de la oscuridad
   drawTelaAviso();
   drawVinetaVida(); drawBarrasJefe(); drawJefeCaido(); drawPresentacion();
@@ -24549,34 +24442,6 @@ function drawJefeCaido(){
   ctx.font = 'bold ' + Math.round(fs*0.42) + 'px monospace';
   ctx.lineWidth = 4; ctx.strokeText(E.nom + (J.def ? ' D.' : ''), 0, fs*0.85);
   ctx.fillStyle = C.barra[0]; ctx.fillText(E.nom + (J.def ? ' D.' : ''), 0, fs*0.85);
-  ctx.restore();
-}
-// ---- resplandor del modo ULTRA ----
-// Se reduce la imagen a 1/5, se queda solo con lo muy brillante (fuego,
-// rayos, explosiones, neones, ventanas encendidas...), se difumina y se suma
-// encima: todo lo que brilla irradia luz. Si el navegador no tiene filtros de
-// lienzo, simplemente no se hace.
-let _bloomCv = null, _bloomCtx = null, _bloomOk = null, bloomApagado = false;
-const _bloomFiltro = {};
-function drawBloom(){
-  if (graficos !== 'ultra' || bloomApagado || (!running && !esVisorVs())) return;
-  if (_bloomOk === null){ try { _bloomOk = typeof document.createElement('canvas').getContext('2d').filter === 'string'; } catch(e){ _bloomOk = false; } }
-  if (!_bloomOk) return;
-  const w = Math.max(1, Math.round(CW/5)), h = Math.max(1, Math.round(CH/5));
-  if (!_bloomCv){ _bloomCv = document.createElement('canvas'); _bloomCtx = _bloomCv.getContext('2d'); }
-  if (_bloomCv.width !== w || _bloomCv.height !== h){ _bloomCv.width = w; _bloomCv.height = h; }
-  const g = _bloomCtx;
-  // de noche irradia todo lo que brilla; de día, con todo claro, solo lo más
-  // intenso y más flojo, para no quemar las fachadas blancas
-  const k = Math.round(clamp(oscuridadAhora()/0.62, 0, 1)*10)/10;
-  g.globalCompositeOperation = 'copy';
-  g.filter = _bloomFiltro[k] || (_bloomFiltro[k] = 'brightness(' + (0.5 + 0.12*k).toFixed(2) + ') contrast(' + (3 - 0.5*k).toFixed(2) + ') saturate(1.7) blur(3px)');
-  g.drawImage(canvas, 0, 0, w, h);
-  g.filter = 'none';
-  ctx.save();
-  ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.24 + 0.26*k;
-  ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
-  ctx.drawImage(_bloomCv, 0, 0, CW, CH);
   ctx.restore();
 }
 // ---- viñeta casi imperceptible con poca vida ----
@@ -24962,7 +24827,7 @@ function lucesDinamicas(luz){
   }
   if (rayosOn && isVil()){ const o = vilCabeza(), a = vilRayoAng(o); for (const f of [0.3, 0.7]) luz(o.x + Math.cos(a)*RAYO_LARGO*f, o.y + Math.sin(a)*RAYO_LARGO*f, 80, luzRoja, 0.7); }
 }
-let lucesMax = 28;                // luces dinámicas a la vez (más en ULTRA)
+const lucesMax = 28;              // luces dinámicas a la vez
 function drawLucesDia(){
   if (!running && !esVisorVs()) return;
   ensureLightBuf();
@@ -25808,8 +25673,7 @@ lastT = performance.now();
 // ~45 fps, se renuncia a ella (una sola vez) antes de que se note el tirón.
 const perf = { t:0, n:0, lento:0 };
 function vigilaRendimiento(ms){
-  const extraUltra = graficos === 'ultra' && !bloomApagado;     // en ULTRA aún queda un escalón: el resplandor
-  if ((DPR <= 1 && !extraUltra) || !running || document.hidden || ms <= 0 || ms > 250) return;
+  if (DPR <= 1 || !running || document.hidden || ms <= 0 || ms > 250) return;
   perf.t += ms; perf.n++;
   if (perf.t < 2000) return;
   const media = perf.t / perf.n;
@@ -25817,10 +25681,7 @@ function vigilaRendimiento(ms){
   if (media > 1000/45){
     if (++perf.lento >= 2){
       perf.lento = 0;
-      // primero la resolución (en ULTRA de 3× a 2× y luego a 1×), al final el
-      // resplandor y el realce de color: así nunca se queda con tirones
-      if (DPR > 1){ dprTope = graficos === 'ultra' && DPR > 2 ? 2 : 1; resize(); }
-      else { bloomApagado = true; canvas.style.filter = ''; }
+      dprTope = 1; resize();
     }
   } else perf.lento = 0;
 }
@@ -26192,7 +26053,7 @@ document.getElementById('importFile').addEventListener('change', e=>{
       SaveIO.data = obj;
       SaveIO.flush();
       await loadDex(); await loadBinds(); await loadShop(); await loadAudioPrefs();
-      await loadTouchPref(); await loadBindsP2(); await loadMenuAnim(); await loadHpBars(); await loadNumeros(); await loadGraficos(); await loadTemblor(); await loadMapa();
+      await loadTouchPref(); await loadBindsP2(); await loadMenuAnim(); await loadHpBars(); await loadNumeros(); await loadTemblor(); await loadMapa();
       sanitizeBinds(); renderBinds(); renderBindsP2();
       refreshCoinLabels(); refreshAudioUI(); refreshTouchUI(); refreshAnimUI(); refreshHpUI(); refreshNumUI();
       applyAudioVolumes(); await renderScoreList();
@@ -26739,10 +26600,6 @@ if (_edS) _edS.addEventListener('click', uiEdGuardar);
 const _edB = document.getElementById('uiEdBack');
 if (_edB) _edB.addEventListener('click', ()=>{ hide('uieditor'); show('controles'); sfx('ui'); });
 
-for (const [id, modo] of [['gfxNormal', 'normal'], ['gfxUltra', 'ultra']]){
-  const b = document.getElementById(id);
-  if (b) b.addEventListener('click', ()=>{ if (graficos === modo) return; graficos = modo; aplicaGraficos(); saveGraficos(); sfx('ui'); });
-}
 document.getElementById('tgTemblor').addEventListener('click', ()=>{ temblorOn = !temblorOn; saveTemblor(); refreshTemblorUI(); sfx('ui'); });
 document.getElementById('tgHp').addEventListener('click', ()=>{
   showHpBars = !showHpBars;
@@ -28630,7 +28487,7 @@ document.getElementById('btnMenu').addEventListener('click', async ()=>{
     ['Cargando controles',        async ()=>{ await loadBinds(); await loadBindsP2(); }],
     ['Cargando monedas y tienda', async ()=>{ await loadShop(); await loadImgSkins(); }],
     ['Cargando preferencias',     async ()=>{ await loadAudioPrefs(); await loadTouchPref();
-                                              await loadMenuAnim(); await loadHpBars(); await loadNumeros(); await loadGraficos(); await loadTemblor(); await loadHero(); await loadMapa();
+                                              await loadMenuAnim(); await loadHpBars(); await loadNumeros(); await loadTemblor(); await loadHero(); await loadMapa();
                                               await loadOvniVs(); refreshOvniVsUI();
                                               await loadOnlinePrefs(); refreshOnlineUI();
                                               await loadUICfg(); }],
