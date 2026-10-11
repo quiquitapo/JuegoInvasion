@@ -22118,7 +22118,7 @@ function vilPaleta(){
 const VIL_POSES = {
   quieto:    { b:[[-7.5,-10.5, -9.6,-2, -9,5.5], [7.8,-10.5, 9.8,-2, 9.4,5.5]],   p:'cuelga' },
   sujeta:    { b:[[-7.5,-10.5, -9.6,-2, -9,5.5], [7.8,-10.5, 9.8,-2, 9.4,5.5]],   p:'cuelga' },
-  golpe:     { b:[[-7.5,-10.5, -9,-4, -4,-2],    [7.8,-10, 17,-9, 27,-8.5]],     p:'cuelga' },
+  golpe:     { b:[[-7.5,-10.5, -9,-4, -4,-2],    [7.8,-10.5, 16.6,-6.2, 24.4,-13.2]], p:'cuelga' },
   carga:     { b:[[-7.5,-10.5, -4,-5, 3,-7],     [7.8,-10.5, 0,-6, -8.5,-5]],    p:'cuelga' },
   vuelo:     { b:[[-7.5,-10.5, -8.6,-1, -7,7],   [7.6,-11, 7.4,-21, 5,-31]],     p:'juntas' },
   presa:     { b:[[-7.5,-10, 3,-8, 15,-5],       [7.8,-10, 14,-8.5, 19.5,-7.5]], p:'cuelga' },
@@ -22145,15 +22145,24 @@ function vilBandas(g, x0, y0, x1, y1, u, w, n, col){          // rayas oscuras q
   for (let k = 0; k < n; k++){ const q = u + k*1.3/l, px = x0 + dx*q, py = y0 + dy*q; g.moveTo(px - nx, py - ny); g.lineTo(px + nx, py + ny); }
   g.stroke();
 }
-function vilBrazo(g, a, P, manos, lado, extra){
+function vilBrazo(g, a, P, manos, lado, extra, flex){
   const [sx, sy, ex, ey, hx0, hy0] = a;
-  const hx = hx0 + (extra ? extra[0] : 0), hy = hy0 + (extra ? extra[1] : 0);
-  vilTramo(g, sx, sy, ex, ey, 5.4, lado < 0 ? P.sombra : P.traje, P.linea);
-  vilTramo(g, ex, ey, hx, hy, 4.8, lado < 0 ? P.sombra : P.traje, P.linea);
+  const hx = hx0 + (extra ? extra[0] : 0), hy = hy0 + (extra ? extra[1] : 0), col = lado < 0 ? P.sombra : P.traje;
+  vilTramo(g, sx, sy, ex, ey, 5.4, col, P.linea);
+  if (flex){                                                     // bíceps hinchado, por dentro del codo
+    const ux = ex - sx, uy = ey - sy, l = Math.hypot(ux, uy) || 1, nx = -uy/l, ny = ux/l;
+    const k = nx*(hx - ex) + ny*(hy - ey) >= 0 ? 1 : -1, mx = sx + ux*0.55 + nx*k*1.5, my = sy + uy*0.55 + ny*k*1.5;
+    g.fillStyle = P.linea; g.beginPath(); g.ellipse(mx, my, l*0.36 + 1, 3.6, Math.atan2(uy, ux), 0, Math.PI*2); g.fill();
+    g.fillStyle = col; g.beginPath(); g.ellipse(mx, my, l*0.36, 2.6, Math.atan2(uy, ux), 0, Math.PI*2); g.fill();
+  }
+  vilTramo(g, ex, ey, hx, hy, flex ? 5.3 : 4.8, col, P.linea);
   vilBandas(g, sx, sy, ex, ey, 0.45, 5.4, 2, P.banda);
-  vilBandas(g, ex, ey, hx, hy, 0.5, 4.8, 3, P.banda);
-  g.fillStyle = P.linea; g.beginPath(); g.arc(hx, hy, 3.3, 0, Math.PI*2); g.fill();     // puño
-  g.fillStyle = lado < 0 ? P.pielO : P.piel; g.beginPath(); g.arc(hx, hy, 2.6, 0, Math.PI*2); g.fill();
+  vilBandas(g, ex, ey, hx, hy, 0.5, flex ? 5.3 : 4.8, 3, P.banda);
+  const R = flex ? 4 : 3.3;
+  g.fillStyle = P.linea; g.beginPath(); g.arc(hx, hy, R, 0, Math.PI*2); g.fill();     // puño
+  g.fillStyle = lado < 0 ? P.pielO : P.piel; g.beginPath(); g.arc(hx, hy, R - 0.7, 0, Math.PI*2); g.fill();
+  if (flex){ g.strokeStyle = P.linea; g.lineWidth = 0.6; g.beginPath();                // nudillos
+    const a0 = Math.atan2(hy - ey, hx - ex); g.arc(hx, hy, R*0.55, a0 - 1.1, a0 + 1.1); g.stroke(); }
   if (manos > 0.02){ g.globalAlpha = Math.min(0.85, manos); g.fillStyle = vil._manosCol || '#9b1218';
     g.beginPath(); g.arc(hx + 0.6, hy + 0.4, 2.2, 0, Math.PI*2); g.fill(); g.globalAlpha = 1; }
 }
@@ -22171,8 +22180,9 @@ function vilPierna(g, a, P, lado, t){
 // La figura, en sus propias coordenadas (de pie, mirando a la derecha; el
 // que llama se encarga de girarla al volar o de voltearla).
 // st: { t, pose, punchT, golpeLado, manos, sangre, pal, SK, cabeza }
-// Brazos de la postura; al cargar el golpe, el puño se va hacia atrás poco a
-// poco desde el reposo, preparando el golpe (y con la carga completa, tiembla).
+// Brazos de la postura. Al cargar el golpe: guardia con el brazo doblado (el
+// codo a la vista y el puño arriba), que se va hacia atrás poco a poco sin
+// perder la forma; con la carga completa, tiembla.
 // Gira un brazo (hombro fijo) un ángulo: así el golpe y su preparación van
 // hacia donde se apunta y no siempre de frente.
 function vilBrazoGira(b, la){
@@ -22182,23 +22192,30 @@ function vilBrazoGira(b, la){
   return r;
 }
 // Brazo que llega hasta un punto (la mano, en lo que sujeta), con el codo doblado.
-function vilBrazoHasta(sx, sy, hx, hy, abajo){
+function vilBrazoHasta(sx, sy, hx, hy){
   let dx = hx - sx, dy = hy - sy, d = Math.hypot(dx, dy) || 1;
   const L = 18.5;
   if (d > L){ hx = sx + dx/d*L; hy = sy + dy/d*L; dx = hx - sx; dy = hy - sy; d = L; }
-  const dobla = Math.sqrt(Math.max(0, (L/2)*(L/2) - (d/2)*(d/2))), nx = -dy/d, ny = dx/d, k = abajo ? -1 : 1;
+  const dobla = Math.sqrt(Math.max(0, (L/2)*(L/2) - (d/2)*(d/2))), nx = -dy/d, ny = dx/d;
+  // de las dos maneras de doblar el codo, la natural: hacia abajo, o hacia
+  // fuera cuando la mano baja por debajo del hombro (así no salta al girar)
+  const k = dy > d*0.35 ? (nx >= 0 ? 1 : -1) : (ny >= 0 ? 1 : -1);
   return [sx, sy, sx + dx/2 + nx*dobla*k, sy + dy/2 + ny*dobla*k, hx, hy];
 }
 function vilBrazos(st, pose){
-  if (st.pose === 'sujeta' && st.agarre){
+  if (st.pose === 'sujeta' && st.agarre){                        // un solo brazo sujeta; el otro, quieto
     const [hx, hy] = st.agarre;
-    return [vilBrazoHasta(-7.5, -10.5, hx - 1.5, hy + 2.5, true), vilBrazoHasta(7.8, -10.5, hx, hy, true)];
+    return [VIL_POSES.quieto.b[0], vilBrazoHasta(7.8, -10.5, hx, hy)];
   }
   if (st.pose === 'golpe' && st.la) return [pose.b[0], vilBrazoGira(pose.b[1], st.la)];
   if (st.pose !== 'carga') return pose.b;
   const k0 = clamp(st.carga === undefined ? 1 : st.carga, 0, 1), k = 1 - (1 - k0)*(1 - k0);
-  const A = VIL_POSES.quieto.b, B = [VIL_POSES.carga.b[0], vilBrazoGira(VIL_POSES.carga.b[1], st.la || 0)], tr = k0 >= 1 ? Math.sin(st.t*40)*0.6 : 0;
-  return [0, 1].map(i => A[i].map((v, j)=> v + (B[i][j] - v)*k + (i === 1 && j >= 4 ? tr : 0)));
+  const A = VIL_POSES.quieto.b[0], B = VIL_POSES.carga.b[0], tr = k0 >= 1 ? Math.sin(st.t*40)*0.6 : 0;
+  const atras = A.map((v, j)=> v + (B[j] - v)*Math.min(1, k*1.6));
+  // el codo y el puño se van atrás juntos (el brazo se acorta, hacia el fondo):
+  // el codo sigue fuera del cuerpo y el puño queda junto a la cara
+  const ex = 9.5 - 5*k, ey = 1.6 + 1.8*k, hx = 10.9 - 8.4*k + tr, hy = -8 + 0.6*k;
+  return [atras, vilBrazoGira([7.8, -10.5, 7.8 + ex, -10.5 + ey, 7.8 + hx, -10.5 + hy], (st.la || 0)*0.45)];
 }
 function vilFigura(g, st){
   if (st.SK && st.SK.cosmic) return vilFiguraCosmica(g, st);
@@ -22272,7 +22289,7 @@ function vilFigura(g, st){
   g.fillStyle = P.traje; g.fillRect(-3.6, -16.4, 7.2, 3.2); g.strokeStyle = L; g.lineWidth = 0.9; g.strokeRect(-3.6, -16.4, 7.2, 3.2);
   g.strokeStyle = P.banda; g.lineWidth = 0.7; g.beginPath(); g.moveTo(-3.4, -15.4); g.lineTo(3.4, -15.4); g.moveTo(-3.4, -14.2); g.lineTo(3.4, -14.2); g.stroke();
   // brazo de delante
-  vilBrazo(g, brazos[1], P, st.manos, 1, gol && st.golpeLado > 0 ? gol : null);
+  vilBrazo(g, brazos[1], P, st.manos, 1, gol && st.golpeLado > 0 ? gol : null, st.pose === 'golpe' || st.pose === 'carga');
   // cabeza
   if (st.cabeza) st.cabeza(1, -20.5);
   else vilCabezaDib(g, P);
@@ -22399,10 +22416,10 @@ function vilCabezaDib(g, P){
 function vilAgarreLocal(){
   if (!heldObject || !heldObject.ref || vil.flying) return null;
   const o = heldObject.ref, f = player.facing || 1, fl = Math.sin((vil.capa || 0)*2.4)*2.2;
-  let dx = o.x - player.x, dy = o.y - (player.y + fl);
-  const d = Math.hypot(dx, dy) || 1, r = Math.min(o.w || 24, o.h || 24)*0.38;
-  dx -= dx/d*r; dy -= dy/d*r;
-  return [dx*f/0.82, dy/0.82];
+  const sx = player.x + f*7.8*0.82, sy = player.y + fl - 10.5*0.82;     // el hombro
+  let dx = o.x - sx, dy = o.y - sy;
+  const d = Math.hypot(dx, dy) || 1, r = Math.min(o.w || 24, o.h || 24)*0.38, l = Math.max(0, d - r);
+  return [7.8 + dx/d*l*f/0.82, -10.5 + dy/d*l/0.82];
 }
 // Estado de dibujo del jugador (también para el compañero en línea).
 function vilEstadoDib(pose){
@@ -22536,9 +22553,12 @@ function drawViltrum(){
 const VIL_ARM = 30;
 function vilHoldPoint(){
   if (vil.flying) return { x: player.x + vil.fx*38, y: player.y + vil.fy*38 };
-  // aimVector ya resuelve joystick de puntería o ratón, según cómo se juegue
-  const av = aimVector();
-  return { x: player.x + av.dx*VIL_ARM, y: player.y - 4 + av.dy*VIL_ARM };
+  // desde el hombro hacia la mira (ratón o joystick), a un brazo de distancia
+  // más medio objeto: la mano queda en su borde
+  const av = aimVector(), f = Math.abs(av.dx) > 0.1 ? (av.dx > 0 ? 1 : -1) : (player.facing || 1);
+  const o = heldObject && heldObject.ref, r = o ? Math.min(o.w || 24, o.h || 24)*0.38 : 6;
+  const fl = Math.sin((vil.capa || 0)*2.4)*2.2, sx = player.x + f*7.8*0.82, sy = player.y + fl - 10.5*0.82;
+  return { x: sx + av.dx*(13 + r), y: sy + av.dy*(13 + r) };
 }
 
 // Hacia dónde pega a pie: la mira (ratón o joystick derecho); en el móvil sin
