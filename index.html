@@ -854,9 +854,10 @@
   .actbtn { width:var(--act); height:var(--act); border-radius:50%; border:2px solid rgba(255,255,255,0.4);
             color:#fff; font-family:inherit; font-weight:900; letter-spacing:0.5px;
             display:flex; flex-direction:column; align-items:center; justify-content:center;
-            text-align:center; -webkit-user-select:none; user-select:none; opacity:0.9;
+            text-align:center; -webkit-user-select:none; user-select:none; opacity:0.72;
             line-height:1.15; transition:transform .08s ease, background .18s ease;
             box-shadow:0 4px 12px rgba(0,0,0,0.45); }
+  .actbtn:active, .actbtn.on, .actbtn.charging, .actbtn.lleva, .actbtn.carga { opacity:0.95; }
   .actlabel { font-size:0.66rem; }
   /* El dibujo de cada botón: encima del nombre, del color del texto del botón
      y sin recibir toques (el toque es siempre del botón). */
@@ -882,6 +883,9 @@
   #btnRayosDra.on { box-shadow:0 0 0 5px rgba(255,216,74,0.7), 0 4px 12px rgba(0,0,0,0.45); }
   #btnCola     { background:radial-gradient(circle at 35% 30%, #d9b85a, #5a480a); }
   #btnCola.charging { box-shadow:0 0 0 5px rgba(255,216,74,0.6); }
+  #btnRugidoDra { background:radial-gradient(circle at 35% 30%, #bfe0ff, #2a4a8a); }
+  #btnRugidoDra.on { box-shadow:0 0 0 5px rgba(160,210,255,0.75), 0 4px 12px rgba(0,0,0,0.45); }
+  #btnRugidoDra.espera { filter:grayscale(0.85) brightness(0.65); }
   /* Máquina y mago: sus propios botones; el de acción no se usa */
   .maqbtn, .magbtn { display:none; }
   body.touch-ui #actionBtns.playing.maq .maqbtn, body.touch-ui #actionBtns.playing.mag .magbtn { display:flex; }
@@ -1062,6 +1066,10 @@
     <div class="actbtn drabtn" id="btnCola">
       <span class="actlabel">COLA</span>
       <span class="acthint">mantén, apunta, suelta</span>
+    </div>
+    <div class="actbtn drabtn" id="btnRugidoDra">
+      <span class="actlabel">RUGIDO</span>
+      <span class="acthint">estamina</span>
     </div>
     <!-- solo con la máquina -->
     <div class="actbtn maqbtn" id="btnDisparo">
@@ -20546,15 +20554,16 @@ const UI_PIEZAS = [
   { id:'vilPre', el:'btnPresa',  nombre:'PRESA',    def:{ v:[0.66,0.70], h:[0.92,0.48] } },
   // los tres del dragón (el de acción hace de mordisco)
   { id:'draAle', el:'btnAleteo',   nombre:'ALETEO', def:{ v:[0.66,0.70], h:[0.80,0.56] } },
-  { id:'draRay', el:'btnRayosDra', nombre:'RAYOS',  def:{ v:[0.86,0.42], h:[0.92,0.40] } },
+  { id:'draRay', el:'btnRayosDra', nombre:'RAYOS',  def:{ v:[0.86,0.42], h:[0.92,0.50] } },
   { id:'draCol', el:'btnCola',     nombre:'COLA',   def:{ v:[0.86,0.79], h:[0.78,0.80] } },
+  { id:'draRug', el:'btnRugidoDra', nombre:'RUGIDO', def:{ v:[0.66,0.52], h:[0.66,0.70] } },
   // los de la máquina (disparo, arma, motosierras, incineración) y los del mago
   { id:'maqDis', el:'btnDisparo',  nombre:'DISPARO', def:{ v:[0.84,0.62], h:[0.91,0.70] } },
   { id:'maqArm', el:'btnArma',     nombre:'ARMA',    def:{ v:[0.64,0.74], h:[0.78,0.52] } },
   { id:'maqSie', el:'btnSierras',  nombre:'SIERRAS', def:{ v:[0.84,0.82], h:[0.78,0.84] } },
   { id:'maqInc', el:'btnIncinera', nombre:'INCINERAR', def:{ v:[0.84,0.42], h:[0.66,0.70] } },
   { id:'magRay', el:'btnRayoMag',  nombre:'RAYO',    def:{ v:[0.84,0.62], h:[0.91,0.70] } },
-  { id:'magTK',  el:'btnTK',       nombre:'MENTE',   def:{ v:[0.84,0.42], h:[0.92,0.42] } },
+  { id:'magTK',  el:'btnTK',       nombre:'MENTE',   def:{ v:[0.84,0.42], h:[0.92,0.50] } },
   { id:'magHie', el:'btnHielo',    nombre:'HIELO',   def:{ v:[0.64,0.72], h:[0.78,0.56] } },
   { id:'magEsc', el:'btnEscudoMag',nombre:'ESCUDO',  def:{ v:[0.84,0.82], h:[0.78,0.84] } },
   { id:'magFue', el:'btnFuegoMag', nombre:'FUEGO',   def:{ v:[0.64,0.54], h:[0.66,0.70] } },
@@ -20883,6 +20892,7 @@ function bindDragonBtns(){
     b.addEventListener('mousedown', abajo);
   };
   toca('btnAleteo', draAleteo);
+  toca('btnRugidoDra', draRugido);
   // RAYOS: mientras se mantiene, disparan hacia donde se arrastre; al soltar se apagan.
   // PRESA del viltrumita: mantener, apuntar y soltar; con alguien agarrado,
   // tocarlo otra vez lo lanza (arrastrando se elige hacia dónde)
@@ -21153,7 +21163,7 @@ function iconoBtn(id, nombre){
 }
 const ICONO_ARMA_MAQ = ['espada', 'rafaga', 'escopeta', 'cohete'];
 function iconosBotones(){
-  for (const [id, n] of [['btnAction', 'agarrar'], ['btnPunch', 'golpe'], ['btnAleteo', 'aleteo'], ['btnRayosDra', 'rayo'], ['btnCola', 'cola'],
+  for (const [id, n] of [['btnAction', 'agarrar'], ['btnPunch', 'golpe'], ['btnAleteo', 'aleteo'], ['btnRayosDra', 'rayo'], ['btnCola', 'cola'], ['btnRugidoDra', 'rugido'],
                          ['btnDisparo', 'rafaga'], ['btnArma', 'arma'], ['btnSierras', 'sierra'], ['btnIncinera', 'fuego'],
                          ['btnRayoMag', 'rayo'], ['btnTK', 'mente'], ['btnHielo', 'hielo'], ['btnEscudoMag', 'escudo'],
                          ['btnFuegoMag', 'fuego'], ['btnTele', 'salto'], ['btnPresa', 'presa']]) iconoBtn(id, n);
@@ -21250,7 +21260,7 @@ function refreshActionBtn(){
   // botón de acción sigue mordiendo
   const apaga = dragon && dra.rayos && draJoy.tipo !== 'rayo';
   const sig = (holding ? 'h' : 'e') + (dragon ? (apaga ? 'R' : 'D') : '') + (dragon && dra.colaApunta ? 'C' : '')
-            + (dragon && dra.rayos ? 'r' : '')
+            + (dragon && dra.rayos ? 'r' : '') + (dragon ? (dra.rugidoT > 0 ? 'G' : dra.rugidoCd > 0 ? 'g' : '') : '')
             + (isMaq() ? 'M' + maq.arma + (maq.gatillo ? 'g' : '') + (maq.sierraApunta ? 's' : '') + (maqSob() ? 'o' : '')
                        + (maq.incFase ? 'i' : '') + (maq.incCd > 0 ? 'c' + Math.ceil(maq.incCd) : '') : '')
             + (isVil() ? 'V' + (vil.presaApunta ? 'a' : '') + vil.presaFase + (vil.presaCd > 0 || vil.stam < VIL_PRESA_STAM ? 'c' : '') : '')
@@ -21286,6 +21296,8 @@ function refreshActionBtn(){
     if (btn)  btn.classList.remove('holding');
     const br = document.getElementById('btnRayosDra'); if (br) br.classList.toggle('on', dra.rayos);
     const bc = document.getElementById('btnCola');     if (bc) bc.classList.toggle('charging', dra.colaApunta);
+    const bg = document.getElementById('btnRugidoDra');
+    if (bg){ bg.classList.toggle('on', dra.rugidoT > 0); bg.classList.toggle('espera', !(dra.rugidoT > 0) && dra.rugidoCd > 0); }
     return;
   }
   if (isVil()){
@@ -27025,12 +27037,12 @@ function drawEscenaMenu(dt){
   preparaMenuEsc();
   const W = menuEsc.W, H = menuEsc.H;
   menuEsc.t += dt;
-  // cada poco, el siguiente mapa, fundido
-  menuEsc.cambio -= dt;
-  if (menuEsc.cambio <= 0 && !menuEsc.estatico){
+  // solo el mapa elegido; al elegir otro, se funde hacia él
+  const elegido = MENU_ORDEN.includes(mapaElegido) ? mapaElegido : 'ciudad';
+  if (menuEsc.mapa !== elegido){
     menuEsc.previo = menuEsc.mapa;
-    menuEsc.mapa = MENU_ORDEN[(MENU_ORDEN.indexOf(menuEsc.mapa) + 1) % MENU_ORDEN.length];
-    menuEsc.fade = 0; menuEsc.cambio = 14; preparaMenuEsc();
+    menuEsc.mapa = elegido;
+    menuEsc.fade = menuEsc.estatico ? 1 : 0; preparaMenuEsc();
   }
   if (menuEsc.fade < 1) menuEsc.fade = Math.min(1, menuEsc.fade + dt/1.4);
   const t = menuEsc.t;
