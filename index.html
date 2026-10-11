@@ -4505,7 +4505,10 @@ function demolish(b){
     addParticles(rand(b.x,b.x+b.w), rand(b.y,b.y+b.h), i%3?'#8a949b':'#5d666c', 1, 190);
   }
   shake(14, 0.4);
-  sfx('demolish');
+  const cx = b.x + b.w/2, cy = b.y + b.h*0.6;
+  sfxEn('demolish', cx, cy); sfxEn('colapso', cx, cy, 0.85);
+  anilloPolvo(cx, b.y + b.h*0.8, Math.max(b.w, b.h)*0.45, 18, '#8a8278');
+  anilloImpacto(cx, cy, Math.max(b.w, b.h)*0.9, '#d8cfc0', 0.5);
 }
 
 // ================= FORMS (evolution) =================
@@ -4599,7 +4602,7 @@ function resetGame(){
   if (typeof vil === 'object'){ vil.maxStam = hero === 'dragon' || hero === 'mago' ? 120 : 100; vil.stam = vil.maxStam; vil.flying = false; vil.joyFly = false; }
   if (typeof draReset === 'function') draReset();
   maqReset(); magReset();
-  proyJ.length = 0; zombis.length = 0; congelados.clear(); proyRed.length = 0; limpiaJefes2(); limpiaAlien();
+  proyJ.length = 0; grietas.length = 0; zombis.length = 0; congelados.clear(); proyRed.length = 0; limpiaJefes2(); limpiaAlien();
   if (typeof isVil === 'function' && (isVil() || isDra())){
     vil.intro = 1; vil.introY = player.y;
     player.y -= VIL_INTRO_ALTO;
@@ -5861,7 +5864,10 @@ function explode(x, y, radius, dmg, big, hurtPlayer){
   if (dmg > 0 && culpaJug <= 0 && zombis.length){
     for (const z of zombis) if (z.sube <= 0 && dist(x, y, z.x, z.y) < radius) z.hp -= dmg;
   }
-  if (chainDepth === 0) sfx(big ? 'bigboom' : 'boom');
+  if (chainDepth === 0){
+    sfxEn(big ? 'bigboom' : 'boom', x, y);
+    if (big && Math.abs(x - camX - VW/2) < VW*0.6 && Math.abs(y - camY - VH/2) < VH*0.6) hitstop(0.05);
+  }
   booms.push({x,y,r:6,max:radius,life:0.42,maxlife:0.42});
   // Onda de choque: anillo fino que se abre más allá de la bola de fuego.
   booms.push({x, y, r:radius*0.25, max:radius*1.7, life:0.42, maxlife:0.42, ring:true});
@@ -8346,6 +8352,16 @@ function initAudio(){
     dfl.connect(wet); wet.connect(comp);
     audio.musFlt = musFlt;
     audio.sfxGain.connect(comp);
+    // Reverberación para los golpes grandes (explosiones, derrumbes, truenos):
+    // una cola de ruido que decae, generada una sola vez. Solo le llega lo que
+    // se le envía, así que no cuesta nada al resto de los efectos.
+    try {
+      const sr = audio.ctx.sampleRate, n = Math.floor(sr*1.6), ir = audio.ctx.createBuffer(2, n, sr);
+      for (let ch = 0; ch < 2; ch++){ const d = ir.getChannelData(ch); for (let i = 0; i < n; i++) d[i] = (Math.random()*2 - 1)*Math.pow(1 - i/n, 2.7); }
+      const conv = audio.ctx.createConvolver(); conv.buffer = ir;
+      audio.rev = audio.ctx.createGain(); audio.rev.gain.value = 0.32;
+      audio.rev.connect(conv); conv.connect(audio.sfxGain);
+    } catch(e){ audio.rev = null; }
     comp.connect(audio.master);
     audio.master.connect(audio.ctx.destination);
     audio.comp = comp;
@@ -8357,6 +8373,41 @@ function resumeAudio(){
   if (audio.ctx && audio.ctx.state === 'suspended') audio.ctx.resume();
 }
 
+// Salida de cada sonido: la cadena del efecto en curso (volumen y panorama
+// según dónde ocurre) o, si no hay, la de efectos; más la reverberación si el
+// efecto la pide.
+let _sfxDest = null, _sfxRev = 0;
+function sfxSalida(g){
+  g.connect(_sfxDest || audio.sfxGain);
+  if (_sfxRev > 0 && audio.rev){ const s = audio.ctx.createGain(); s.gain.value = _sfxRev; g.connect(s); s.connect(audio.rev); }
+}
+// Ladrillos de los efectos nuevos: un oscilador con barrido y un ruido con el
+// filtro que se quiera (paso banda, agudos...), con retardo y ataque propios.
+function oscA(type, f0, f1, dur, vol, delay, att){
+  if (!audio.ctx || !audio.sfxOn || !(f0 > 0)) return;
+  const c = audio.ctx, t = c.currentTime + (delay || 0), o = c.createOscillator(), g = c.createGain();
+  o.type = type; o.frequency.setValueAtTime(f0, t);
+  if (f1 && f1 !== f0) o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur);
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(Math.max(0.0002, vol), t + (att || 0.004));
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g); sfxSalida(g); o.start(t); o.stop(t + dur + 0.05);
+  o.onended = ()=>{ try { o.disconnect(); g.disconnect(); } catch(e){} };
+  voiceStart(dur + (delay || 0));
+}
+function ruidoA(dur, ftype, f0, f1, q, vol, delay, att){
+  if (!audio.ctx || !audio.sfxOn) return;
+  const c = audio.ctx, t = c.currentTime + (delay || 0), s = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain();
+  s.buffer = getNoiseBuf(); s.loop = true;
+  f.type = ftype; f.frequency.setValueAtTime(f0, t);
+  if (f1 && f1 !== f0) f.frequency.exponentialRampToValueAtTime(Math.max(30, f1), t + dur);
+  f.Q.value = q || 0.8;
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(Math.max(0.0002, vol), t + (att || 0.003));
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  s.connect(f); f.connect(g); sfxSalida(g);
+  s.start(t, Math.random()*1.4); s.stop(t + dur + 0.05);
+  s.onended = ()=>{ try { s.disconnect(); f.disconnect(); g.disconnect(); } catch(e){} };
+  voiceStart(dur + (delay || 0));
+}
 // --- ladrillo básico: un tono con envolvente ---
 function tone(freq, dur, type, vol, slideTo){
   if (!audio.ctx || !audio.sfxOn) return;
@@ -8372,7 +8423,7 @@ function tone(freq, dur, type, vol, slideTo){
   g.gain.setValueAtTime(0.0001, t0);
   g.gain.exponentialRampToValueAtTime(Math.max(vol,0.0001), t0+0.008);
   g.gain.exponentialRampToValueAtTime(0.0001, t0+dur);
-  osc.connect(g); g.connect(audio.sfxGain);
+  osc.connect(g); sfxSalida(g);
   osc.start(t0); osc.stop(t0+dur+0.02);
   osc.onended = ()=>{ try { osc.disconnect(); g.disconnect(); } catch(e){} };
   voiceStart(dur);
@@ -8411,7 +8462,7 @@ function noise(dur, vol, freq, q){
   g.gain.setValueAtTime(0.0001, t0);
   g.gain.exponentialRampToValueAtTime(vol, t0+0.008);   // ataque instantáneo
   g.gain.exponentialRampToValueAtTime(0.0001, t0+dur);
-  src.connect(flt); flt.connect(g); g.connect(audio.sfxGain);
+  src.connect(flt); flt.connect(g); sfxSalida(g);
   src.start(t0, off, dur);
   src.onended = ()=>{ try { src.disconnect(); flt.disconnect(); g.disconnect(); } catch(e){} };
   voiceStart(dur);
@@ -8508,8 +8559,22 @@ const SFX = {
   alarma: ()=> { tone(660, 0.18, 'square', 0.06, 660); setTimeout(()=> tone(880, 0.18, 'square', 0.06, 880), 200); },
   meteoro:()=> { noise(1.2, 0.12, 400, 0.8); tone(220, 1.2, 'sawtooth', 0.06, 60); },
   plasma: ()=> { tone(640, 0.16, 'sawtooth', 0.04, 180); tone(1280, 0.1, 'sine', 0.03, 400); },
-  over:   ()=> { [440,330,262,196].forEach((f,i)=> setTimeout(()=>tone(f,0.3,'triangle',0.2), i*160)); }
+  over:   ()=> { [440,330,262,196].forEach((f,i)=> setTimeout(()=>tone(f,0.3,'triangle',0.2), i*160)); },
+  // Telequinesis: levantar (un "uuuip" que sube), lanzar (silbido de aire) y
+  // arrancar un trozo del suelo.
+  psy:    ()=> { oscA('sine', 300, 950, 0.26, 0.2); oscA('triangle', 900, 1800, 0.2, 0.06); },
+  fling:  ()=> { ruidoA(0.32, 'bandpass', 600, 4200, 1.3, 0.38, 0, 0.04); oscA('sine', 620, 200, 0.22, 0.11); },
+  crumble:()=> { ruidoA(0.28, 'lowpass', 800, 250, 0.7, 0.36); oscA('sine', 110, 50, 0.2, 0.18); },
+  // Materiales al chocar: chapa, madera y cristales rotos.
+  metal:  ()=> { oscA('square', 430, 300, 0.14, 0.09); oscA('square', 640, 520, 0.12, 0.06); ruidoA(0.08, 'highpass', 4200, 4200, 0.7, 0.16); },
+  madera: ()=> { ruidoA(0.18, 'bandpass', 600, 300, 1.5, 0.36); oscA('triangle', 180, 90, 0.12, 0.16); },
+  cristal:()=> { ruidoA(0.3, 'highpass', 5200, 5200, 0.7, 0.18); oscA('sine', 2600 + Math.random()*900, 0, 0.18, 0.05); oscA('sine', 3500 + Math.random()*900, 0, 0.16, 0.04, 0.05); },
+  // Derrumbe: un retumbo largo con cascotes que siguen cayendo.
+  colapso:()=> { ruidoA(1.6, 'lowpass', 420, 60, 0.6, 0.5, 0, 0.1); oscA('sine', 55, 28, 1.4, 0.32, 0, 0.15);
+                 for (let i = 0; i < 3; i++) ruidoA(0.25, 'lowpass', 900, 300, 0.7, 0.24, 0.2 + i*0.32 + Math.random()*0.1); }
 };
+// Cuánto de cada efecto va a la reverberación (los grandes suenan en la calle).
+const SFX_REV = { boom:0.3, bigboom:0.45, demolish:0.4, colapso:0.5, caidaGolpe:0.4, trueno:0.35, incineraZ:0.3, aterriza:0.25, cohete:0.15, portalRojo:0.3 };
 // Cortafuegos: un mismo efecto no puede repetirse más rápido que su cooldown,
 // y limitamos las voces simultáneas para que nunca se acumule un zumbido.
 const SFX_GAP = { sonicboom:0.30, dash:0.10, crack:0.20,
@@ -8518,20 +8583,63 @@ const SFX_GAP = { sonicboom:0.30, dash:0.10, crack:0.20,
                   ulla:1.2, cargaM:0.25, rayoM:0.12, escudoM:0.2, comeM:0.15,
                   mordisco:0.08, aleteo:0.2, rayoDra:0.16, coletazo:0.2, trueno:0.18,
                   rafaga:0.045, hachazo:0.08, silbido:0.08, cohete:0.15, cargaInc:0.3, incinera:0.2, incineraZ:0.5, espada:0.08, escopeta:0.2, sierra:0.11, recarga:0.1,
+                  psy:0.06, fling:0.04, crumble:0.07, metal:0.05, madera:0.05, cristal:0.06, colapso:0.6,
                   aterriza:0.3, plasma:0.12, laserE:0.06, escupe:0.1, escaneo:0.3, vengativos:1, portalSanto:2, caidaGolpe:0.5, alarma:1, meteoro:1, conjuro:0.08, telequinesis:0.3, hielo:0.3, escudoMag:0.3, cargaFuego:0.2, teleporte:0.2, portalRojo:0.5, humoVerde:0.5 };
 const sfxLast = {};
 let sfxVoices = 0;
 const SFX_MAX_VOICES = 14;
 
-function sfx(name){
+function sfx(name){ sfxEn(name); }
+// Con posición (x, y del mundo): lo lejano suena más flojo y lo de los lados,
+// por su altavoz. Sin posición suena centrado, como siempre.
+function sfxEn(name, x, y, vol){
   if (_fxRed && _fxRed.length < 200) _fxRed.push(['s', name]);
   if (!audio.ctx || !audio.sfxOn || !SFX[name]) return;
   const now = audio.ctx.currentTime;
   const gap = SFX_GAP[name] != null ? SFX_GAP[name] : 0.04;
   if (sfxLast[name] != null && now - sfxLast[name] < gap) return;
   if (sfxVoices >= SFX_MAX_VOICES) return;
+  let k = vol == null ? 1 : vol, pan = 0;
+  if (x !== undefined && isFinite(x) && isFinite(y)){
+    const cx = camX + VW/2, cy = camY + VH/2, dx = x - cx, d = Math.hypot(dx, y - cy);
+    k *= clamp(1 - (d - VW*0.5)/1600, 0, 1);
+    pan = clamp(dx/(VW*0.8), -0.7, 0.7);
+  }
+  if (k < 0.05) return;
   sfxLast[name] = now;
-  SFX[name]();
+  const rev = SFX_REV[name] || 0;
+  if (k > 0.995 && Math.abs(pan) < 0.02 && !rev){ SFX[name](); return; }
+  const c = audio.ctx, g = c.createGain(); g.gain.value = k;
+  if (Math.abs(pan) >= 0.02 && c.createStereoPanner){ const pn = c.createStereoPanner(); pn.pan.value = pan; g.connect(pn); pn.connect(audio.sfxGain); }
+  else g.connect(audio.sfxGain);
+  _sfxDest = g; _sfxRev = rev;
+  try { SFX[name](); } finally { _sfxDest = null; _sfxRev = 0; }
+}
+// Sonido sostenido de la telequinesis: un zumbido brillante con trémolo que
+// sube con lo que se sostiene. Se crea al empezar y se apaga al soltar.
+const mente = { nodos:null, g:null, o:null };
+function menteSuena(k){
+  if (!audio.ctx || !audio.sfxOn){ menteCalla(); return; }
+  const c = audio.ctx, t = c.currentTime;
+  if (!mente.nodos){
+    const g = c.createGain(); g.gain.setValueAtTime(0.0001, t); g.connect(audio.sfxGain);
+    const o = c.createOscillator(); o.type = 'sine'; o.frequency.value = 520;
+    const o2 = c.createOscillator(); o2.type = 'triangle'; o2.frequency.value = 1040;
+    const trem = c.createOscillator(); trem.frequency.value = 7;
+    const tg = c.createGain(); tg.gain.value = 0.5; const mg = c.createGain(); mg.gain.value = 0.5;
+    trem.connect(tg); tg.connect(mg.gain); o.connect(mg); o2.connect(mg); mg.connect(g);
+    for (const n of [o, o2, trem]) n.start(t);
+    mente.nodos = [o, o2, trem]; mente.g = g; mente.o = o;
+  }
+  mente.o.frequency.setTargetAtTime(420 + k*300, t, 0.1);
+  mente.g.gain.setTargetAtTime(0.03 + k*0.05, t, 0.1);
+}
+function menteCalla(){
+  if (!mente.nodos) return;
+  const t = audio.ctx.currentTime;
+  mente.g.gain.cancelScheduledValues(t); mente.g.gain.setTargetAtTime(0.0001, t, 0.05);
+  for (const n of mente.nodos){ try { n.stop(t + 0.35); } catch(e){} }
+  mente.nodos = null; mente.g = null; mente.o = null;
 }
 function voiceStart(dur){
   sfxVoices++;
@@ -17332,6 +17440,38 @@ function updateProyJ(dt){
       if (p.t <= 0){ proyJ.splice(i, 1); magErupcion(p.x, p.y, !!p.arc); }
       continue;
     }
+    if (p.k === 'roca'){                           // trozo de suelo arrancado por el mago
+      if (!p.vuela){ p.t = 99; continue; }         // en órbita: la mueve él
+      if (p._home) curvaHacia(p, p._home, dt);
+      p.rot += dt*9;
+      const n = Math.max(1, Math.ceil(Math.hypot(p.vx, p.vy)*dt / 12));
+      let fin = false;
+      for (let s = 0; s < n && !fin; s++){
+        p.x += p.vx*dt/n; p.y += p.vy*dt/n;
+        const t = proyJBlanco(p, p.sz);
+        if (t){
+          porJugador(()=> damageEnemy(t, p.dmg*(JEFES[t.type] ? 0.8 : 1), p.x, p.y));
+          if (!t.dead && t.person){
+            const l = Math.hypot(p.vx, p.vy) || 1;
+            t.stunT = Math.max(t.stunT || 0, 0.5); t.stunVx = p.vx/l*190; t.stunVy = p.vy/l*190;
+          }
+          fin = true; break;
+        }
+        const c = proyJAuto(p, 3);
+        if (c){ danaAuto(c, p.dmg*0.8); fin = true; break; }
+        const b = proyJMuro(p);
+        if (b){ porJugador(()=> damageBuilding(b, p.dmg*0.6)); fin = true; break; }
+      }
+      if (fin || p.t <= 0 || p.x < -50 || p.y < -50 || p.x > WORLD_W + 50 || p.y > WORLD_H + 50){
+        const T = ROCA_TONOS[p.m || 0];
+        addParticles(p.x, p.y, T[1], fin ? 12 : 7, fin ? 150 : 100);
+        addParticles(p.x, p.y, T[2], 5, 90);
+        sfxEn('crumble', p.x, p.y, fin ? 0.9 : 0.5);
+        if (fin) shake(3, 0.08);
+        proyJ.splice(i, 1);
+      }
+      continue;
+    }
     if (p.k === 'erupcion' || p.k === 'tele'){     // solo se ven
       if (p.t <= 0) proyJ.splice(i, 1);
       continue;
@@ -17398,6 +17538,28 @@ function drawProyJ(lista){
       ctx.globalAlpha = 0.9;
       ctx.beginPath(); ctx.moveTo(s.x - ux*14, s.y - uy*14); ctx.lineTo(s.x + ux*3, s.y + uy*3); ctx.stroke();
       ctx.globalAlpha = 1;
+    } else if (p.k === 'roca'){
+      // trozo de suelo: sombra, halo de la mente mientras gira y la piedra
+      const T = ROCA_TONOS[p.m || 0], r = p.sz || 8, sem = p.sem || 0;
+      ctx.globalAlpha = 0.25; ctx.fillStyle = '#000';
+      ctx.beginPath(); ctx.ellipse(s.x, s.y + 16, r*0.9, r*0.35, 0, 0, Math.PI*2); ctx.fill();
+      if (!p.vuela){
+        ctx.globalAlpha = 0.25; ctx.fillStyle = p.arc ? '#8dff6a' : '#c77dff';
+        ctx.beginPath(); ctx.ellipse(s.x, s.y, r*1.8, r*1.35, 0, 0, Math.PI*2); ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+      ctx.save(); ctx.translate(s.x, s.y); ctx.rotate(p.rot || 0);
+      ctx.beginPath();
+      for (let k = 0; k < 7; k++){
+        const a = k/7*Math.PI*2, f = 0.72 + 0.28*Math.abs(Math.sin(sem*1.7 + k*2.3)), rx = Math.cos(a)*r*f, ry = Math.sin(a)*r*f*0.8;
+        if (k) ctx.lineTo(rx, ry); else ctx.moveTo(rx, ry);
+      }
+      ctx.closePath();
+      ctx.fillStyle = T[0]; ctx.fill();
+      ctx.strokeStyle = T[2]; ctx.lineWidth = 1.2; ctx.stroke();
+      ctx.fillStyle = T[1];                                   // la cara de arriba, con luz
+      ctx.beginPath(); ctx.ellipse(-r*0.15, -r*0.25, r*0.5, r*0.3, -0.3, 0, Math.PI*2); ctx.fill();
+      ctx.restore();
     } else if (p.k === 'onda'){
       // media luna de plasma, de canto hacia donde va; se apaga al final
       const a = Math.atan2(p.vy, p.vx), k = clamp(p.t / p.max, 0, 1), W = p.W, al = Math.min(1, k*2.2);
@@ -18633,10 +18795,12 @@ function drawMaquinaEfectos(){
 }
 
 // =============== EL MAGO ABERRANTE ===============
-// Hechicero encapuchado que flota despacio, sin tocar el suelo:
+// Aberración de cabeza de huevo y cuerpo de tentáculos, con la capucha y la
+// capa de hechicero, que flota despacio sin tocar el suelo:
 //   clic       -> un rayo cae donde apuntas (mantenido, sigue lanzándolos)
-//   clic der.  -> telequinesis: mantén para levantar varias cosas con la mente
-//                 y suelta para lanzarlas
+//   clic der.  -> telequinesis: mantén y lo que hay cerca se eleva y gira a su
+//                 alrededor golpeando a quien toca (si no hay nada, arranca
+//                 trozos del suelo); al soltar, sale lanzado de uno en uno
 //   Z          -> congela todo lo que tiene alrededor
 //   C          -> escudo arcano que para cualquier daño durante unos segundos
 // Todo gasta maná (la barra, que se recupera sola).
@@ -18645,7 +18809,11 @@ function drawMaquinaEfectos(){
 const MAG_HP = 200, MAG_R = 17, MAG_SPEED = 138, MAG_REG = 13;
 const MAG_RAYO_MANA = 7, MAG_RAYO_CD = 0.38, MAG_RAYO_DMG = 78, MAG_RAYO_R = 62, MAG_RAYO_AVISO = 0.3, MAG_RAYO_MAX = 600;
 const MAG_TK_POR = 1.5, MAG_TK_COGE = 2;   // maná por cosa sostenida (por segundo) y por cada una que levanta
-const MAG_TK_MANA = 4, MAG_TK_USO = 6, MAG_TK_MAX = 4, MAG_TK_R = 120, MAG_TK_ALC = 380, MAG_TK_VEL = 640;
+const MAG_TK_MANA = 4, MAG_TK_USO = 6, MAG_TK_MAX = 5, MAG_TK_R = 190, MAG_TK_ALC = 380, MAG_TK_VEL = 860;
+// la órbita: daño al rozar (por peso) y cada cuánto puede volver a dar al mismo;
+// las rocas del suelo; la pausa entre lanzamientos y el radio que atrae lo lanzado
+const MAG_ORB_DMG = 15, MAG_ORB_CD = 0.4, MAG_ROCA_MANA = 4, MAG_ROCA_N = 3, MAG_ROCA_DMG = 42;
+const MAG_TK_CADENA = 0.07, MAG_TK_FIJA = 210;
 const MAG_HIELO_MANA = 24, MAG_HIELO_CD = 1.3, MAG_HIELO_R = 200, MAG_HIELO_T = 3.0, MAG_HIELO_DMG = 18;
 const MAG_ESC_MANA = 30, MAG_ESC_T = 4.5, MAG_ESC_CD = 2.0, MAG_ESC_R = 46;
 const MAG_FUEGO_MANA = 18, MAG_FUEGO_CD = 0.9, MAG_FUEGO_AVISO = 0.75, MAG_FUEGO_R = 80, MAG_FUEGO_DMG = 95, MAG_FUEGO_MAX = 560;
@@ -18653,13 +18821,14 @@ const MAG_TELE_MANA = 22, MAG_TELE_CD = 1.0, MAG_TELE_MAX = 620;
 const mag = { mirA:0, lanzando:false, pulso:false, rayoCd:0, castT:0,
               fuegoCd:0, fuegoApunta:false, fuegoX:0, fuegoY:0,
               teleCd:0, teleApunta:false, teleJoy:false, teleX:0, teleY:0, clicX:0, clicY:0, clicOk:false,
-              tk:[], tkOn:false, tkX:0, tkY:0, tkCd:0, tkPX:0, tkPY:0, tkVX:0, tkVY:0, tkN:0,
+              tk:[], tkOn:false, tkX:0, tkY:0, tkCd:0, tkN:0, arranca:0, tkLX:0, tkLY:0, _cola:[], _fija:null,
               hieloCd:0, hieloT:0, escudoT:0, escudoCd:0, flota:0 };
 function magReset(){
   magSueltaTK(true);
   mag.lanzando = false; mag.pulso = false; mag.rayoCd = 0; mag.castT = 0; mag.tkOn = false; mag.tkCd = 0;
   mag.hieloCd = 0; mag.hieloT = 0; mag.escudoT = 0; mag.escudoCd = 0; mag.tkN = 0;
   mag.fuegoCd = 0; mag.fuegoApunta = false; mag.teleCd = 0; mag.teleApunta = false; mag.clicOk = false;
+  mag._cola.length = 0; mag._fija = null; mag.arranca = 0;
 }
 // ---- columna de fuego (X): marca el sitio y, al momento, brota del suelo ----
 function magFuego(x, y){
@@ -18782,39 +18951,61 @@ function magImpacto(x, y, arc){
   shake(5, 0.12);
   sfx('trueno');
 }
-// ---- telequinesis ----
+// ---- telequinesis (como la de Ingrávida) ----
+// Mientras se mantiene, lo que hay cerca se eleva y gira alrededor del mago,
+// golpeando a quien roce; si no hay nada a mano, arranca trozos del suelo.
+// Al soltar, lo lanza todo de uno en uno hacia la mira, y cada cosa se curva
+// hacia el enemigo más cercano a ese punto.
 function magTKEmpieza(){
-  if (vil.intro) return;
+  if (vil.intro || mag.tkOn) return;
   if (vil.stam < MAG_TK_MANA){ sinMana(); return; }
   vil.stam -= MAG_TK_MANA; tutEv('tk');
-  mag.tkOn = true; mag.tkCd = 0;
-  const ap = magApunta();
-  const d = clamp(ap.d, 60, MAG_TK_ALC);
-  mag.tkX = player.x + Math.cos(ap.a)*d; mag.tkY = player.y + Math.sin(ap.a)*d;
-  mag.tkPX = mag.tkX; mag.tkPY = mag.tkY; mag.tkVX = 0; mag.tkVY = 0;
+  mag.tkOn = true; mag.tkCd = 0; mag.arranca = 0;
+  mag.tkX = player.x; mag.tkY = player.y - 6; mag.castT = 0.3;
+  anilloImpacto(player.x, player.y, MAG_TK_R*0.75, magArc() ? '#8dff6a' : '#c77dff', 0.4);
   sfx('telequinesis');
 }
 // ¿Se puede levantar con la mente?
 function tkLevantable(o){
   if (!o || o.dead || o.held || o.thrown || o.tk || enPresa(o)) return false;
-  if (o.kind) return true;                         // civiles, autos y mobiliario
+  if (o.kind) return o.kind !== 'edificio';        // civiles, autos y mobiliario
   if (o.type === 'ovni' || JEFES[o.type]) return false;
   if (o.type === 'siege') return magArc();
   return !!o.grabbable || o.person || o.type === 'tank' || o.type === 'heli' || o.type === 'plane' || o.type === 'mbt' || o.type === 'mbtFrio';
 }
+// Lo que gira ahora mismo a su alrededor: lo levantado y las rocas arrancadas.
+function magEnOrbita(){
+  let n = mag.tk.length;
+  for (const p of proyJ) if (p.k === 'roca' && !p.vuela) n++;
+  return n;
+}
 function magAgarraCerca(){
-  const max = MAG_TK_MAX + (magArc() ? 3 : 0);
-  if (mag.tk.length >= max) return;
-  let mejor = null, md = MAG_TK_R*MAG_TK_R;
-  for (const pool of [enemies, civilians, cars, lamps, trees, trash, benches]){
-    for (const o of pool){
-      if (!tkLevantable(o)) continue;
-      const oy = o.y - (pool === enemies ? alturaVisible(o) : 0);
-      const dx = o.x - mag.tkX, dy = oy - mag.tkY, d2 = dx*dx + dy*dy;
-      if (d2 < md){ md = d2; mejor = o; }
+  const max = MAG_TK_MAX + (magArc() ? 3 : 0), n = magEnOrbita();
+  if (n >= max) return;
+  // lo más cercano, aunque gente y vehículos cuentan como algo más cerca que
+  // el mobiliario (si no, en la ciudad las farolas lo llenarían todo); en el
+  // tutorial, primero lo que se señala
+  let mejor = null, md = MAG_TK_R*MAG_TK_R, pd = md;
+  const marca = enTutorial() && TUT.marca;
+  if (marca && tkLevantable(marca) && Math.hypot(marca.x - player.x, marca.y - player.y) < MAG_TK_R){
+    mejor = marca; md = (marca.x - player.x)**2 + (marca.y - player.y)**2;
+  } else {
+    for (const pool of [enemies, civilians, cars, lamps, trees, trash, benches]){
+      const k = pool === enemies || pool === civilians || pool === cars ? 0.6 : 1;
+      for (const o of pool){
+        const dx = o.x - player.x, dy = o.y - player.y;
+        if (Math.abs(dx) > MAG_TK_R || Math.abs(dy) > MAG_TK_R) continue;
+        const d2 = dx*dx + dy*dy;
+        if (d2 > MAG_TK_R*MAG_TK_R || d2*k >= pd || !tkLevantable(o)) continue;
+        pd = d2*k; md = d2; mejor = o;
+      }
     }
   }
-  if (!mejor) return;
+  if (!mejor){
+    // nada a mano: arranca un trozo del suelo (unos pocos cada vez que se mantiene)
+    if (n < 3 && mag.arranca < MAG_ROCA_N && vil.stam >= MAG_ROCA_MANA) magArrancaRoca();
+    return;
+  }
   if (vil.stam < MAG_TK_COGE) return;              // sin maná no levanta nada más
   vil.stam -= MAG_TK_COGE;
   const g = mejor;
@@ -18824,44 +19015,131 @@ function magAgarraCerca(){
   g.hieloT = 0; g.tkDur = objDurability(g);            // aguante como escudo
   if (g.rayoFase){ g.rayoFase = 'espera'; g.rayoT = rand(MBT_ESPERA[0], MBT_ESPERA[1]); }
   g.tkX = g.x; g.tkY = g.y;
+  g.tkA = Math.atan2(g.y - player.y, g.x - player.x); g.tkR = Math.sqrt(md); g._orb = null; g._home = null;
   mag.tk.push(g);
   if (dobleInv()){ const r = refDe(g); if (r) enviaAccion({ t:'agarra', r }); }
   addParticles(g.x, g.y, magArc() ? '#8dff6a' : '#c77dff', 10, 110);
-  sfx('grab');
+  sfxEn('psy', g.x, g.y, 0.8);
 }
-// Suelta lo que sostiene: lanzándolo, o dejándolo caer (sin=true).
-function magSueltaTK(sin){
-  if (!mag.tk.length){ mag.tkOn = false; return; }
-  tutEv('tksuelta');
-  const arc = magArc();
-  // dirección: la del gesto si fue rápido; si no, desde ti hacia el punto
-  let ax = mag.tkX - player.x, ay = mag.tkY - player.y;
-  const rap = Math.hypot(mag.tkVX, mag.tkVY);
-  if (joyPropio('tk') && draJoy.m >= 0.2){ ax = draJoy.dx; ay = draJoy.dy; }
-  else if (rap > 380){ ax = mag.tkVX; ay = mag.tkVY; }
-  const l = Math.hypot(ax, ay) || 1;
-  const vel = sin ? 0 : MAG_TK_VEL*(arc ? 1.25 : 1);
-  for (const o of mag.tk){
-    o.tk = false;
-    if (o.dead){ continue; }
-    o.held = false;
-    if (sin){
-      if (dobleInv()){ const r = refDe(o); if (r) enviaAccion({ t:'suelta', r }); }
-      continue;
+// Rocas del suelo: viven entre los proyectiles propios (así se ven también
+// en línea) y dejan una grieta donde estaban. Colores: ciudad, mundo alien e infierno.
+const ROCA_TONOS = [['#5d5953', '#7e7870', '#37342f'], ['#414a59', '#64718a', '#262c37'], ['#52322a', '#78493a', '#2d1b15']];
+const grietas = [];
+function magArrancaRoca(){
+  const arc = magArc(), a = Math.random()*Math.PI*2, m = esAlien() ? 1 : esInfierno() ? 2 : 0;
+  vil.stam -= MAG_ROCA_MANA; mag.arranca++;
+  const x = clamp(player.x + Math.cos(a)*38, 20, WORLD_W - 20), y = clamp(player.y + 8 + Math.sin(a)*24, 20, WORLD_H - 20);
+  proyJ.push({ k:'roca', x, y, vx:0, vy:0, t:99, sz:rand(7, 10.5), sem:Math.floor(Math.random()*997), rot:Math.random()*6,
+               m, vuela:0, arc: arc ? 1 : 0, dmg: MAG_ROCA_DMG*(arc ? 1.4 : 1), tkA:a, tkR:40 });
+  if (grietas.length >= 12) grietas.shift();
+  grietas.push({ x, y, t0:gameTime, sem:Math.random()*1000, m });
+  addParticles(x, y, ROCA_TONOS[m][1], 8, 120);
+  sfxEn('crumble', x, y, 0.7);
+  shake(2, 0.08);
+}
+// Cada cosa en órbita: gira, sube y baja un poco, y golpea a quien roza (a
+// cada uno, como mucho cada MAG_ORB_CD) echándolo hacia fuera.
+function magOrbita(o, i, dt, roca){
+  const pesado = !roca && (o.kind === 'car' || (!o.kind && !o.person));
+  o.tkA = (o.tkA || 0) + 2.3*dt;
+  const R0 = (roca ? 46 : 54) + (i % 2)*22 + (pesado ? 16 : 0);
+  o.tkR = lerp(o.tkR || R0, R0, 1 - Math.exp(-dt*5));
+  const k = 1 - Math.exp(-dt*10);
+  const tx = player.x + Math.cos(o.tkA)*o.tkR;
+  const ty = player.y - 14 + Math.sin(o.tkA)*o.tkR*0.62 + Math.sin(vil.capa*3 + i)*4;
+  if (roca){ o.x += (tx - o.x)*k; o.y += (ty - o.y)*k; o.rot += dt*1.5; o.t = 99; }
+  else {
+    o.tkX += (tx - o.tkX)*k; o.tkY += (ty - o.tkY)*k;
+    o.x = o.tkX; o.y = o.tkY;
+    o.rot = Math.sin(vil.capa*3 + i)*0.3;
+  }
+  const rad = roca ? 14 : Math.max(16, Math.min(o.w || 26, o.h || 26)*0.5);
+  const peso = roca ? 0.8 : pesado ? 1.8 : o.kind === 'lamp' ? 1.2 : 1;
+  for (const pool of [civilians, enemies]){
+    for (const e of pool){
+      if (e === o || e.dead || e.held || e.thrown || e.pacifico || e.type === 'ovni') continue;
+      if (Math.abs(e.x - o.x) > rad + 80 || Math.abs(e.y - o.y) > rad + 80) continue;
+      if (distCuerpo(o.x, o.y, e) > rad + 10) continue;
+      const mm = o._orb || (o._orb = new Map()), u = mm.get(e);
+      if (u !== undefined && gameTime - u < MAG_ORB_CD) continue;
+      mm.set(e, gameTime);
+      porJugador(()=> damageEnemy(e, MAG_ORB_DMG*peso*(magArc() ? 1.4 : 1), o.x, o.y));
+      if (!e.dead && e.person){
+        const dx = e.x - player.x, dy = e.y - player.y, l = Math.hypot(dx, dy) || 1;
+        e.stunT = Math.max(e.stunT || 0, 0.3); e.stunVx = dx/l*220; e.stunVy = dy/l*220;
+      }
+      addParticles(o.x, o.y, '#e6c8ff', 5, 90);
     }
+  }
+}
+// El enemigo más cercano a un punto (si no hay, un civil): atrae lo lanzado.
+function magFija(x, y){
+  for (const pool of [enemies, civilians]){
+    let mejor = null, md = MAG_TK_FIJA*MAG_TK_FIJA;
+    for (const e of pool){
+      if (e.dead || e.held || e.thrown || e.pacifico || e.type === 'ovni') continue;
+      const dx = e.x - x, dy = e.y - alturaVisible(e) - y;
+      if (Math.abs(dx) > MAG_TK_FIJA || Math.abs(dy) > MAG_TK_FIJA) continue;
+      const d2 = dx*dx + dy*dy;
+      if (d2 < md){ md = d2; mejor = e; }
+    }
+    if (mejor) return mejor;
+  }
+  return null;
+}
+// Suelta lo que sostiene: lo pone en cola para lanzarlo de uno en uno, o lo
+// deja caer (sin=true).
+function magSueltaTK(sin){
+  mag.tkOn = false;
+  if (sin){
+    for (const o of mag.tk){
+      o.tk = false;
+      if (o.dead) continue;
+      o.held = false;
+      if (dobleInv()){ const r = refDe(o); if (r) enviaAccion({ t:'suelta', r }); }
+    }
+    mag.tk.length = 0; mag._cola.length = 0; mag.tkN = 0;
+    for (let i = proyJ.length - 1; i >= 0; i--){
+      const p = proyJ[i];
+      if (p.k === 'roca' && !p.vuela){ addParticles(p.x, p.y, ROCA_TONOS[p.m || 0][1], 6, 90); proyJ.splice(i, 1); }
+    }
+    return;
+  }
+  // a dónde: el punto al que se apunta al soltar; lo atrae el enemigo más cercano a él
+  const ap = magApunta(), d = clamp(ap.d, 90, MAG_RAYO_MAX);
+  mag.tkLX = player.x + Math.cos(ap.a)*d; mag.tkLY = player.y - 8 + Math.sin(ap.a)*d;
+  mag._fija = magFija(mag.tkLX, mag.tkLY);
+  const cola = mag._cola, n0 = cola.length;
+  for (const o of mag.tk) if (!cola.some(q => q.o === o)) cola.push({ o, d:cola.length*MAG_TK_CADENA, roca:false, ya:false });
+  for (const p of proyJ) if (p.k === 'roca' && !p.vuela && !cola.some(q => q.o === p)) cola.push({ o:p, d:cola.length*MAG_TK_CADENA, roca:true, ya:false });
+  if (cola.length > n0){ tutEv('tksuelta'); mag.castT = 0.45; }
+}
+// Lanza una de las cosas de la cola hacia la mira (o hacia su blanco).
+function magLanzaUno(o, roca){
+  const arc = magArc(), h = mag._fija && !mag._fija.dead && !mag._fija.held ? mag._fija : null;
+  const tx = h ? h.x : mag.tkLX, ty = h ? h.y - alturaVisible(h) : mag.tkLY;
+  const a = Math.atan2(ty - o.y, tx - o.x) + rand(-0.06, 0.06), vel = MAG_TK_VEL*(arc ? 1.2 : 1);
+  if (roca){
+    if (o.vuela || proyJ.indexOf(o) < 0) return;
+    o.vuela = 1; o.vx = Math.cos(a)*vel; o.vy = Math.sin(a)*vel; o.t = 1.2; o._home = h;
+  } else {
+    const j = mag.tk.indexOf(o);
+    if (j < 0 || o.dead) return;
+    mag.tk.splice(j, 1);
+    o.tk = false; o.held = false;
     o.thrown = true; o.porInv = false; o.tocado = false;
     o.restan = aguanteLanzado(o); o.golpeados = [];
-    const esp = rand(-0.12, 0.12), c = Math.cos(esp), s2 = Math.sin(esp);
-    const ux = (ax*c - ay*s2)/l, uy = (ax*s2 + ay*c)/l;
-    o.vx = ux*vel; o.vy = uy*vel;
+    o.vx = Math.cos(a)*vel; o.vy = Math.sin(a)*vel;
     o.throwDmg = objThrowDmg(o)*(arc ? 1.4 : 1.1);
     o.throwLife = 1.5;
     o.spin = (o.type === 'heli' || o.kind === 'car') ? rand(6, 11)*(Math.random() < 0.5 ? -1 : 1) : 0;
-    o.rot = 0;
+    o.rot = 0; o._home = h;
     if (dobleInv()){ const r = refDe(o); if (r) enviaAccion({ t:'lanza', r, x:o.x, y:o.y, vx:o.vx, vy:o.vy, dmg:o.throwDmg, spin:o.spin }); }
   }
-  if (!sin){ sfx('throw'); shake(5, 0.12); }
-  mag.tk.length = 0; mag.tkOn = false; mag.tkN = 0;
+  addParticles(o.x, o.y, arc ? '#8dff6a' : '#c77dff', 5, 90);
+  sfxEn('fling', o.x, o.y, 0.8);
+  shake(2, 0.06);
+  mag.castT = Math.max(mag.castT, 0.2);
 }
 // ---- hielo ----
 function magHielo(){
@@ -19008,7 +19286,7 @@ function updateMago(dt){
     if (pressed('right')) dx += 1;
   }
   const len = Math.hypot(dx, dy) || 1;
-  const sp = MAG_SPEED*(arc ? 1.15 : 1)*(mag.tk.length ? 0.8 : 1);
+  const sp = MAG_SPEED*(arc ? 1.15 : 1)*(mag.tkN ? 0.85 : 1);
   player.vx = lerp(player.vx, (dx/len)*sp*m, 0.08);             // se desliza, como sin peso
   player.vy = lerp(player.vy, (dy/len)*sp*m, 0.08);
   if (Math.abs(player.vx) > 6) player.facing = player.vx > 0 ? 1 : -1;
@@ -19018,52 +19296,109 @@ function updateMago(dt){
   collideBuildings(player, MAG_R, dt, 0);
   drawR = lerp(drawR, MAG_R, 0.1);
   // maná: se recupera siempre, algo más despacio mientras sostiene cosas
-  vil.stam = Math.min(vil.maxStam, vil.stam + MAG_REG*(arc ? 1.6 : 1)*(mag.tk.length ? 0 : 1)*dt);
+  vil.stam = Math.min(vil.maxStam, vil.stam + MAG_REG*(arc ? 1.6 : 1)*(mag.tkOn && mag.tkN ? 0 : 1)*dt);
 
   // ---- rayos ----
   if (mag.lanzando || mag.pulso) magLanzaRayo(ap);
 
   // ---- telequinesis ----
   if (mag.tkOn){
-    const d = clamp(ap.d, 50, MAG_TK_ALC);
-    const tx = player.x + Math.cos(ap.a)*d, ty = player.y - 8 + Math.sin(ap.a)*d;
-    const px0 = mag.tkX, py0 = mag.tkY;
-    const kk = Math.min(1, dt*14);
-    mag.tkX += (tx - mag.tkX)*kk; mag.tkY += (ty - mag.tkY)*kk;
-    mag.tkVX = lerp(mag.tkVX, (mag.tkX - px0)/Math.max(dt, 0.001), 0.3);
-    mag.tkVY = lerp(mag.tkVY, (mag.tkY - py0)/Math.max(dt, 0.001), 0.3);
     mag.tkCd -= dt;
     if (mag.tkCd <= 0){ mag.tkCd = 0.1; magAgarraCerca(); }
-    if (mag.tk.length) vil.stam -= (MAG_TK_USO*0.5 + MAG_TK_POR*mag.tk.length)*dt;
+    if (mag.tkN) vil.stam -= (MAG_TK_USO*0.5 + MAG_TK_POR*mag.tkN)*dt;
+    menteSuena(clamp(mag.tkN/(MAG_TK_MAX + (arc ? 3 : 0)), 0, 1));
     if (vil.stam <= 0){ vil.stam = 0; magSueltaTK(false); }
+    else if (mag.tkN){                       // a dónde saldría y qué lo atraería (para la mira)
+      const d = clamp(ap.d, 90, MAG_RAYO_MAX);
+      mag.tkLX = player.x + Math.cos(ap.a)*d; mag.tkLY = player.y - 8 + Math.sin(ap.a)*d;
+      mag._fija = magFija(mag.tkLX, mag.tkLY);
+    }
   }
-  // lo sostenido gira alrededor del punto
+  // lo que soltó sale de uno en uno
+  const cola = mag._cola;
+  if (cola.length){
+    let quedan = 0;
+    for (const q of cola){
+      if (q.ya) continue;
+      q.d -= dt;
+      if (q.d <= 0){ q.ya = true; magLanzaUno(q.o, q.roca); } else quedan++;
+    }
+    if (!quedan) cola.length = 0;
+  }
+  // lo sostenido gira alrededor del mago y golpea a quien toca
   for (let i = mag.tk.length - 1; i >= 0; i--){ if (mag.tk[i].dead){ mag.tk[i].tk = false; mag.tk.splice(i, 1); } }
-  const n = mag.tk.length;
-  mag.tkN = n;
-  for (let i = 0; i < n; i++){
-    const o = mag.tk[i];
-    const a = vil.capa*2.2 + i*Math.PI*2/n, r = n > 1 ? 22 + n*7 : 0;
-    o.tkX = mag.tkX + Math.cos(a)*r; o.tkY = mag.tkY + Math.sin(a)*r*0.6;
-    o.x = o.tkX; o.y = o.tkY;
-    o.rot = Math.sin(vil.capa*3 + i)*0.3;
-  }
+  mag.tkX = player.x; mag.tkY = player.y - 6;
+  let no = 0;
+  for (const o of mag.tk) magOrbita(o, no++, dt, false);
+  for (const p of proyJ) if (p.k === 'roca' && !p.vuela) magOrbita(p, no++, dt, true);
+  mag.tkN = no;
 }
 function puntoAgarre(o, tip){
   if (o.tk) return { x:o.tkX, y:o.tkY };
-  return o.heldInv ? Online.tipInv : tip;
+  if (!o.heldInv) return tip;
+  const a = Online.av, c = Online.tipInv;
+  if (!a || a.hero !== 'mago') return c;
+  // la telequinesis del compañero mago: lo suyo gira a su alrededor
+  const ang = gameTime*2.3 + (o._fase === undefined ? (o._fase = Math.random()*6.283) : o._fase);
+  return { x: c.x + Math.cos(ang)*60, y: c.y - 8 + Math.sin(ang)*37 };
 }
 
 // ---- dibujo del mago ----
-const MAG_TUNICA = { t:'#3b2256', tO:'#1c0f2c', tC:'#6a3f96', borde:'#c9a2ff', ojo:'#d58bff', piel:'#7c8f7a' };
+// Una aberración alta y oscura, de color índigo: cabeza de huevo lisa y
+// brillante con tres agujeros de luz (dos ojos y una boca), cuello largo y un
+// cuerpo que se deshace en tentáculos que se retuercen, con cantos
+// tornasolados (rosa, cian, lila). Del hechicero conserva la capucha caída
+// sobre los hombros, la capa con jirones, el cinturón de runas y las runas
+// que orbitan. t/tO/tC: capa; cu/cuC/cuO: el cuerpo.
+const MAG_TUNICA = { t:'#3b2256', tO:'#1c0f2c', tC:'#6a3f96', borde:'#c9a2ff', ojo:'#d58bff', piel:'#7c8f7a',
+                     cu:'#1d1a4c', cuC:'#4038a0', cuO:'#0b0a24' };
 // Más claro para el emblema y el icono, que van sobre fondos oscuros.
-const MAG_LOGO = { t:'#5a3386', tO:'#2c1846', tC:'#9a68d0', borde:'#e0c8ff', ojo:'#f0b0ff', piel:'#9ab098' };
+const MAG_LOGO = { t:'#5a3386', tO:'#2c1846', tC:'#9a68d0', borde:'#e0c8ff', ojo:'#f0b0ff', piel:'#9ab098',
+                   cu:'#3a3392', cuC:'#7468e0', cuO:'#1c1850' };
+const MAG_IRIS = ['#ff8ad8', '#7af0ff', '#c3a0ff'], MAG_IRIS_ARC = ['#d8ff9a', '#8dff6a', '#b8ffd0'];
+let _magPalK = '', _magPalV = null;
 function magPaleta(){
   const SK = skin();
   if (!SK || SK.id === 'verde') return MAG_TUNICA;
+  const clave = SK.id + SK.c[0] + SK.c[1] + SK.c[2] + SK.tip;     // la del color propio cambia sin cambiar de id
+  if (clave === _magPalK) return _magPalV;
   const h = c => /^#[0-9a-f]{6}$/i.test(c) ? c : '#3b2256';
-  return { t:h(SK.c[1]), tO:shade(h(SK.c[1]), 0.5), tC:h(SK.c[0]), borde:h(SK.tip), ojo:h(SK.tip), piel:'#7c8f7a' };
+  _magPalK = clave;
+  return (_magPalV = { t:h(SK.c[1]), tO:shade(h(SK.c[1]), 0.5), tC:h(SK.c[0]), borde:h(SK.tip), ojo:h(SK.tip), piel:'#7c8f7a',
+                       cu:shade(h(SK.c[2]), 0.95), cuC:shade(h(SK.c[1]), 0.7), cuO:shade(h(SK.c[2]), 0.5) });
 }
+// Un tentáculo que se retuerce: una curva que se afina hacia la punta y cuya
+// onda crece hacia el extremo. rim: color del canto tornasolado (o nada).
+const _tentL = new Float32Array(20), _tentR = new Float32Array(20), _tentC = new Float32Array(20);
+function magTentaculo(g, bx, by, ang, L, w0, ph, col, rim, amp){
+  const N = 8, ca = Math.cos(ang), sa = Math.sin(ang), A = amp === undefined ? 1 : amp;
+  for (let i = 0; i <= N; i++){
+    const q = i/N, ond = (Math.sin(ph - q*3.6)*q*0.22 + Math.sin(ph*0.7 + q*2)*q*q*0.12)*L*A;
+    _tentC[i*2] = bx + ca*q*L - sa*ond; _tentC[i*2 + 1] = by + sa*q*L + ca*ond;
+  }
+  for (let i = 0; i <= N; i++){
+    const a = Math.max(0, i - 1), b = Math.min(N, i + 1);
+    let tx = _tentC[b*2] - _tentC[a*2], ty = _tentC[b*2 + 1] - _tentC[a*2 + 1];
+    const l = Math.hypot(tx, ty) || 1, w = w0*(1 - i/N*0.86)/2;
+    tx /= l; ty /= l;
+    _tentL[i*2] = _tentC[i*2] - ty*w; _tentL[i*2 + 1] = _tentC[i*2 + 1] + tx*w;
+    _tentR[i*2] = _tentC[i*2] + ty*w; _tentR[i*2 + 1] = _tentC[i*2 + 1] - tx*w;
+  }
+  g.fillStyle = col;
+  g.beginPath(); g.moveTo(_tentL[0], _tentL[1]);
+  for (let i = 1; i <= N; i++) g.lineTo(_tentL[i*2], _tentL[i*2 + 1]);
+  for (let i = N; i >= 0; i--) g.lineTo(_tentR[i*2], _tentR[i*2 + 1]);
+  g.closePath(); g.fill();
+  if (rim){
+    g.strokeStyle = rim; g.globalAlpha = 0.75; g.lineWidth = 0.9;
+    g.beginPath(); g.moveTo(_tentR[2], _tentR[3]);
+    for (let i = 2; i < N; i++) g.lineTo(_tentR[i*2], _tentR[i*2 + 1]);
+    g.stroke(); g.globalAlpha = 1;
+  }
+}
+// tentáculos de atrás y de delante: [x de la base, ángulo, largo, grosor, desfase]
+const MAG_TENT_ATRAS = [[-6, 2.15, 24, 5.4, 0.0], [-2, 1.82, 27, 5.6, 2.1], [2, 1.36, 26, 5.6, 4.0], [6, 1.05, 23, 5.2, 5.3]];
+const MAG_TENT_DELANTE = [[-5, 1.95, 26, 6.2, 1.1], [-1.5, 1.66, 29, 6.6, 3.2], [2, 1.46, 28, 6.4, 0.6], [5.5, 1.2, 25, 6, 4.6]];
 function drawMago(){
   const s = S(player.x, player.y);
   if (vil.intro){
@@ -19078,14 +19413,15 @@ function drawMago(){
 function dibujaMago(g, x, y, esc, st){
   const P = st.pal, t = st.t, f = st.f;
   const arc = st.arc;
-  const aura = arc ? '#8dff6a' : P.borde;
+  const aura = arc ? '#8dff6a' : P.borde, iris = arc ? MAG_IRIS_ARC : MAG_IRIS;
   const fl = Math.sin(t*2.1)*4;
+  const cu = P.cu || '#1d1a4c', cuC = P.cuC || '#4038a0', cuO = P.cuO || '#0b0a24';
   g.save();
   g.translate(x, y); g.scale(esc, esc);
   g.lineCap = 'round'; g.lineJoin = 'round';
   // sombra, pequeña: flota
   g.fillStyle = 'rgba(0,0,0,0.22)';
-  g.beginPath(); g.ellipse(0, 26, 12 - fl*0.4, 3.5, 0, 0, Math.PI*2); g.fill();
+  g.beginPath(); g.ellipse(0, 26, 13 - fl*0.4, 3.8, 0, 0, Math.PI*2); g.fill();
   g.translate(0, -8 + fl);
   // runas que orbitan (más y más vivas con el poder arcano)
   const nr = arc ? 5 : 3;
@@ -19096,68 +19432,128 @@ function dibujaMago(g, x, y, esc, st){
     }
   }
   g.scale(f, 1);
-  // túnica: acampanada, con jirones que ondean en el borde (no tiene pies)
-  const gr = g.createLinearGradient(0, -30, 0, 26);
+  // capa: cae a la espalda desde los hombros y acaba en jirones que ondean
+  const gr = g.createLinearGradient(0, -24, 0, 14);
   gr.addColorStop(0, P.tC); gr.addColorStop(0.45, P.t); gr.addColorStop(1, P.tO);
   g.fillStyle = gr;
   g.beginPath();
-  g.moveTo(-8, -24);
-  g.quadraticCurveTo(-14, 0, -15, 20);
-  for (let k = 0; k <= 6; k++){                                  // flecos
-    const xx = -15 + k*5, yy = 20 + (k % 2 ? 7 : 2) + Math.sin(t*5 + k)*2.2;
+  g.moveTo(6, -23);
+  g.quadraticCurveTo(-4, -26, -9, -22);
+  g.quadraticCurveTo(-17, -6, -19 + Math.sin(t*2.4)*1.5, 8);
+  for (let k = 1; k <= 6; k++){                                  // jirones
+    const xx = -19 + k*3.5, yy = 8 + (k % 2 ? 6 : 1) + Math.sin(t*5 + k)*2.2;
     g.lineTo(xx, yy);
   }
-  g.quadraticCurveTo(14, 0, 8, -24);
+  g.quadraticCurveTo(0, -8, 6, -23);
   g.closePath(); g.fill();
-  // tentáculos que asoman bajo la túnica (lo "aberrante")
-  g.strokeStyle = P.piel; g.lineWidth = 2.4;
-  for (let k = 0; k < 3; k++){
-    const bx = -7 + k*7, ph = t*3 + k*1.7;
-    g.beginPath(); g.moveTo(bx, 22);
-    g.quadraticCurveTo(bx + Math.sin(ph)*5, 28, bx + Math.sin(ph + 1)*7, 32 + Math.cos(ph)*2);
-    g.stroke();
+  // punta de la capucha caída, colgando a la espalda
+  const sw = Math.sin(t*1.5)*1.5;
+  g.fillStyle = P.t;
+  g.beginPath(); g.moveTo(-6, -31);
+  g.quadraticCurveTo(-17, -27 + sw, -20, -15 + sw*1.5);
+  g.quadraticCurveTo(-14, -21, -8, -22);
+  g.closePath(); g.fill();
+  // tentáculos de atrás, más oscuros
+  for (let k = 0; k < 4; k++){
+    const T = MAG_TENT_ATRAS[k];
+    magTentaculo(g, T[0], -3, T[1], T[2], T[3], t*3 + T[4], cuO, null);
   }
-  // borde bordado y cinturón de runas
-  g.strokeStyle = aura; g.globalAlpha = 0.8; g.lineWidth = 1.2;
-  g.beginPath(); g.moveTo(-3, -22); g.lineTo(-4, 18); g.stroke();
+  // torso estrecho, con brillo lateral y costillas tornasoladas
+  const gt = g.createLinearGradient(-8, 0, 9, 0);
+  gt.addColorStop(0, cuO); gt.addColorStop(0.5, cu); gt.addColorStop(0.82, cuC); gt.addColorStop(1, cu);
+  g.fillStyle = gt;
+  g.beginPath();
+  g.moveTo(-6, -1);
+  g.quadraticCurveTo(-9, -12, -8.5, -22);
+  g.quadraticCurveTo(0, -25.5, 8.5, -22);
+  g.quadraticCurveTo(9.5, -12, 6, -1);
+  g.closePath(); g.fill();
+  g.lineWidth = 0.7;
+  for (let k = 0; k < 3; k++){
+    const yy = -16 + k*4;
+    g.strokeStyle = iris[k]; g.globalAlpha = 0.28;
+    g.beginPath(); g.moveTo(-5, yy); g.quadraticCurveTo(1, yy + 2.2, 6, yy - 0.5); g.stroke();
+  }
   g.globalAlpha = 1;
-  g.fillStyle = '#231433'; g.fillRect(-11, -4, 22, 3.5);
-  g.fillStyle = aura; for (let k = 0; k < 4; k++) g.fillRect(-8 + k*5, -3.4, 2.2, 2.2);
-  // brazo que conjura, hacia la mira
+  // cinturón de runas
+  g.fillStyle = '#231433'; g.fillRect(-7, -5, 14, 3);
+  g.fillStyle = aura; for (let k = 0; k < 3; k++) g.fillRect(-4.5 + k*4, -4.4, 1.8, 1.8);
+  // tentáculos de delante, con el canto tornasolado
+  for (let k = 0; k < 4; k++){
+    const T = MAG_TENT_DELANTE[k];
+    magTentaculo(g, T[0], -2, T[1], T[2], T[3], t*3.3 + T[4], cu, iris[k % 3]);
+  }
+  // capucha caída, arrugada tras el cuello, y la esclavina sobre los hombros
+  g.fillStyle = P.t;
+  g.beginPath();
+  g.moveTo(-8, -20);
+  g.quadraticCurveTo(-13, -27, -9, -33);
+  g.quadraticCurveTo(-3, -36.5, 3, -29);
+  g.quadraticCurveTo(0, -25, -2, -22);
+  g.closePath(); g.fill();
+  g.strokeStyle = P.tC; g.globalAlpha = 0.7; g.lineWidth = 1;
+  g.beginPath(); g.moveTo(-9, -31); g.quadraticCurveTo(-4, -34.5, 1, -29.5); g.stroke();
+  g.globalAlpha = 1;
+  g.fillStyle = P.t;
+  g.beginPath();
+  g.moveTo(-10, -17);
+  g.quadraticCurveTo(-11, -24, -6, -25.5);
+  g.quadraticCurveTo(0, -27, 7, -25);
+  g.quadraticCurveTo(11, -23, 10.5, -16.5);
+  g.quadraticCurveTo(6, -19.5, 2, -19);
+  g.quadraticCurveTo(-4, -18.5, -10, -17);
+  g.closePath(); g.fill();
+  g.strokeStyle = aura; g.globalAlpha = 0.8; g.lineWidth = 1;
+  g.beginPath(); g.moveTo(-10, -17); g.quadraticCurveTo(-4, -18.5, 2, -19); g.quadraticCurveTo(6, -19.5, 10.5, -16.5); g.stroke();
+  g.globalAlpha = 1;
+  g.fillStyle = aura; g.beginPath(); g.arc(1.5, -21, 1.4, 0, Math.PI*2); g.fill();          // broche
+  // cuello largo y fino, que se mece
+  const cuello = Math.sin(t*1.6)*0.9, hx = 4.5 + cuello, hy = -40.5;
+  g.strokeStyle = cu; g.lineWidth = 4;
+  g.beginPath(); g.moveTo(1, -22); g.quadraticCurveTo(-0.5 + cuello, -29, hx - 1.2, hy + 6); g.stroke();
+  g.strokeStyle = iris[1]; g.globalAlpha = 0.55; g.lineWidth = 0.8;
+  g.beginPath(); g.moveTo(3, -22.5); g.quadraticCurveTo(1.6 + cuello, -29, hx + 0.6, hy + 6.5); g.stroke();
+  g.globalAlpha = 1;
+  // cabeza de huevo, echada hacia atrás, lisa y brillante
+  g.save(); g.translate(hx, hy); g.rotate(-0.42);
+  const gh = g.createRadialGradient(2, -4, 0.5, 0, 0, 10.5);
+  gh.addColorStop(0, cuC); gh.addColorStop(0.55, cu); gh.addColorStop(1, cuO);
+  g.fillStyle = gh;
+  g.beginPath(); g.ellipse(0, 0, 6.8, 9, 0, 0, Math.PI*2); g.fill();
+  g.lineWidth = 1.1;
+  g.globalAlpha = 0.8;
+  g.strokeStyle = iris[0]; g.beginPath(); g.ellipse(0, 0, 6.8, 9, 0, 2.5, 3.5); g.stroke();
+  g.strokeStyle = iris[1]; g.beginPath(); g.ellipse(0, 0, 6.8, 9, 0, 3.6, 4.6); g.stroke();
+  g.globalAlpha = 0.6;
+  g.strokeStyle = iris[2]; g.beginPath(); g.ellipse(0, 0, 6.8, 9, 0, 0.25, 1.25); g.stroke();
+  g.globalAlpha = 0.55; g.fillStyle = '#ece8ff';                                         // brillo
+  g.beginPath(); g.ellipse(1.4, -5.4, 2.3, 1.1, -0.5, 0, Math.PI*2); g.fill();
+  // tres agujeros de luz: dos ojos y una boca abierta
+  const ojo = arc ? '#b8ff9a' : P.ojo, luz = arc ? '#efffe0' : '#f3eeff';
+  const pul = 0.3 + Math.sin(t*4)*0.08;
+  g.globalAlpha = pul; g.fillStyle = ojo;
+  g.beginPath(); g.ellipse(2.6, 1.2, 4.6, 5.6, 0, 0, Math.PI*2); g.fill();
+  g.globalAlpha = 1; g.fillStyle = luz;
+  for (const [ox, oy, rx, ry] of [[4.1, -0.6, 1.3, 1.9], [1.0, -1.3, 1.1, 1.7], [3.2, 3.6, 1.3, 2.3]]){
+    g.beginPath(); g.ellipse(ox, oy, rx, ry, 0.15, 0, Math.PI*2); g.fill();
+  }
+  g.restore();
+  // brazo-tentáculo que conjura, hacia la mira
   const lanza = st.cast > 0 || st.tk;
   let ax = Math.cos(st.a)*f, ay = Math.sin(st.a);
   const aa = lanza ? Math.atan2(ay, ax) : 1.25;
   g.save(); g.translate(5, -18); g.rotate(aa);
-  g.fillStyle = P.t; g.beginPath(); g.moveTo(0, -3.5); g.lineTo(13, -2.6); g.lineTo(14, 3); g.lineTo(0, 4); g.closePath(); g.fill();
-  g.fillStyle = P.piel; g.beginPath(); g.arc(15, 0, 2.8, 0, Math.PI*2); g.fill();          // mano huesuda
-  g.strokeStyle = P.piel; g.lineWidth = 1.2;
-  for (const k of [-1, 0, 1]){ g.beginPath(); g.moveTo(16, k*1.2); g.lineTo(20, k*2.4); g.stroke(); }
+  magTentaculo(g, 0, 0, 0, 15.5, 4.6, t*4, cu, iris[1], 0.45);
+  g.strokeStyle = cuC; g.lineWidth = 1.1;                         // tres deditos que se enroscan
+  for (const k of [-1, 0, 1]){
+    const w = Math.sin(t*6 + k)*0.8;
+    g.beginPath(); g.moveTo(15, k*0.9); g.quadraticCurveTo(18, k*2.6 + w, 20.5, k*2.2 + w*1.5); g.stroke();
+  }
   if (lanza){
     g.globalAlpha = 0.55 + Math.sin(t*20)*0.25; g.fillStyle = aura;
     g.beginPath(); g.arc(20, 0, 4.5 + Math.random()*1.5, 0, Math.PI*2); g.fill(); g.globalAlpha = 1;
   }
   g.restore();
-  // capucha puntiaguda, caída hacia atrás, con la cara en sombra
-  g.fillStyle = P.t;
-  g.beginPath();
-  g.moveTo(-10, -22); g.quadraticCurveTo(-12, -40, -2, -46);
-  g.quadraticCurveTo(-8, -54 + Math.sin(t*1.5)*1.5, -16, -52);             // punta, caída
-  g.quadraticCurveTo(-4, -60, 6, -46);
-  g.quadraticCurveTo(12, -38, 10, -22);
-  g.closePath(); g.fill();
-  g.fillStyle = P.tC; g.globalAlpha = 0.6;
-  g.beginPath(); g.moveTo(-6, -44); g.quadraticCurveTo(-2, -50, 5, -45); g.lineTo(3, -44); g.closePath(); g.fill();
-  g.globalAlpha = 1;
-  // hueco de la cara
-  g.fillStyle = '#07040c';
-  g.beginPath(); g.ellipse(2.5, -33, 6, 7.2, 0, 0, Math.PI*2); g.fill();
-  // ojos: tres, desiguales (aberrante), que brillan
-  const ojo = arc ? '#b8ff9a' : P.ojo;
-  g.fillStyle = ojo;
-  for (const [ox, oy, r] of [[4.8, -34.5, 1.5], [0.4, -34, 1.2], [2.8, -30.5, 0.9]]){
-    g.beginPath(); g.arc(ox, oy, r, 0, Math.PI*2); g.fill();
-  }
-  g.globalAlpha = 0.35; g.beginPath(); g.arc(3, -33.5, 6, 0, Math.PI*2); g.fill(); g.globalAlpha = 1;
   g.restore();
   // runas de delante
   g.save(); g.translate(x, y + (-8 + fl)*esc); g.scale(esc, esc);
@@ -19196,7 +19592,18 @@ function dibujaMago(g, x, y, esc, st){
 // La runa del último click (destino de R) y, en el móvil, dónde caerán el
 // fuego o el salto mientras se mantienen sus botones.
 function drawMagoAvisos(){
+  if (grietas.length) drawGrietas();
   if (!isMag() || esVisorVs()) return;
+  if (mag.tkOn){                                   // hasta dónde llega la mente
+    const s = S(player.x, player.y + 4), col = magArc() ? '#8dff6a' : '#c77dff';
+    ctx.save();
+    ctx.globalAlpha = 0.07; ctx.fillStyle = col;
+    ctx.beginPath(); ctx.ellipse(s.x, s.y, MAG_TK_R, MAG_TK_R*0.62, 0, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 0.4; ctx.strokeStyle = col; ctx.lineWidth = 1.5;
+    ctx.setLineDash([7, 11]); ctx.lineDashOffset = -gameTime*30;
+    ctx.stroke(); ctx.setLineDash([]);
+    ctx.restore();
+  }
   const runa = (x, y, col, R, lleno)=>{
     const s = S(x, y);
     ctx.save();
@@ -19214,22 +19621,71 @@ function drawMagoAvisos(){
   if (mag.teleApunta && mag.teleJoy) runa(mag.teleX, mag.teleY, '#e6c8ff', 22, true);
   if (mag.fuegoApunta) runa(mag.fuegoX, mag.fuegoY, '#ff8a2b', MAG_FUEGO_R*(magArc() ? 1.35 : 1), true);
 }
-// Hilo de energía desde la mano hasta lo que levanta con la mente.
+// Grietas donde el mago arrancó un trozo de suelo: un hueco oscuro con
+// rajas alrededor que se desvanecen poco a poco.
+function drawGrietas(){
+  ctx.save();
+  ctx.lineWidth = 1.1; ctx.strokeStyle = '#120f0c';
+  for (let i = grietas.length - 1; i >= 0; i--){
+    const g = grietas[i], k = 1 - (gameTime - g.t0)/7;
+    if (k <= 0 || gameTime < g.t0){ grietas.splice(i, 1); continue; }
+    if (g.x < camX - 40 || g.x > camX + VW + 40 || g.y < camY - 40 || g.y > camY + VH + 40) continue;
+    const s = S(g.x, g.y), al = Math.min(1, k*2);
+    ctx.globalAlpha = al*0.8;
+    ctx.fillStyle = ROCA_TONOS[g.m || 0][2];                 // el hueco, de borde roto
+    ctx.beginPath();
+    for (let j = 0; j < 8; j++){
+      const a = j/8*Math.PI*2, r = 6 + 3*Math.abs(Math.sin(g.sem + j*2.7));
+      if (j) ctx.lineTo(s.x + Math.cos(a)*r*1.3, s.y + Math.sin(a)*r*0.75); else ctx.moveTo(s.x + Math.cos(a)*r*1.3, s.y + Math.sin(a)*r*0.75);
+    }
+    ctx.closePath(); ctx.fill();
+    ctx.globalAlpha = al*0.6;                                  // rajas en zigzag, de largo desigual
+    ctx.beginPath();
+    for (let j = 0; j < 4; j++){
+      const a = g.sem + j*1.57 + Math.sin(g.sem*3 + j)*0.5, l = 8 + 8*Math.abs(Math.sin(g.sem*5 + j*1.9));
+      let x = s.x + Math.cos(a)*9, y = s.y + Math.sin(a)*5;
+      ctx.moveTo(x, y);
+      for (let q = 1; q <= 3; q++){
+        const b = a + Math.sin(g.sem*7 + j*3 + q*2.1)*0.6;
+        x += Math.cos(b)*l/3; y += Math.sin(b)*l/3*0.6; ctx.lineTo(x, y);
+      }
+    }
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+// Telequinesis: un hilo de energía de la mano a cada cosa que gira a su
+// alrededor y un halo en cada una; mientras se mantiene, la mira del blanco
+// que atraerá lo que lance.
 function drawMagoEfectos(){
   if (!isMag() || !(mag.tkOn || mag.tkN > 0)) return;
   const arc = buffActivo('arcano'), col = arc ? '#8dff6a' : '#c77dff';
-  const m = magMano(), s0 = S(m.x, m.y), s1 = S(mag.tkX, mag.tkY);
+  const m = magMano(), s0 = S(m.x, m.y);
   ctx.save();
-  ctx.globalAlpha = 0.35; ctx.strokeStyle = col; ctx.lineWidth = 5;
-  ctx.beginPath(); ctx.moveTo(s0.x, s0.y);
-  const mx = (s0.x + s1.x)/2, my = (s0.y + s1.y)/2 - 20;
-  ctx.quadraticCurveTo(mx, my, s1.x, s1.y); ctx.stroke();
-  ctx.globalAlpha = 0.9; ctx.lineWidth = 1.5; ctx.strokeStyle = '#f2e0ff'; ctx.stroke();
-  const R = 26 + mag.tkN*7;
-  ctx.globalAlpha = 0.25 + Math.sin(gameTime*8)*0.1; ctx.fillStyle = col;
-  ctx.beginPath(); ctx.ellipse(s1.x, s1.y, R, R*0.6, 0, 0, Math.PI*2); ctx.fill();
-  ctx.globalAlpha = 0.7; ctx.strokeStyle = col; ctx.lineWidth = 1.5;
-  ctx.beginPath(); ctx.ellipse(s1.x, s1.y, R, R*0.6, gameTime, 0, Math.PI*1.3); ctx.stroke();
+  ctx.lineCap = 'round';
+  const hilo = (x, y, i)=>{
+    const s1 = S(x, y);
+    const mx = (s0.x + s1.x)/2 + Math.sin(gameTime*6 + i)*6, my = (s0.y + s1.y)/2 - 14;
+    ctx.globalAlpha = 0.2; ctx.strokeStyle = col; ctx.lineWidth = 3.5;
+    ctx.beginPath(); ctx.moveTo(s0.x, s0.y); ctx.quadraticCurveTo(mx, my, s1.x, s1.y); ctx.stroke();
+    ctx.globalAlpha = 0.55; ctx.strokeStyle = '#f2e0ff'; ctx.lineWidth = 1; ctx.stroke();
+    ctx.globalAlpha = 0.2 + Math.sin(gameTime*8 + i)*0.07; ctx.fillStyle = col;
+    ctx.beginPath(); ctx.ellipse(s1.x, s1.y, 21, 14, 0, 0, Math.PI*2); ctx.fill();
+  };
+  let i = 0;
+  for (const o of mag.tk) if (!o.dead) hilo(o.x, o.y, i++);
+  for (const p of proyJ) if (p.k === 'roca' && !p.vuela) hilo(p.x, p.y, i++);
+  const h = mag._fija;
+  if (mag.tkOn && mag.tkN > 0 && h && !h.dead){    // mira sobre el blanco
+    const s = S(h.x, h.y - alturaVisible(h)), R = 17 + Math.sin(gameTime*7)*2;
+    ctx.globalAlpha = 0.85; ctx.strokeStyle = col; ctx.lineWidth = 2;
+    for (let k = 0; k < 4; k++){
+      const a = gameTime*2 + k*Math.PI/2;
+      ctx.beginPath(); ctx.arc(s.x, s.y, R, a, a + 0.9); ctx.stroke();
+    }
+    ctx.globalAlpha = 0.5; ctx.fillStyle = '#f2e0ff';
+    ctx.beginPath(); ctx.arc(s.x, s.y, 2.2, 0, Math.PI*2); ctx.fill();
+  }
   ctx.restore();
 }
 
@@ -19367,7 +19823,7 @@ function iconoHeroe(which){
     dibujaMaquina(g, 21, 32, 0.78, { t:0.4, f:1, a:0, arma:1, paso:0, vel:0, imp:0.8, sierras:false, giro:false,
       salto:false, ret:0, fogon:0, carga:0, sob:false, escudo:0, intro:false, pal:MAQ_AZUL });
   } else {
-    dibujaMago(g, 20, 34, 0.66, { t:0.3, f:1, a:0, cast:0, tk:false, hielo:0, esc:0, arc:false, intro:false, pal:MAG_LOGO });
+    dibujaMago(g, 20, 38, 0.66, { t:0.3, f:1, a:0, cast:0, tk:false, hielo:0, esc:0, arc:false, intro:false, pal:MAG_LOGO });
   }
   return c.toDataURL();
 }
@@ -21461,6 +21917,7 @@ function updateThrown(dt){
    for (const o of pool){
     if (!o.thrown || o.dead) continue;
     Online.culpaInv = !!o.porInv;          // lo lanzó el invitado: lo que tumbe es suyo
+    if (o._home) curvaHacia(o, o._home, dt);   // lo que lanza el mago busca su blanco
     o.x += o.vx*dt; o.y += o.vy*dt;
     if (o.spin) o.rot += o.spin*dt;
     o.throwLife -= dt;
@@ -21543,7 +22000,10 @@ function updateThrown(dt){
         }
       }
     }
-    if (impact) o.tocado = true;      // chocó con algo: ya no vale para CASI
+    if (impact){
+      o.tocado = true; o._home = null;  // chocó con algo: ya no vale para CASI
+      suenaChoque(o, impact.x, impact.y, impact.car);
+    }
     if (impact){
       if (impact.target){
         const tgt = impact.target;
@@ -21619,13 +22079,15 @@ function updateThrown(dt){
       continue;
     }
     if (o.throwLife <= 0){
-      o.thrown = false; o.spin = 0; o.rot = 0; o.byEnemy = false;
+      o.thrown = false; o.spin = 0; o.rot = 0; o.byEnemy = false; o._home = null;
       // Un pedazo de edificio no se queda tirado en la calle: al tocar suelo
       // se deshace. Antes quedaba ahí para siempre, estorbando.
       if (o.kind === 'edificio'){
         o.dead = true;
         addParticles(o.x, o.y, '#9aa6ad', 22, 170);
-        sfx('demolish'); shake(9, 0.22);
+        sfxEn('demolish', o.x, o.y); sfxEn('colapso', o.x, o.y, 0.6); shake(9, 0.22);
+        anilloPolvo(o.x, o.y + 10, 70, 14, '#8a8278');
+        if (!o.byEnemy) hitstop(0.04);
       }
       else if (isExplosive(o)){ o.dead = true; discoverObj(o); const bl = blastOf(o); explode(o.x,o.y,bl.r,bl.dmg,bl.big); }
       else if (o.person){
@@ -21645,6 +22107,31 @@ function updateThrown(dt){
   }
 }
 
+// Gira la velocidad hacia el blanco, a un ritmo limitado (no da media vuelta).
+function curvaHacia(o, h, dt){
+  if (h.dead || h.held || h.thrown){ o._home = null; return; }
+  const ca = Math.atan2(o.vy, o.vx), sp = Math.hypot(o.vx, o.vy);
+  let da = Math.atan2(h.y - alturaVisible(h) - o.y, h.x - o.x) - ca;
+  da = Math.atan2(Math.sin(da), Math.cos(da));
+  const na = ca + clamp(da, -3.2*dt, 3.2*dt);
+  o.vx = Math.cos(na)*sp; o.vy = Math.sin(na)*sp;
+}
+// El choque suena a lo que es: chapa, madera, cristales o cascotes. Un
+// trozo de edificio o algo muy pesado que lanzas tú, además, frena el mundo
+// un instante y deja una onda en el suelo.
+function suenaChoque(o, x, y, auto){
+  const k = o.kind;
+  const m = k === 'edificio' || k === 'roca' ? 'crumble'
+          : k === 'car' || k === 'trash' || o.type === 'tank' || o.type === 'heli' || o.type === 'gunship' ? 'metal'
+          : k === 'tree' || k === 'bench' ? 'madera'
+          : k === 'lamp' ? 'cristal' : null;
+  if (m) sfxEn(m, x, y);
+  if (auto && m !== 'metal') sfxEn('metal', x, y, 0.8);
+  if (!o.byEnemy && (k === 'edificio' || (o.throwDmg || 0) >= 110)){
+    hitstop(0.035);
+    anilloImpacto(x, y, k === 'edificio' ? 110 : 70, '#e8dcc8', 0.3);
+  }
+}
 // Un enemigo que sale despedido (onda, ráfaga, golpe...) se estrella contra
 // el árbol, la farola o el auto que pille por medio, en cualquier mapa: el
 // mueble se rompe, el auto se abolla y él se lleva el golpe y se para en seco.
@@ -23367,7 +23854,7 @@ function drawCimientos(b, s2){
 // ---------- derrumbe ----------
 const EDIF_CAE = 0.9;
 function drawDerrumbe(b, s2){
-  const t = (gameTime - b.caeT)/EDIF_CAE;
+  const t = clamp((gameTime - b.caeT)/EDIF_CAE, 0, 1);
   const cv = (b._cv && (b._cv[1] || b._cv[0]));
   if (cv){
     ctx.save();
@@ -25200,7 +25687,7 @@ function pasosTutorial(h){
     { tit:'RAYO', t:'Clic izquierdo: un rayo cae donde apuntas. Derriba a los policías.', m:'Mantén RAYO, apunta y suelta (un toque: a lo más cercano).',
       prep(){ TUT.lista = [0, 1].map(i=> tutEnemigo('police', 200, i*0.7)); TUT.marca = TUT.lista[0]; },
       ok: ()=> (TUT.ev.rayo || 0) >= 2, cuenta: ()=> Math.min(2, TUT.ev.rayo || 0) + '/2' },
-    { tit:'TELEQUINESIS', t:'Mantén el clic derecho sobre el auto: lo levantas con la mente (te escuda de las balas). Al soltar, sale lanzado.', m:'Mantén MENTE sobre el auto y suelta para lanzarlo.',
+    { tit:'TELEQUINESIS', t:'Mantén el clic derecho cerca del auto: se eleva y gira a tu alrededor (golpea a quien toque y te escuda de las balas). Al soltar, sale lanzado hacia la mira.', m:'Mantén MENTE cerca del auto y suelta para lanzarlo.',
       prep(){ TUT.auto = tutAuto(140, 0); TUT.marca = TUT.auto; }, ok: ()=> (TUT.ev.tk || 0) >= 1 && (TUT.ev.tksuelta || 0) >= 1 },
     { tit:'HIELO', t:'Pulsa ' + K_('draAle') + ': congelas todo a tu alrededor.', m:'Toca HIELO con enemigos cerca.',
       prep(){ TUT.lista = [0, 1, 2].map(i=> tutEnemigo('police', 90, i*2.1)); }, ok: ()=> (TUT.ev.hielo || 0) >= 1 },
@@ -25691,6 +26178,23 @@ function vigilaRendimiento(ms){
     }
   } else perf.lento = 0;
 }
+// Hitstop: en los golpes muy fuertes el mundo se congela unas centésimas de
+// segundo (se sigue dibujando): da peso al impacto.
+let hitstopT = 0;
+function hitstop(s){ if (running && !Online.jugando && !esVisorVs()) hitstopT = Math.max(hitstopT, Math.min(0.12, s)); }
+// Anillo de polvo: partículas que salen en círculo desde un punto.
+function anilloPolvo(x, y, r, n, col){
+  for (let i = 0; i < n; i++){
+    if (partN >= partMax) return;
+    const p = particles[partN++], a = i/n*Math.PI*2 + Math.random()*0.3;
+    p.x = x + Math.cos(a)*r*0.3; p.y = y + Math.sin(a)*r*0.2;
+    p.vx = Math.cos(a)*r*rand(1.6, 2.4); p.vy = Math.sin(a)*r*rand(1, 1.5);
+    p.life = rand(0.4, 0.7); p.maxlife = 0.7; p.color = col || '#8a8278';
+    p.r = 2.5 + Math.random()*2.5; p.drag = 0.86; p.grow = 3;
+  }
+}
+// Onda de choque fina (la misma que la de las explosiones), de cualquier color.
+function anilloImpacto(x, y, R, col, dur){ booms.push({ x, y, r:6, max:R, life:dur || 0.35, maxlife:dur || 0.35, ring:true, color:col }); }
 function loop(t){
   vigilaRendimiento(t - lastT);
   // Acotado también por abajo: al reanudar una pausa, la marca del fotograma
@@ -25698,7 +26202,10 @@ function loop(t){
   const dtReal = clamp((t-lastT)/1000, 0, 0.05); lastT = t;
   avanzaPresentacion(dtReal);
   // durante la presentación de un jefe el mundo se detiene; al derrotarlo, va a cámara lenta
-  const dt = mundoQuieto() ? 0 : dtReal*escalaMundo();
+  if (hitstopT > 0) hitstopT -= dtReal;
+  const dt = mundoQuieto() || hitstopT > 0 ? 0 : dtReal*escalaMundo();
+  // la telequinesis del mago solo suena mientras se sostiene algo de verdad
+  if (mente.nodos && !(running && isMag() && mag.tkOn && !pausedForQuit)) menteCalla();
   if (esVisorVs()){                        // no simula: dibuja lo que manda el anfitrión
     loopInvitado(dtReal);
     draw();
@@ -27225,9 +27732,9 @@ function fichaHeroe(h){
           ['OVNI', 'Sobrecarga: la espada se alarga, la ráfaga es una minigun sin pausas, la escopeta suelta más perdigones, más daño y un escudo que convierte el daño en vida']],
       m: 'DISPARO es un joystick (mantén y apunta; con un toque ataca a lo más cercano), ARMA cambia de arma, e INCINERAR y SIERRAS se mantienen, apuntan y sueltan.' },
     mago: {
-      desc: 'Hechicero encapuchado que flota despacio. Rayos, telequinesis, hielo y fuego: todo gasta maná, que se recupera solo.',
+      desc: 'Aberración de cabeza de huevo y cuerpo de tentáculos, con capa de hechicero, que flota despacio. Rayos, telequinesis, hielo y fuego: todo gasta maná, que se recupera solo.',
       t: [[mover, 'Flotar'], ['Click izq.', 'Un rayo cae donde apuntas (mantenido, sigue lanzándolos)'],
-          ['Mantén click der.', 'Telequinesis: levanta varias cosas, te escudan de las balas y al soltar salen lanzadas'],
+          ['Mantén click der.', 'Telequinesis: lo que hay cerca se eleva y gira a tu alrededor golpeando a quien toque (si no hay nada, arranca trozos del suelo); te escuda de las balas y al soltar sale lanzado de uno en uno hacia la mira, buscando al enemigo más cercano'],
           [K('draAle'), 'Congela todo a tu alrededor'], [K('draCola'), 'Escudo que para cualquier daño'],
           [K('magFue'), 'Columna de fuego donde apuntas'], [K('magTel'), 'Teletransporte al último sitio donde hiciste click'],
           ['OVNI', 'Poder arcano: hechizos más fuertes y todo lo que mates se une a ti: la tropa como zombis, tanques y bestias como ogros, todo lo que vuela como dragones, MBT-MB92, cabezones y bichos como Piernas de pollo y los jefes como gigantes de lava']],
