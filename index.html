@@ -22203,13 +22203,18 @@ function vilBrazoHasta(sx, sy, hx, hy){
   const k = dy > d*0.35 ? (nx >= 0 ? 1 : -1) : (ny >= 0 ? 1 : -1);
   return [sx, sy, sx + dx/2 + nx*dobla*k, sy + dy/2 + ny*dobla*k, hx, hy];
 }
-// guardia de la carga (codo y puño, desde el hombro) según lo cargado: al
-// empezar, junto a la cara, pasando tras la cabeza (el puño por encima) y llena
-const VIL_CARGA_BRAZO = [[0, 9.5, 1.6, 10.9, -8], [0.5, 4.2, 1.5, 3.7, -9.5], [0.72, -4.8, -4.5, -1.8, -19.5], [1, -16.5, -6.5, -13.5, -17]];
-// a media carga en adelante, el brazo de delante pasa por detrás del cuerpo y
-// de la cabeza (el codo asoma por detrás de ella)
+// guardia de la carga según lo cargado: [carga, hombro, codo, puño]. Al
+// empezar, el puño junto a la cara; luego el brazo cruza el pecho (el puño
+// por la garganta) y, lleno, el codo queda atrás, más allá de la cabeza, con
+// el hombro girado hacia atrás
+const VIL_CARGA_BRAZO = [[0,    7.8, -10.5,  17.3, -8.9,  18.7, -18.5],
+                         [0.5,  7.8, -10.5,  12,   -9,    11.5, -20],
+                         [0.72, 7,   -10.8,  8.5,  -4,    1.5,  -11.5],
+                         [1,    4.5, -11,   -8,    -10,  -10,   -20.5]];
+// es el brazo derecho, el que queda cerca: a partir de media carga se dibuja
+// por delante de todo, también de la cabeza
 const vilCargaK = st => { const k0 = clamp(st.carga === undefined ? 1 : st.carga, 0, 1); return 1 - (1 - k0)*(1 - k0); };
-const vilBrazoDetras = st => st.pose === 'carga' && vilCargaK(st) > 0.5;
+const vilBrazoDelante = st => st.pose === 'carga' && vilCargaK(st) > 0.5;
 function vilBrazos(st, pose){
   if (st.pose === 'sujeta' && st.agarre){                        // un solo brazo sujeta; el otro, quieto
     const [hx, hy] = st.agarre;
@@ -22220,11 +22225,11 @@ function vilBrazos(st, pose){
   const k0 = clamp(st.carga === undefined ? 1 : st.carga, 0, 1), k = 1 - (1 - k0)*(1 - k0);
   const A = VIL_POSES.quieto.b[0], B = VIL_POSES.carga.b[0], tr = k0 >= 1 ? Math.sin(st.t*40)*0.6 : 0;
   const atras = A.map((v, j)=> v + (B[j] - v)*Math.min(1, k*1.6));
-  // el codo y el puño se van atrás juntos, sin perder la forma: primero junto
-  // a la cara y luego, ya por detrás del cuerpo, el codo sube tras la cabeza
+  // el codo y el puño se van atrás juntos, con el brazo siempre doblado
   const K = VIL_CARGA_BRAZO, i = k < K[1][0] ? 0 : k < K[2][0] ? 1 : 2, a = K[i], b = K[i + 1], u = (k - a[0])/(b[0] - a[0]);
   const r = a.slice(1).map((v, j)=> v + (b[j + 1] - v)*u);
-  return [atras, vilBrazoGira([7.8, -10.5, 7.8 + r[0], -10.5 + r[1], 7.8 + r[2] + tr, -10.5 + r[3]], (st.la || 0)*0.45)];
+  r[4] += tr;
+  return [atras, vilBrazoGira(r, (st.la || 0)*0.45)];
 }
 function vilFigura(g, st){
   if (st.SK && st.SK.cosmic) return vilFiguraCosmica(g, st);
@@ -22235,9 +22240,8 @@ function vilFigura(g, st){
   if (st.pose === 'aterriza') g.translate(0, 5);
   // en la presa, el puño que toca golpear da un directo
   const gol = st.punchT > 0 && (st.pose === 'presa' || st.pose === 'presaVuelo') ? (st.pose === 'presa' ? [7, -1] : [0, -6]) : null;
-  const detras = vilBrazoDetras(st);
+  const delante = vilBrazoDelante(st);
   vilBrazo(g, brazos[0], P, st.manos, -1, gol && st.golpeLado < 0 ? gol : null);
-  if (detras) vilBrazo(g, brazos[1], P, st.manos, 1, null, true);
   vilPierna(g, pie[0], P, -1, t);
   vilPierna(g, pie[1], P, 1, t);
   // torso en V, con la sombra del lado de atrás
@@ -22300,10 +22304,11 @@ function vilFigura(g, st){
   g.fillStyle = P.traje; g.fillRect(-3.6, -16.4, 7.2, 3.2); g.strokeStyle = L; g.lineWidth = 0.9; g.strokeRect(-3.6, -16.4, 7.2, 3.2);
   g.strokeStyle = P.banda; g.lineWidth = 0.7; g.beginPath(); g.moveTo(-3.4, -15.4); g.lineTo(3.4, -15.4); g.moveTo(-3.4, -14.2); g.lineTo(3.4, -14.2); g.stroke();
   // brazo de delante
-  if (!detras) vilBrazo(g, brazos[1], P, st.manos, 1, gol && st.golpeLado > 0 ? gol : null, st.pose === 'golpe' || st.pose === 'carga');
+  if (!delante) vilBrazo(g, brazos[1], P, st.manos, 1, gol && st.golpeLado > 0 ? gol : null, st.pose === 'golpe' || st.pose === 'carga');
   // cabeza
   if (st.cabeza) st.cabeza(1, -20.5);
   else vilCabezaDib(g, P);
+  if (delante) vilBrazo(g, brazos[1], P, st.manos, 1, null, true);
   g.restore();
 }
 // Armadura cósmica: el cuerpo entero es un trozo de cielo negro con
@@ -22351,8 +22356,7 @@ function vilFiguraCosmica(g, st){
   // hombrera de atrás, con púas
   punta(-8.5, -12.5, -13.5, -17.5, -10, -9);
   brazo(brazos[0], gol && st.golpeLado < 0 ? gol : null, true);
-  const detras = vilBrazoDetras(st);
-  if (detras) brazo(brazos[1], null, false);
+  const delante = vilBrazoDelante(st);
   pierna(pie[0]); pierna(pie[1]);
   // torso: negro, con nebulosa y estrellas dentro
   const torso = ()=>{ g.beginPath(); g.moveTo(-3, -14); g.lineTo(-9.8, -12.4); g.lineTo(-8, -5); g.lineTo(-5.4, 6.4);
@@ -22377,7 +22381,7 @@ function vilFiguraCosmica(g, st){
   g.fillStyle = '#ffffff'; g.beginPath(); g.arc(4.2, -8.6, 0.8, 0, Math.PI*2); g.fill();
   // cuello y brazo de delante con su hombrera de púas
   tramo(0, -13.5, 0.6, -17.5, 3.6);
-  if (!detras) brazo(brazos[1], gol && st.golpeLado > 0 ? gol : null, false);
+  if (!delante) brazo(brazos[1], gol && st.golpeLado > 0 ? gol : null, false);
   punta(8.6, -12.6, 14, -18, 12, -12); punta(9.2, -11, 15, -12.5, 11.2, -8.4);
   // cabeza afilada con dos cuernos curvos hacia atrás
   g.beginPath(); g.moveTo(-0.6, -24.6); g.quadraticCurveTo(-2.4, -31, -8.2, -32.6); g.quadraticCurveTo(-4.2, -29.4, -3.2, -23.8); g.closePath();
@@ -22394,6 +22398,7 @@ function vilFiguraCosmica(g, st){
   g.globalAlpha = 1; g.fillStyle = C.ojoC;
   g.beginPath(); g.moveTo(3, -20.8); g.lineTo(6, -22.6); g.lineTo(5.4, -20.4); g.closePath(); g.fill();
   g.beginPath(); g.moveTo(0.4, -21.1); g.lineTo(2.6, -22.3); g.lineTo(2.4, -20.8); g.closePath(); g.fill();
+  if (delante) brazo(brazos[1], null, false);
   g.restore();
 }
 function vilCabezaDib(g, P){
