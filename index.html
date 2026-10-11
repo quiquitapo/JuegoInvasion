@@ -22196,7 +22196,8 @@ function vilBrazoHasta(sx, sy, hx, hy){
   let dx = hx - sx, dy = hy - sy, d = Math.hypot(dx, dy) || 1;
   const L = 18.5;
   if (d > L){ hx = sx + dx/d*L; hy = sy + dy/d*L; dx = hx - sx; dy = hy - sy; d = L; }
-  const dobla = Math.sqrt(Math.max(0, (L/2)*(L/2) - (d/2)*(d/2))), nx = -dy/d, ny = dx/d;
+  // hacia abajo el brazo cuelga casi recto (si no, el codo hace una L)
+  const dobla = Math.sqrt(Math.max(0, (L/2)*(L/2) - (d/2)*(d/2)))*(1 - 0.8*clamp(dy/d, 0, 1)), nx = -dy/d, ny = dx/d;
   // de las dos maneras de doblar el codo, la natural: hacia abajo, o hacia
   // fuera cuando la mano baja por debajo del hombro (así no salta al girar)
   const k = dy > d*0.35 ? (nx >= 0 ? 1 : -1) : (ny >= 0 ? 1 : -1);
@@ -22214,7 +22215,7 @@ function vilBrazos(st, pose){
   const atras = A.map((v, j)=> v + (B[j] - v)*Math.min(1, k*1.6));
   // el codo y el puño se van atrás juntos (el brazo se acorta, hacia el fondo):
   // el codo sigue fuera del cuerpo y el puño queda junto a la cara
-  const ex = 9.5 - 5*k, ey = 1.6 + 1.8*k, hx = 10.9 - 8.4*k + tr, hy = -8 + 0.6*k;
+  const ex = 9.5 - 8.5*k, ey = 1.6 + 2.6*k, hx = 10.9 - 10.5*k + tr, hy = -8 + 1.2*k;
   return [atras, vilBrazoGira([7.8, -10.5, 7.8 + ex, -10.5 + ey, 7.8 + hx, -10.5 + hy], (st.la || 0)*0.45)];
 }
 function vilFigura(g, st){
@@ -22558,7 +22559,8 @@ function vilHoldPoint(){
   const av = aimVector(), f = Math.abs(av.dx) > 0.1 ? (av.dx > 0 ? 1 : -1) : (player.facing || 1);
   const o = heldObject && heldObject.ref, r = o ? Math.min(o.w || 24, o.h || 24)*0.38 : 6;
   const fl = Math.sin((vil.capa || 0)*2.4)*2.2, sx = player.x + f*7.8*0.82, sy = player.y + fl - 10.5*0.82;
-  return { x: sx + av.dx*(13 + r), y: sy + av.dy*(13 + r) };
+  const l = 13 + 2.4*Math.max(0, av.dy) + r;                      // hacia abajo, con el brazo estirado
+  return { x: sx + av.dx*l, y: sy + av.dy*l };
 }
 
 // Hacia dónde pega a pie: la mira (ratón o joystick derecho); en el móvil sin
