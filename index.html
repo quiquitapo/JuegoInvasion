@@ -847,6 +847,12 @@
   #btnPunch { background:radial-gradient(circle at 35% 30%, #ffd257, #a06a10); display:none; }
   #btnPunch.charging { box-shadow:0 0 0 5px rgba(255,120,60,0.6); }
   body.touch-ui #actionBtns.playing.vil #btnPunch { display:flex; }
+  .vilbtn { display:none; }
+  body.touch-ui #actionBtns.playing.vil .vilbtn { display:flex; }
+  #btnPresa { background:radial-gradient(circle at 35% 30%, #f2ede4, #7a7266); color:#1c1816; }
+  #btnPresa.charging { box-shadow:0 0 0 5px rgba(238,243,250,0.75), 0 4px 12px rgba(0,0,0,0.45); }
+  #btnPresa.lleva { box-shadow:0 0 0 5px rgba(255,216,74,0.8), 0 4px 12px rgba(0,0,0,0.45); }
+  #btnPresa.espera { filter:grayscale(0.85) brightness(0.65); }
   .drabtn { display:none; }
   body.touch-ui #actionBtns.playing.dra .drabtn { display:flex; }
   #btnAleteo   { background:radial-gradient(circle at 35% 30%, #efe6b0, #8a7a1c); color:#241d04; }
@@ -1015,6 +1021,11 @@
     <div class="actbtn" id="btnPunch">
       <span class="actlabel">GOLPE</span>
       <span class="acthint">mantén: cargado</span>
+    </div>
+    <!-- solo con el viltrumita -->
+    <div class="actbtn vilbtn" id="btnPresa">
+      <span class="actlabel">PRESA</span>
+      <span class="acthint" id="vilPresaHint">mantén, apunta, suelta</span>
     </div>
     <!-- solo con el dragón -->
     <div class="actbtn drabtn" id="btnAleteo">
@@ -4632,14 +4643,21 @@ function resetGame(){
   player.x = 420*4; player.y = 420*3;
   // El viltrumita no aparece sin más: entra volando y aterriza en su sitio.
   // el dragón de tres cabezas y el mago tienen algo más de estamina (maná)
-  if (typeof vil === 'object'){ vil.maxStam = hero === 'dragon' || hero === 'mago' ? 120 : 100; vil.stam = vil.maxStam; vil.flying = false; vil.joyFly = false; }
+  if (typeof vil === 'object'){ vil.maxStam = hero === 'dragon' || hero === 'mago' ? 120 : 100; vil.stam = vil.maxStam; vil.flying = false; vil.joyFly = false;
+    vil.presaApunta = false; vil.presaFase = ''; vil.presaCd = 0; vil._presa = null; vil._presaBlanco = null; vil.presaLanzaA = null;
+    vil._sangre.length = 0; vil.manos = 0; vil.aterrizaT = 0; vil.punchT = 0; }
   if (typeof draReset === 'function') draReset();
   maqReset(); magReset();
   proyJ.length = 0; grietas.length = 0; zombis.length = 0; congelados.clear(); proyRed.length = 0; limpiaJefes2(); limpiaAlien();
-  if (typeof isVil === 'function' && (isVil() || isDra())){
+  if (typeof isVil === 'function' && isDra()){
     vil.intro = 1; vil.introY = player.y;
     player.y -= VIL_INTRO_ALTO;
     vil.flying = true; vil.fx = 0; vil.fy = 1;
+    vil.charge = 0; vil.holding = false;
+  } else if (typeof isVil === 'function' && isVil()){
+    // el viltrumita cae del cielo sobre su sitio: la cámara ya está ahí
+    vil.intro = 1; vil.introY = player.y; vil.introT = 0;
+    vil.flying = false; vil.fx = 0; vil.fy = 1;
     vil.charge = 0; vil.holding = false;
   } else if (typeof vil === 'object'){
     // máquina (portal rojo del suelo), mago (portal) y cría (humo verde)
@@ -7106,6 +7124,7 @@ function damageEnemy(e, dmg, fx, fy){
   addParticles(fx, fy, '#ff3b3b', 8, 90);
   if (e.hp > 0) return;
   e.dead = true;
+  if (culpaJug > 0 && !Online.culpaInv) vilSalpica(e, e.kind === 'civ' ? 'civ' : e.type);   // el viltrumita se mancha
   if (e.type === 'tripode') triSueltaPresa(e);   // lo que arrastraba queda libre
   const k = e.kind === 'civ' ? 'civ' : e.type;
   discover(k);
@@ -8639,6 +8658,10 @@ const SFX = {
   laserOmni:()=> { oscA('sawtooth', 900, 110, 0.5, 0.16); ruidoA(0.42, 'bandpass', 3200, 700, 1.1, 0.3, 0, 0.01); oscA('sine', 95, 38, 0.55, 0.26); },
   laserOjos:()=> { oscA('sawtooth', 1500, 520, 0.2, 0.09); oscA('square', 760, 1180, 0.16, 0.045); ruidoA(0.14, 'highpass', 3600, 3600, 0.8, 0.14); },
   laserGolpe:()=> { ruidoA(0.15, 'highpass', 2600, 5600, 0.8, 0.2); oscA('square', 190 + Math.random()*60, 80, 0.09, 0.05); },
+  // Golpe de aire (un puñetazo al vacío, un giro) y la caída desde el cielo:
+  // un silbido que baja y el viento que crece.
+  whoosh: ()=> { ruidoA(0.24, 'bandpass', 500, 2200, 1.2, 0.26, 0, 0.05); },
+  caeCielo:()=> { oscA('sine', 1700, 260, 1.5, 0.07, 0, 0.2); ruidoA(1.6, 'bandpass', 700, 2600, 0.9, 0.22, 0, 0.9); },
   // Derrumbe: un retumbo largo con cascotes que siguen cayendo.
   colapso:()=> { ruidoA(1.6, 'lowpass', 420, 60, 0.6, 0.5, 0, 0.1); oscA('sine', 55, 28, 1.4, 0.32, 0, 0.15);
                  for (let i = 0; i < 3; i++) ruidoA(0.25, 'lowpass', 900, 300, 0.7, 0.24, 0.2 + i*0.32 + Math.random()*0.1); }
@@ -9866,7 +9889,7 @@ const BIND_LABELS = { up:'Mover arriba', down:'Mover abajo', left:'Mover izquier
                       right:'Mover derecha', grab:'Agarrar / Golpear', throw:'Lanzar',
                       pausa:'Pausa (o Escape)', draAle:'Z · Aletazo (dragón) · Incinerar (máquina) · Congelar (mago)',
                       draRay:'Rayos del dragón · Cambiar arma de la máquina (además del clic derecho)',
-                      draCola:'C · Coletazo (dragón) · Motosierras (máquina) · Escudo (mago)',
+                      draCola:'C · Coletazo (dragón) · Motosierras (máquina) · Escudo (mago) · Presa (viltrumita)',
                       magFue:'Mago · Columna de fuego', magTel:'Mago · Teletransporte (al último click)' };
 let binds = Object.assign({}, DEFAULT_BINDS);
 
@@ -10202,22 +10225,16 @@ const modeAnim = { raf:null, t:0, last:0, invCtx:null, vsCtx:null };
 
 // Viltrumita en miniatura para las animaciones del menú.
 function miniVil(c, x, y, r, t, hx, hy){
-  const BL='#eef1f5', BL2='#dfe4ea', GR='#8d949d', PI='#e8b58a';
-  c.fillStyle='rgba(0,0,0,0.25)';
-  c.beginPath(); c.ellipse(x, y+r*1.15, r*0.75, r*0.24, 0,0,Math.PI*2); c.fill();
-  c.fillStyle=BL2; c.fillRect(x-r*0.36, y+r*0.30, r*0.28, r*0.72);
-  c.fillRect(x+r*0.10, y+r*0.30, r*0.28, r*0.72);
-  c.fillStyle=BL;  c.fillRect(x-r*0.46, y-r*0.55, r*0.94, r*0.92);
-  c.fillStyle=GR;  c.beginPath(); c.arc(x, y-r*0.10, r*0.26,0,Math.PI*2); c.fill();
-  c.fillStyle=BL;  c.beginPath(); c.arc(x, y-r*0.10, r*0.13,0,Math.PI*2); c.fill();
-  c.fillStyle=PI;  c.beginPath(); c.arc(x+r*0.05, y-r*0.95, r*0.42,0,Math.PI*2); c.fill();
-  c.fillStyle=BL;  c.fillRect(x-r*0.42, y-r*1.36, r*0.92, r*0.36);
-  // brazo extendido hacia lo que sujeta
-  if (hx !== undefined && hx !== null){
-    c.strokeStyle=BL2; c.lineWidth=Math.max(3,r*0.24); c.lineCap='round';
-    c.beginPath(); c.moveTo(x+r*0.3, y-r*0.2); c.lineTo(hx, hy); c.stroke();
-    c.fillStyle=PI; c.beginPath(); c.arc(hx,hy,r*0.16,0,Math.PI*2); c.fill();
-  }
+  // el mismo dibujo que en la partida: flota de pie, y de vez en cuando lanza
+  // un puñetazo; con algo en las manos, lo sujeta delante
+  const k = r/23, fl = Math.sin(t*2.4)*2;
+  c.fillStyle = 'rgba(0,0,0,0.25)';
+  c.beginPath(); c.ellipse(x, y + r*1.12, r*0.6, r*0.18, 0, 0, Math.PI*2); c.fill();
+  c.save(); c.translate(x, y - r*0.06 + fl*k*0.5); c.scale(k, k);
+  const golpe = (t % 2.6) > 2.1 && hx === undefined;
+  vilFigura(c, { t, pose: hx !== undefined && hx !== null ? 'presa' : golpe ? 'golpe' : 'quieto', punchT: golpe ? 0.1 : 0, golpeLado: 1,
+                 manos: 0, sangre: null, pal: vilPaleta(), SK: null, cabeza: null });
+  c.restore();
 }
 
 // alien en miniatura, con el color equipado en la tienda
@@ -11150,6 +11167,8 @@ window.addEventListener('keydown', e=>{
       if (k === binds.draCola) magEscudo();
       if (k === binds.magFue)  magFuego();
       if (k === binds.magTel)  magTeleClic();
+    } else if (isVil()){                        // el viltrumita: la presa (mantener, apuntar y soltar)
+      if (k === binds.draCola) vilPresaApunta();
     }
   }
   keys[k] = true;
@@ -11164,6 +11183,8 @@ window.addEventListener('keyup', e=>{
   if (isDra() && (k === binds.draCola || antes === binds.draCola)){
     if (running) draColaSuelta(); else dra.colaApunta = false;      // en pausa no embiste
   }
+  // el viltrumita embiste al soltar C
+  if (isVil() && (k === binds.draCola || antes === binds.draCola)) vilPresaSuelta(!running);
   // la máquina lanza la incineración al soltar Z
   if (isMaq() && (k === binds.draAle || antes === binds.draAle)) maqIncineraSuelta(!running);
   // la máquina salta con las motosierras al soltar C
@@ -11210,6 +11231,12 @@ canvas.addEventListener('mousedown', e=>{
   }
   if (isVil()){
     // Izquierdo: golpe (mantenido, golpe cargado). Derecho: agarrar / lanzar.
+    // Con la presa: el izquierdo golpea antes y el derecho la lanza.
+    if (vil.presaFase){
+      if (e.button === 0) vil.presaGolpe = Math.min(vil.presaGolpe, 0.04);
+      else if (e.button === 2) vilPresaGira();
+      return;
+    }
     if (e.button === 0){ vil.holding = true; vil.charge = 0.0001; }
     else if (e.button === 2){ vilRightClick(); }
     return;
@@ -11338,13 +11365,9 @@ function heroIconURL(which){
     c.width = c.height = 40;
     const g = c.getContext('2d');
     if (which === 'viltrum'){
-      g.fillStyle='#eef1f5'; g.fillRect(12,14,16,18);
-      g.fillStyle='#8d949d'; g.beginPath(); g.arc(20,22,5,0,Math.PI*2); g.fill();
-      g.fillStyle='#eef1f5'; g.beginPath(); g.arc(20,22,2.6,0,Math.PI*2); g.fill();
-      g.fillStyle='#e8b58a'; g.beginPath(); g.arc(20,10,7,0,Math.PI*2); g.fill();
-      g.fillStyle='#eef1f5'; g.fillRect(13,3,15,6);
-      g.fillStyle='#8d949d'; g.fillRect(13,3,15,2);
-      g.fillStyle='#2b3340'; g.fillRect(21,7,5,3);
+      g.save(); g.translate(19, 33); g.scale(1.02, 1.02);
+      vilFigura(g, { t:0.3, pose:'quieto', punchT:0, golpeLado:1, manos:0, sangre:null, pal:VIL_TRAJE, SK:null, cabeza:null });
+      g.restore();
     } else {
       g.fillStyle='#2f7d4f'; g.beginPath(); g.arc(20,18,11,0,Math.PI*2); g.fill();
       g.strokeStyle='#2f7d4f'; g.lineWidth=3; g.lineCap='round';
@@ -11543,7 +11566,9 @@ function drawSonic(){
 const vil = { stam:100, maxStam:100, flying:false, flyDir:'', fx:0, fy:0,
               punchCd:0, punchT:0, tapKey:'', tapT:0, capa:0,
               holdT:0, holding:false, charge:0, joyFly:false,
-              intro:0, introY:0 };
+              intro:0, introY:0, manos:0, aterrizaT:0, _sangre:[],
+              presaApunta:false, presaA:0, presaL:200, presaFase:'', presaT:0, presaCd:0, presaGolpe:0, presaGiro:0,
+              presaEX:0, presaEY:0, presaLanzaA:null, golpeLado:1, _presa:null, _presaBlanco:null };
 const VIL_INTRO_ALTO = 620;     // desde qué altura entra en escena
 const VIL_INTRO_VEL  = 1150;    // a qué velocidad baja
 const VIL_CHARGE_MAX = 2.0;     // aura AZUL: golpe dirigido con ráfaga
@@ -19746,10 +19771,11 @@ function drawGrietas(){
   ctx.save();
   ctx.lineWidth = 1.1; ctx.strokeStyle = '#120f0c';
   for (let i = grietas.length - 1; i >= 0; i--){
-    const g = grietas[i], k = 1 - (gameTime - g.t0)/7;
+    const g = grietas[i], k = 1 - (gameTime - g.t0)/(g.dur || 7), E = g.esc || 1;
     if (k <= 0 || gameTime < g.t0){ grietas.splice(i, 1); continue; }
-    if (g.x < camX - 40 || g.x > camX + VW + 40 || g.y < camY - 40 || g.y > camY + VH + 40) continue;
-    const s = S(g.x, g.y), al = Math.min(1, k*2);
+    if (g.x < camX - 40*E || g.x > camX + VW + 40*E || g.y < camY - 40*E || g.y > camY + VH + 40*E) continue;
+    const s0 = S(g.x, g.y), al = Math.min(1, k*2), s = { x:0, y:0 };
+    ctx.save(); ctx.translate(s0.x, s0.y); ctx.scale(E, E);
     ctx.globalAlpha = al*0.8;
     ctx.fillStyle = ROCA_TONOS[g.m || 0][2];                 // el hueco, de borde roto
     ctx.beginPath();
@@ -19770,6 +19796,7 @@ function drawGrietas(){
       }
     }
     ctx.stroke();
+    ctx.restore();
   }
   ctx.restore();
 }
@@ -20067,6 +20094,7 @@ function logoHeroe(which, base){
 const UI_PIEZAS = [
   { id:'act',   el:'btnAction',  nombre:'ACCIÓN',   def:{ v:[0.86,0.60], h:[0.92,0.72] } },
   { id:'punch', el:'btnPunch',   nombre:'GOLPE',    def:{ v:[0.86,0.79], h:[0.78,0.78] } },
+  { id:'vilPre', el:'btnPresa',  nombre:'PRESA',    def:{ v:[0.66,0.70], h:[0.92,0.48] } },
   // los tres del dragón (el de acción hace de mordisco)
   { id:'draAle', el:'btnAleteo',   nombre:'ALETEO', def:{ v:[0.66,0.70], h:[0.80,0.56] } },
   { id:'draRay', el:'btnRayosDra', nombre:'RAYOS',  def:{ v:[0.86,0.42], h:[0.92,0.40] } },
@@ -20175,7 +20203,7 @@ function uiPos(id, quien, modo){
 function piezasDe(h, modo){
   return UI_PIEZAS.filter(p => {
     if (p.id === 'act')   return modo !== 'ej' && h !== 'maquina' && h !== 'mago';   // ellos usan los suyos
-    if (p.id === 'punch') return modo !== 'ej' && h === 'viltrum';
+    if (p.id === 'punch' || p.id.startsWith('vil')) return modo !== 'ej' && h === 'viltrum';
     if (p.id.startsWith('dra')) return modo !== 'ej' && h === 'dragon';
     if (p.id.startsWith('maq')) return modo !== 'ej' && h === 'maquina';
     if (p.id.startsWith('mag')) return modo !== 'ej' && h === 'mago';
@@ -20407,6 +20435,9 @@ function bindDragonBtns(){
   };
   toca('btnAleteo', draAleteo);
   // RAYOS: mientras se mantiene, disparan hacia donde se arrastre; al soltar se apagan.
+  // PRESA del viltrumita: mantener, apuntar y soltar; con alguien agarrado,
+  // tocarlo otra vez lo lanza (arrastrando se elige hacia dónde)
+  joystickBoton('btnPresa', 'presa', ()=> vilPresaApunta(), (cancelado)=> vilPresaSuelta(!!cancelado), isVil);
   joystickBoton('btnRayosDra', 'rayo', ()=>{ if (!dra.rayos) draAlternaRayos(); },
                                        ()=>{ dra.rayos = false; });
   // COLA: se arrastra para trazar la línea (dirección y largo); al soltar, embiste.
@@ -20652,6 +20683,9 @@ const ICONOS_BTN = {
   hielo:   '<path ' + ICO_TRAZO + ' stroke-width="1.9" d="' + icoCopo() + '"/>',
   escudo:  '<path fill="currentColor" d="M12 1.5l8.5 3.2V11c0 5.4-3.6 9.4-8.5 11.5C7.1 20.4 3.5 16.4 3.5 11V4.7z"/>'
          + '<path ' + ICO_LINEA + ' stroke-width="1.3" d="M12 4.5v15M7 8.5l5 3 5-3"/>',
+  presa:   '<circle fill="currentColor" cx="17" cy="4.6" r="2.6"/><path fill="currentColor" d="M13.6 8.2h6.6l1.6 7.4h-2.6l-.6 6.6h-3.8l-.4-6.6h-2.4z"/>'
+         + '<path ' + ICO_TRAZO + ' stroke-width="2.2" d="M2 10.5h6.5M3.5 14.5h5.5M2 18.5h6.5"/>'
+         + '<path ' + ICO_TRAZO + ' stroke-width="2.4" d="M9.5 11.8c1.6-1.4 3.2-1.6 4.4-.9"/>',
   salto:   '<ellipse ' + ICO_TRAZO + ' stroke-width="2" cx="7.5" cy="18" rx="6" ry="2.6"/>'
          + '<path ' + ICO_TRAZO + ' stroke-width="2.2" d="M7.5 17L18.5 6M12 5h7.5v7.5"/>'
 };
@@ -20669,7 +20703,7 @@ function iconosBotones(){
   for (const [id, n] of [['btnAction', 'agarrar'], ['btnPunch', 'golpe'], ['btnAleteo', 'aleteo'], ['btnRayosDra', 'rayo'], ['btnCola', 'cola'],
                          ['btnDisparo', 'rafaga'], ['btnArma', 'arma'], ['btnSierras', 'sierra'], ['btnIncinera', 'fuego'],
                          ['btnRayoMag', 'rayo'], ['btnTK', 'mente'], ['btnHielo', 'hielo'], ['btnEscudoMag', 'escudo'],
-                         ['btnFuegoMag', 'fuego'], ['btnTele', 'salto']]) iconoBtn(id, n);
+                         ['btnFuegoMag', 'fuego'], ['btnTele', 'salto'], ['btnPresa', 'presa']]) iconoBtn(id, n);
 }
 iconosBotones();
 // mantiene la etiqueta acorde a lo que lleves en el tentáculo
@@ -20684,6 +20718,7 @@ function refreshActionBtn(){
             + (dragon && dra.rayos ? 'r' : '')
             + (isMaq() ? 'M' + maq.arma + (maq.gatillo ? 'g' : '') + (maq.sierraApunta ? 's' : '') + (maqSob() ? 'o' : '')
                        + (maq.incFase ? 'i' : '') + (maq.incCd > 0 ? 'c' + Math.ceil(maq.incCd) : '') : '')
+            + (isVil() ? 'V' + (vil.presaApunta ? 'a' : '') + vil.presaFase + (vil.presaCd > 0 || vil.stam < VIL_PRESA_STAM ? 'c' : '') : '')
             + (isMag() ? 'W' + (mag.lanzando ? 'l' : '') + (mag.tkOn ? 't' : '') + (mag.escudoT > 0 ? 'e' : '')
                        + (mag.fuegoApunta ? 'f' : '') + (mag.teleApunta ? 'p' : '') : '');
   if (sig === actSig) return;
@@ -20717,6 +20752,15 @@ function refreshActionBtn(){
     const br = document.getElementById('btnRayosDra'); if (br) br.classList.toggle('on', dra.rayos);
     const bc = document.getElementById('btnCola');     if (bc) bc.classList.toggle('charging', dra.colaApunta);
     return;
+  }
+  if (isVil()){
+    const bp = document.getElementById('btnPresa');
+    if (bp){
+      bp.classList.toggle('charging', vil.presaApunta); bp.classList.toggle('lleva', vil.presaFase === 'lleva');
+      bp.classList.toggle('espera', !vil.presaFase && !vil.presaApunta && (vil.presaCd > 0 || vil.stam < VIL_PRESA_STAM));
+    }
+    const ph = document.getElementById('vilPresaHint');
+    if (ph) ph.textContent = vil.presaFase === 'lleva' ? 'toca: lanzar' : 'mantén, apunta, suelta';
   }
   if (lab)  lab.textContent  = holding ? 'LANZAR' : 'AGARRAR';
   iconoBtn('btnAction', holding ? 'lanzar' : 'agarrar');
@@ -21073,6 +21117,7 @@ function onThrow(){
   if (vil.intro) return;
   if (running && isMaq()){ maqCambiaArma(); return; }             // Q: cambia de arma
   if (running && isMag()){ if (mag.tk.length) magSueltaTK(false); return; }   // Q: lanza lo que sostiene
+  if (running && isVil() && vil.presaFase){ vilPresaGira(); return; }        // Q con la presa: gira y la lanza
   if (!running || !heldObject) return;
   if (Online.caidoYo && esDoble()) return;
   const tip = tentacleTip(), o = heldObject.ref, ang = tip.angle;
@@ -21373,6 +21418,7 @@ function updatePlayerLibre(dt){
 function vilRelease(){
   const c = vil.charge;
   vil.charge = 0;
+  if (vil.presaFase){ vil.presaGolpe = Math.min(vil.presaGolpe, 0.04); return; }
   // Tres niveles: toque, carga azul (dirigida) y carga blanca (aplauso).
   if (c >= VIL_CLAP_T)          vilPunch(1, 'clap');
   else if (c >= VIL_CHARGE_MAX) vilPunch(1, 'dir');
@@ -21438,6 +21484,233 @@ function vilGrab(){
   }
 }
 
+// ---- PRESA (C): embiste, agarra, vuela golpeando y lo lanza girando ----
+// Mantener C marca un pasillo hacia la mira. Al soltar embiste por él y
+// agarra al primero que pille; vuela con él (lo guía el jugador) dándole
+// puñetazos y usándolo de escudo, y al acabarse el tiempo (o al pulsar C otra
+// vez) gira sobre sí mismo y lo lanza hacia donde se apunta. A los jefes no
+// los puede agarrar: se estrella contra ellos.
+const VIL_PRESA_STAM = 26, VIL_PRESA_MIN = 90, VIL_PRESA_MAX = 380, VIL_PRESA_R = 30, VIL_PRESA_CD = 2.2;
+const VIL_PRESA_VEL = 1300, VIL_PRESA_T = 2.6, VIL_PRESA_VUELO = 400, VIL_PRESA_GOLPE = 0.3, VIL_PRESA_DMG = 24;
+const VIL_PRESA_GIRO = 0.5, VIL_PRESA_LANZA = 900;
+function vilPresaApunta(){
+  if (!isVil() || vil.intro || !running) return;
+  if (vil.presaFase === 'lleva'){ vilPresaGira(); return; }     // otra vez: gira y lo lanza ya
+  if (vil.presaFase || vil.presaApunta || heldObject) return;
+  vil.presaApunta = true; vil.charge = 0; vil.holding = false;
+}
+function vilPresaSuelta(cancelado){
+  if (!vil.presaApunta) return;
+  vil.presaApunta = false; vil._presaBlanco = null;
+  if (cancelado || !running || vil.presaFase || vil.intro) return;
+  if (vil.presaCd > 0){ sfx('deny'); return; }
+  if (vil.stam < VIL_PRESA_STAM){ sinEstamina(); return; }
+  vil.stam -= VIL_PRESA_STAM; tutEv('presa');
+  const a = vil.presaA, L = vil.presaL;
+  vil.presaFase = 'embiste'; vil.flying = true; vil.joyFly = false; vil.flyDir = '';
+  vil.fx = Math.cos(a); vil.fy = Math.sin(a);
+  vil.presaEX = clamp(player.x + vil.fx*L, 30, WORLD_W - 30); vil.presaEY = clamp(player.y + vil.fy*L, 30, WORLD_H - 30);
+  vil.presaT = L/VIL_PRESA_VEL + 0.08; vil._presa = null;
+  sonicBoom(player.x, player.y, a); sfx('whoosh');
+}
+// El primero que hay en el pasillo (enemigos antes que civiles).
+function vilPresaBlanco(a, L){
+  const ca = Math.cos(a), sa = Math.sin(a);
+  for (const pool of [enemies, civilians]){
+    let mejor = null, md = 1e9;
+    for (const t of pool){
+      if (t.dead || t.held || t.thrown || t.pacifico || t.type === 'ovni' || enPresa(t)) continue;
+      const dx = t.x - player.x, dy = t.y - alturaVisible(t) - player.y;
+      if (Math.abs(dx) > L + 60 || Math.abs(dy) > L + 60) continue;
+      const pr = dx*ca + dy*sa;
+      if (pr < -12 || pr > L + 24 || Math.abs(dy*ca - dx*sa) > VIL_PRESA_R + 18) continue;
+      if (pr < md){ md = pr; mejor = t; }
+    }
+    if (mejor) return mejor;
+  }
+  return null;
+}
+function vilPresaContacto(){
+  for (const pool of [enemies, civilians]){
+    for (const t of pool){
+      if (t.dead || t.held || t.thrown || t.pacifico || t.type === 'ovni' || enPresa(t)) continue;
+      if (Math.abs(t.x - player.x) > 90 || Math.abs(t.y - player.y) > 110) continue;
+      if (distCuerpo(player.x, player.y - 6, t) < 30) return t;
+    }
+  }
+  return null;
+}
+function vilPresaAgarra(t){
+  t.held = true; t.thrown = false; t.stunT = 0; t.stunVx = 0; t.stunVy = 0; t.byEnemy = false;
+  if (t.rayoFase){ t.rayoFase = 'espera'; t.rayoT = rand(MBT_ESPERA[0], MBT_ESPERA[1]); }
+  if (t.person || t.kind === 'civ') gritaAgarrado(t);
+  const dur = objDurability(t)*2 + 2;
+  heldObject = { ref:t, dur, maxDur:dur };
+  if (dobleInv()){ const r = refDe(t); if (r) enviaAccion({ t:'agarra', r }); }
+  vil._presa = t; vil.presaFase = 'lleva'; vil.presaT = VIL_PRESA_T; vil.presaGolpe = 0.2;
+  player.vx = vil.fx*VIL_PRESA_VUELO*0.7; player.vy = vil.fy*VIL_PRESA_VUELO*0.7;
+  if (t.hp > 1) porJugador(()=> damageEnemy(t, Math.min(30, t.hp - 1), t.x, t.y));
+  addParticles(t.x, t.y, '#ffe066', 12, 140);
+  anilloImpacto(t.x, t.y, 60, '#ffffff', 0.3);
+  sfx('grab'); sfxEn('hit', t.x, t.y); shake(8, 0.15); hitstop(0.05);
+}
+function vilPresaGolpe(o){
+  vil.golpeLado = vil.golpeLado > 0 ? -1 : 1; vil.punchT = 0.12;
+  if (o.hp > 1) porJugador(()=> damageEnemy(o, Math.min(VIL_PRESA_DMG, o.hp - 1), o.x, o.y));
+  const carne = o.kind === 'civ' || (o.person && o.type !== 'droide') || VIL_SANGRA[o.type];
+  const col = carne ? ((esAlien() || o.type === 'bicho') ? '#3f9a38' : '#b3202a') : '#ffd27b';
+  addParticles(o.x, o.y - 6, col, 6, 110);
+  if (carne){ vil.manos = Math.min(1, vil.manos + 0.12); vil._manosCol = col; }
+  sfxEn('hit', o.x, o.y); shake(3, 0.06);
+}
+function vilPresaGira(){
+  if (vil.presaFase !== 'lleva') return;
+  vil.presaFase = 'gira'; vil.presaT = VIL_PRESA_GIRO; vil.presaGiro = 0; vil.flying = false;
+  sfx('whoosh');
+}
+// Hacia dónde lo lanza: lo que se apunte con el botón, la mira o el ratón; en
+// el móvil sin apuntar, al enemigo más cercano.
+function vilPresaDirLanza(o){
+  if (vil.presaLanzaA !== null && vil.presaLanzaA !== undefined) return vil.presaLanzaA;
+  if (lastInputTouch && !aimJoy.active){
+    let mejor = null, md = 700*700;
+    for (const e of enemies){
+      if (e === o || e.dead || e.held || e.thrown || e.pacifico || e.type === 'ovni') continue;
+      const dx = e.x - player.x, dy = e.y - player.y, d2 = dx*dx + dy*dy;
+      if (d2 < md){ md = d2; mejor = e; }
+    }
+    if (mejor) return Math.atan2(mejor.y - alturaVisible(mejor) - player.y, mejor.x - player.x);
+    return (player.facing || 1) > 0 ? 0 : Math.PI;
+  }
+  return aimAngle();
+}
+function vilPresaLanza(){
+  const o = vil._presa;
+  if (o && !o.dead && heldObject && heldObject.ref === o){
+    const a = vilPresaDirLanza(o), ca = Math.cos(a), sa = Math.sin(a);
+    o.held = false; o.thrown = true; o.porInv = false; o.tocado = false;
+    o.restan = aguanteLanzado(o) + 1; o.golpeados = [];
+    o.x = player.x + ca*30; o.y = player.y - 4 + sa*30;
+    o.vx = ca*VIL_PRESA_LANZA; o.vy = sa*VIL_PRESA_LANZA;
+    o.throwDmg = objThrowDmg(o)*1.8; o.throwLife = 1.6;
+    o.spin = rand(10, 14)*(Math.random() < 0.5 ? -1 : 1); o.rot = 0;
+    heldObject = null;
+    if (dobleInv()){ const r = refDe(o); if (r) enviaAccion({ t:'lanza', r, x:o.x, y:o.y, vx:o.vx, vy:o.vy, dmg:o.throwDmg, spin:o.spin }); }
+    player.facing = ca >= 0 ? 1 : -1;
+    windRings.push({ x:player.x, y:player.y, ang:a, r:20, life:0.4, max:0.4 });
+    sfx('throw'); sfxEn('fling', player.x, player.y); shake(9, 0.18); hitstop(0.04);
+    tutEv('presaLanza');
+  }
+  vilPresaFin();
+}
+function vilPresaFin(){
+  if (heldObject && heldObject.ref && heldObject.ref === vil._presa && heldObject.ref.dead) heldObject = null;   // murió en las manos
+  vil.presaFase = ''; vil.presaT = 0; vil.flying = false; vil.joyFly = false; vil.flyDir = '';
+  vil.presaCd = VIL_PRESA_CD; vil._presa = null; vil.presaLanzaA = null;
+}
+function vilPresaUpdate(dt){
+  const fase = vil.presaFase;
+  if (fase === 'embiste'){
+    const x0 = player.x, y0 = player.y;
+    const dx = vil.presaEX - player.x, dy = vil.presaEY - player.y, d = Math.hypot(dx, dy), paso = Math.min(d, VIL_PRESA_VEL*dt);
+    player.vx = vil.fx*VIL_PRESA_VEL; player.vy = vil.fy*VIL_PRESA_VEL;
+    if (Math.abs(vil.fx) > 0.1) player.facing = vil.fx > 0 ? 1 : -1;
+    // en pasos cortos: a esta velocidad se saltaría a alguien pequeño
+    let t = null;
+    const n = Math.max(1, Math.ceil(paso/16));
+    for (let k = 0; k < n && !t; k++){
+      if (d > 0){ player.x += dx/d*paso/n; player.y += dy/d*paso/n; }
+      t = vilPresaContacto();
+    }
+    vilAtraviesa(vilPaso, x0, y0, player.x, player.y, 32, true);
+    if (Math.random() < 0.8) addParticles(player.x - vil.fx*20, player.y - vil.fy*20, '#dfe8f4', 2, 90);
+    if (t){
+      if (JEFES[t.type]){                                  // a un jefe no se le agarra: choca
+        porJugador(()=> damageEnemy(t, VIL_JEFE_EMBISTE*2, t.x, t.y));
+        anilloImpacto(player.x, player.y, 70, '#ffffff', 0.3);
+        sfx('hit'); sfx('boom'); shake(12, 0.25); hitstop(0.06);
+        player.x -= vil.fx*30; player.y -= vil.fy*30;
+        vilPresaFin(); return;
+      }
+      vilPresaAgarra(t); return;
+    }
+    vil.presaT -= dt;
+    if (vil.presaT <= 0 || d <= VIL_PRESA_VEL*dt){       // no pilló a nadie
+      windRings.push({ x:player.x, y:player.y, ang:Math.atan2(vil.fy, vil.fx), r:16, life:0.35, max:0.35 });
+      vilPresaFin();
+    }
+    return;
+  }
+  const o = vil._presa;
+  if (!o || o.dead || !heldObject || heldObject.ref !== o){ vilPresaFin(); return; }
+  if (fase === 'lleva'){
+    // vuela guiado por el jugador; sin dirección, se queda flotando con él
+    let dx = 0, dy = 0;
+    if (moveJoy.active && !paralizado() && !congelado()){ dx = moveJoy.dx; dy = moveJoy.dy; }
+    else if (!paralizado() && !congelado()){
+      if (pressed('up')) dy -= 1; if (pressed('down')) dy += 1;
+      if (pressed('left')) dx -= 1; if (pressed('right')) dx += 1;
+    }
+    const m = Math.hypot(dx, dy);
+    if (m > 0.15){
+      const ux = dx/m, uy = dy/m, v = VIL_PRESA_VUELO*Math.min(1, m);
+      player.vx = lerp(player.vx, ux*v, 0.12); player.vy = lerp(player.vy, uy*v, 0.12);
+      vil.fx = lerp(vil.fx, ux, 0.15); vil.fy = lerp(vil.fy, uy, 0.15);
+      const n = Math.hypot(vil.fx, vil.fy) || 1; vil.fx /= n; vil.fy /= n;
+    } else { player.vx *= 0.9; player.vy *= 0.9; }
+    vil.flying = Math.hypot(player.vx, player.vy) > 70;
+    if (vil.flying){ if (Math.abs(player.vx) > 8) player.facing = player.vx > 0 ? 1 : -1; }
+    else { const av = aimVector(); if (Math.abs(av.dx) > 0.2) player.facing = av.dx > 0 ? 1 : -1; }
+    const x0 = player.x, y0 = player.y;
+    player.x = clamp(player.x + player.vx*dt, 30, WORLD_W - 30);
+    player.y = clamp(player.y + player.vy*dt, 30, WORLD_H - 30);
+    vilAtraviesa(vilPaso, x0, y0, player.x, player.y, 30, true);
+    // lo lleva delante: es su escudo (al pasar de volar a flotar, se recoloca sin saltos)
+    const tx = vil.flying ? player.x + vil.fx*38 : player.x + (player.facing || 1)*26;
+    const ty = vil.flying ? player.y + vil.fy*38 : player.y - 4, kk = Math.min(1, dt*16);
+    o.x += (tx - o.x)*kk; o.y += (ty - o.y)*kk;
+    vil.presaGolpe -= dt;
+    if (vil.presaGolpe <= 0){ vil.presaGolpe = VIL_PRESA_GOLPE; vilPresaGolpe(o); }
+    vil.presaT -= dt;
+    if (vil.presaT <= 0) vilPresaGira();
+    return;
+  }
+  if (fase === 'gira'){
+    vil.presaGiro += dt*Math.PI*4/VIL_PRESA_GIRO;             // dos vueltas
+    player.vx *= 0.85; player.vy *= 0.85;
+    player.x = clamp(player.x + player.vx*dt, 30, WORLD_W - 30);
+    player.y = clamp(player.y + player.vy*dt, 30, WORLD_H - 30);
+    const ang = vil.presaGiro;
+    o.x = player.x + Math.cos(ang)*40; o.y = player.y - 6 + Math.sin(ang)*24;
+    if (draJoy.tipo === 'presa' && draJoy.m >= 0.2) vil.presaLanzaA = Math.atan2(draJoy.dy, draJoy.dx);
+    if (Math.random() < 0.5) addParticles(o.x, o.y, '#e6eef8', 1, 60);
+    vil.presaT -= dt;
+    if (vil.presaT <= 0) vilPresaLanza();
+  }
+}
+// Mientras se mantiene C: el pasillo de la embestida y a quién agarrará.
+function drawVilAvisos(){
+  if (!isVil() || !vil.presaApunta || esVisorVs()) return;
+  const a = vil.presaA, L = vil.presaL, R = VIL_PRESA_R, s0 = S(player.x, player.y);
+  const listo = vil.stam >= VIL_PRESA_STAM && vil.presaCd <= 0;
+  const col = listo ? '#eef3fa' : '#ff6a5a';
+  ctx.save();
+  ctx.translate(s0.x, s0.y); ctx.rotate(a);
+  const pasillo = ()=>{ ctx.beginPath(); ctx.moveTo(0, -R); ctx.lineTo(L, -R); ctx.arc(L, 0, R, -Math.PI/2, Math.PI/2); ctx.lineTo(0, R); ctx.arc(0, 0, R, Math.PI/2, Math.PI*1.5); ctx.closePath(); };
+  pasillo();
+  ctx.globalAlpha = 0.14 + Math.sin(gameTime*8)*0.04; ctx.fillStyle = col; ctx.fill();
+  ctx.globalAlpha = 0.75; ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.setLineDash([10, 7]); ctx.lineDashOffset = -gameTime*50; ctx.stroke(); ctx.setLineDash([]);
+  ctx.globalAlpha = 0.6; ctx.lineWidth = 3; ctx.lineCap = 'round';
+  for (let x = 34 + (gameTime*60) % 36; x < L; x += 36){ ctx.beginPath(); ctx.moveTo(x - 7, -9); ctx.lineTo(x, 0); ctx.lineTo(x - 7, 9); ctx.stroke(); }
+  ctx.restore();
+  const t = vil._presaBlanco;
+  if (t && !t.dead){
+    const s = S(t.x, t.y - alturaVisible(t)), jefe = !!JEFES[t.type], R2 = 20 + Math.sin(gameTime*7)*2;
+    ctx.save(); ctx.strokeStyle = jefe ? '#ff6a5a' : '#ffd84a'; ctx.lineWidth = 2.5; ctx.globalAlpha = 0.9;
+    for (let k = 0; k < 4; k++){ const b = gameTime*2 + k*Math.PI/2; ctx.beginPath(); ctx.arc(s.x, s.y, R2, b, b + 0.9); ctx.stroke(); }
+    ctx.restore();
+  }
+}
 // ---- Viltrumita: vuelo sónico, puñetazos y agarre ----
 // Al dejar de volar, el viltrumita puede quedar dentro de un edificio. Con
 // dos edificios pegados el empujón de uno lo metía en el otro y se quedaba
@@ -21641,17 +21914,25 @@ function updateViltrum(dt){
   const volabaAntes = vil.flying;
   // Entrada en escena: baja en picado y al tocar tierra empieza la partida.
   if (vil.intro){
-    vil.capa += dt;
-    player.vx = 0; player.vy = VIL_INTRO_VEL;
-    player.y = Math.min(vil.introY, player.y + VIL_INTRO_VEL*dt);
-    vil.fx = 0; vil.fy = 1; vil.flying = true;
-    if (Math.random() < 0.8) addParticles(player.x, player.y - 20, '#9fd6ff', 2, 200);
-    if (player.y >= vil.introY - 0.5){
-      player.y = vil.introY;
-      vil.intro = 0; vil.flying = false; vil.joyFly = false; player.vy = 0;
+    // Entrada: baja de las nubes sobre su sitio (la cámara ya está ahí) y
+    // aterriza de golpe, dejando un cráter.
+    const t0 = vil.introT || 0;
+    vil.capa += dt; vil.introT = t0 + dt;
+    if (t0 === 0) sfx('caeCielo');
+    if (t0 < VIL_NUBES_T*0.55 && vil.introT >= VIL_NUBES_T*0.55) sfx('whoosh');
+    player.vx = 0; player.vy = 0;
+    if (vil.introY) player.y = vil.introY;
+    vil.fx = 0; vil.fy = 1; vil.flying = false;
+    if (vil.introT >= VIL_NUBES_T){
+      vil.intro = 0; vil.flying = false; vil.joyFly = false; player.vy = 0; vil.aterrizaT = 0.55;
       sonicBoom(player.x, player.y, 0);
-      shake(18, 0.45);
+      shake(20, 0.5); hitstop(0.08);
       addParticles(player.x, player.y, '#cfd6dd', 26, 260);
+      anilloPolvo(player.x, player.y + 18, 60, 22, '#9a9288');
+      anilloImpacto(player.x, player.y + 12, 190, '#eef4ff', 0.5); anilloImpacto(player.x, player.y + 12, 110, '#ffffff', 0.32);
+      if (grietas.length >= 12) grietas.shift();
+      grietas.push({ x:player.x, y:player.y + 18, t0:gameTime, sem:Math.random()*1000, m: esAlien() ? 1 : 0, esc:2.6, dur:14 });
+      sfx('caidaGolpe'); sfxEn('colapso', player.x, player.y, 0.45);
       for (const pool of [civilians, enemies]){          // aparta lo que pille debajo
         for (const t of pool){
           if (t.dead || t.held) continue;
@@ -21662,6 +21943,15 @@ function updateViltrum(dt){
     return;
   }
   vil.punchCd -= dt; vil.punchT -= dt; vil.capa += dt;
+  vilSeca(dt);
+  if (vil.aterrizaT > 0) vil.aterrizaT -= dt;
+  if (vil.presaCd > 0) vil.presaCd -= dt;
+  if (vil.presaApunta){
+    const ap = apuntaHeroe(['presa'], 0, VIL_PRESA_MAX, VIL_PRESA_MAX);
+    vil.presaA = ap.a; vil.presaL = clamp(ap.d, VIL_PRESA_MIN, VIL_PRESA_MAX);
+    vil._presaBlanco = vilPresaBlanco(vil.presaA, vil.presaL);
+  }
+  if (vil.presaFase){ vil.charge = 0; vil.holding = false; vilPresaUpdate(dt); drawR = lerp(drawR, 22, 0.06); return; }
   // Mantener el clic izquierdo carga el puñetazo; funciona también volando.
   if (vil.holding) vil.charge = Math.min(VIL_CHARGE_MAX, vil.charge + dt);
 
@@ -21729,138 +22019,328 @@ function updateViltrum(dt){
   }
 }
 
-// Soldado viltrumita. El traje y el círculo del pecho toman el color
-// equipado en la tienda; siempre flota un poco y nunca camina.
-function drawViltrum(){
-  const s = S(player.x, player.y);
-  const f = player.facing || 1;
-  const vol = vil.flying;
-  const SK = skin();
-  const TRAJE = SK.c[0], SOMBRA = SK.c[1], OSCURO = SK.c[2];
-  const CIRC = SK.tip, PIEL='#e8b58a', PELO='#3a2a1c', OJO='#2b3340';
-  const flot = Math.sin(vil.capa*2.4)*2.2;          // flotación permanente
-
+// ---- entrada desde las nubes ----
+const VIL_NUBES_T = 1.7;
+const NUBES_ENTRADA = Array.from({ length:18 }, (_, i)=>({ a: i*2.399, r: 0.04 + ((i*37) % 10)/22, s: 0.9 + ((i*53) % 10)/14, d: 0.85 + ((i*29) % 7)/14 }));
+let _nubeSp = null;
+function nubeSp(){ return _nubeSp || (_nubeSp = makeRadial(96, [[0,'rgba(250,252,255,0.95)'],[0.45,'rgba(236,242,250,0.75)'],[0.75,'rgba(214,224,238,0.32)'],[1,'rgba(205,216,232,0)']])); }
+// En su sitio: la sombra que crece y la marca del impacto.
+function drawVilEntrada(s){
+  const k = clamp((vil.introT || 0)/VIL_NUBES_T, 0, 1), e = k*k;
   ctx.save();
-  ctx.translate(s.x, s.y + (vol ? 0 : flot));
-  if (vol){
-    // El cuerpo apunta al rumbo. Al ir hacia la izquierda solo se voltea en
-    // vertical: sumar PI lo dejaba mirando hacia atrás.
-    ctx.rotate(Math.atan2(vil.fy, vil.fx));
-    if (vil.fx < 0) ctx.scale(1,-1);
+  ctx.fillStyle = 'rgba(0,0,0,' + (0.06 + 0.24*e).toFixed(3) + ')';
+  ctx.beginPath(); ctx.ellipse(s.x, s.y + 25, 3 + 10*e, 1.2 + 2.6*e, 0, 0, Math.PI*2); ctx.fill();
+  const R = 70 - 30*e;
+  ctx.globalAlpha = 0.25 + 0.45*e; ctx.strokeStyle = '#eef4ff'; ctx.lineWidth = 2;
+  ctx.setLineDash([8, 7]); ctx.lineDashOffset = -gameTime*40;
+  ctx.beginPath(); ctx.ellipse(s.x, s.y + 22, R, R*0.38, 0, 0, Math.PI*2); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.restore();
+}
+// Encima de todo: él cayendo (cada vez más grande y más cerca de su sitio) y
+// las nubes que atraviesa, que se abren y se desvanecen.
+function drawNubesEntrada(){
+  if (!isVil() || !vil.intro || vil.caida || esVisorVs()) return;
+  const k = clamp((vil.introT || 0)/VIL_NUBES_T, 0, 1), e = k*k;
+  // baja en diagonal desde arriba a la izquierda (así no lo tapa el rótulo del mapa)
+  const s = S(player.x, player.y), dX = -VW*0.3, dY = -VH*0.62, esc = 0.3 + 0.7*e;
+  const x0 = s.x + dX*(1 - e), y0 = s.y + dY*(1 - e), dl = Math.hypot(dX, dY), ux = dX/dl, uy = dY/dl;
+  ctx.save();
+  // líneas de velocidad por detrás, en la dirección de la caída
+  ctx.strokeStyle = 'rgba(225,238,255,0.5)'; ctx.lineCap = 'round';
+  for (let i = 0; i < 6; i++){
+    const o = (i - 2.5)*5*esc, l = (40 + (i*17) % 50)*(0.5 + e);
+    const bx = x0 - uy*o + ux*22*esc, by = y0 + ux*o + uy*22*esc;
+    ctx.lineWidth = 1.5 + (i % 2);
+    ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(bx + ux*l, by + uy*l); ctx.stroke();
   }
-  ctx.scale(vol ? 1 : f, 1);
-  ctx.scale(0.82, 0.82);
-
-  // sombra en el suelo: siempre separada, porque flota
-  ctx.fillStyle='rgba(0,0,0,0.22)';
-  ctx.beginPath(); ctx.ellipse(0, 30 - (vol?0:flot), 13, 4, 0,0,Math.PI*2); ctx.fill();
-
-  // piernas: estiradas hacia atrás al volar, colgando al flotar (nunca en cuclillas)
-  ctx.fillStyle = SOMBRA;
-  if (vol){
-    ctx.fillRect(-16, -3, 22, 6);
-    ctx.fillRect(-16,  5, 22, 6);
-    ctx.fillStyle = OSCURO; ctx.fillRect(-22,-3,7,6); ctx.fillRect(-22,5,7,6);
-  } else {
-    const sep = Math.sin(vil.capa*1.8)*1.5;
-    ctx.fillRect(-7, 10, 6, 16+sep); ctx.fillRect(2, 10, 6, 16-sep);
-    ctx.fillStyle = OSCURO; ctx.fillRect(-8, 25+sep, 8, 4); ctx.fillRect(1, 25-sep, 8, 4);
-  }
-  // torso: vertical de pie, TUMBADO en horizontal durante el vuelo sónico
-  ctx.fillStyle = TRAJE;
-  if (vol){
-    ctx.fillRect(-12, -9, 26, 18);
-    if (SK.cosmic) drawCosmos(1, 0, 14, 1.3);
-    if (SK.drip)   drawDrip(1, 0, 13, 1.3);
-    if (SK.flagIL) drawFlagIL(1, 0, 13, 1.3);
-    if (SK.huaso)  drawHuaso(1, 0, 13, 1.3);
-    if (SK.calabaza) drawCalabaza(1, 0, 13, 1.3);
-    if (SK.navidad)  drawNavidad(1, 0, 13, 1.3);
-    if (SK.multicolor) drawMulticolor(1, 0, 13, 1.3);
-    if (SK.imgRef){ ctx.save(); ctx.beginPath(); ctx.rect(-12,-9,26,18); ctx.clip();
-                    pintaImgSkin(SK.imgRef, 1, 0, 14); ctx.restore(); }
-    ctx.fillStyle = SOMBRA; ctx.fillRect(-12, -9, 5, 18);   // cintura hacia atrás
-  } else {
-    ctx.fillRect(-9, -12, 18, 23);
-    if (SK.cosmic) drawCosmos(0, -1, 13, 1.3);        // el traje es un trozo de cielo
-    if (SK.drip)   drawDrip(0, -1, 12, 1.3);
-    if (SK.flagIL) drawFlagIL(0, -1, 12, 1.3);
-    if (SK.huaso)  drawHuaso(0, -1, 12, 1.3);
-    if (SK.calabaza) drawCalabaza(0, -1, 12, 1.3);
-    if (SK.navidad)  drawNavidad(0, -1, 12, 1.3);
-    if (SK.multicolor) drawMulticolor(0, -1, 12, 1.3);
-    if (SK.imgRef){ ctx.save(); ctx.beginPath(); ctx.rect(-9,-12,18,23); ctx.clip();
-                    pintaImgSkin(SK.imgRef, 0, -1, 13); ctx.restore(); }
-    ctx.fillStyle = SOMBRA; ctx.fillRect(-9, 5, 18, 5);
-  }
-  // círculo del pecho, con el color de la punta del tentáculo
-  const ccx = vol ? 3 : 0, ccy = vol ? 0 : -4;
-  ctx.fillStyle = CIRC;   ctx.beginPath(); ctx.arc(ccx,ccy,5.6,0,Math.PI*2); ctx.fill();
-  ctx.fillStyle = TRAJE;  ctx.beginPath(); ctx.arc(ccx,ccy,3.0,0,Math.PI*2); ctx.fill();
-  if (SK.cosmic) drawCosmos(ccx, ccy, 3.0, 2.7);      // galaxia en el pecho
-  if (SK.drip)   drawDrip(ccx, ccy, 3.4, 2.7);
-  if (SK.flagIL) drawFlagIL(ccx, ccy, 3.4, 2.7);
-  if (SK.huaso)  drawHuaso(ccx, ccy, 3.4, 2.7);
-  if (SK.calabaza) drawCalabaza(ccx, ccy, 3.4, 2.7);
-  if (SK.navidad)  drawNavidad(ccx, ccy, 3.4, 2.7);
-  if (SK.multicolor) drawMulticolor(ccx, ccy, 3.4, 2.7);
-  ctx.fillStyle = OSCURO; ctx.beginPath(); ctx.arc(0,-4,1.4,0,Math.PI*2); ctx.fill();
-  // brazos
-  const cargando = vil.charge > 0;
-  ctx.fillStyle = SOMBRA;
-  if (cargando){ ctx.fillRect(-4, -16, 10, 8); ctx.fillRect(9, -12, 6, 14); }
-  else if (vol){ ctx.fillRect(6, -14, 21, 6); ctx.fillRect(6, -4, 19, 6); }
-  else if (vil.punchT > 0){ ctx.fillRect(8, -8, 23, 7); }
-  else { ctx.fillRect(-13, -10, 5, 15); ctx.fillRect(9, -10, 5, 15); }
-  // Manos: con la armadura cósmica van enguantadas en cielo estrellado.
-  const manos = [];
-  if (cargando){ manos.push([-6,-20,10,7]); }
-  else if (vol){ manos.push([26,-15,6,7], [24,-5,6,7]); }
-  else if (vil.punchT > 0){ manos.push([30,-9,7,8]); }
-  else { manos.push([-14,4,6,6], [9,4,6,6]); }
-  for (const m of manos){
-    ctx.fillStyle = SK.cosmic ? OSCURO : PIEL;
-    ctx.fillRect(m[0], m[1], m[2], m[3]);
-    if (SK.cosmic){
-      drawCosmos(m[0]+m[2]/2, m[1]+m[3]/2, Math.max(m[2],m[3])*0.6, 5.3 + m[0]*0.01);
-      ctx.strokeStyle = CIRC; ctx.lineWidth = 0.8;
-      ctx.strokeRect(m[0]+0.4, m[1]+0.4, m[2]-0.8, m[3]-0.8);
-    }
-  }
-  // cabeza: encima del torso a pie, por delante en horizontal al volar
-  const hx = vol ? 20 : 1, hy = vol ? -1 : -19;
-  ctx.fillStyle = PIEL; ctx.beginPath(); ctx.arc(hx,hy,8.4,0,Math.PI*2); ctx.fill();
-  if (SK.cosmic){
-    // La armadura cósmica también le cubre el rostro: solo brilla la mirada.
-    ctx.fillStyle = OSCURO; ctx.beginPath(); ctx.arc(hx,hy,8.4,0,Math.PI*2); ctx.fill();
-    drawCosmos(hx, hy, 8.4, 4.1);
-    ctx.strokeStyle = CIRC; ctx.lineWidth = 1.2;
-    ctx.beginPath(); ctx.arc(hx,hy,8.4,0,Math.PI*2); ctx.stroke();
-    ctx.fillStyle = '#eaf3ff';
-    ctx.fillRect(hx+1, hy-2.6, 5, 2.2);
-  } else if (SK.calabaza){
-    // cabeza de calabaza tallada, con ojos triangulares que brillan
-    ctx.fillStyle = '#f07f16'; ctx.beginPath(); ctx.arc(hx,hy,9,0,Math.PI*2); ctx.fill();
-    ctx.strokeStyle = 'rgba(140,55,6,0.6)'; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.ellipse(hx, hy, 4.5, 9, 0, 0, Math.PI*2); ctx.stroke();
-    ctx.strokeStyle = '#6e3208'; ctx.lineWidth = 1.2;
-    ctx.beginPath(); ctx.arc(hx,hy,9,0,Math.PI*2); ctx.stroke();
-    ctx.fillStyle = '#ffd54a';
-    ctx.beginPath(); ctx.moveTo(hx+1,hy-1); ctx.lineTo(hx+3.5,hy-4.5); ctx.lineTo(hx+6,hy-1); ctx.closePath(); ctx.fill();
-    ctx.beginPath(); ctx.moveTo(hx-5,hy-1); ctx.lineTo(hx-2.5,hy-4.5); ctx.lineTo(hx,hy-1); ctx.closePath(); ctx.fill();
-    ctx.fillRect(hx-4, hy+3, 9, 2);
-    drawTallo(hx, hy - 8.5, 5.5);
-  } else {
-    ctx.fillStyle = PELO;
-    ctx.beginPath();
-    ctx.arc(hx,hy-2,8.6, Math.PI*1.02, Math.PI*2.05);
-    ctx.lineTo(hx+8,hy); ctx.lineTo(hx-8,hy); ctx.closePath(); ctx.fill();
-    ctx.fillRect(hx-9,hy-3,4,6);
-    ctx.fillStyle = OJO; ctx.fillRect(hx+2,hy-1,4,2.6);
-    if (SK.huaso) drawChupalla(hx, hy - 5, 24);          // chupalla sobre la cabeza
-    if (SK.navidad) drawGorroNavidad(hx, hy - 5, 18);     // gorro de Navidad
+  ctx.translate(x0, y0); ctx.scale(esc*0.82, esc*0.82);
+  vilFigura(ctx, vilEstadoDib('carga'));
+  ctx.restore();
+  // nubes: tapan la pantalla al principio y se apartan hacia fuera
+  const al = Math.pow(clamp(1 - k/0.82, 0, 1), 0.8);
+  if (al <= 0) return;
+  const cx = camX + VW/2, cy = camY + VH/2, sp = nubeSp();
+  ctx.save();
+  ctx.globalAlpha = al*0.6; ctx.fillStyle = '#eef3fa';
+  ctx.fillRect(camX - 20, camY - 20, VW + 40, VH + 40);
+  for (const n of NUBES_ENTRADA){
+    const d = (n.r + k*k*1.2*n.d)*Math.max(VW, VH), x = cx + Math.cos(n.a)*d, y = cy + Math.sin(n.a)*d*0.7;
+    const R = 165*n.s*(1 + k*0.6);
+    ctx.globalAlpha = al;
+    const p = S(x, y);
+    ctx.drawImage(sp, p.x - R, p.y - R*0.7, R*2, R*1.4);
+    ctx.drawImage(sp, p.x - R*0.6 + 30*n.s, p.y - R*0.55, R*1.3, R);
   }
   ctx.restore();
+}
+// ---- dibujo del viltrumita ----
+// Guerrero viltrumita con el traje gris claro de combate: cuello alto,
+// costuras, bandas oscuras en brazos, cintura y rodillas, un faldón roto que
+// cuelga de la cintura y botas; pelo negro de punta. Se mancha de sangre al
+// matar de cerca y la sangre se va secando. Con otra skin, el traje toma sus
+// colores y las bandas, el de la punta.
+const VIL_TRAJE = { traje:'#d8d1c5', sombra:'#aea596', oscuro:'#857c70', banda:'#3d383a', bota:'#c6bdb0',
+                    piel:'#e8b58a', pielO:'#c58d66', pelo:'#1d1b20', ojo:'#2b2f38', linea:'#2a2527' };
+let _vilPalK = '', _vilPalV = null;
+function vilPaleta(){
+  const SK = skin();
+  if (!SK || SK.id === 'verde') return VIL_TRAJE;
+  const clave = SK.id + SK.c[0] + SK.c[1] + SK.c[2] + SK.tip;
+  if (clave === _vilPalK) return _vilPalV;
+  const h = c => /^#[0-9a-f]{6}$/i.test(c) ? c : '#d8d1c5';
+  _vilPalK = clave;
+  return (_vilPalV = { traje:h(SK.c[0]), sombra:h(SK.c[1]), oscuro:shade(h(SK.c[1]), 0.75), banda:h(SK.tip), bota:h(SK.c[1]),
+                       piel:'#e8b58a', pielO:'#c58d66', pelo:'#1d1b20', ojo:'#2b2f38', linea:shade(h(SK.c[2]), 0.55) });
+}
+// Postura de los brazos (hombro, codo, puño) y de las piernas (cadera,
+// rodilla, tobillo) según lo que hace; [atrás, delante].
+const VIL_POSES = {
+  quieto:    { b:[[-7.5,-10.5, -9.6,-2, -9,5.5], [7.8,-10.5, 9.8,-2, 9.4,5.5]],   p:'cuelga' },
+  golpe:     { b:[[-7.5,-10.5, -9,-4, -4,-2],    [7.8,-10, 17,-9, 27,-8.5]],     p:'cuelga' },
+  carga:     { b:[[-7.5,-10.5, -9.6,-3, -8,4],   [7.8,-10.5, 11,-19, 8,-27]],    p:'cuelga' },
+  vuelo:     { b:[[-7.5,-10.5, -8.6,-1, -7,7],   [7.6,-11, 7.4,-21, 5,-31]],     p:'juntas' },
+  presa:     { b:[[-7.5,-10, 3,-8, 15,-5],       [7.8,-10, 14,-8.5, 19.5,-7.5]], p:'cuelga' },
+  presaVuelo:{ b:[[-7.5,-11, -3,-21, -1.5,-31],  [7.6,-11, 6.5,-21, 5,-31]],     p:'juntas' },
+  giro:      { b:[[-7.5,-10, -15,-10.5, -23,-10],[7.8,-10, 16,-10.5, 24,-10]],   p:'abiertas' },
+  aterriza:  { b:[[-7.5,-4.5, -10,2, -9,9],      [7.8,-4.5, 11,4, 12,17]],       p:'rodilla' }
+};
+const VIL_PIERNAS = {
+  cuelga:   [[-3.5,8, -4.2,17.8, -4.6,26.4], [3,8, 3.6,17.8, 4,26.4]],
+  juntas:   [[-2.8,8, -2.6,18, -2.2,27.8], [2.6,8, 2.8,18, 3,27.8]],
+  abiertas: [[-3.5,8, -6,17.8, -7.5,26], [3,8, 5.5,17.8, 7,26]],
+  rodilla:  [[-3.5,13, -9,19, -8,26.5], [3,13, 10,15, 10.5,24.5]]
+};
+const VIL_ZONAS = [[-7,-11,14,14], [-6,3,12,4], [-6.5,10,12,13], [-1,9,7,11]];   // torso, cintura, piernas, faldón
+function vilTramo(g, x0, y0, x1, y1, w, col, L){
+  g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1);
+  g.strokeStyle = L; g.lineWidth = w + 1.8; g.stroke();
+  g.strokeStyle = col; g.lineWidth = w; g.stroke();
+}
+function vilBandas(g, x0, y0, x1, y1, u, w, n, col){          // rayas oscuras que rodean el tramo
+  const dx = x1 - x0, dy = y1 - y0, l = Math.hypot(dx, dy) || 1, nx = -dy/l*w*0.5, ny = dx/l*w*0.5;
+  g.strokeStyle = col; g.lineWidth = 0.9;
+  g.beginPath();
+  for (let k = 0; k < n; k++){ const q = u + k*1.3/l, px = x0 + dx*q, py = y0 + dy*q; g.moveTo(px - nx, py - ny); g.lineTo(px + nx, py + ny); }
+  g.stroke();
+}
+function vilBrazo(g, a, P, manos, lado, extra){
+  const [sx, sy, ex, ey, hx0, hy0] = a;
+  const hx = hx0 + (extra ? extra[0] : 0), hy = hy0 + (extra ? extra[1] : 0);
+  vilTramo(g, sx, sy, ex, ey, 5.4, lado < 0 ? P.sombra : P.traje, P.linea);
+  vilTramo(g, ex, ey, hx, hy, 4.8, lado < 0 ? P.sombra : P.traje, P.linea);
+  vilBandas(g, sx, sy, ex, ey, 0.45, 5.4, 2, P.banda);
+  vilBandas(g, ex, ey, hx, hy, 0.5, 4.8, 3, P.banda);
+  g.fillStyle = P.linea; g.beginPath(); g.arc(hx, hy, 3.3, 0, Math.PI*2); g.fill();     // puño
+  g.fillStyle = lado < 0 ? P.pielO : P.piel; g.beginPath(); g.arc(hx, hy, 2.6, 0, Math.PI*2); g.fill();
+  if (manos > 0.02){ g.globalAlpha = Math.min(0.85, manos); g.fillStyle = vil._manosCol || '#9b1218';
+    g.beginPath(); g.arc(hx + 0.6, hy + 0.4, 2.2, 0, Math.PI*2); g.fill(); g.globalAlpha = 1; }
+}
+function vilPierna(g, a, P, lado, t){
+  const [hx, hy, kx, ky, ax, ay] = a;
+  const col = lado < 0 ? P.sombra : P.traje;
+  vilTramo(g, hx, hy, kx, ky, 6, col, P.linea);
+  vilTramo(g, kx, ky, ax, ay, 5.2, col, P.linea);
+  vilBandas(g, kx, ky, ax, ay, 0.12, 5.2, 3, P.banda);
+  // bota: caña y puntera, apuntando un poco hacia abajo (flota)
+  const dx = ax - kx, dy = ay - ky, l = Math.hypot(dx, dy) || 1, ux = dx/l, uy = dy/l;
+  g.fillStyle = P.linea; g.beginPath(); g.ellipse(ax + ux*1.6 + 1.2, ay + uy*1.6, 3.9, 3.3, Math.atan2(uy, ux) - 0.5, 0, Math.PI*2); g.fill();
+  g.fillStyle = lado < 0 ? P.oscuro : P.bota; g.beginPath(); g.ellipse(ax + ux*1.6 + 1.2, ay + uy*1.6, 3.1, 2.5, Math.atan2(uy, ux) - 0.5, 0, Math.PI*2); g.fill();
+}
+// La figura, en sus propias coordenadas (de pie, mirando a la derecha; el
+// que llama se encarga de girarla al volar o de voltearla).
+// st: { t, pose, punchT, golpeLado, manos, sangre, pal, SK, cabeza }
+function vilFigura(g, st){
+  const P = st.pal, t = st.t, pose = VIL_POSES[st.pose] || VIL_POSES.quieto, pie = VIL_PIERNAS[pose.p];
+  const L = P.linea, vuela = pose.p === 'juntas';
+  g.save(); g.lineCap = 'round'; g.lineJoin = 'round';
+  if (st.pose === 'aterriza') g.translate(0, 5);
+  // en la presa, el puño que toca golpear da un directo
+  const gol = st.punchT > 0 && (st.pose === 'presa' || st.pose === 'presaVuelo') ? (st.pose === 'presa' ? [7, -1] : [0, -6]) : null;
+  vilBrazo(g, pose.b[0], P, st.manos, -1, gol && st.golpeLado < 0 ? gol : null);
+  vilPierna(g, pie[0], P, -1, t);
+  vilPierna(g, pie[1], P, 1, t);
+  // torso en V, con la sombra del lado de atrás
+  const torso = ()=>{ g.beginPath(); g.moveTo(-3, -14); g.lineTo(-9.6, -12.4); g.lineTo(-8.2, -6); g.lineTo(-6.2, 4.2);
+                      g.lineTo(6.2, 4.2); g.lineTo(8.2, -6); g.lineTo(9.6, -12.4); g.lineTo(3, -14); g.closePath(); };
+  torso(); g.fillStyle = P.traje; g.fill();
+  if (st.SK && g === ctx){                                        // skins con estampado: sobre el traje
+    const SK = st.SK;
+    if (SK.cosmic || SK.drip || SK.flagIL || SK.huaso || SK.calabaza || SK.navidad || SK.multicolor || SK.imgRef){
+      g.save(); torso(); g.clip();
+      if (SK.cosmic) drawCosmos(0, -4, 13, 1.3);
+      if (SK.drip)   drawDrip(0, -4, 12, 1.3);
+      if (SK.flagIL) drawFlagIL(0, -4, 12, 1.3);
+      if (SK.huaso)  drawHuaso(0, -4, 12, 1.3);
+      if (SK.calabaza) drawCalabaza(0, -4, 12, 1.3);
+      if (SK.navidad)  drawNavidad(0, -4, 12, 1.3);
+      if (SK.multicolor) drawMulticolor(0, -4, 12, 1.3);
+      if (SK.imgRef) pintaImgSkin(SK.imgRef, 0, -4, 13);
+      g.restore();
+    }
+  }
+  g.fillStyle = P.sombra; g.beginPath(); g.moveTo(-9.6, -12.4); g.lineTo(-8.2, -6); g.lineTo(-6.2, 4.2); g.lineTo(-3.6, 4.2); g.lineTo(-5.6, -6); g.lineTo(-6.6, -12); g.closePath(); g.fill();
+  torso(); g.strokeStyle = L; g.lineWidth = 1.2; g.stroke();
+  // costuras: cremallera, panel del pecho y de los costados
+  g.strokeStyle = P.oscuro; g.lineWidth = 0.7;
+  g.beginPath(); g.moveTo(0.6, -13.4); g.lineTo(0.6, 3.6);
+  g.moveTo(-7.4, -7.2); g.quadraticCurveTo(0.5, -4.4, 7.6, -7.2);
+  g.moveTo(5.2, -12.6); g.lineTo(6.6, -7); g.moveTo(-4.6, -12.8); g.lineTo(-5.6, -7);
+  g.moveTo(-3.6, -1.5); g.lineTo(4.8, -1.5); g.stroke();
+  // hombrera del brazo de delante, con su emblema
+  g.fillStyle = P.sombra; g.beginPath(); g.ellipse(7.6, -10.6, 3.4, 3.9, 0.2, 0, Math.PI*2); g.fill();
+  g.strokeStyle = L; g.lineWidth = 0.9; g.stroke();
+  g.strokeStyle = P.banda; g.lineWidth = 0.8; g.beginPath(); g.moveTo(6.4, -12); g.lineTo(6.4, -9.2); g.moveTo(7.7, -12.3); g.lineTo(7.7, -9.1); g.moveTo(9, -11.8); g.lineTo(9, -9.4); g.stroke();
+  // cinturón: tres vueltas oscuras
+  g.fillStyle = P.traje; g.fillRect(-6.4, 3, 12.8, 4.6);
+  g.strokeStyle = L; g.lineWidth = 0.9; g.strokeRect(-6.4, 3, 12.8, 4.6);
+  g.strokeStyle = P.banda; g.lineWidth = 0.8; g.beginPath();
+  for (const yy of [4.2, 5.4, 6.6]){ g.moveTo(-6.2, yy); g.lineTo(6.2, yy); }
+  g.stroke();
+  // faldón roto que cuelga de la cadera y ondea (al volar, hacia atrás)
+  const on = Math.sin(t*(vuela ? 9 : 2.6))*(vuela ? 2.4 : 1.4), largo = vuela ? 17 : (st.pose === 'aterriza' ? 11 : 15);
+  g.beginPath(); g.moveTo(-1.6, 7.2); g.lineTo(6.6, 7.2);
+  g.lineTo(7.4 + on*0.6, 7.2 + largo*0.55);
+  const fondo = [[6.8, 0.98], [5.2, 1.08], [3.6, 0.94], [2.2, 1.1], [0.6, 0.96], [-0.8, 1.04], [-2.2, 0.9]];
+  for (const [xx, k] of fondo) g.lineTo(xx + on, 7.2 + largo*k);
+  g.closePath();
+  g.fillStyle = P.traje; g.fill(); g.strokeStyle = L; g.lineWidth = 1; g.stroke();
+  g.strokeStyle = P.sombra; g.lineWidth = 1; g.beginPath(); g.moveTo(2.4, 8); g.lineTo(2.8 + on*0.8, 7.2 + largo*0.9); g.stroke();
+  // sangre (se va secando)
+  if (st.sangre && st.sangre.length){
+    for (const sp of st.sangre){
+      g.globalAlpha = Math.min(0.9, sp.t/3); g.fillStyle = sp.col;
+      g.beginPath(); g.ellipse(sp.x, sp.y, sp.r, sp.r*0.8, sp.s, 0, Math.PI*2); g.fill();
+      g.beginPath(); g.arc(sp.x + Math.cos(sp.s)*sp.r*1.6, sp.y + Math.sin(sp.s)*sp.r*1.4, sp.r*0.38, 0, Math.PI*2); g.fill();
+    }
+    g.globalAlpha = 1;
+  }
+  // cuello alto con dos vueltas
+  g.fillStyle = P.piel; g.fillRect(-1.8, -17.5, 3.6, 3);
+  g.fillStyle = P.traje; g.fillRect(-3.6, -16.4, 7.2, 3.2); g.strokeStyle = L; g.lineWidth = 0.9; g.strokeRect(-3.6, -16.4, 7.2, 3.2);
+  g.strokeStyle = P.banda; g.lineWidth = 0.7; g.beginPath(); g.moveTo(-3.4, -15.4); g.lineTo(3.4, -15.4); g.moveTo(-3.4, -14.2); g.lineTo(3.4, -14.2); g.stroke();
+  // brazo de delante
+  vilBrazo(g, pose.b[1], P, st.manos, 1, gol && st.golpeLado > 0 ? gol : null);
+  // cabeza
+  if (st.cabeza) st.cabeza(1, -20.5);
+  else vilCabezaDib(g, P);
+  g.restore();
+}
+function vilCabezaDib(g, P){
+  const L = P.linea;
+  g.fillStyle = P.piel;
+  g.beginPath(); g.ellipse(1, -21, 5.8, 6.6, 0, 0, Math.PI*2); g.fill();
+  g.beginPath(); g.moveTo(-3.6, -18.8); g.lineTo(1.4, -14.8); g.lineTo(5.9, -17.8); g.lineTo(6.4, -21); g.closePath(); g.fill();   // mandíbula
+  g.strokeStyle = L; g.lineWidth = 1;
+  g.beginPath(); g.moveTo(-3.8, -18.6); g.lineTo(1.4, -14.8); g.lineTo(5.9, -17.8); g.stroke();
+  g.fillStyle = P.pielO; g.beginPath(); g.ellipse(-2.4, -20.6, 1.3, 1.9, 0, 0, Math.PI*2); g.fill();     // oreja
+  // gesto serio: ceja hundida, ojo y boca
+  g.strokeStyle = L; g.lineWidth = 1.1;
+  g.beginPath(); g.moveTo(2, -23.2); g.lineTo(5.8, -22.2); g.stroke();
+  g.fillStyle = P.ojo; g.fillRect(3.2, -21.9, 2.4, 1.2);
+  g.strokeStyle = P.pielO; g.lineWidth = 0.8; g.beginPath(); g.moveTo(3.4, -17.6); g.lineTo(5.2, -17.9); g.stroke();
+  // pelo negro, de punta y revuelto hacia atrás
+  g.fillStyle = P.pelo;
+  g.beginPath();
+  const pelo = [[6.4,-22.8],[5.8,-25.6],[3.8,-24.8],[3.6,-28.8],[1.2,-26.2],[0,-30.2],[-1.8,-26.6],[-4.6,-29.4],[-4.8,-26],
+                [-8.2,-26.8],[-6.6,-23.6],[-8.4,-21.8],[-5.8,-21.2],[-5.4,-18.2],[-3.4,-17.8],[-2.8,-21.2],[1,-23],[3.9,-22.4]];
+  pelo.forEach((q, i)=> i ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1]));
+  g.closePath(); g.fill();
+  g.strokeStyle = '#4a4650'; g.lineWidth = 0.6;
+  g.beginPath(); g.moveTo(2.6, -25.5); g.lineTo(0, -28.4); g.moveTo(-1.8, -24.8); g.lineTo(-4, -28); g.moveTo(-4.6, -23.6); g.lineTo(-7, -25.6); g.stroke();
+}
+// Estado de dibujo del jugador (también para el compañero en línea).
+function vilEstadoDib(pose){
+  const SK = skin();
+  return { t: vil.capa || 0, pose, punchT: vil.punchT || 0, golpeLado: vil.golpeLado || 1, manos: vil.manos || 0,
+           sangre: vil._sangre, pal: vilPaleta(), SK, cabeza: vilCabezaSkin(SK) };
+}
+// Cabezas de las skins especiales (armadura cósmica, calabaza) y sombreros.
+function vilCabezaSkin(SK){
+  if (!SK || !(SK.cosmic || SK.calabaza || SK.huaso || SK.navidad)) return null;
+  return (hx, hy)=>{
+    if (SK.cosmic){
+      ctx.fillStyle = SK.c[2]; ctx.beginPath(); ctx.arc(hx, hy, 7.4, 0, Math.PI*2); ctx.fill();
+      drawCosmos(hx, hy, 7.4, 4.1);
+      ctx.strokeStyle = SK.tip; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.arc(hx, hy, 7.4, 0, Math.PI*2); ctx.stroke();
+      ctx.fillStyle = '#eaf3ff'; ctx.fillRect(hx + 1, hy - 2.6, 5, 2.2);
+      return;
+    }
+    if (SK.calabaza){
+      ctx.fillStyle = '#f07f16'; ctx.beginPath(); ctx.arc(hx, hy, 8, 0, Math.PI*2); ctx.fill();
+      ctx.strokeStyle = 'rgba(140,55,6,0.6)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.ellipse(hx, hy, 4, 8, 0, 0, Math.PI*2); ctx.stroke();
+      ctx.fillStyle = '#ffd54a';
+      ctx.beginPath(); ctx.moveTo(hx + 1, hy - 1); ctx.lineTo(hx + 3.5, hy - 4.5); ctx.lineTo(hx + 6, hy - 1); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(hx - 5, hy - 1); ctx.lineTo(hx - 2.5, hy - 4.5); ctx.lineTo(hx, hy - 1); ctx.closePath(); ctx.fill();
+      ctx.fillRect(hx - 4, hy + 3, 9, 2);
+      drawTallo(hx, hy - 7.5, 5.5);
+      return;
+    }
+    vilCabezaDib(ctx, vilPaleta());
+    if (SK.huaso) drawChupalla(hx, hy - 5, 24);
+    if (SK.navidad) drawGorroNavidad(hx, hy - 5, 18);
+  };
+}
+// Sangre: al matar de cerca a un humano o a un alien, salpica el traje (y
+// los puños) y se va secando poco a poco.
+const VIL_SANGRE_T = 14, VIL_SANGRE_MAX = 24;
+const VIL_SANGRA = { bicho:1, amalgama:1, murcielago:1, desgarrador:1, kaiyin:1 };
+function vilSalpica(e, k){
+  if (!isVil() || vil.intro || !e) return;
+  if (!(e.kind === 'civ' || (e.person && e.type !== 'droide') || VIL_SANGRA[k])) return;
+  if (dist(player.x, player.y, e.x, e.y) > 140) return;                 // solo lo que mata de cerca
+  const col = (esAlien() || k === 'bicho') ? '#3f9a38' : '#9b1218';
+  const n = 2 + ((Math.random()*2) | 0);
+  for (let i = 0; i < n; i++){
+    const z = VIL_ZONAS[(Math.random()*VIL_ZONAS.length) | 0];
+    if (vil._sangre.length >= VIL_SANGRE_MAX) vil._sangre.shift();
+    vil._sangre.push({ x: z[0] + Math.random()*z[2], y: z[1] + Math.random()*z[3], r: 1.1 + Math.random()*1.7,
+                       t: VIL_SANGRE_T*(0.8 + Math.random()*0.4), col, s: Math.random()*6.28 });
+  }
+  vil.manos = Math.min(1, vil.manos + 0.5); vil._manosCol = col;
+}
+function vilSeca(dt){
+  const L = vil._sangre;
+  for (let i = L.length - 1; i >= 0; i--){ L[i].t -= dt; if (L[i].t <= 0) L.splice(i, 1); }
+  if (vil.manos > 0) vil.manos = Math.max(0, vil.manos - dt/12);
+}
+function drawViltrum(){
+  const s = S(player.x, player.y);
+  if (vil.intro){ drawVilEntrada(s); return; }
+  const f = player.facing || 1;
+  const vol = vil.flying;
+  const SK = skin(), CIRC = SK.tip;
+  const flot = Math.sin(vil.capa*2.4)*2.2;          // flotación permanente
+  const pf = vil.presaFase || '';
+  // sombra en el suelo: siempre separada, porque flota
+  ctx.fillStyle = 'rgba(0,0,0,0.22)';
+  ctx.beginPath(); ctx.ellipse(s.x, s.y + 25, 11, 3.6, 0, 0, Math.PI*2); ctx.fill();
+  ctx.save();
+  ctx.translate(s.x, s.y + (vol ? 0 : flot));
+  let pose;
+  if (pf === 'gira'){
+    // gira sobre sí mismo con los brazos abiertos (el giro se ve al estrecharse)
+    const c = Math.cos(vil.presaGiro || 0);
+    ctx.scale((Math.abs(c) < 0.15 ? 0.15*Math.sign(c || 1) : c), 1);
+    pose = 'giro';
+  } else if (vol){
+    // El cuerpo apunta al rumbo (la cabeza por delante); hacia la izquierda se
+    // voltea para no ir boca arriba.
+    ctx.rotate(Math.atan2(vil.fx, -vil.fy));
+    if (vil.fx < 0) ctx.scale(-1, 1);
+    pose = pf === 'lleva' ? 'presaVuelo' : 'vuelo';
+  } else {
+    ctx.scale(f, 1);
+    pose = pf === 'lleva' ? 'presa' : vil.aterrizaT > 0 ? 'aterriza' : vil.charge > 0 ? 'carga' : vil.punchT > 0 ? 'golpe' : 'quieto';
+  }
+  ctx.scale(0.82, 0.82);
+  vilFigura(ctx, vilEstadoDib(pose));
+  ctx.restore();
+  if (pf === 'gira'){                                  // estelas del giro
+    ctx.save(); ctx.strokeStyle = 'rgba(230,240,255,0.55)'; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+    for (let i = 0; i < 3; i++){ const a0 = (vil.presaGiro || 0) + i*2.1; ctx.beginPath(); ctx.ellipse(s.x, s.y - 6, 34, 15, 0, a0, a0 + 1.2); ctx.stroke(); }
+    ctx.restore();
+  }
 
   // aura del golpe cargado
   if (vil.charge > 0){
@@ -21876,7 +22356,7 @@ function drawViltrum(){
       ctx.beginPath(); ctx.arc(s.x, s.y, r+7, 0, Math.PI*2); ctx.stroke();
       // con la carga azul se marca hacia dónde saldrá la ráfaga
       if (!clap){
-        const ang2 = vil.flying ? Math.atan2(vil.fy, vil.fx) : (f2 => f2)(player.facing>0?0:Math.PI);
+        const ang2 = vil.flying ? Math.atan2(vil.fy, vil.fx) : (player.facing>0?0:Math.PI);
         ctx.globalAlpha = 0.22;
         ctx.beginPath();
         ctx.moveTo(s.x, s.y);
@@ -23954,41 +24434,6 @@ function drawBancoBrillo(b, s2){
   }
   ctx.restore();
 }
-// Si no se ve ningún banco, una flecha dorada señala el más cercano (si no
-// queda muy lejos), con su distancia.
-const BANCO_AVISO = 1500;
-function drawFlechaBanco(){
-  if (!running || esVisorVs()) return;
-  let mejor = null, md = BANCO_AVISO*BANCO_AVISO;
-  for (const b of buildings){
-    if (b.set !== 'B' || b.stage >= 2) continue;
-    if (b.x + b.w > camX && b.x < camX + VW && b.y + b.h > camY && b.y < camY + VH) return;   // ya se ve uno
-    const dx = b.x + b.w/2 - player.x, dy = b.y + b.h/2 - player.y, d2 = dx*dx + dy*dy;
-    if (d2 < md){ md = d2; mejor = b; }
-  }
-  if (!mejor) return;
-  const M = 34, cx = CW/2, cy = CH/2;
-  const sx = (mejor.x + mejor.w/2 - camX)*ZOOM, sy = (mejor.y + mejor.h/2 - camY)*ZOOM;
-  const dx = sx - cx, dy = sy - cy, a = Math.atan2(dy, dx);
-  const k = Math.min((cx - M)/Math.abs(dx || 1e-6), (cy - M)/Math.abs(dy || 1e-6));
-  const px = cx + dx*k, py = cy + dy*k, pul = 0.75 + Math.sin(gameTime*4)*0.2;
-  ctx.save();
-  ctx.translate(px, py); ctx.rotate(a);
-  ctx.globalAlpha = 0.8*pul;
-  ctx.fillStyle = 'rgba(0,0,0,0.5)';
-  ctx.beginPath(); ctx.moveTo(15, 0); ctx.lineTo(-8, -10); ctx.lineTo(-3, 0); ctx.lineTo(-8, 10); ctx.closePath(); ctx.fill();
-  ctx.fillStyle = '#ffd24a';
-  ctx.beginPath(); ctx.moveTo(12, 0); ctx.lineTo(-6, -7.5); ctx.lineTo(-2, 0); ctx.lineTo(-6, 7.5); ctx.closePath(); ctx.fill();
-  ctx.restore();
-  const tx = px - Math.cos(a)*30, ty = py - Math.sin(a)*24;
-  ctx.globalAlpha = 0.9*pul;
-  ctx.drawImage(monedaSp(), tx - 9, ty - 9, 18, 18);
-  ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  const txt = 'BANCO ' + Math.round(Math.sqrt(md)/10) + 'm';
-  ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillText(txt, tx + 1, ty + 16);
-  ctx.fillStyle = '#ffe9a0'; ctx.fillText(txt, tx, ty + 15);
-  ctx.globalAlpha = 1;
-}
 // Fuego en las ventanas rotas de un edificio tocado.
 function llamasVentanas(b, s2){
   for (let i = 0; i < b._rotas.length; i++){
@@ -24839,7 +25284,7 @@ function draw(){
   drawBuildings(); drawPlanters(); drawLamps();
   // Las zonas marcadas del Artillero van DESPUÉS de los edificios: si no, los
   // escombros las tapaban justo donde más falta hace verlas.
-  drawFuegos(); drawArtAvisos(); drawTriAvisos(); drawDragonAvisos(); drawMaquinaAvisos(); drawMagoAvisos(); drawMbtRayos(); drawJefes2Avisos(); drawAlienSuelo(); drawCenturionAvisos(); drawAmalgamaAvisos(); drawDesgarradorAvisos(); drawRefuerzosSuelo(); drawAracnidoSuelo(); drawDesesperacionAvisos(); drawMuerteVelozSuelo(); drawCenizasSuelo(); drawNubesNegras();
+  drawFuegos(); drawArtAvisos(); drawTriAvisos(); drawDragonAvisos(); drawVilAvisos(); drawMaquinaAvisos(); drawMagoAvisos(); drawMbtRayos(); drawJefes2Avisos(); drawAlienSuelo(); drawCenturionAvisos(); drawAmalgamaAvisos(); drawDesgarradorAvisos(); drawRefuerzosSuelo(); drawAracnidoSuelo(); drawDesesperacionAvisos(); drawMuerteVelozSuelo(); drawCenizasSuelo(); drawNubesNegras();
 
   // Solo se encolan los objetos visibles: con ~200 props fuera de pantalla,
   // esto evita cientos de entradas y llamadas de dibujo por fotograma.
@@ -24901,12 +25346,12 @@ function draw(){
   drawBullets(); drawTriRayos(); drawDragonRayos(); drawJefes2Rayos(); drawAlienEfectos(); drawCenturionEfectos(); drawDesgarradorRayo(); drawRefuerzosEfectos(); drawAracnidoEfectos(); drawDesesperacionEfectos(); drawMuerteVelozEfectos(); drawElectroJugador(); drawMeteorosCayendo(); drawProyJ(proyJ); drawProyJ(proyRed);
   if (dobleAnf() && Online.av && Online.av.pj) drawProyJ(Online.av.pj);
   drawMaquinaEfectos(); drawMagoEfectos();
+  drawNubesEntrada();
   drawRelampagos(); drawHumos(); drawHumoEdif(); drawSonic(); drawWind(); drawRayosOjos(); drawFX(); drawLucesDia(); drawBocadillos(); drawNumeros(); drawMarcaTutorial(); drawAura(); drawPortalCelestial(); if (vil.caida) drawCaidaJugador(); drawP2Cursor();
   ctx.restore();
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   drawLighting();                                  // en píxeles del lienzo
   drawFlechasJefe();                               // encima de la oscuridad
-  drawFlechaBanco();
   drawTelaAviso();
   drawVinetaVida(); drawBarrasJefe(); drawJefeCaido(); drawPresentacion();
 }
@@ -25934,7 +26379,12 @@ function pasosTutorial(h){
     { tit:'AGARRAR Y LANZAR', t:'Clic derecho junto al auto para agarrarlo; otro clic derecho para lanzarlo contra el tanque.', m:'Toca ACCIÓN junto al auto para agarrarlo y otra vez para lanzarlo al tanque.',
       prep(){ TUT.auto = tutAuto(110, 0); TUT.obj = tutEnemigo('tank', 300, 0.2); TUT.marca = TUT.auto; },
       cada(){ TUT.marca = heldObject ? TUT.obj : TUT.auto; if (!heldObject && (!TUT.auto || TUT.auto.dead)){ TUT.auto = tutAuto(110, 0); } },
-      ok: ()=> TUT.obj && (TUT.obj.dead || TUT.obj.hp < TUT.obj.maxhp) }
+      ok: ()=> TUT.obj && (TUT.obj.dead || TUT.obj.hp < TUT.obj.maxhp) },
+    { tit:'PRESA', t:'Mantén ' + K_('draCola') + ' apuntando al soldado y suéltalo: lo embistes y lo agarras, vuelas con él a golpes (te sirve de escudo) y al final giras y lo lanzas hacia la mira. Pulsa ' + K_('draCola') + ' otra vez para lanzarlo antes.',
+      m:'Mantén PRESA, apunta al soldado y suelta. Tócalo otra vez para lanzarlo.',
+      prep(){ TUT.lista = [tutEnemigo('military', 220, 0)]; TUT.marca = TUT.lista[0]; },
+      cada(){ if (!vil.presaFase && vivos(TUT.lista) === 0 && !(TUT.ev.presaLanza >= 1)){ TUT.lista = [tutEnemigo('military', 220, 0)]; TUT.marca = TUT.lista[0]; } },
+      ok: ()=> (TUT.ev.presaLanza || 0) >= 1 }
   ];
   if (h === 'dragon') return [
     pasoMover(),
@@ -26679,10 +27129,10 @@ function textoControles(h){
   if (tactil()){
     const f = fichaHeroe(h);
     if (h === 'alien') return '<b>Joystick izquierdo</b> para moverte y <b>derecho</b> para apuntar · <b>Botón de acción</b>: toca para agarrar o lanzar, mantén para golpear';
-    if (h === 'viltrum') return '<b>Joystick al tope</b>: vuelo hipersónico · <b>GOLPE</b> (mantén para cargar) · <b>Acción</b>: agarra y lanza';
+    if (h === 'viltrum') return '<b>Joystick al tope</b>: vuelo hipersónico · <b>GOLPE</b> (mantén para cargar) · <b>Acción</b>: agarra y lanza · <b>PRESA</b>: embiste, agarra y lanza';
     return esc(f ? f.m : '');
   }
-  if (h === 'viltrum') return mov + ' moverte · <b>Clic</b> golpeas (se puede mantener para cargar) · <b>Doble toque</b> a ' + mov + ': vuelo hipersónico · <b>Clic derecho</b> agarras y lanzas';
+  if (h === 'viltrum') return mov + ' moverte · <b>Clic</b> golpeas (se puede mantener para cargar) · <b>Doble toque</b> a ' + mov + ': vuelo hipersónico · <b>Clic derecho</b> agarras y lanzas · <b>Mantén</b> ' + K('draCola') + ' presa';
   if (h === 'dragon')  return mov + ' moverte · <b>Clic</b> mordisco · <b>Clic derecho</b> rayos · ' + K('draAle') + ' aletazo · <b>Mantén</b> ' + K('draCola') + ' embestida · <b>Doble toque</b> a ' + mov + ': volar';
   if (h === 'maquina') return mov + ' moverte (mantén una dirección para acelerar) · <b>Clic</b> atacas (se puede mantener) · <b>Clic derecho</b> cambias de arma · <b>Mantén</b> ' + K('draAle') + ' apuntas la incineración y al soltar la lanzas · <b>Mantén</b> ' + K('draCola') + ' motosierras';
   if (h === 'mago')    return mov + ' flotar · <b>Clic</b> rayo · <b>Mantén clic derecho</b> telequinesis · ' + K('draAle') + ' hielo · ' + K('draCola') + ' escudo · ' + K('magFue') + ' fuego · ' + K('magTel') + ' teletransporte';
@@ -27991,11 +28441,12 @@ function fichaHeroe(h){
           ['OVNI', 'Tamaño colosal: con click derecho arrancas edificios enteros']],
       m: 'Joystick izquierdo para moverte, derecho para apuntar el tentáculo y el botón de acción: tócalo para agarrar o lanzar y mantenlo para golpear.' },
     viltrum: {
-      desc: 'Soldado viltrumita: no evoluciona, pero vuela. Cruza la ciudad en vuelo sónico y lo revienta todo a puñetazos. Ningún muro lo para: atraviesa los edificios andando o volando y deja un boquete por donde entra y por donde sale.',
+      desc: 'Guerrero viltrumita de traje gris, que se mancha con la sangre de lo que mata: no evoluciona, pero vuela. Cruza la ciudad en vuelo sónico y lo revienta todo a puñetazos. Ningún muro lo para: atraviesa los edificios andando o volando y deja un boquete por donde entra y por donde sale.',
       t: [[mover, 'Moverse'], ['Doble toque', 'Vuelo sónico mientras mantengas la dirección (gasta estamina)'],
           ['Click izq.', 'Puñetazo; mantenido, golpe cargado'], ['Click der.', 'Agarrar lo que tengas cerca y lanzarlo'],
+          ['Mantén ' + K('draCola'), 'Presa: marca el pasillo; al soltar embistes y agarras al primero, vuelas con él a golpes (te escuda de las balas) y giras para lanzarlo hacia la mira (' + K('draCola') + ' otra vez lo lanza antes)'],
           ['OVNI', 'Visión calórica: dos rayos que atraviesan lo que mires']],
-      m: 'Joystick al tope para volar, botón GOLPE (mantén para cargar) y botón de acción para agarrar y lanzar.' },
+      m: 'Joystick al tope para volar, botón GOLPE (mantén para cargar), botón de acción para agarrar y lanzar, y PRESA (mantén, apunta y suelta; tócalo otra vez para lanzar).' },
     dragon: {
       desc: 'El dragón de tres cabezas: vuela sobre los tejados, muerde, barre calles con las alas y escupe rayos. Todo gasta estamina.',
       t: [[mover, 'Moverse'], ['Doble toque', 'Volar (pasa por encima de los tejados)'], ['Click izq.', 'Mordisco'],
