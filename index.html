@@ -10303,18 +10303,18 @@ function miniAlien(c, x, y, r, phase, tipX, tipY){
     const len = r*1.4 + Math.sin(phase*2+i)*r*0.3;
     const ex = x+Math.cos(a)*len, ey = y+Math.sin(a)*len;
     const mx = x+Math.cos(a)*len*0.5+Math.cos(a+1.57)*Math.sin(phase*2+i)*r*0.3, my = y+Math.sin(a)*len*0.5+Math.sin(a+1.57)*Math.sin(phase*2+i)*r*0.3;
-    criaTentaculo(c, x, y, mx, my, ex, ey, r*0.55, r*0.22, colT, SK.c[0], SK.tip, r*0.27);
+    criaTentaculo(c, x, y, mx, my, ex, ey, r*0.55, r*0.22, colT, SK.c[0], SK.tip, r*0.17);
   }
   if (tipX != null){                       // tentáculo activo sujetando algo
     const mx=(x+tipX)/2, my=(y+tipY)/2 + Math.sin(phase*4)*r*0.4;
-    criaTentaculo(c, x, y, mx, my, tipX, tipY, r*0.6, r*0.27, colT, SK.c[0], SK.tip, r*0.3);
+    criaTentaculo(c, x, y, mx, my, tipX, tipY, r*0.6, r*0.27, colT, SK.c[0], SK.tip, r*0.2);
   }
   const g = c.createRadialGradient(x-r*0.3,y-r*0.3,r*0.15,x,y,r*1.05);
   g.addColorStop(0,SK.c[0]); g.addColorStop(0.6,SK.c[1]); g.addColorStop(1,SK.c[2]);
   c.fillStyle=g; c.beginPath(); c.arc(x,y,r,0,Math.PI*2); c.fill();
   c.strokeStyle = 'rgba(8,30,12,0.7)'; c.lineWidth = Math.max(1, r*0.08); c.stroke();
   criaBrillo(c, x, y, r);
-  criaOjos(c, x, y, r, phase);
+  criaOjos(c, x, y, r, phase, tipX != null ? Math.atan2(tipY - y, tipX - x) : undefined);
 }
 function animSprite(c, key, x, y, w, h, facing, rot){
   const sp = sprites[key];
@@ -22114,7 +22114,7 @@ function vilPaleta(){
 const VIL_POSES = {
   quieto:    { b:[[-7.5,-10.5, -9.6,-2, -9,5.5], [7.8,-10.5, 9.8,-2, 9.4,5.5]],   p:'cuelga' },
   golpe:     { b:[[-7.5,-10.5, -9,-4, -4,-2],    [7.8,-10, 17,-9, 27,-8.5]],     p:'cuelga' },
-  carga:     { b:[[-7.5,-10.5, -9.6,-3, -8,4],   [7.8,-10.5, 11,-19, 8,-27]],    p:'cuelga' },
+  carga:     { b:[[-7.5,-10.5, -4,-5, 3,-7],     [7.8,-10.5, 0,-6, -8.5,-5]],    p:'cuelga' },
   vuelo:     { b:[[-7.5,-10.5, -8.6,-1, -7,7],   [7.6,-11, 7.4,-21, 5,-31]],     p:'juntas' },
   presa:     { b:[[-7.5,-10, 3,-8, 15,-5],       [7.8,-10, 14,-8.5, 19.5,-7.5]], p:'cuelga' },
   presaVuelo:{ b:[[-7.5,-11, -3,-21, -1.5,-31],  [7.6,-11, 6.5,-21, 5,-31]],     p:'juntas' },
@@ -22166,8 +22166,8 @@ function vilPierna(g, a, P, lado, t){
 // La figura, en sus propias coordenadas (de pie, mirando a la derecha; el
 // que llama se encarga de girarla al volar o de voltearla).
 // st: { t, pose, punchT, golpeLado, manos, sangre, pal, SK, cabeza }
-// Brazos de la postura; al cargar el golpe, el puño sube poco a poco desde
-// el reposo hasta lo alto (y con la carga completa, tiembla).
+// Brazos de la postura; al cargar el golpe, el puño se va hacia atrás poco a
+// poco desde el reposo, preparando el golpe (y con la carga completa, tiembla).
 function vilBrazos(st, pose){
   if (st.pose !== 'carga') return pose.b;
   const k0 = clamp(st.carga === undefined ? 1 : st.carga, 0, 1), k = 1 - (1 - k0)*(1 - k0);
@@ -22345,9 +22345,9 @@ function vilCabezaDib(g, P){
   g.fillStyle = P.piel;
   g.beginPath(); g.ellipse(1, -21, 5.8, 6.6, 0, 0, Math.PI*2); g.fill();
   g.beginPath(); g.moveTo(-3.6, -18.8); g.lineTo(1.4, -14.8); g.lineTo(5.9, -17.8); g.lineTo(6.4, -21); g.closePath(); g.fill();   // mandíbula
-  g.strokeStyle = L; g.lineWidth = 1;
-  g.beginPath(); g.moveTo(-3.8, -18.6); g.lineTo(1.4, -14.8); g.lineTo(5.9, -17.8); g.stroke();
-  g.fillStyle = P.pielO; g.beginPath(); g.ellipse(-2.4, -20.6, 1.3, 1.9, 0, 0, Math.PI*2); g.fill();     // oreja
+  // contorno suave del mentón (en oscuro parecía barba)
+  g.strokeStyle = P.pielO; g.lineWidth = 0.7;
+  g.beginPath(); g.moveTo(-1.2, -15.9); g.lineTo(1.4, -14.8); g.lineTo(5.9, -17.8); g.stroke();
   // gesto serio: ceja hundida, ojo y boca
   g.strokeStyle = L; g.lineWidth = 1.1;
   g.beginPath(); g.moveTo(2, -23.2); g.lineTo(5.8, -22.2); g.stroke();
@@ -22356,10 +22356,11 @@ function vilCabezaDib(g, P){
   // pelo negro, de punta y revuelto hacia atrás
   g.fillStyle = P.pelo;
   g.beginPath();
-  const pelo = [[6.4,-22.8],[5.8,-25.6],[3.8,-24.8],[3.6,-28.8],[1.2,-26.2],[0,-30.2],[-1.8,-26.6],[-4.6,-29.4],[-4.8,-26],
-                [-8.2,-26.8],[-6.6,-23.6],[-8.4,-21.8],[-5.8,-21.2],[-5.4,-18.2],[-3.4,-17.8],[-2.8,-21.2],[1,-23],[3.9,-22.4]];
+  const pelo = [[6,-23.4],[5.6,-25.8],[3.8,-25],[3.6,-28.8],[1.2,-26.4],[0,-30.2],[-1.8,-26.8],[-4.6,-29.4],[-4.8,-26.2],
+                [-8.2,-26.8],[-6.6,-24],[-7.4,-22.4],[-4.8,-22],[-3.6,-23.2],[-0.6,-23.8],[2.2,-24],[4.4,-23.6]];
   pelo.forEach((q, i)=> i ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1]));
   g.closePath(); g.fill();
+  g.fillStyle = P.pielO; g.beginPath(); g.ellipse(-2.2, -20.4, 1.2, 1.8, 0, 0, Math.PI*2); g.fill();     // oreja, por delante del pelo
   g.strokeStyle = '#4a4650'; g.lineWidth = 0.6;
   g.beginPath(); g.moveTo(2.6, -25.5); g.lineTo(0, -28.4); g.moveTo(-1.8, -24.8); g.lineTo(-4, -28); g.moveTo(-4.6, -23.6); g.lineTo(-7, -25.6); g.stroke();
 }
@@ -25175,14 +25176,17 @@ function criaBrillo(g, x, y, R){
   g.globalAlpha = 1;
 }
 // Ojos: dos óvalos oscuros con el iris amarillo que brilla.
-function criaOjos(g, x, y, R, t){
+// Si se da un ángulo, los ojos (y sobre todo el iris) miran hacia allí.
+function criaOjos(g, x, y, R, t, ang){
+  const mx = ang === undefined ? 0 : Math.cos(ang), my = ang === undefined ? 0 : Math.sin(ang);
   for (const side of [-1, 1]){
-    const ex = x + side*R*0.3, ey = y - R*0.1;
+    const ex = x + side*R*0.3 + mx*R*0.08, ey = y - R*0.1 + my*R*0.07;
     g.fillStyle = '#0a1a0c'; g.beginPath(); g.ellipse(ex, ey, R*0.135, R*0.19, 0, 0, Math.PI*2); g.fill();
+    const ix = ex + mx*R*0.055, iy = ey + R*0.02 + my*R*0.09;
     g.globalAlpha = 0.35 + Math.sin(t*3)*0.06; g.fillStyle = '#ffe066';
-    g.beginPath(); g.arc(ex, ey + R*0.02, R*0.12, 0, Math.PI*2); g.fill(); g.globalAlpha = 1;
-    g.fillStyle = '#ffe866'; g.beginPath(); g.arc(ex, ey + R*0.02, R*0.07, 0, Math.PI*2); g.fill();
-    g.fillStyle = '#ffffff'; g.beginPath(); g.arc(ex - R*0.03, ey - R*0.03, R*0.025, 0, Math.PI*2); g.fill();
+    g.beginPath(); g.arc(ix, iy, R*0.12, 0, Math.PI*2); g.fill(); g.globalAlpha = 1;
+    g.fillStyle = '#ffe866'; g.beginPath(); g.arc(ix, iy, R*0.07, 0, Math.PI*2); g.fill();
+    g.fillStyle = '#ffffff'; g.beginPath(); g.arc(ix - R*0.03, iy - R*0.03, R*0.025, 0, Math.PI*2); g.fill();
   }
 }
 function drawAlien(){
@@ -25202,14 +25206,14 @@ function drawAlien(){
     const my = s.y+Math.sin(a)*len*0.5+Math.sin(a+1.57)*wob;
     const col = SK.multicolor ? hslHex(SK.tono + i*360/n, 85, 52) : colT;
     const bola = SK.multicolor ? hslHex(SK.tono + i*360/n + 180, 95, 65) : SK.tip;
-    criaTentaculo(ctx, s.x, s.y, mx, my, ex, ey, f.girth*2.1, f.girth*0.8, col, luzT, bola, f.girth*0.95);
+    criaTentaculo(ctx, s.x, s.y, mx, my, ex, ey, f.girth*2.1, f.girth*0.8, col, luzT, bola, f.girth*0.6);
   }
 
   const perp = Math.sin(player.tentaclePhase*4)*R*0.45;
   const mx = s.x+Math.cos(tip.angle)*tip.reach*0.5+Math.cos(tip.angle+1.57)*perp;
   const my = s.y+Math.sin(tip.angle)*tip.reach*0.5+Math.sin(tip.angle+1.57)*perp;
   criaTentaculo(ctx, s.x, s.y, mx, my, t.x, t.y, f.girth*2.3, f.girth*1.0, SK.multicolor ? hslHex(SK.tono, 85, 55) : colT, luzT,
-                heldObject ? '#ffd24d' : SK.tip, f.girth*1.15);
+                heldObject ? '#ffd24d' : SK.tip, f.girth*0.75);
 
   const g = ctx.createRadialGradient(s.x-R*0.26,s.y-R*0.26,R*0.13,s.x,s.y,R*1.1);
   g.addColorStop(0,SK.c[0]); g.addColorStop(0.6,SK.c[1]); g.addColorStop(1,SK.c[2]);
@@ -25236,7 +25240,7 @@ function drawAlien(){
   ctx.beginPath(); ctx.arc(s.x, s.y, R, 0, Math.PI*2);
   ctx.lineWidth=2.4; ctx.stroke();
   if (!SK.cosmic && !SK.imgRef) criaBrillo(ctx, s.x, s.y, R);
-  criaOjos(ctx, s.x, s.y, R, player.tentaclePhase);
+  criaOjos(ctx, s.x, s.y, R, player.tentaclePhase, tip.angle);
   if (SK.huaso) drawChupalla(s.x, s.y - R*0.66, R*2.3);   // la chupalla, bien puesta
   if (SK.calabaza) drawTallo(s.x, s.y - R*0.92, R*0.62);  // tallo y hoja arriba
   if (SK.navidad)  drawGorroNavidad(s.x, s.y - R*0.70, R*1.7);
