@@ -703,6 +703,28 @@
 
   #bottomhud { position:absolute; bottom:0; left:0; right:0; display:flex; justify-content:center;
                padding:8px calc(8px + env(safe-area-inset-bottom,0px)); pointer-events:none; z-index:5; }
+  /* habilidades del personaje, abajo a la izquierda (solo con teclado y ratón):
+     el icono se oscurece al usarla y se va aclarando hasta que vuelve a estar lista */
+  #skillbar { position:absolute; left:calc(10px + env(safe-area-inset-left,0px)); bottom:calc(10px + env(safe-area-inset-bottom,0px));
+              display:flex; gap:7px; align-items:flex-end; z-index:5; pointer-events:none; }
+  body.movil #skillbar, body.touch-ui #skillbar, body.vstel #skillbar { display:none; }
+  #skillbar .sk { display:flex; align-items:flex-end; gap:3px; }
+  #skillbar .skico { position:relative; width:40px; height:40px; border-radius:9px; overflow:hidden; box-sizing:border-box;
+                     background:rgba(6,12,9,0.84); border:1.5px solid #2f7a4a; color:#c8f7d8;
+                     box-shadow:0 3px 10px rgba(0,0,0,0.45); transition:border-color .15s, box-shadow .15s; }
+  #skillbar .skico svg { position:absolute; left:7px; top:7px; width:26px; height:26px;
+                         filter:brightness(var(--br,1)) saturate(var(--sa,1)); opacity:var(--op,1); }
+  #skillbar .cdv { position:absolute; left:0; right:0; top:0; height:var(--cd,0%); background:rgba(0,0,0,0.6); }
+  #skillbar .cdt { position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+                   font-size:0.64rem; font-weight:900; color:#fff; text-shadow:0 1px 3px #000, 0 0 2px #000; }
+  #skillbar .sk.listo .skico { border-color:#6dff9e; box-shadow:0 0 9px rgba(109,255,158,0.32), 0 3px 10px rgba(0,0,0,0.45); }
+  #skillbar .sk.activo .skico { border-color:#ffe066; color:#fff3b8; box-shadow:0 0 11px rgba(255,224,102,0.55), 0 3px 10px rgba(0,0,0,0.45); }
+  #skillbar .sk.falta .skico { border-color:#a33a3a; color:#f0a0a0; }
+  #skillbar .skkey { min-width:16px; padding:2px 5px; border-radius:5px; text-align:center; white-space:nowrap;
+                     background:rgba(10,20,14,0.9); border:1px solid #2f7a4a; color:#ffe066;
+                     font-size:0.5rem; font-weight:900; letter-spacing:0.5px; line-height:1.4; }
+  @media (max-width:760px){ #skillbar { gap:4px; } #skillbar .skico { width:34px; height:34px; }
+    #skillbar .skico svg { left:6px; top:6px; width:21px; height:21px; } }
   /* los controles del personaje, unos segundos al empezar cada partida */
   #ctrlHint { position:absolute; left:50%; bottom:calc(46px + env(safe-area-inset-bottom,0px)); transform:translate(-50%, 8px);
               z-index:6; pointer-events:none; width:max-content; max-width:min(680px, 88vw); box-sizing:border-box;
@@ -970,6 +992,7 @@
     </div>
   </div>
   <div id="bottomhud" class="hidden"><div id="wavebadge">CIVILES</div></div>
+  <div id="skillbar" class="hidden" aria-hidden="true"></div>
   <div id="ctrlHint" class="hidden" aria-live="polite"></div>
 
   <div id="p2arrow" class="hidden">
@@ -20876,6 +20899,8 @@ const ICONOS_BTN = {
   presa:   '<circle fill="currentColor" cx="17" cy="4.6" r="2.6"/><path fill="currentColor" d="M13.6 8.2h6.6l1.6 7.4h-2.6l-.6 6.6h-3.8l-.4-6.6h-2.4z"/>'
          + '<path ' + ICO_TRAZO + ' stroke-width="2.2" d="M2 10.5h6.5M3.5 14.5h5.5M2 18.5h6.5"/>'
          + '<path ' + ICO_TRAZO + ' stroke-width="2.4" d="M9.5 11.8c1.6-1.4 3.2-1.6 4.4-.9"/>',
+  vuelo:   '<path fill="currentColor" d="M22.5 1.5L8.5 8.4l3.3 2.4L9.6 17l4.4-4.3 3.4 2.3z"/>'
+         + '<path ' + ICO_TRAZO + ' stroke-width="1.9" d="M1.5 14.5h5M3 18.5h4.5M1.5 22.5h6"/>',
   salto:   '<ellipse ' + ICO_TRAZO + ' stroke-width="2" cx="7.5" cy="18" rx="6" ry="2.6"/>'
          + '<path ' + ICO_TRAZO + ' stroke-width="2.2" d="M7.5 17L18.5 6M12 5h7.5v7.5"/>'
 };
@@ -20896,6 +20921,87 @@ function iconosBotones(){
                          ['btnFuegoMag', 'fuego'], ['btnTele', 'salto'], ['btnPresa', 'presa']]) iconoBtn(id, n);
 }
 iconosBotones();
+// ---- barra de habilidades (abajo a la izquierda) ----
+// Un icono por habilidad del personaje, con la tecla que tenga asignada (la
+// elegida en CONTROLES o la de serie). Al usarla se oscurece y se va
+// aclarando según se recarga; se marca en amarillo mientras está en uso y en
+// rojo si no te llega la estamina (o el maná). En el móvil sobran: los botones
+// táctiles ya llevan su icono.
+const SK_CLIC = 'CLIC', SK_CLICD = 'CLIC DER.';
+function skTecla(k, raton){
+  const t = binds[k] ? prettyKey(binds[k]) : '';
+  return raton ? (t ? raton + ' / ' + t : raton) : (t || '—');
+}
+function skVuelo(){ return '2× ' + [binds.up, binds.left, binds.down, binds.right].map(k => prettyKey(k || '')).join(''); }
+function habilidadesDe(h){
+  if (h === 'viltrum') return [
+    { n:'Golpe (mantén para cargar)', ico:'golpe', key:()=> SK_CLIC, cd:()=> vil.punchCd, act:()=> vil.charge > 0 },
+    { n:'Agarrar y lanzar', ico:()=> heldObject ? 'lanzar' : 'agarrar', key:()=> SK_CLICD, act:()=> !!heldObject },
+    { n:'Presa', ico:'presa', key:()=> skTecla('draCola'), cd:()=> vil.presaCd, coste:()=> VIL_PRESA_STAM, act:()=> vil.presaApunta || !!vil.presaFase },
+    { n:'Vuelo hipersónico', ico:'vuelo', key:skVuelo, act:()=> vil.flying }
+  ];
+  if (h === 'dragon') return [
+    { n:'Mordisco', ico:'morder', key:()=> SK_CLIC, cd:()=> dra.mordCd, coste:()=> DRA_MORD_STAM },
+    { n:'Rayos', ico:'rayo', key:()=> skTecla('draRay', SK_CLICD), coste:()=> dra.rayos ? 0 : DRA_RAYO_STAM*0.1, act:()=> dra.rayos },
+    { n:'Aletazo', ico:'aleteo', key:()=> skTecla('draAle'), cd:()=> dra.aleteoCd, coste:()=> DRA_ALE_STAM, act:()=> dra.aleteoT > 0 },
+    { n:'Embestida', ico:'cola', key:()=> skTecla('draCola'), coste:()=> DRA_COLA_STAM, act:()=> dra.colaApunta || !!dra.colaFase },
+    { n:'Volar', ico:'vuelo', key:skVuelo, act:()=> vil.flying }
+  ];
+  if (h === 'maquina') return [
+    { n:'Atacar', ico:()=> ICONO_ARMA_MAQ[maq.arma] || 'espada', key:()=> SK_CLIC, cd:()=> maq.disCd, act:()=> maq.gatillo },
+    { n:'Cambiar de arma', ico:'arma', key:()=> skTecla('draRay', SK_CLICD) },
+    { n:'Incinerar (mantén y suelta)', ico:'fuego', key:()=> skTecla('draAle'), cd:()=> maq.incCd, act:()=> !!maq.incFase },
+    { n:'Motosierras (mantén)', ico:'sierra', key:()=> skTecla('draCola'), cd:()=> maq.sierraCd, act:()=> maq.sierraApunta || !!maq.sierraFase }
+  ];
+  if (h === 'mago') return [
+    { n:'Rayo', ico:'rayo', key:()=> SK_CLIC, cd:()=> mag.rayoCd, coste:()=> MAG_RAYO_MANA },
+    { n:'Telequinesis (mantén)', ico:'mente', key:()=> SK_CLICD, cd:()=> mag.tkCd, act:()=> mag.tkOn },
+    { n:'Hielo', ico:'hielo', key:()=> skTecla('draAle'), cd:()=> mag.hieloCd, coste:()=> MAG_HIELO_MANA*(magArc() ? 0.8 : 1), act:()=> mag.hieloT > 0 },
+    { n:'Escudo', ico:'escudo', key:()=> skTecla('draCola'), cd:()=> mag.escudoCd, coste:()=> mag.escudoT > 0 ? 0 : MAG_ESC_MANA, act:()=> mag.escudoT > 0 },
+    { n:'Columna de fuego', ico:'fuego', key:()=> skTecla('magFue'), cd:()=> mag.fuegoCd, coste:()=> MAG_FUEGO_MANA, act:()=> mag.fuegoApunta },
+    { n:'Teletransporte', ico:'salto', key:()=> skTecla('magTel'), cd:()=> mag.teleCd, coste:()=> MAG_TELE_MANA, act:()=> mag.teleApunta }
+  ];
+  return [                                                  // la cría
+    { n:'Agarrar / golpear', ico:'agarrar', key:()=> skTecla('grab', SK_CLIC), act:()=> !!heldObject },
+    { n:'Lanzar', ico:'lanzar', key:()=> skTecla('throw', SK_CLICD) }
+  ];
+}
+const SKB = { sig:'', lista:[], els:[], t:0 };
+function pintaHabilidades(){
+  const bar = document.getElementById('skillbar'); if (!bar) return;
+  const ver = running && !vil.intro && !esVisorVs() && !TUT.activo;
+  if (bar.classList.contains('hidden') === ver) bar.classList.toggle('hidden', !ver);
+  if (!ver) return;
+  const h = normHeroe(hero), L = SKB.sig.startsWith(h + '|') ? SKB.lista : habilidadesDe(h);
+  // se rehace solo si cambia el personaje, una tecla o un icono
+  const val = f => typeof f === 'function' ? f() : f;
+  const sig = h + '|' + L.map(a => val(a.ico) + ':' + a.key()).join(',');
+  if (sig !== SKB.sig){
+    SKB.sig = sig; SKB.lista = L;
+    bar.innerHTML = L.map(a => '<div class="sk" title="' + esc(a.n) + '"><div class="skico"><svg viewBox="0 0 24 24">' + (ICONOS_BTN[val(a.ico)] || '')
+      + '</svg><div class="cdv"></div><div class="cdt"></div></div><span class="skkey">' + esc(a.key()) + '</span></div>').join('');
+    SKB.els = [...bar.querySelectorAll('.sk')].map((el, i)=> ({ el, ico: el.querySelector('.skico'), cdv: el.querySelector('.cdv'), cdt: el.querySelector('.cdt'), max: 0, ult: 0, est: '', cdTxt: '', cdPct: '' }));
+  }
+  L.forEach((a, i)=>{
+    const E = SKB.els[i]; if (!E) return;
+    const cd = a.cd ? Math.max(0, a.cd() || 0) : 0;
+    if (cd > E.ult + 0.01) E.max = cd;                         // se acaba de usar: su recarga completa
+    E.ult = cd;
+    const f = E.max > 0 ? clamp(cd/E.max, 0, 1) : 0;
+    const activo = a.act ? !!a.act() : false;
+    const falta = !activo && a.coste && vil.stam < a.coste();
+    const est = activo ? 'activo' : falta ? 'falta' : f > 0 ? 'carga' : 'listo';
+    if (est !== E.est){ E.est = est; E.el.className = 'sk ' + est; }
+    const pct = Math.round(f*50)*2 + '%';
+    if (pct !== E.cdPct){
+      E.cdPct = pct; E.cdv.style.setProperty('--cd', pct);
+      E.ico.style.setProperty('--br', (0.4 + 0.6*(1 - f)).toFixed(2));
+      E.ico.style.setProperty('--sa', (0.3 + 0.7*(1 - f)).toFixed(2));
+    }
+    const txt = cd >= 0.95 ? String(Math.ceil(cd)) : cd > 0.05 && E.max >= 0.9 ? cd.toFixed(1) : '';
+    if (txt !== E.cdTxt){ E.cdTxt = txt; E.cdt.textContent = txt; }
+  });
+}
 // mantiene la etiqueta acorde a lo que lleves en el tentáculo
 let actSig = '';
 function refreshActionBtn(){
@@ -26950,6 +27056,7 @@ function salirTutorial(){
   document.getElementById('tutPanel').classList.add('hidden');
   document.getElementById('hud').classList.add('hidden');
   document.getElementById('bottomhud').classList.add('hidden');
+  { const sb = document.getElementById('skillbar'); if (sb) sb.classList.add('hidden'); }
   document.getElementById('actionBtns').classList.remove('playing');
   limpiaRestosPartida();
   stopMusic();
@@ -27432,6 +27539,7 @@ function pctCss(f){ return (Math.round(clamp(f, 0, 1)*1000)/10) + '%'; }
 // Marcador, reloj, panel del J2… Lo usan el anfitrión y el invitado.
 function pintaHUD(){
     hudCss('hpfill', 'width', pctCss(hp/maxHp()));
+    pintaHabilidades();
     if (usaVil()){
       hudTxt('formname', isMaq() ? 'MÁQUINA' : isMag() ? 'MAGO' : heroName(hero));   // corto: cabe en el móvil
       hudCss('stamwrap', 'display', '');
@@ -27595,6 +27703,7 @@ async function endGame(){
   document.getElementById('hud').classList.remove('vsmode');
   document.getElementById('hud').classList.add('hidden');
   document.getElementById('bottomhud').classList.add('hidden');
+  { const sb = document.getElementById('skillbar'); if (sb) sb.classList.add('hidden'); }
   document.getElementById('actionBtns').classList.remove('playing');
   const p2t2 = document.getElementById('p2touch');
   if (p2t2) p2t2.classList.remove('playing');
