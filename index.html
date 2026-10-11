@@ -22348,21 +22348,25 @@ function vilCabezaDib(g, P){
   // contorno suave del mentón (en oscuro parecía barba)
   g.strokeStyle = P.pielO; g.lineWidth = 0.7;
   g.beginPath(); g.moveTo(-1.2, -15.9); g.lineTo(1.4, -14.8); g.lineTo(5.9, -17.8); g.stroke();
-  // gesto serio: ceja hundida, ojo y boca
-  g.strokeStyle = L; g.lineWidth = 1.1;
-  g.beginPath(); g.moveTo(2, -23.2); g.lineTo(5.8, -22.2); g.stroke();
-  g.fillStyle = P.ojo; g.fillRect(3.2, -21.9, 2.4, 1.2);
-  g.strokeStyle = P.pielO; g.lineWidth = 0.8; g.beginPath(); g.moveTo(3.4, -17.6); g.lineTo(5.2, -17.9); g.stroke();
-  // pelo negro, de punta y revuelto hacia atrás
+  // pelo negro como un casco: cubre toda la parte de arriba, baja por detrás
+  // hasta la oreja, con unas puntas en la coronilla y flequillo en mechones
   g.fillStyle = P.pelo;
   g.beginPath();
-  const pelo = [[6,-23.4],[5.6,-25.8],[3.8,-25],[3.6,-28.8],[1.2,-26.4],[0,-30.2],[-1.8,-26.8],[-4.6,-29.4],[-4.8,-26.2],
-                [-8.2,-26.8],[-6.6,-24],[-7.4,-22.4],[-4.8,-22],[-3.6,-23.2],[-0.6,-23.8],[2.2,-24],[4.4,-23.6]];
+  const pelo = [[-5.6,-19.4],[-6.8,-22.6],[-8.8,-24.8],[-6.6,-25.4],[-7.2,-28.2],[-4,-27.6],[-3.6,-30.4],[-0.8,-28.8],
+                [1.2,-31],[2.6,-28.8],[5.4,-28.2],[7,-26],[7.6,-23.6],[7.2,-22.2],[6,-23.2],[5.1,-22.4],[4.2,-23.6],
+                [3,-22.8],[2,-24],[0.6,-23.6],[-1.6,-23.4],[-3.2,-22.6],[-3.9,-19.8]];
   pelo.forEach((q, i)=> i ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1]));
   g.closePath(); g.fill();
+  g.strokeStyle = L; g.lineWidth = 0.8; g.stroke();
+  g.strokeStyle = '#4a4650'; g.lineWidth = 0.6;                   // mechones con algo de brillo
+  g.beginPath(); g.moveTo(3.6, -26.8); g.quadraticCurveTo(1.6, -27.6, 0.4, -26); g.moveTo(-1.4, -26.4); g.quadraticCurveTo(-3.4, -26.6, -4.6, -24.6);
+  g.moveTo(5.6, -25.2); g.lineTo(4.4, -24); g.stroke();
   g.fillStyle = P.pielO; g.beginPath(); g.ellipse(-2.2, -20.4, 1.2, 1.8, 0, 0, Math.PI*2); g.fill();     // oreja, por delante del pelo
-  g.strokeStyle = '#4a4650'; g.lineWidth = 0.6;
-  g.beginPath(); g.moveTo(2.6, -25.5); g.lineTo(0, -28.4); g.moveTo(-1.8, -24.8); g.lineTo(-4, -28); g.moveTo(-4.6, -23.6); g.lineTo(-7, -25.6); g.stroke();
+  // gesto serio: ceja hundida, ojo y boca (por encima del flequillo)
+  g.strokeStyle = L; g.lineWidth = 1.1;
+  g.beginPath(); g.moveTo(2.4, -22.9); g.lineTo(5.8, -22.1); g.stroke();
+  g.fillStyle = P.ojo; g.fillRect(3.2, -21.7, 2.4, 1.2);
+  g.strokeStyle = P.pielO; g.lineWidth = 0.8; g.beginPath(); g.moveTo(3.4, -17.6); g.lineTo(5.2, -17.9); g.stroke();
 }
 // Estado de dibujo del jugador (también para el compañero en línea).
 function vilEstadoDib(pose){
