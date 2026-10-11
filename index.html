@@ -22025,6 +22025,10 @@ function updateViltrum(dt){
   // donde entra y otro donde sale (dentro ve el interior con rayos X).
   vilAtraviesa(vilPaso, x0, y0, player.x, player.y, vil.flying ? 32 : 25, true);
 
+  // Cargando el golpe, mira y prepara el brazo hacia donde va a pegar; con algo
+  // en las manos, se gira hacia donde lo lleva.
+  if (!vil.flying && vil.charge > 0){ vil.golpeA = vilApuntaGolpe(); if (Math.abs(Math.cos(vil.golpeA)) > 0.05) player.facing = Math.cos(vil.golpeA) > 0 ? 1 : -1; }
+  else if (!vil.flying && heldObject && heldObject.ref){ const av = aimVector(); if (Math.abs(av.dx) > 0.1) player.facing = av.dx > 0 ? 1 : -1; }
   // Con los ojos encendidos y a pie, se gira hacia donde mira: los rayos salen de su cara.
   if (rayosOn && !vil.flying){ const a = vilRayoAng(vilCabeza()); if (Math.abs(Math.cos(a)) > 0.08) player.facing = Math.cos(a) > 0 ? 1 : -1; }
   // El objeto agarrado va delante si vuela, o en la mano si no.
@@ -22113,6 +22117,7 @@ function vilPaleta(){
 // rodilla, tobillo) según lo que hace; [atrás, delante].
 const VIL_POSES = {
   quieto:    { b:[[-7.5,-10.5, -9.6,-2, -9,5.5], [7.8,-10.5, 9.8,-2, 9.4,5.5]],   p:'cuelga' },
+  sujeta:    { b:[[-7.5,-10.5, -9.6,-2, -9,5.5], [7.8,-10.5, 9.8,-2, 9.4,5.5]],   p:'cuelga' },
   golpe:     { b:[[-7.5,-10.5, -9,-4, -4,-2],    [7.8,-10, 17,-9, 27,-8.5]],     p:'cuelga' },
   carga:     { b:[[-7.5,-10.5, -4,-5, 3,-7],     [7.8,-10.5, 0,-6, -8.5,-5]],    p:'cuelga' },
   vuelo:     { b:[[-7.5,-10.5, -8.6,-1, -7,7],   [7.6,-11, 7.4,-21, 5,-31]],     p:'juntas' },
@@ -22168,10 +22173,31 @@ function vilPierna(g, a, P, lado, t){
 // st: { t, pose, punchT, golpeLado, manos, sangre, pal, SK, cabeza }
 // Brazos de la postura; al cargar el golpe, el puño se va hacia atrás poco a
 // poco desde el reposo, preparando el golpe (y con la carga completa, tiembla).
+// Gira un brazo (hombro fijo) un ángulo: así el golpe y su preparación van
+// hacia donde se apunta y no siempre de frente.
+function vilBrazoGira(b, la){
+  if (!la) return b;
+  const c = Math.cos(la), s2 = Math.sin(la), sx = b[0], sy = b[1], r = b.slice();
+  for (const j of [2, 4]){ const dx = b[j] - sx, dy = b[j + 1] - sy; r[j] = sx + dx*c - dy*s2; r[j + 1] = sy + dx*s2 + dy*c; }
+  return r;
+}
+// Brazo que llega hasta un punto (la mano, en lo que sujeta), con el codo doblado.
+function vilBrazoHasta(sx, sy, hx, hy, abajo){
+  let dx = hx - sx, dy = hy - sy, d = Math.hypot(dx, dy) || 1;
+  const L = 18.5;
+  if (d > L){ hx = sx + dx/d*L; hy = sy + dy/d*L; dx = hx - sx; dy = hy - sy; d = L; }
+  const dobla = Math.sqrt(Math.max(0, (L/2)*(L/2) - (d/2)*(d/2))), nx = -dy/d, ny = dx/d, k = abajo ? -1 : 1;
+  return [sx, sy, sx + dx/2 + nx*dobla*k, sy + dy/2 + ny*dobla*k, hx, hy];
+}
 function vilBrazos(st, pose){
+  if (st.pose === 'sujeta' && st.agarre){
+    const [hx, hy] = st.agarre;
+    return [vilBrazoHasta(-7.5, -10.5, hx - 1.5, hy + 2.5, true), vilBrazoHasta(7.8, -10.5, hx, hy, true)];
+  }
+  if (st.pose === 'golpe' && st.la) return [pose.b[0], vilBrazoGira(pose.b[1], st.la)];
   if (st.pose !== 'carga') return pose.b;
   const k0 = clamp(st.carga === undefined ? 1 : st.carga, 0, 1), k = 1 - (1 - k0)*(1 - k0);
-  const A = VIL_POSES.quieto.b, B = VIL_POSES.carga.b, tr = k0 >= 1 ? Math.sin(st.t*40)*0.6 : 0;
+  const A = VIL_POSES.quieto.b, B = [VIL_POSES.carga.b[0], vilBrazoGira(VIL_POSES.carga.b[1], st.la || 0)], tr = k0 >= 1 ? Math.sin(st.t*40)*0.6 : 0;
   return [0, 1].map(i => A[i].map((v, j)=> v + (B[i][j] - v)*k + (i === 1 && j >= 4 ? tr : 0)));
 }
 function vilFigura(g, st){
@@ -22368,11 +22394,22 @@ function vilCabezaDib(g, P){
   g.fillStyle = P.ojo; g.fillRect(3.2, -21.7, 2.4, 1.2);
   g.strokeStyle = P.pielO; g.lineWidth = 0.8; g.beginPath(); g.moveTo(3.4, -17.6); g.lineTo(5.2, -17.9); g.stroke();
 }
+// Dónde quedan las manos sobre lo que lleva (en coordenadas de la figura): en
+// el borde de lo agarrado más cercano a él.
+function vilAgarreLocal(){
+  if (!heldObject || !heldObject.ref || vil.flying) return null;
+  const o = heldObject.ref, f = player.facing || 1, fl = Math.sin((vil.capa || 0)*2.4)*2.2;
+  let dx = o.x - player.x, dy = o.y - (player.y + fl);
+  const d = Math.hypot(dx, dy) || 1, r = Math.min(o.w || 24, o.h || 24)*0.38;
+  dx -= dx/d*r; dy -= dy/d*r;
+  return [dx*f/0.82, dy/0.82];
+}
 // Estado de dibujo del jugador (también para el compañero en línea).
 function vilEstadoDib(pose){
   const SK = skin();
   return { t: vil.capa || 0, pose, punchT: vil.punchT || 0, golpeLado: vil.golpeLado || 1, manos: vil.manos || 0,
            carga: vil.charge > 0 ? vil.charge/VIL_CHARGE_MAX : 1,
+           la: vil.flying ? 0 : Math.atan2(Math.sin(vil.golpeA || 0), Math.abs(Math.cos(vil.golpeA || 0))), agarre: vilAgarreLocal(),
            sangre: vil._sangre, pal: vilPaleta(), SK, cabeza: vilCabezaSkin(SK) };
 }
 // Cabezas de las skins especiales (armadura cósmica, calabaza) y sombreros.
@@ -22441,10 +22478,11 @@ function drawViltrum(){
     // voltea para no ir boca arriba.
     ctx.rotate(Math.atan2(vil.fx, -vil.fy));
     if (vil.fx < 0) ctx.scale(-1, 1);
-    pose = pf === 'lleva' ? 'presaVuelo' : 'vuelo';
+    pose = pf === 'lleva' || (heldObject && heldObject.ref) ? 'presaVuelo' : 'vuelo';
   } else {
     ctx.scale(f, 1);
-    pose = pf === 'lleva' ? 'presa' : vil.aterrizaT > 0 ? 'aterriza' : vil.charge > 0 ? 'carga' : vil.punchT > 0 ? 'golpe' : 'quieto';
+    pose = pf === 'lleva' ? 'presa' : vil.aterrizaT > 0 ? 'aterriza' : vil.charge > 0 ? 'carga' : vil.punchT > 0 ? 'golpe'
+         : heldObject && heldObject.ref ? 'sujeta' : 'quieto';
   }
   ctx.scale(0.82, 0.82);
   vilFigura(ctx, vilEstadoDib(pose));
@@ -22469,7 +22507,7 @@ function drawViltrum(){
       ctx.beginPath(); ctx.arc(s.x, s.y, r+7, 0, Math.PI*2); ctx.stroke();
       // con la carga azul se marca hacia dónde saldrá la ráfaga
       if (!clap){
-        const ang2 = vil.flying ? Math.atan2(vil.fy, vil.fx) : (player.facing>0?0:Math.PI);
+        const ang2 = vil.flying ? Math.atan2(vil.fy, vil.fx) : (vil.golpeA || 0);
         ctx.globalAlpha = 0.22;
         ctx.beginPath();
         ctx.moveTo(s.x, s.y);
@@ -22497,12 +22535,25 @@ function drawViltrum(){
 // ratón, pero SIEMPRE pegado al cuerpo: solo tiene brazos, no tentáculos.
 const VIL_ARM = 30;
 function vilHoldPoint(){
-  if (vil.flying) return { x: player.x + vil.fx*46, y: player.y + vil.fy*46 };
+  if (vil.flying) return { x: player.x + vil.fx*38, y: player.y + vil.fy*38 };
   // aimVector ya resuelve joystick de puntería o ratón, según cómo se juegue
   const av = aimVector();
   return { x: player.x + av.dx*VIL_ARM, y: player.y - 4 + av.dy*VIL_ARM };
 }
 
+// Hacia dónde pega a pie: la mira (ratón o joystick derecho); en el móvil sin
+// apuntar, al enemigo más cercano a mano, o al frente.
+function vilApuntaGolpe(){
+  if (aimJoy.active || !lastInputTouch) return Math.atan2(Math.sin(aimAngle()), Math.cos(aimAngle()));
+  let mejor = null, md = 150*150;
+  for (const pool of [enemies, civilians]) for (const e of pool){
+    if (e.dead || e.held || e.thrown || e.pacifico) continue;
+    const dx = e.x - player.x, dy = e.y - alturaVisible(e) - player.y, d2 = dx*dx + dy*dy;
+    if (d2 < md){ md = d2; mejor = e; }
+  }
+  if (mejor) return Math.atan2(mejor.y - alturaVisible(mejor) - player.y, mejor.x - player.x);
+  return (player.facing || 1) > 0 ? 0 : Math.PI;
+}
 // Embestida en vuelo: derriba edificios y machaca lo que lleva por delante.
 function vilSmash(dt){
   const px2 = player.x + vil.fx*44, py2 = player.y + vil.fy*44;
@@ -22562,7 +22613,8 @@ function vilPunch(carga, modo){
   vil.punchCd = VIL_PUNCH_CD + (lleno ? 0.55 : 0.25*carga);
   vil.punchT = 0.16 + (lleno ? 0.22 : 0.1*carga);
   // volando golpea hacia el rumbo; a pie, hacia donde mira
-  const ang = vil.flying ? Math.atan2(vil.fy, vil.fx) : (player.facing>0 ? 0 : Math.PI);
+  const ang = vil.flying ? Math.atan2(vil.fy, vil.fx) : vilApuntaGolpe();
+  if (!vil.flying){ vil.golpeA = ang; if (Math.abs(Math.cos(ang)) > 0.05) player.facing = Math.cos(ang) > 0 ? 1 : -1; }
   const px2 = player.x + Math.cos(ang)*40, py2 = player.y - 4 + Math.sin(ang)*40;
   let dio = false;
   for (const pool of [civilians, enemies]){
