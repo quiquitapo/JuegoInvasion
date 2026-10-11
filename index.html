@@ -836,6 +836,12 @@
             line-height:1.15; transition:transform .08s ease, background .18s ease;
             box-shadow:0 4px 12px rgba(0,0,0,0.45); }
   .actlabel { font-size:0.66rem; }
+  /* El dibujo de cada botón: encima del nombre, del color del texto del botón
+     y sin recibir toques (el toque es siempre del botón). */
+  .acticon { display:block; width:calc(var(--act)*0.36); height:calc(var(--act)*0.36); margin:-2px 0 1px;
+             pointer-events:none; }
+  .acticon svg { display:block; width:100%; height:100%; overflow:visible;
+                 filter:drop-shadow(0 1px 1px rgba(0,0,0,0.5)); }
   .acthint { font-size:0.44rem; opacity:0.8; margin-top:3px; letter-spacing:0; font-weight:400; }
   /* verde cuando tienes las manos libres, naranja cuando sostienes algo */
   #btnPunch { background:radial-gradient(circle at 35% 30%, #ffd257, #a06a10); display:none; }
@@ -2778,6 +2784,11 @@ function edifAzotea(g, b, P, R, rh, humos){
     eR(g, '#f2f2ea', cx - 9, cy - 11, 4, 22); eR(g, '#f2f2ea', cx + 5, cy - 11, 4, 22); eR(g, '#f2f2ea', cx - 5, cy - 2, 10, 4);
     for (let i = 0; i < 8; i++){ const a = i*Math.PI/4; eR(g, i % 2 ? '#e84a3a' : '#f0f0a0', cx + Math.cos(a)*(r + 1) - 1, cy + Math.sin(a)*(r + 1) - 1, 2, 2); }
   }
+  if (b.set === 'B'){                                                  // sitio del sello dorado (se pinta luego, sin apagar)
+    const r = Math.max(9, Math.min(w*0.2, rh*0.36, 26)), cx = w/2, cy = rh/2;
+    libres.push([cx - r - 3, cy - r - 3, r*2 + 6, r*2 + 6]);
+    b._sello = [cx, cy, r];
+  }
   if (b.set === 'F'){                                                  // chimenea de la fábrica
     const p = sitio(20, 20) || [w - 34, 12];
     const cx = p[0] + 10, cy = p[1] + 10;
@@ -2977,7 +2988,9 @@ function edifFachadaDibuja(g, b, P, R, rh, fh, ventanas){
       for (let x = 8; x < w - 8; x += 24){ eR(g, '#e8dcc0', x, yb + 17, 6, bajo - 17); eR(g, '#b8a888', x + 5, yb + 17, 1, bajo - 17); eR(g, '#f4ecd8', x - 1, yb + 17, 8, 2); eR(g, '#f4ecd8', x - 1, h - 3, 8, 2); }   // columnas
       for (let x = 20; x < w - 20; x += 24) if (Math.abs(x - cx) > 16) edifVentana(g, ventanas, x, yb + 22, 8, 14, P, set);
       edifPuerta(g, cx - 8, yb + 20, 16, 22, '#5a3a22');
-      edifLetrero(g, cx - 30, yb + 2, 60, 11, '#5a4a2e', '#f2d870', 'BANCO');
+      { const lw = Math.min(w - 16, 78);
+        edifLetrero(g, cx - lw/2, yb + 1, lw, 12, '#3a2606', '#ffd84a', lw >= 72 ? '$ BANCO $' : 'BANCO');
+        eR(g, '#d8b04a', 2, yb + 14, w - 4, 1); }
       eR(g, '#3a3e44', w - 20, yb + 24, 9, 14); eR(g, '#5ad0a0', w - 18, yb + 26, 5, 4);   // cajero
       break;
     }
@@ -3059,6 +3072,7 @@ function edifCanvas(b, etapa, forzar){
     eR(g, 'rgba(0,0,0,0.35)', 0, rh, b.w, 1);
     b._win = ventanas; b._humos = humos; b._neon = edifNeonTmp;
     apagaColores(c);                                   // la etapa 1 parte de esta ya apagada
+    if (b.set === 'B') bancoDorado(g, b, rh);          // el oro, sin apagar: brilla más que la ciudad
     if (etapa === 0){ b._cv[0] = c; return c; }
   }
   // etapa 1: grietas, ventanas rotas, hollín y agujeros en la azotea
@@ -3095,6 +3109,25 @@ function edifCanvas(b, etapa, forzar){
   if (esInfierno()) tinteInfierno(c);
   b._cv[1] = c;
   return c;
+}
+// El banco se distingue desde lejos: remate dorado en el pretil y un gran
+// sello con el símbolo $ en la azotea.
+function bancoDorado(g, b, rh){
+  const w = b.w, disco = (x, y, r, col)=>{ g.fillStyle = col; g.beginPath(); g.arc(x, y, r, 0, Math.PI*2); g.fill(); };
+  g.save();
+  eR(g, '#c99a2e', 0, 0, w, 3); eR(g, '#ffe68a', 0, 0, w, 1);
+  eR(g, '#c99a2e', 0, 0, 3, rh); eR(g, '#c99a2e', w - 3, 0, 3, rh);
+  if (b._sello){
+    const cx = b._sello[0], cy = b._sello[1], r = b._sello[2];
+    disco(cx + 3, cy + 3, r, 'rgba(0,0,0,0.32)');
+    disco(cx, cy, r, '#6e4a0c'); disco(cx, cy, r - 1.5, '#e2b02c'); disco(cx, cy, r*0.78, '#ffd75a');
+    g.strokeStyle = '#a87814'; g.lineWidth = 1.2; g.beginPath(); g.arc(cx, cy, r*0.78, 0, Math.PI*2); g.stroke();
+    g.fillStyle = '#fff3b8'; for (let i = 0; i < 8; i++){ const a = i*Math.PI/4; g.fillRect(cx + Math.cos(a)*(r - 0.8) - 1, cy + Math.sin(a)*(r - 0.8) - 1, 2, 2); }
+    g.fillStyle = 'rgba(255,252,220,0.65)'; g.beginPath(); g.ellipse(cx - r*0.28, cy - r*0.36, r*0.32, r*0.14, -0.6, 0, Math.PI*2); g.fill();
+    g.fillStyle = '#5e3c06'; g.font = 'bold ' + Math.round(r*1.2) + 'px monospace';
+    g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('$', cx, cy + r*0.06);
+  }
+  g.restore();
 }
 // Escombros con los colores de lo que había en pie.
 function edifEscombros(g, b, P, R){
@@ -4888,23 +4921,35 @@ function omniOjo(e){
 }
 // El rayo no distingue bando.
 function beamHit(e, dmg){
-  const o = omniOjo(e), ox = o.x, oy = o.y, ang = e.beamA;
+  const o = omniOjo(e), ox = o.x, oy = o.y, ang = e.beamA, ca = Math.cos(ang), sa = Math.sin(ang);
+  let dmin = 1e9;                                        // lo primero que toca el haz
+  const toca = (x, y)=>{ const d = (x - ox)*ca + (y - oy)*sa; if (d > 0 && d < dmin) dmin = d; };
   for (const pool of [civilians, enemies]){
     for (const t of pool){
       if (t.dead || t.held || t === e) continue;
-      if (rayoToca(t, ox, oy, ang, OMNI_BEAM_LEN, OMNI_BEAM_W)) damageEnemy(t, dmg, t.x, t.y - alturaVisible(t));
+      if (rayoToca(t, ox, oy, ang, OMNI_BEAM_LEN, OMNI_BEAM_W)){ damageEnemy(t, dmg, t.x, t.y - alturaVisible(t)); toca(t.x, t.y - alturaVisible(t)); }
     }
   }
   for (const c of cars){
     if (c.dead || c.held) continue;
     if (!inBeam(c.x, c.y, ox, oy, ang, OMNI_BEAM_LEN, OMNI_BEAM_W)) continue;
-    c.hp -= dmg;
+    c.hp -= dmg; toca(c.x, c.y);
     if (c.hp <= 0) autoAbatido(c);
   }
   if (inBeam(player.x, player.y, ox, oy, ang, OMNI_BEAM_LEN, OMNI_BEAM_W + F().r*0.5)){
     hp = clamp(hp - recibe(dmg), 0, maxHp());
-    p2Gain(dmg);
+    p2Gain(dmg); toca(player.x, player.y);
   }
+  laserChoca(e, ox, oy, ca, sa, dmin, '#ff6a4a');
+}
+// Donde un láser choca con algo: chispas y un chisporroteo, cada poco (no
+// en cada fotograma, que serían decenas de sonidos por segundo).
+function laserChoca(st, ox, oy, ca, sa, d, col){
+  if (!(d < 1e8) || gameTime - (st._chis || 0) < 0.12) return;
+  st._chis = gameTime;
+  const x = ox + ca*d, y = oy + sa*d;
+  addParticles(x, y, col, 4, 130); addParticles(x, y, '#fff0c0', 2, 90);
+  sfxEn('laserGolpe', x, y);
 }
 
 // Coge mobiliario cercano y lo lanza hacia el jugador.
@@ -4975,7 +5020,7 @@ function updateOmni(e, dt, a, angP){
     } else if (e.beamPh === 'aim'){
       e.beamT -= dt;
       e.beamA = angLerp(e.beamA, angP, OMNI_BEAM_TURN*dt*2);   // apunta despacio
-      if (e.beamT <= 0){ e.beamPh = 'fire'; e.beamT = OMNI_BEAM_FIRE; sfx('boom'); }
+      if (e.beamT <= 0){ e.beamPh = 'fire'; e.beamT = OMNI_BEAM_FIRE; const oj = omniOjo(e); sfxEn('laserOmni', oj.x, oj.y); sfxEn('boom', oj.x, oj.y, 0.5); }
     } else {
       e.beamT -= dt;
       e.beamA = angLerp(e.beamA, angP, OMNI_BEAM_TURN*dt);      // barre muy lento
@@ -5096,6 +5141,7 @@ function drawOmniBeam(e){
     ctx.setLineDash([]); ctx.restore();
   } else {
     const w = OMNI_BEAM_W;
+    bucleLaser(e, oj.x, oj.y, true);                        // zumba mientras dispara
     ctx.save();
     // un leve resplandor alrededor del haz, que tiñe lo que tiene cerca
     ctx.globalCompositeOperation = 'lighter'; ctx.lineCap = 'round';
@@ -6211,6 +6257,7 @@ const RAYO_LARGO = 620;
 const RAYO_ANCHO = 16;
 const RAYO_DPS   = 260;
 let rayosOn = false;
+const ojosVil = { on:false, d:1e9, _chis:0 };       // encendidos antes, y a qué distancia chocan
 
 // Los ojos del viltrumita: la cabeza tal y como la dibuja drawViltrum, de pie
 // (encima del torso, con su flotación) o tumbado al volar (por delante, en el
@@ -6233,29 +6280,38 @@ function updateRayosOjos(dt){
   // ojos están encendidos y se apunta con el joystick derecho, el mismo que
   // ya coloca lo que llevas agarrado.
   if (tactil() && isVil() && buffActivo('rayos') && !heldObject) rayosOn = true;
-  if (!rayosOn) return;
-  if (!isVil() || !buffActivo('rayos')){ rayosOn = false; return; }
-  const o = vilCabeza(), ox = o.x, oy = o.y, a = vilRayoAng(o);
+  if (!rayosOn || !isVil() || !buffActivo('rayos')){ rayosOn = false; ojosVil.on = false; ojosVil.d = 1e9; return; }
+  const o = vilCabeza(), ox = o.x, oy = o.y, a = vilRayoAng(o), ca = Math.cos(a), sa = Math.sin(a);
+  if (!ojosVil.on){ ojosVil.on = true; sfxEn('laserOjos', ox, oy); }      // se encienden
+  let dmin = 1e9;                                       // lo primero que alcanza el haz
+  const toca = (x, y)=>{ const d = (x - ox)*ca + (y - oy)*sa; if (d > 0 && d < dmin) dmin = d; };
   for (const pool of [civilians, enemies]){
     for (const t of pool){
       if (t.dead || t.held) continue;
       if (!rayoToca(t, ox, oy, a, RAYO_LARGO, RAYO_ANCHO)) continue;
       porJugador(()=> damageEnemy(t, RAYO_DPS*dt, t.x, t.y - alturaVisible(t)));
+      toca(t.x, t.y - alturaVisible(t));
     }
   }
   for (const c of cars){
     if (c.dead || c.held) continue;
     if (!enLinea(c.x, c.y, ox, oy, a, RAYO_LARGO, RAYO_ANCHO)) continue;
-    c.hp -= RAYO_DPS*dt;
+    c.hp -= RAYO_DPS*dt; toca(c.x, c.y);
     if (c.hp <= 0) porJugador(()=> autoAbatido(c));
   }
   for (const b of buildings){
     if (b.stage >= 2) continue;
-    const cx = clamp(ox + Math.cos(a)*RAYO_LARGO*0.5, b.x, b.x+b.w);
-    const cy = clamp(oy + Math.sin(a)*RAYO_LARGO*0.5, b.y, b.y+b.h);
-    if (enLinea(cx, cy, ox, oy, a, RAYO_LARGO, RAYO_ANCHO))
+    const cx = clamp(ox + ca*RAYO_LARGO*0.5, b.x, b.x+b.w);
+    const cy = clamp(oy + sa*RAYO_LARGO*0.5, b.y, b.y+b.h);
+    if (enLinea(cx, cy, ox, oy, a, RAYO_LARGO, RAYO_ANCHO)){
       porJugador(()=> damageBuilding(b, RAYO_DPS*0.7*dt));
+      // por dónde entra el haz en el edificio (o donde nace, si está dentro)
+      const tx = ca > 0 ? (b.x - ox)/ca : ca < 0 ? (b.x + b.w - ox)/ca : 0, ty = sa > 0 ? (b.y - oy)/sa : sa < 0 ? (b.y + b.h - oy)/sa : 0;
+      toca(ox + ca*Math.max(4, tx, ty), oy + sa*Math.max(4, tx, ty));
+    }
   }
+  ojosVil.d = dmin;
+  laserChoca(ojosVil, ox, oy, ca, sa, dmin, '#ff8a4a');
   if (Math.random() < 0.6){
     const d = rand(30, RAYO_LARGO*0.7);
     addParticles(ox + Math.cos(a)*d, oy + Math.sin(a)*d, '#ff4a3a', 1, 90);
@@ -6270,6 +6326,7 @@ function drawRayosOjos(){
   const o = vilCabeza(), a = vilRayoAng(o);
   const s2 = S(o.x, o.y);
   const fx = s2.x + Math.cos(a)*RAYO_LARGO, fy = s2.y + Math.sin(a)*RAYO_LARGO;
+  bucleLaser(_apCompa ? 'vilCompa' : 'vil', o.x, o.y, false);   // zumbido mientras están encendidos
   // separación entre los dos ojos, perpendicular al rayo
   const nx = -Math.sin(a)*4, ny = Math.cos(a)*4;
   ctx.globalAlpha = 0.13; ctx.strokeStyle = '#ff5a3a'; ctx.lineWidth = 16; ctx.lineCap = 'round';
@@ -6287,6 +6344,14 @@ function drawRayosOjos(){
     ctx.moveTo(s2.x + nx*lado, s2.y + ny*lado);
     ctx.lineTo(fx + nx*lado*3, fy + ny*lado*3);
     ctx.stroke();
+  }
+  // fogonazo donde el haz da con algo
+  if (!_apCompa && ojosVil.d < RAYO_LARGO){
+    const hx = s2.x + Math.cos(a)*ojosVil.d, hy = s2.y + Math.sin(a)*ojosVil.d, r = 9 + Math.random()*4;
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = 0.5; ctx.fillStyle = '#ff6a3a'; ctx.beginPath(); ctx.arc(hx, hy, r, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 0.9; ctx.fillStyle = '#fff2d8'; ctx.beginPath(); ctx.arc(hx, hy, r*0.4, 0, Math.PI*2); ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
   }
   ctx.globalAlpha = 1;
 }
@@ -8569,12 +8634,17 @@ const SFX = {
   metal:  ()=> { oscA('square', 430, 300, 0.14, 0.09); oscA('square', 640, 520, 0.12, 0.06); ruidoA(0.08, 'highpass', 4200, 4200, 0.7, 0.16); },
   madera: ()=> { ruidoA(0.18, 'bandpass', 600, 300, 1.5, 0.36); oscA('triangle', 180, 90, 0.12, 0.16); },
   cristal:()=> { ruidoA(0.3, 'highpass', 5200, 5200, 0.7, 0.18); oscA('sine', 2600 + Math.random()*900, 0, 0.18, 0.05); oscA('sine', 3500 + Math.random()*900, 0, 0.16, 0.04, 0.05); },
+  // Láseres: el disparo del Omnidroide (grave, con descarga), el de los ojos
+  // del viltrumita (agudo y rápido) y el chisporroteo de lo que alcanzan.
+  laserOmni:()=> { oscA('sawtooth', 900, 110, 0.5, 0.16); ruidoA(0.42, 'bandpass', 3200, 700, 1.1, 0.3, 0, 0.01); oscA('sine', 95, 38, 0.55, 0.26); },
+  laserOjos:()=> { oscA('sawtooth', 1500, 520, 0.2, 0.09); oscA('square', 760, 1180, 0.16, 0.045); ruidoA(0.14, 'highpass', 3600, 3600, 0.8, 0.14); },
+  laserGolpe:()=> { ruidoA(0.15, 'highpass', 2600, 5600, 0.8, 0.2); oscA('square', 190 + Math.random()*60, 80, 0.09, 0.05); },
   // Derrumbe: un retumbo largo con cascotes que siguen cayendo.
   colapso:()=> { ruidoA(1.6, 'lowpass', 420, 60, 0.6, 0.5, 0, 0.1); oscA('sine', 55, 28, 1.4, 0.32, 0, 0.15);
                  for (let i = 0; i < 3; i++) ruidoA(0.25, 'lowpass', 900, 300, 0.7, 0.24, 0.2 + i*0.32 + Math.random()*0.1); }
 };
 // Cuánto de cada efecto va a la reverberación (los grandes suenan en la calle).
-const SFX_REV = { boom:0.3, bigboom:0.45, demolish:0.4, colapso:0.5, caidaGolpe:0.4, trueno:0.35, incineraZ:0.3, aterriza:0.25, cohete:0.15, portalRojo:0.3 };
+const SFX_REV = { laserOmni:0.25, boom:0.3, bigboom:0.45, demolish:0.4, colapso:0.5, caidaGolpe:0.4, trueno:0.35, incineraZ:0.3, aterriza:0.25, cohete:0.15, portalRojo:0.3 };
 // Cortafuegos: un mismo efecto no puede repetirse más rápido que su cooldown,
 // y limitamos las voces simultáneas para que nunca se acumule un zumbido.
 const SFX_GAP = { sonicboom:0.30, dash:0.10, crack:0.20,
@@ -8583,7 +8653,7 @@ const SFX_GAP = { sonicboom:0.30, dash:0.10, crack:0.20,
                   ulla:1.2, cargaM:0.25, rayoM:0.12, escudoM:0.2, comeM:0.15,
                   mordisco:0.08, aleteo:0.2, rayoDra:0.16, coletazo:0.2, trueno:0.18,
                   rafaga:0.045, hachazo:0.08, silbido:0.08, cohete:0.15, cargaInc:0.3, incinera:0.2, incineraZ:0.5, espada:0.08, escopeta:0.2, sierra:0.11, recarga:0.1,
-                  psy:0.06, fling:0.04, crumble:0.07, metal:0.05, madera:0.05, cristal:0.06, colapso:0.6,
+                  psy:0.06, fling:0.04, laserOmni:0.3, laserOjos:0.12, laserGolpe:0.09, crumble:0.07, metal:0.05, madera:0.05, cristal:0.06, colapso:0.6,
                   aterriza:0.3, plasma:0.12, laserE:0.06, escupe:0.1, escaneo:0.3, vengativos:1, portalSanto:2, caidaGolpe:0.5, alarma:1, meteoro:1, conjuro:0.08, telequinesis:0.3, hielo:0.3, escudoMag:0.3, cargaFuego:0.2, teleporte:0.2, portalRojo:0.5, humoVerde:0.5 };
 const sfxLast = {};
 let sfxVoices = 0;
@@ -8633,6 +8703,55 @@ function menteSuena(k){
   }
   mente.o.frequency.setTargetAtTime(420 + k*300, t, 0.1);
   mente.g.gain.setTargetAtTime(0.03 + k*0.05, t, 0.1);
+}
+// Zumbido de un láser encendido: diente de sierra filtrado con un temblor y
+// un siseo. Cada láser (un Omnidroide, los ojos del viltrumita...) tiene el
+// suyo, que se mantiene mientras se dibuja el haz y se apaga solo cuando deja
+// de verse (revisaBucles), así nunca se queda sonando.
+const bucles = new Map();
+function bucleLaser(id, x, y, grave){
+  if (!audio.ctx || !audio.sfxOn || pausedForQuit || mundoQuieto() || !running) return;
+  const c = audio.ctx, t = c.currentTime;
+  let b = bucles.get(id);
+  if (!b){
+    const g = c.createGain(); g.gain.setValueAtTime(0.0001, t);
+    const pan = c.createStereoPanner ? c.createStereoPanner() : null;
+    if (pan){ g.connect(pan); pan.connect(audio.sfxGain); } else g.connect(audio.sfxGain);
+    const o = c.createOscillator(); o.type = 'sawtooth'; o.frequency.value = grave ? 72 : 118;
+    const o2 = c.createOscillator(); o2.type = 'square'; o2.frequency.value = grave ? 145 : 239;
+    const f = c.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = grave ? 950 : 1700; f.Q.value = 3;
+    const lfo = c.createOscillator(); lfo.frequency.value = grave ? 12 : 19;
+    const lg = c.createGain(); lg.gain.value = grave ? 320 : 520;
+    lfo.connect(lg); lg.connect(f.frequency);
+    const n = c.createBufferSource(); n.buffer = getNoiseBuf(); n.loop = true;
+    const nf = c.createBiquadFilter(); nf.type = 'bandpass'; nf.frequency.value = grave ? 2400 : 3800; nf.Q.value = 1.2;
+    const ng = c.createGain(); ng.gain.value = 0.3;
+    o.connect(f); o2.connect(f); f.connect(g); n.connect(nf); nf.connect(ng); ng.connect(g);
+    for (const q of [o, o2, lfo, n]) q.start(t);
+    b = { nodos:[o, o2, lfo, n], g, pan, vol: grave ? 0.1 : 0.06, ult:0 };
+    bucles.set(id, b);
+  }
+  let k = 1, pn = 0;
+  if (x !== undefined){
+    const cx = camX + VW/2, cy = camY + VH/2, dx = x - cx;
+    k = clamp(1 - (Math.hypot(dx, y - cy) - VW*0.5)/1600, 0, 1);
+    pn = clamp(dx/(VW*0.8), -0.7, 0.7);
+  }
+  b.g.gain.setTargetAtTime(Math.max(0.0001, b.vol*k), t, 0.04);
+  if (b.pan) b.pan.pan.setTargetAtTime(pn, t, 0.05);
+  b.ult = performance.now();
+}
+function bucleCalla(id){
+  const b = bucles.get(id); if (!b) return;
+  bucles.delete(id);
+  const t = audio.ctx.currentTime;
+  b.g.gain.cancelScheduledValues(t); b.g.gain.setTargetAtTime(0.0001, t, 0.04);
+  for (const q of b.nodos){ try { q.stop(t + 0.3); } catch(e){} }
+}
+function revisaBucles(){
+  if (!bucles.size) return;
+  const ahora = performance.now(), parar = !running || pausedForQuit || !audio.sfxOn || mundoQuieto();
+  for (const [id, b] of bucles) if (parar || ahora - b.ult > 160) bucleCalla(id);
 }
 function menteCalla(){
   if (!mente.nodos) return;
@@ -20468,6 +20587,91 @@ function bindP2Touch(){
 }
 bindP2Touch();
 
+// ---- dibujos de los botones táctiles ----
+// Pequeños dibujos en SVG (nítidos a cualquier tamaño de mando): un golpe,
+// agarrar, un rayo, una mordida... Van del color del texto de cada botón.
+const ICO_TRAZO = 'fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"';
+const ICO_LINEA = 'fill="none" stroke="rgba(0,0,0,0.38)" stroke-linecap="round" stroke-linejoin="round"';   // detalle oscuro sobre un dibujo claro
+function icoEngranaje(cx, cy, r1, r2, n){                 // estrella de n puntas (sierra)
+  let d = '';
+  for (let i = 0; i < n*2; i++){
+    const a = i/(n*2)*Math.PI*2 + (i % 2 ? 0.12 : 0), r = i % 2 ? r1 : r2;
+    d += (i ? 'L' : 'M') + (cx + Math.cos(a)*r).toFixed(1) + ' ' + (cy + Math.sin(a)*r).toFixed(1);
+  }
+  return d + 'Z';
+}
+function icoCopo(){                                       // copo de nieve
+  let d = '';
+  for (let i = 0; i < 6; i++){
+    const a = i*Math.PI/3, c = Math.cos(a), s2 = Math.sin(a), x = 12 + c*9, y = 12 + s2*9;
+    const bx = 12 + c*5.5, by = 12 + s2*5.5, p = 2.6;
+    d += 'M12 12L' + x.toFixed(1) + ' ' + y.toFixed(1)
+       + 'M' + (bx + Math.cos(a + 2.4)*p).toFixed(1) + ' ' + (by + Math.sin(a + 2.4)*p).toFixed(1) + 'L' + bx.toFixed(1) + ' ' + by.toFixed(1)
+       + 'L' + (bx + Math.cos(a - 2.4)*p).toFixed(1) + ' ' + (by + Math.sin(a - 2.4)*p).toFixed(1);
+  }
+  return d;
+}
+const ICONOS_BTN = {
+  golpe:   '<path fill="currentColor" d="M3.5 10.2a2.2 2.2 0 0 1 4.2-1 2.2 2.2 0 0 1 4-.2 2.2 2.2 0 0 1 4 .3 2.1 2.1 0 0 1 3.6 1.5V15a5.6 5.6 0 0 1-5.6 5.6H8.6a5.1 5.1 0 0 1-5.1-5.1z"/>'
+         + '<path ' + ICO_LINEA + ' stroke-width="1.3" d="M7.7 9.2v3M11.7 9v3.2M15.7 9.3v3M3.8 13.6h6.4a1.7 1.7 0 0 1 0 3.4H7"/>'
+         + '<path ' + ICO_TRAZO + ' stroke-width="1.8" d="M20 5.5l2.6-2.6M21 9.3h2.8M16.8 3.8l.7-2.8"/>',
+  agarrar: '<rect fill="currentColor" x="9" y="11" width="8.5" height="8.5" rx="1.3"/>'
+         + '<path ' + ICO_TRAZO + ' stroke-width="2.8" d="M2 21.5C2 12 6.5 6.4 13 6.4c5.6 0 8.6 4.4 7.4 9.4-.5 2-2.1 3-3.6 2.4"/>'
+         + '<path ' + ICO_LINEA + ' stroke-width="1.2" d="M11 13.5h4.5M11 16.5h4.5"/>',
+  lanzar:  '<rect fill="currentColor" x="11.5" y="5.5" width="9" height="9" rx="1.3" transform="rotate(16 16 10)"/>'
+         + '<path ' + ICO_TRAZO + ' stroke-width="1.9" d="M2 8.5h6M3 12.5h5.5M4.5 16.5h4"/>'
+         + '<path ' + ICO_TRAZO + ' stroke-width="1.6" d="M13 19.5l5 1.5 1.5-5"/>',
+  morder:  '<path fill="currentColor" d="M2.5 4.5Q12-1.5 21.5 4.5V8h-19zM2.5 19.5Q12 25.5 21.5 19.5V16h-19z"/>'
+         + '<path fill="currentColor" d="M4 8l2 4 2-4zM8.5 8l2 4.6 2-4.6zM13.5 8l2 4.6 2-4.6zM18 8l2 4 1.5-4zM4 16l2-4 2 4zM9 16l2-3.6 2 3.6zM14 16l2-3.6 2 3.6zM18 16l2-4 1.5 4z"/>',
+  apagar:  '<path ' + ICO_TRAZO + ' stroke-width="2.6" d="M12 2.5v8.5M6.6 6.2a8 8 0 1 0 10.8 0"/>',
+  aleteo:  '<path fill="currentColor" d="M2 15c4.5-.6 7.8-4 9.5-10 1 4.2 3.3 6.6 6.5 7.6 2 .6 4 .5 5.5-.1-2.2 3.4-5.6 5.6-9.8 5.6S5.6 17 2 15z"/>'
+         + '<path ' + ICO_TRAZO + ' stroke-width="1.6" d="M3 20h7M6 22.5h8"/>',
+  rayo:    '<path fill="currentColor" d="M13.5 1.5L4 14h6.2l-2 8.5L19.5 9h-6.4l3.4-7.5z"/>',
+  cola:    '<path ' + ICO_TRAZO + ' stroke-width="3.4" d="M2.5 19c6.5 2.2 13.5.2 18-8"/>'
+         + '<path fill="currentColor" d="M6 18l1-4.5 3 4zM11 18.5l1.6-4.4 2.4 4zM15.6 16.4l2.6-3.8 1.4 4.3zM20.5 11l3-1.5-1 4z"/>'
+         + '<path ' + ICO_TRAZO + ' stroke-width="1.5" opacity="0.7" d="M4 9.5c4-4 10-5 15-3"/>',
+  espada:  '<path fill="currentColor" d="M20.5 1.8l1.8 1.8L11.2 14.7l-1.9-1.9z"/>'
+         + '<path ' + ICO_TRAZO + ' stroke-width="2.6" d="M6.2 11.4l6.4 6.4"/>'
+         + '<path fill="currentColor" d="M5.4 16.3l2.3 2.3-3.6 3.6-2.3-2.3z"/>'
+         + '<path ' + ICO_LINEA + ' stroke-width="1.1" d="M13.8 10.2l5.4-5.4"/>',
+  rafaga:  '<path fill="currentColor" d="M3 4h9.5l3.5 2-3.5 2H3zM6 10h9.5l3.5 2-3.5 2H6zM3 16h9.5l3.5 2-3.5 2H3z"/>'
+         + '<path ' + ICO_TRAZO + ' stroke-width="1.4" d="M18.5 4.5l3 1.5M21 12h2.5M18.5 19.5l3-1.5"/>',
+  escopeta:'<rect fill="currentColor" x="4" y="3" width="6.5" height="12" rx="1.4"/><rect fill="currentColor" opacity="0.65" x="3.5" y="15.5" width="7.5" height="5" rx="1"/>'
+         + '<rect fill="currentColor" x="13.5" y="3" width="6.5" height="12" rx="1.4"/><rect fill="currentColor" opacity="0.65" x="13" y="15.5" width="7.5" height="5" rx="1"/>',
+  cohete:  '<path fill="currentColor" d="M21.5 2.5c-5.4 0-9.8 3-12 8.5l4 4c5.5-2.2 8-6.6 8-12.5z"/>'
+         + '<path fill="currentColor" d="M9 11.2L4 12l2.6 2.6zM12.8 15l-.8 5-2.6-2.6z"/>'
+         + '<path ' + ICO_TRAZO + ' stroke-width="2" d="M7 17l-4.5 4.5M5 15.5L2.5 18M8.5 19L6 21.5"/>',
+  arma:    '<path ' + ICO_TRAZO + ' stroke-width="2.3" d="M4 10a8 8 0 0 1 14-4.5M20 14a8 8 0 0 1-14 4.5"/>'
+         + '<path ' + ICO_TRAZO + ' stroke-width="2.3" d="M18.5 1.5v4.5H14M5.5 22.5V18H10"/>',
+  sierra:  '<path fill="currentColor" fill-rule="evenodd" d="' + icoEngranaje(12, 12, 7, 11, 10) + 'M12 9.2a2.8 2.8 0 1 0 0 5.6 2.8 2.8 0 1 0 0-5.6z"/>',
+  fuego:   '<path fill="currentColor" d="M12.5 1.5c.8 4 5.5 6.2 5.5 11.5a6 6 0 0 1-12 0c0-2.4 1-3.8 2.4-5 0 2.2 1 3.5 2.2 3.8-1-3.6.2-7.1 1.9-10.3z"/>'
+         + '<path fill="currentColor" opacity="0.45" d="M12 13c1.6 1.4 2.6 2.6 2.6 4.2a2.6 2.6 0 0 1-5.2 0c0-1.6 1.2-2.8 2.6-4.2z"/>',
+  mente:   '<ellipse ' + ICO_TRAZO + ' stroke-width="1.6" stroke-dasharray="2.6 2.2" cx="12" cy="15" rx="10.5" ry="4.2"/>'
+         + '<path fill="currentColor" d="M7.5 9.5l2-4.5 5-1.2 3.5 3-1 4.4-5.5 1.3z"/>'
+         + '<circle fill="currentColor" cx="3" cy="13.4" r="1.6"/><circle fill="currentColor" cx="20.5" cy="17.4" r="1.9"/>',
+  hielo:   '<path ' + ICO_TRAZO + ' stroke-width="1.9" d="' + icoCopo() + '"/>',
+  escudo:  '<path fill="currentColor" d="M12 1.5l8.5 3.2V11c0 5.4-3.6 9.4-8.5 11.5C7.1 20.4 3.5 16.4 3.5 11V4.7z"/>'
+         + '<path ' + ICO_LINEA + ' stroke-width="1.3" d="M12 4.5v15M7 8.5l5 3 5-3"/>',
+  salto:   '<ellipse ' + ICO_TRAZO + ' stroke-width="2" cx="7.5" cy="18" rx="6" ry="2.6"/>'
+         + '<path ' + ICO_TRAZO + ' stroke-width="2.2" d="M7.5 17L18.5 6M12 5h7.5v7.5"/>'
+};
+// Pone (o cambia) el dibujo de un botón; solo toca el DOM si cambia.
+function iconoBtn(id, nombre){
+  const b = document.getElementById(id); if (!b) return;
+  let s = b.querySelector('.acticon');
+  if (!s){ s = document.createElement('span'); s.className = 'acticon'; b.insertBefore(s, b.firstChild); }
+  if (s.dataset.i === nombre) return;
+  s.dataset.i = nombre;
+  s.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true">' + (ICONOS_BTN[nombre] || '') + '</svg>';
+}
+const ICONO_ARMA_MAQ = ['espada', 'rafaga', 'escopeta', 'cohete'];
+function iconosBotones(){
+  for (const [id, n] of [['btnAction', 'agarrar'], ['btnPunch', 'golpe'], ['btnAleteo', 'aleteo'], ['btnRayosDra', 'rayo'], ['btnCola', 'cola'],
+                         ['btnDisparo', 'rafaga'], ['btnArma', 'arma'], ['btnSierras', 'sierra'], ['btnIncinera', 'fuego'],
+                         ['btnRayoMag', 'rayo'], ['btnTK', 'mente'], ['btnHielo', 'hielo'], ['btnEscudoMag', 'escudo'],
+                         ['btnFuegoMag', 'fuego'], ['btnTele', 'salto']]) iconoBtn(id, n);
+}
+iconosBotones();
 // mantiene la etiqueta acorde a lo que lleves en el tentáculo
 let actSig = '';
 function refreshActionBtn(){
@@ -20486,6 +20690,7 @@ function refreshActionBtn(){
   actSig = sig;
   if (isMaq()){
     const l = document.getElementById('maqArmaLbl'); if (l) l.textContent = maqNombreArma(maq.arma, true);
+    iconoBtn('btnDisparo', ICONO_ARMA_MAQ[maq.arma] || 'rafaga');
     const bi = document.getElementById('btnIncinera');
     if (bi){ bi.classList.toggle('carga', maq.incFase === 'apunta'); bi.classList.toggle('espera', maq.incCd > 0 && maq.incFase !== 'apunta'); }
     const hi = document.getElementById('maqIncHint'); if (hi) hi.textContent = maq.incCd > 0 ? Math.ceil(maq.incCd) + ' s' : 'mantén, apunta, suelta';
@@ -20506,6 +20711,7 @@ function refreshActionBtn(){
   const btn = document.getElementById('btnAction');
   if (dragon){                                // el dragón muerde (o apaga los rayos)
     if (lab)  lab.textContent  = apaga ? 'APAGAR' : 'MORDER';
+    iconoBtn('btnAction', apaga ? 'apagar' : 'morder');
     if (hint) hint.textContent = apaga ? 'los rayos' : 'toca';
     if (btn)  btn.classList.remove('holding');
     const br = document.getElementById('btnRayosDra'); if (br) br.classList.toggle('on', dra.rayos);
@@ -20513,6 +20719,7 @@ function refreshActionBtn(){
     return;
   }
   if (lab)  lab.textContent  = holding ? 'LANZAR' : 'AGARRAR';
+  iconoBtn('btnAction', holding ? 'lanzar' : 'agarrar');
   if (hint) hint.textContent = isVil() ? (holding ? 'toca' : 'toca')
                                        : (holding ? 'mantén: golpear' : 'toca');
   if (btn)  btn.classList.toggle('holding', holding);
@@ -21426,10 +21633,6 @@ function colosoAplasta(dt){
 // Las pisadas del compañero coloso en línea: solo el dibujo (el daño es suyo).
 function colosoPisadasCompa(x, y, r){
   for (const b of buildings) if (b.stage < 2 && colosoEnEdif(b, x, y, r)) edifPisada(b, clamp(x, b.x, b.x + b.w), clamp(y, b.y, b.y + b.h), r*0.9, false);
-}
-// ¿El coloso está encima de este edificio? (para verle el interior)
-function colosoSobre(b){
-  return hero === 'alien' && F().breaker > 0 && colosoEnEdif(b, player.x, player.y, F().r);
 }
 const colosoPaso = { humo:0 };
 const vilPaso = { edif:null }, vilPasoCompa = { edif:null, x:0, y:0, ok:false };   // el jugador y el compañero en línea
@@ -23156,6 +23359,10 @@ function lucesJefes(L, k, mx, Mx, my, My, tinta){
     L.globalAlpha = fuerza;
     L.drawImage(tinta ? sp : holeSprite, sx - rr, sy - rr, rr*2, rr*2);
   };
+  for (const b of buildings){                              // el banco, bañado en luz cálida
+    if (b.set !== 'B' || b.stage >= 2) continue;
+    luz(b.x + b.w/2, b.y + b.h/2, Math.max(b.w, b.h)*0.75, warmSprite, tinta ? 0.5 : 0.7);
+  }
   for (const e of enemies){
     if (e.dead || e.held || e.thrown) continue;
     if (e.type === 'omni'){                                 // el ojo y, disparando, todo el rayo
@@ -23712,6 +23919,76 @@ function drawRayosX(b, s2, radio){
   ctx.beginPath(); ctx.arc(s2.x + lx, s2.y + ly, r + 1, 0, Math.PI*2); ctx.stroke();
   ctx.restore();
 }
+// El banco en pie llama la atención: un contorno dorado que late, una moneda
+// que gira sobre la azotea y destellos. Todo son estampas y trazos sueltos.
+let _monedaSp = null;
+function monedaSp(){
+  if (_monedaSp) return _monedaSp;
+  const c = document.createElement('canvas'); c.width = c.height = 32;
+  const g = c.getContext('2d'), disco = (r, col)=>{ g.fillStyle = col; g.beginPath(); g.arc(16, 16, r, 0, Math.PI*2); g.fill(); };
+  disco(14.5, '#6e4a0c'); disco(13, '#e2b02c'); disco(10.5, '#ffd75a');
+  g.strokeStyle = '#a87814'; g.lineWidth = 1.4; g.beginPath(); g.arc(16, 16, 10.5, 0, Math.PI*2); g.stroke();
+  g.fillStyle = '#6a4408'; g.font = 'bold 15px monospace'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('$', 16, 17);
+  g.fillStyle = 'rgba(255,252,220,0.75)'; g.beginPath(); g.ellipse(11, 9.5, 4, 1.8, -0.6, 0, Math.PI*2); g.fill();
+  return (_monedaSp = c);
+}
+function drawBancoBrillo(b, s2){
+  const t = gameTime, sd = b.seed || 0, pul = 0.5 + 0.5*Math.sin(t*3 + sd);
+  const rh = b.h - edifFachada(b), sl = b._sello || [b.w/2, rh/2, 12];
+  ctx.save();
+  ctx.strokeStyle = '#ffd84a'; ctx.lineWidth = 2.5; ctx.globalAlpha = 0.22 + pul*0.3;
+  ctx.strokeRect(s2.x - 1.5, s2.y - 1.5, b.w + 3, b.h + 3);
+  // la moneda, girando y flotando sobre el sello
+  const cx = s2.x + sl[0], cy = s2.y + sl[1] - sl[2] - 20 + Math.sin(t*2.4 + sd)*3, sx = Math.max(0.12, Math.abs(Math.cos(t*2.2 + sd)));
+  ctx.globalAlpha = 0.28; ctx.fillStyle = '#000';
+  ctx.beginPath(); ctx.ellipse(s2.x + sl[0], s2.y + sl[1] + 2, 9*Math.max(0.4, sx), 3, 0, 0, Math.PI*2); ctx.fill();
+  ctx.globalAlpha = 1; ctx.drawImage(monedaSp(), cx - 11*sx, cy - 11, 22*sx, 22);
+  // destellos que aparecen y se apagan por la azotea
+  ctx.fillStyle = '#fff6c8';
+  for (let i = 0; i < 3; i++){
+    const u = t*0.9 + i*0.37 + sd*0.013, ciclo = Math.floor(u), f = u - ciclo, a = Math.sin(f*Math.PI);
+    const px = s2.x + 6 + ((sd*37 + i*53 + ciclo*71) % Math.max(1, b.w - 12)), py = s2.y + 6 + ((sd*19 + i*29 + ciclo*43) % Math.max(1, rh - 10));
+    const L = 2 + a*4;
+    ctx.globalAlpha = a*0.95;
+    ctx.fillRect(px - L, py - 0.75, L*2, 1.5); ctx.fillRect(px - 0.75, py - L, 1.5, L*2);
+  }
+  ctx.restore();
+}
+// Si no se ve ningún banco, una flecha dorada señala el más cercano (si no
+// queda muy lejos), con su distancia.
+const BANCO_AVISO = 1500;
+function drawFlechaBanco(){
+  if (!running || esVisorVs()) return;
+  let mejor = null, md = BANCO_AVISO*BANCO_AVISO;
+  for (const b of buildings){
+    if (b.set !== 'B' || b.stage >= 2) continue;
+    if (b.x + b.w > camX && b.x < camX + VW && b.y + b.h > camY && b.y < camY + VH) return;   // ya se ve uno
+    const dx = b.x + b.w/2 - player.x, dy = b.y + b.h/2 - player.y, d2 = dx*dx + dy*dy;
+    if (d2 < md){ md = d2; mejor = b; }
+  }
+  if (!mejor) return;
+  const M = 34, cx = CW/2, cy = CH/2;
+  const sx = (mejor.x + mejor.w/2 - camX)*ZOOM, sy = (mejor.y + mejor.h/2 - camY)*ZOOM;
+  const dx = sx - cx, dy = sy - cy, a = Math.atan2(dy, dx);
+  const k = Math.min((cx - M)/Math.abs(dx || 1e-6), (cy - M)/Math.abs(dy || 1e-6));
+  const px = cx + dx*k, py = cy + dy*k, pul = 0.75 + Math.sin(gameTime*4)*0.2;
+  ctx.save();
+  ctx.translate(px, py); ctx.rotate(a);
+  ctx.globalAlpha = 0.8*pul;
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  ctx.beginPath(); ctx.moveTo(15, 0); ctx.lineTo(-8, -10); ctx.lineTo(-3, 0); ctx.lineTo(-8, 10); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#ffd24a';
+  ctx.beginPath(); ctx.moveTo(12, 0); ctx.lineTo(-6, -7.5); ctx.lineTo(-2, 0); ctx.lineTo(-6, 7.5); ctx.closePath(); ctx.fill();
+  ctx.restore();
+  const tx = px - Math.cos(a)*30, ty = py - Math.sin(a)*24;
+  ctx.globalAlpha = 0.9*pul;
+  ctx.drawImage(monedaSp(), tx - 9, ty - 9, 18, 18);
+  ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  const txt = 'BANCO ' + Math.round(Math.sqrt(md)/10) + 'm';
+  ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillText(txt, tx + 1, ty + 16);
+  ctx.fillStyle = '#ffe9a0'; ctx.fillText(txt, tx, ty + 15);
+  ctx.globalAlpha = 1;
+}
 // Fuego en las ventanas rotas de un edificio tocado.
 function llamasVentanas(b, s2){
   for (let i = 0; i < b._rotas.length; i++){
@@ -23943,8 +24220,10 @@ function drawBuildings(){
       if (cv !== cv0){ ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fillRect(s2.x, s2.y, b.w, b.h); }   // en penumbra: el hueco se nota
       ctx.drawImage(cv, s2.x, s2.y);
       if (ruina && b._rotas) llamasVentanas(b, s2);
+      // Rayos X solo para el viltrumita: la cría (coloso) no los tiene; de ella
+      // se ve el surco que deja al pisar, y ella misma se dibuja por encima.
       if (isVil() && dentroDeEste(b)) drawRayosX(b, s2);
-      else if (colosoSobre(b)) drawRayosX(b, s2, Math.max(EDIF_RAYOSX_R, F().r*2.3));   // el coloso, encima, también lo ve
+      if (b.set === 'B') drawBancoBrillo(b, s2);
     } else {
       ctx.fillStyle = b.color || '#5a5f66'; ctx.fillRect(s2.x, s2.y, b.w, b.h);
       ctx.strokeStyle = b.edge || '#6a7078'; ctx.lineWidth = 2; ctx.strokeRect(s2.x, s2.y, b.w, b.h);
@@ -24627,6 +24906,7 @@ function draw(){
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   drawLighting();                                  // en píxeles del lienzo
   drawFlechasJefe();                               // encima de la oscuridad
+  drawFlechaBanco();
   drawTelaAviso();
   drawVinetaVida(); drawBarrasJefe(); drawJefeCaido(); drawPresentacion();
 }
@@ -26206,6 +26486,7 @@ function loop(t){
   const dt = mundoQuieto() || hitstopT > 0 ? 0 : dtReal*escalaMundo();
   // la telequinesis del mago solo suena mientras se sostiene algo de verdad
   if (mente.nodos && !(running && isMag() && mag.tkOn && !pausedForQuit)) menteCalla();
+  revisaBucles();
   if (esVisorVs()){                        // no simula: dibuja lo que manda el anfitrión
     loopInvitado(dtReal);
     draw();
