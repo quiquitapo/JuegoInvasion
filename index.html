@@ -6280,7 +6280,25 @@ const ojosVil = { on:false, d:1e9, _chis:0 };       // encendidos antes, y a qu�
 // Los ojos del viltrumita: la cabeza tal y como la dibuja drawViltrum, de pie
 // (encima del torso, con su flotación) o tumbado al volar (por delante, en el
 // rumbo del vuelo). Los rayos nacen ahí y lo siguen mientras vuela.
+// Los dos ojos, en el mundo, tal y como los dibuja la figura (de pie, mirando
+// a un lado, o tumbada en el rumbo del vuelo).
+const VIL_OJOS = [[4.4, -21.3], [1.4, -21.6]];
+function vilOjos(){
+  const k = 0.82, out = [];
+  if (vil.flying){
+    const th = Math.atan2(vil.fx, -vil.fy), c = Math.cos(th), sn = Math.sin(th), m = vil.fx < 0 ? -1 : 1;
+    for (const [lx, ly] of VIL_OJOS){ const x = lx*m; out.push({ x: player.x + (x*c - ly*sn)*k, y: player.y + (x*sn + ly*c)*k }); }
+  } else {
+    const f = player.facing || 1, fl = Math.sin((vil.capa || 0)*2.4)*2.2;
+    for (const [lx, ly] of VIL_OJOS) out.push({ x: player.x + f*lx*k, y: player.y + fl + ly*k });
+  }
+  return out;
+}
 function vilCabeza(){
+  const o = vilOjos();
+  return { x: (o[0].x + o[1].x)/2, y: (o[0].y + o[1].y)/2 };
+}
+function vilCabezaVieja(){
   if (vil.flying){
     const th = Math.atan2(vil.fy, vil.fx), lx = 16.4, ly = vil.fx < 0 ? 0.82 : -0.82;
     return { x: player.x + lx*Math.cos(th) - ly*Math.sin(th), y: player.y + lx*Math.sin(th) + ly*Math.cos(th) };
@@ -6341,27 +6359,26 @@ function drawRayosOjos(){
   // Mandando al ejército, el viltrumita es el otro jugador: sus rayos se ven
   // o no según Ajustes. Los tuyos siempre, que hacen falta para apuntar.
   if (esVisorVs() && !verRayosOtro) return;
-  const o = vilCabeza(), a = vilRayoAng(o);
+  const o = vilCabeza(), a = vilRayoAng(o), ca = Math.cos(a), sa = Math.sin(a);
   const s2 = S(o.x, o.y);
-  const fx = s2.x + Math.cos(a)*RAYO_LARGO, fy = s2.y + Math.sin(a)*RAYO_LARGO;
   bucleLaser(_apCompa ? 'vilCompa' : 'vil', o.x, o.y, false);   // zumbido mientras están encendidos
-  // separación entre los dos ojos, perpendicular al rayo
-  const nx = -Math.sin(a)*4, ny = Math.cos(a)*4;
-  ctx.globalAlpha = 0.13; ctx.strokeStyle = '#ff5a3a'; ctx.lineWidth = 16; ctx.lineCap = 'round';
-  ctx.beginPath(); ctx.moveTo(s2.x, s2.y); ctx.lineTo(fx, fy); ctx.stroke();
-  for (const lado of [1, -1]){
-    ctx.globalAlpha = 0.85;
-    ctx.strokeStyle = '#ff2b1e'; ctx.lineWidth = 4;
-    ctx.beginPath();
-    ctx.moveTo(s2.x + nx*lado, s2.y + ny*lado);
-    ctx.lineTo(fx + nx*lado*3, fy + ny*lado*3);
-    ctx.stroke();
-    ctx.globalAlpha = 0.95;
-    ctx.strokeStyle = '#ffd9c8'; ctx.lineWidth = 1.4;
-    ctx.beginPath();
-    ctx.moveTo(s2.x + nx*lado, s2.y + ny*lado);
-    ctx.lineTo(fx + nx*lado*3, fy + ny*lado*3);
-    ctx.stroke();
+  ctx.lineCap = 'round';
+  ctx.globalAlpha = 0.13; ctx.strokeStyle = '#ff5a3a'; ctx.lineWidth = 16;
+  ctx.beginPath(); ctx.moveTo(s2.x, s2.y); ctx.lineTo(s2.x + ca*RAYO_LARGO, s2.y + sa*RAYO_LARGO); ctx.stroke();
+  // un haz desde cada ojo, que se abre un poco a lo lejos
+  const ojos = vilOjos();
+  for (let i = 0; i < 2; i++){
+    const e = S(ojos[i].x, ojos[i].y), lado = i ? -1 : 1, ab = 6*lado;
+    const fx = e.x + ca*RAYO_LARGO - sa*ab, fy = e.y + sa*RAYO_LARGO + ca*ab;
+    ctx.globalAlpha = 0.85; ctx.strokeStyle = '#ff2b1e'; ctx.lineWidth = 3.6;
+    ctx.beginPath(); ctx.moveTo(e.x, e.y); ctx.lineTo(fx, fy); ctx.stroke();
+    ctx.globalAlpha = 0.95; ctx.strokeStyle = '#ffd9c8'; ctx.lineWidth = 1.3;
+    ctx.beginPath(); ctx.moveTo(e.x, e.y); ctx.lineTo(fx, fy); ctx.stroke();
+    // el ojo encendido
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = 0.55; ctx.fillStyle = '#ff4a2a'; ctx.beginPath(); ctx.arc(e.x, e.y, 4.2 + Math.random(), 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 1; ctx.fillStyle = '#fff4ec'; ctx.beginPath(); ctx.arc(e.x, e.y, 1.6, 0, Math.PI*2); ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
   }
   // fogonazo donde el haz da con algo
   if (!_apCompa && ojosVil.d < RAYO_LARGO){
@@ -10233,7 +10250,7 @@ function miniVil(c, x, y, r, t, hx, hy){
   c.save(); c.translate(x, y - r*0.06 + fl*k*0.5); c.scale(k, k);
   const golpe = (t % 2.6) > 2.1 && hx === undefined;
   vilFigura(c, { t, pose: hx !== undefined && hx !== null ? 'presa' : golpe ? 'golpe' : 'quieto', punchT: golpe ? 0.1 : 0, golpeLado: 1,
-                 manos: 0, sangre: null, pal: vilPaleta(), SK: null, cabeza: null });
+                 manos: 0, sangre: null, pal: vilPaleta(), SK: (skin() || {}).cosmic ? skin() : null, cabeza: null });
   c.restore();
 }
 
@@ -10280,27 +10297,24 @@ function miniMago(c, x, y, r, t){
 }
 function miniAlien(c, x, y, r, phase, tipX, tipY){
   const SK = (typeof skin === 'function') ? skin() : {c:['#5fce7f','#2f7a45','#123d1f'], limb:'#2e6b3f', tip:'#45c46b'};
+  const colT = civMezcla(SK.c[1], 0.22);
   for (let i=0;i<5;i++){
     const a = (i/5)*Math.PI*2 + phase*0.5;
     const len = r*1.4 + Math.sin(phase*2+i)*r*0.3;
     const ex = x+Math.cos(a)*len, ey = y+Math.sin(a)*len;
-    c.strokeStyle = SK.limb; c.lineWidth = r*0.32; c.lineCap='round';
-    c.beginPath(); c.moveTo(x,y); c.lineTo(ex,ey); c.stroke();
+    const mx = x+Math.cos(a)*len*0.5+Math.cos(a+1.57)*Math.sin(phase*2+i)*r*0.3, my = y+Math.sin(a)*len*0.5+Math.sin(a+1.57)*Math.sin(phase*2+i)*r*0.3;
+    criaTentaculo(c, x, y, mx, my, ex, ey, r*0.55, r*0.22, colT, SK.c[0], SK.tip, r*0.27);
   }
   if (tipX != null){                       // tentáculo activo sujetando algo
-    c.strokeStyle = SK.tip; c.lineWidth = r*0.4; c.lineCap='round';
     const mx=(x+tipX)/2, my=(y+tipY)/2 + Math.sin(phase*4)*r*0.4;
-    c.beginPath(); c.moveTo(x,y); c.quadraticCurveTo(mx,my,tipX,tipY); c.stroke();
+    criaTentaculo(c, x, y, mx, my, tipX, tipY, r*0.6, r*0.27, colT, SK.c[0], SK.tip, r*0.3);
   }
   const g = c.createRadialGradient(x-r*0.3,y-r*0.3,r*0.15,x,y,r*1.05);
   g.addColorStop(0,SK.c[0]); g.addColorStop(0.6,SK.c[1]); g.addColorStop(1,SK.c[2]);
   c.fillStyle=g; c.beginPath(); c.arc(x,y,r,0,Math.PI*2); c.fill();
-  for (const sd of [-1,1]){
-    c.fillStyle='#0d1f10';
-    c.beginPath(); c.ellipse(x+sd*r*0.33, y-r*0.15, r*0.17, r*0.22, 0,0,Math.PI*2); c.fill();
-    c.fillStyle='#ffe066';
-    c.beginPath(); c.arc(x+sd*r*0.33, y-r*0.15, r*0.07,0,Math.PI*2); c.fill();
-  }
+  c.strokeStyle = 'rgba(8,30,12,0.7)'; c.lineWidth = Math.max(1, r*0.08); c.stroke();
+  criaBrillo(c, x, y, r);
+  criaOjos(c, x, y, r, phase);
 }
 function animSprite(c, key, x, y, w, h, facing, rot){
   const sp = sprites[key];
@@ -22011,6 +22025,8 @@ function updateViltrum(dt){
   // donde entra y otro donde sale (dentro ve el interior con rayos X).
   vilAtraviesa(vilPaso, x0, y0, player.x, player.y, vil.flying ? 32 : 25, true);
 
+  // Con los ojos encendidos y a pie, se gira hacia donde mira: los rayos salen de su cara.
+  if (rayosOn && !vil.flying){ const a = vilRayoAng(vilCabeza()); if (Math.abs(Math.cos(a)) > 0.08) player.facing = Math.cos(a) > 0 ? 1 : -1; }
   // El objeto agarrado va delante si vuela, o en la mano si no.
   if (heldObject && heldObject.ref){
     const o = heldObject.ref;
@@ -22150,14 +22166,24 @@ function vilPierna(g, a, P, lado, t){
 // La figura, en sus propias coordenadas (de pie, mirando a la derecha; el
 // que llama se encarga de girarla al volar o de voltearla).
 // st: { t, pose, punchT, golpeLado, manos, sangre, pal, SK, cabeza }
+// Brazos de la postura; al cargar el golpe, el puño sube poco a poco desde
+// el reposo hasta lo alto (y con la carga completa, tiembla).
+function vilBrazos(st, pose){
+  if (st.pose !== 'carga') return pose.b;
+  const k0 = clamp(st.carga === undefined ? 1 : st.carga, 0, 1), k = 1 - (1 - k0)*(1 - k0);
+  const A = VIL_POSES.quieto.b, B = VIL_POSES.carga.b, tr = k0 >= 1 ? Math.sin(st.t*40)*0.6 : 0;
+  return [0, 1].map(i => A[i].map((v, j)=> v + (B[i][j] - v)*k + (i === 1 && j >= 4 ? tr : 0)));
+}
 function vilFigura(g, st){
+  if (st.SK && st.SK.cosmic) return vilFiguraCosmica(g, st);
   const P = st.pal, t = st.t, pose = VIL_POSES[st.pose] || VIL_POSES.quieto, pie = VIL_PIERNAS[pose.p];
+  const brazos = vilBrazos(st, pose);
   const L = P.linea, vuela = pose.p === 'juntas';
   g.save(); g.lineCap = 'round'; g.lineJoin = 'round';
   if (st.pose === 'aterriza') g.translate(0, 5);
   // en la presa, el puño que toca golpear da un directo
   const gol = st.punchT > 0 && (st.pose === 'presa' || st.pose === 'presaVuelo') ? (st.pose === 'presa' ? [7, -1] : [0, -6]) : null;
-  vilBrazo(g, pose.b[0], P, st.manos, -1, gol && st.golpeLado < 0 ? gol : null);
+  vilBrazo(g, brazos[0], P, st.manos, -1, gol && st.golpeLado < 0 ? gol : null);
   vilPierna(g, pie[0], P, -1, t);
   vilPierna(g, pie[1], P, 1, t);
   // torso en V, con la sombra del lado de atrás
@@ -22220,10 +22246,98 @@ function vilFigura(g, st){
   g.fillStyle = P.traje; g.fillRect(-3.6, -16.4, 7.2, 3.2); g.strokeStyle = L; g.lineWidth = 0.9; g.strokeRect(-3.6, -16.4, 7.2, 3.2);
   g.strokeStyle = P.banda; g.lineWidth = 0.7; g.beginPath(); g.moveTo(-3.4, -15.4); g.lineTo(3.4, -15.4); g.moveTo(-3.4, -14.2); g.lineTo(3.4, -14.2); g.stroke();
   // brazo de delante
-  vilBrazo(g, pose.b[1], P, st.manos, 1, gol && st.golpeLado > 0 ? gol : null);
+  vilBrazo(g, brazos[1], P, st.manos, 1, gol && st.golpeLado > 0 ? gol : null);
   // cabeza
   if (st.cabeza) st.cabeza(1, -20.5);
   else vilCabezaDib(g, P);
+  g.restore();
+}
+// Armadura cósmica: el cuerpo entero es un trozo de cielo negro con
+// estrellas y nebulosa, perfilado en gris claro; púas en los hombros y los
+// antebrazos, una galaxia en espiral en el pecho, cabeza afilada con dos
+// cuernos curvos hacia atrás y ojos verdes que brillan.
+const VIL_COSMO = { borde:'#c9cfd8', cuerpo:'#06060c', neb:'#3b2c7e', ojo:'#7dff4a', ojoC:'#d8ffa0', estrella:'#eef2ff' };
+function vilFiguraCosmica(g, st){
+  const C = VIL_COSMO, t = st.t, pose = VIL_POSES[st.pose] || VIL_POSES.quieto, pie = VIL_PIERNAS[pose.p];
+  const brazos = vilBrazos(st, pose);
+  const gol = st.punchT > 0 && (st.pose === 'presa' || st.pose === 'presaVuelo') ? (st.pose === 'presa' ? [7, -1] : [0, -6]) : null;
+  let ne = 0;
+  const tramo = (x0, y0, x1, y1, w)=>{
+    g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1);
+    g.strokeStyle = C.borde; g.lineWidth = w + 2.6; g.stroke();
+    g.strokeStyle = C.cuerpo; g.lineWidth = w; g.stroke();
+    for (const q of [0.3, 0.72]){                                  // estrellas por el tramo
+      const a = 0.45 + 0.55*Math.abs(Math.sin(t*2.6 + ne*1.7)); ne++;
+      g.globalAlpha = a; g.fillStyle = C.estrella;
+      g.fillRect(x0 + (x1 - x0)*q + ((ne*7) % 3 - 1)*0.9 - 0.45, y0 + (y1 - y0)*q - 0.45, 0.9, 0.9);
+      g.globalAlpha = 1;
+    }
+  };
+  const punta = (x, y, ax, ay, bx, by)=>{ g.beginPath(); g.moveTo(x, y); g.lineTo(ax, ay); g.lineTo(bx, by); g.closePath();
+                                          g.fillStyle = C.cuerpo; g.fill(); g.strokeStyle = C.borde; g.lineWidth = 1.1; g.stroke(); };
+  const brazo = (a, extra, atras)=>{
+    const [sx, sy, ex, ey, hx0, hy0] = a, hx = hx0 + (extra ? extra[0] : 0), hy = hy0 + (extra ? extra[1] : 0);
+    tramo(sx, sy, ex, ey, 5.2); tramo(ex, ey, hx, hy, 4.4);
+    // cuchilla del antebrazo, hacia fuera
+    const dx = hx - ex, dy = hy - ey, l = Math.hypot(dx, dy) || 1, nx = dy/l, ny = -dx/l, mx = ex + dx*0.45, my = ey + dy*0.45;
+    punta(mx + nx*2, my + ny*2, mx + nx*6.5 - dx/l*3, my + ny*6.5 - dy/l*3, ex + dx*0.75 + nx*2, ey + dy*0.75 + ny*2);
+    g.fillStyle = C.borde; g.beginPath(); g.arc(hx, hy, 3.2, 0, Math.PI*2); g.fill();
+    g.fillStyle = C.cuerpo; g.beginPath(); g.arc(hx, hy, 2.4, 0, Math.PI*2); g.fill();
+    if (atras){ g.globalAlpha = 0.25; g.fillStyle = '#000'; g.beginPath(); g.arc(hx, hy, 2.4, 0, Math.PI*2); g.fill(); g.globalAlpha = 1; }
+  };
+  const pierna = (a)=>{
+    const [hx, hy, kx, ky, ax, ay] = a;
+    tramo(hx, hy, kx, ky, 6); tramo(kx, ky, ax, ay, 4.6);
+    const dx = ax - kx, dy = ay - ky, l = Math.hypot(dx, dy) || 1;
+    g.beginPath(); g.moveTo(ax, ay); g.lineTo(ax + dx/l*4 + 1, ay + dy/l*4);           // pie en punta
+    g.strokeStyle = C.borde; g.lineWidth = 4.4; g.stroke(); g.strokeStyle = C.cuerpo; g.lineWidth = 2.4; g.stroke();
+  };
+  g.save(); g.lineCap = 'round'; g.lineJoin = 'round';
+  if (st.pose === 'aterriza') g.translate(0, 5);
+  // hombrera de atrás, con púas
+  punta(-8.5, -12.5, -13.5, -17.5, -10, -9);
+  brazo(brazos[0], gol && st.golpeLado < 0 ? gol : null, true);
+  pierna(pie[0]); pierna(pie[1]);
+  // torso: negro, con nebulosa y estrellas dentro
+  const torso = ()=>{ g.beginPath(); g.moveTo(-3, -14); g.lineTo(-9.8, -12.4); g.lineTo(-8, -5); g.lineTo(-5.4, 6.4);
+                      g.lineTo(5.6, 6.4); g.lineTo(8.2, -5); g.lineTo(9.8, -12.4); g.lineTo(3, -14); g.closePath(); };
+  torso(); g.fillStyle = C.cuerpo; g.fill();
+  g.save(); torso(); g.clip();
+  g.globalAlpha = 0.26; g.fillStyle = C.neb; g.beginPath(); g.ellipse(-1.5, -4, 6, 9, 0.5, 0, Math.PI*2); g.fill();
+  g.globalAlpha = 0.14; g.fillStyle = '#7a4fc0'; g.beginPath(); g.ellipse(3, 1, 4, 5, -0.3, 0, Math.PI*2); g.fill();
+  for (let i = 0; i < 16; i++){
+    const x = -8 + ((i*37) % 17), y = -13 + ((i*53) % 19), a = 0.4 + 0.6*Math.abs(Math.sin(t*2 + i*1.3));
+    g.globalAlpha = a; g.fillStyle = C.estrella; const r = i % 5 === 0 ? 1.1 : 0.6; g.fillRect(x - r/2, y - r/2, r, r);
+  }
+  g.restore();
+  torso(); g.strokeStyle = C.borde; g.lineWidth = 1.8; g.stroke();
+  // la galaxia en espiral del pecho
+  g.strokeStyle = C.estrella; g.lineWidth = 0.8;
+  for (let k = 0; k < 2; k++){
+    g.beginPath();
+    for (let q = 0; q <= 14; q++){ const a = t*0.8 + k*Math.PI + q*0.32, r = 0.4 + q*0.22; const x = 4.2 + Math.cos(a)*r, y = -8.6 + Math.sin(a)*r*0.9; q ? g.lineTo(x, y) : g.moveTo(x, y); }
+    g.stroke();
+  }
+  g.fillStyle = '#ffffff'; g.beginPath(); g.arc(4.2, -8.6, 0.8, 0, Math.PI*2); g.fill();
+  // cuello y brazo de delante con su hombrera de púas
+  tramo(0, -13.5, 0.6, -17.5, 3.6);
+  brazo(brazos[1], gol && st.golpeLado > 0 ? gol : null, false);
+  punta(8.6, -12.6, 14, -18, 12, -12); punta(9.2, -11, 15, -12.5, 11.2, -8.4);
+  // cabeza afilada con dos cuernos curvos hacia atrás
+  g.beginPath(); g.moveTo(-0.6, -24.6); g.quadraticCurveTo(-2.4, -31, -8.2, -32.6); g.quadraticCurveTo(-4.2, -29.4, -3.2, -23.8); g.closePath();
+  g.fillStyle = C.cuerpo; g.fill(); g.strokeStyle = C.borde; g.lineWidth = 1.1; g.stroke();
+  g.beginPath(); g.moveTo(2.2, -26); g.quadraticCurveTo(1.6, -30.4, -1.6, -32.2); g.quadraticCurveTo(-0.2, -29.2, 0.2, -25.4); g.closePath();
+  g.fill(); g.stroke();
+  g.beginPath(); g.moveTo(-3.4, -18.4); g.quadraticCurveTo(-4.6, -24.6, 0.4, -26.8); g.quadraticCurveTo(5.6, -26, 6.4, -21.6);
+  g.lineTo(5.2, -17.6); g.quadraticCurveTo(2, -15.4, -1.2, -16.2); g.closePath();
+  g.fillStyle = C.cuerpo; g.fill(); g.strokeStyle = C.borde; g.lineWidth = 1.4; g.stroke();
+  g.globalAlpha = 0.7; g.fillStyle = C.estrella; g.fillRect(-1.6, -23.5, 0.8, 0.8); g.fillRect(1.4, -19.2, 0.6, 0.6); g.globalAlpha = 1;
+  // ojos verdes, rasgados, con brillo
+  g.globalAlpha = 0.35 + Math.sin(t*4)*0.08; g.fillStyle = C.ojo;
+  g.beginPath(); g.arc(4.4, -21.3, 3, 0, Math.PI*2); g.fill(); g.beginPath(); g.arc(1.4, -21.6, 2.2, 0, Math.PI*2); g.fill();
+  g.globalAlpha = 1; g.fillStyle = C.ojoC;
+  g.beginPath(); g.moveTo(3, -20.8); g.lineTo(6, -22.6); g.lineTo(5.4, -20.4); g.closePath(); g.fill();
+  g.beginPath(); g.moveTo(0.4, -21.1); g.lineTo(2.6, -22.3); g.lineTo(2.4, -20.8); g.closePath(); g.fill();
   g.restore();
 }
 function vilCabezaDib(g, P){
@@ -22253,19 +22367,13 @@ function vilCabezaDib(g, P){
 function vilEstadoDib(pose){
   const SK = skin();
   return { t: vil.capa || 0, pose, punchT: vil.punchT || 0, golpeLado: vil.golpeLado || 1, manos: vil.manos || 0,
+           carga: vil.charge > 0 ? vil.charge/VIL_CHARGE_MAX : 1,
            sangre: vil._sangre, pal: vilPaleta(), SK, cabeza: vilCabezaSkin(SK) };
 }
 // Cabezas de las skins especiales (armadura cósmica, calabaza) y sombreros.
 function vilCabezaSkin(SK){
-  if (!SK || !(SK.cosmic || SK.calabaza || SK.huaso || SK.navidad)) return null;
+  if (!SK || !(SK.calabaza || SK.huaso || SK.navidad)) return null;
   return (hx, hy)=>{
-    if (SK.cosmic){
-      ctx.fillStyle = SK.c[2]; ctx.beginPath(); ctx.arc(hx, hy, 7.4, 0, Math.PI*2); ctx.fill();
-      drawCosmos(hx, hy, 7.4, 4.1);
-      ctx.strokeStyle = SK.tip; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.arc(hx, hy, 7.4, 0, Math.PI*2); ctx.stroke();
-      ctx.fillStyle = '#eaf3ff'; ctx.fillRect(hx + 1, hy - 2.6, 5, 2.2);
-      return;
-    }
     if (SK.calabaza){
       ctx.fillStyle = '#f07f16'; ctx.beginPath(); ctx.arc(hx, hy, 8, 0, Math.PI*2); ctx.fill();
       ctx.strokeStyle = 'rgba(140,55,6,0.6)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.ellipse(hx, hy, 4, 8, 0, 0, Math.PI*2); ctx.stroke();
@@ -25027,11 +25135,62 @@ function drawPlayer(){
   if (vil.intro) return drawEntradaHumo(drawAlien);
   drawAlien();
 }
+// Tentáculo de la cría: grueso en la base y fino hacia la punta, con un
+// reflejo a lo largo y una bolita brillante al final (como una gominola).
+const _crL = new Float32Array(24), _crC = new Float32Array(24);
+function criaTentaculo(g, x0, y0, mx, my, ex, ey, w0, w1, col, luz, bola, bolaR){
+  const N = 9;
+  for (let i = 0; i <= N; i++){
+    const q = i/N, a = (1 - q)*(1 - q), b = 2*(1 - q)*q, c = q*q;
+    _crC[i*2] = a*x0 + b*mx + c*ex; _crC[i*2 + 1] = a*y0 + b*my + c*ey;
+  }
+  const nrm = (i, lado)=>{
+    const p = Math.max(0, i - 1), n = Math.min(N, i + 1);
+    let tx = _crC[n*2] - _crC[p*2], ty = _crC[n*2 + 1] - _crC[p*2 + 1];
+    const l = Math.hypot(tx, ty) || 1, w = (w0 + (w1 - w0)*i/N)/2*lado;
+    _crL[0] = _crC[i*2] - ty/l*w; _crL[1] = _crC[i*2 + 1] + tx/l*w;
+  };
+  g.beginPath();
+  for (let i = 0; i <= N; i++){ nrm(i, 1); i ? g.lineTo(_crL[0], _crL[1]) : g.moveTo(_crL[0], _crL[1]); }
+  for (let i = N; i >= 0; i--){ nrm(i, -1); g.lineTo(_crL[0], _crL[1]); }
+  g.closePath();
+  g.fillStyle = col; g.fill();
+  g.strokeStyle = 'rgba(8,30,12,0.45)'; g.lineWidth = 1; g.stroke();
+  g.beginPath();                                               // reflejo
+  for (let i = 1; i < N; i++){ nrm(i, 0.45); i > 1 ? g.lineTo(_crL[0], _crL[1]) : g.moveTo(_crL[0], _crL[1]); }
+  g.globalAlpha = 0.5; g.strokeStyle = luz; g.lineWidth = Math.max(1, w1*0.45); g.lineCap = 'round'; g.stroke(); g.globalAlpha = 1;
+  if (bolaR > 0){
+    g.fillStyle = bola; g.beginPath(); g.arc(ex, ey, bolaR, 0, Math.PI*2); g.fill();
+    g.strokeStyle = 'rgba(8,30,12,0.5)'; g.lineWidth = 1; g.stroke();
+    g.globalAlpha = 0.75; g.fillStyle = '#f4fff2';
+    g.beginPath(); g.ellipse(ex - bolaR*0.34, ey - bolaR*0.36, bolaR*0.36, bolaR*0.24, -0.6, 0, Math.PI*2); g.fill();
+    g.globalAlpha = 1;
+  }
+}
+// Cuerpo de la cría: una bola brillante (reflejo grande y uno pequeño).
+function criaBrillo(g, x, y, R){
+  g.globalAlpha = 0.32; g.fillStyle = '#f2fff0';
+  g.beginPath(); g.ellipse(x - R*0.32, y - R*0.4, R*0.4, R*0.24, -0.6, 0, Math.PI*2); g.fill();
+  g.globalAlpha = 0.85; g.beginPath(); g.ellipse(x - R*0.46, y - R*0.46, R*0.1, R*0.07, -0.6, 0, Math.PI*2); g.fill();
+  g.globalAlpha = 1;
+}
+// Ojos: dos óvalos oscuros con el iris amarillo que brilla.
+function criaOjos(g, x, y, R, t){
+  for (const side of [-1, 1]){
+    const ex = x + side*R*0.3, ey = y - R*0.1;
+    g.fillStyle = '#0a1a0c'; g.beginPath(); g.ellipse(ex, ey, R*0.135, R*0.19, 0, 0, Math.PI*2); g.fill();
+    g.globalAlpha = 0.35 + Math.sin(t*3)*0.06; g.fillStyle = '#ffe066';
+    g.beginPath(); g.arc(ex, ey + R*0.02, R*0.12, 0, Math.PI*2); g.fill(); g.globalAlpha = 1;
+    g.fillStyle = '#ffe866'; g.beginPath(); g.arc(ex, ey + R*0.02, R*0.07, 0, Math.PI*2); g.fill();
+    g.fillStyle = '#ffffff'; g.beginPath(); g.arc(ex - R*0.03, ey - R*0.03, R*0.025, 0, Math.PI*2); g.fill();
+  }
+}
 function drawAlien(){
   const s = S(player.x, player.y);
   const tip = tentacleTip(), t = S(tip.x, tip.y);
   const R = drawR, f = F(), SK = skin();
   drawEvolucion(s, R);
+  const colT = SK.multicolor ? null : civMezcla(SK.c[1], 0.22), luzT = SK.c[0];
 
   const n = f.tentacles;
   for (let i=0;i<n;i++){
@@ -25041,20 +25200,16 @@ function drawAlien(){
     const ex = s.x+Math.cos(a)*len, ey = s.y+Math.sin(a)*len;
     const mx = s.x+Math.cos(a)*len*0.5+Math.cos(a+1.57)*wob;
     const my = s.y+Math.sin(a)*len*0.5+Math.sin(a+1.57)*wob;
-    ctx.strokeStyle = SK.multicolor ? hslHex(SK.tono + i*360/n, 85, 52) : SK.limb;
-    ctx.lineWidth=f.girth*0.85; ctx.lineCap='round';
-    ctx.beginPath(); ctx.moveTo(s.x,s.y); ctx.quadraticCurveTo(mx,my,ex,ey); ctx.stroke();
-    ctx.fillStyle = SK.multicolor ? hslHex(SK.tono + i*360/n + 180, 95, 65) : SK.tip;
-    ctx.beginPath(); ctx.arc(ex,ey,f.girth*0.5,0,Math.PI*2); ctx.fill();
+    const col = SK.multicolor ? hslHex(SK.tono + i*360/n, 85, 52) : colT;
+    const bola = SK.multicolor ? hslHex(SK.tono + i*360/n + 180, 95, 65) : SK.tip;
+    criaTentaculo(ctx, s.x, s.y, mx, my, ex, ey, f.girth*2.1, f.girth*0.8, col, luzT, bola, f.girth*0.95);
   }
 
   const perp = Math.sin(player.tentaclePhase*4)*R*0.45;
   const mx = s.x+Math.cos(tip.angle)*tip.reach*0.5+Math.cos(tip.angle+1.57)*perp;
   const my = s.y+Math.sin(tip.angle)*tip.reach*0.5+Math.sin(tip.angle+1.57)*perp;
-  ctx.strokeStyle=SK.tip; ctx.lineWidth=f.girth*1.2; ctx.lineCap='round';
-  ctx.beginPath(); ctx.moveTo(s.x,s.y); ctx.quadraticCurveTo(mx,my,t.x,t.y); ctx.stroke();
-  ctx.fillStyle = heldObject ? '#ffd24d' : SK.c[0];
-  ctx.beginPath(); ctx.arc(t.x,t.y,f.girth*0.8,0,Math.PI*2); ctx.fill();
+  criaTentaculo(ctx, s.x, s.y, mx, my, t.x, t.y, f.girth*2.3, f.girth*1.0, SK.multicolor ? hslHex(SK.tono, 85, 55) : colT, luzT,
+                heldObject ? '#ffd24d' : SK.tip, f.girth*1.15);
 
   const g = ctx.createRadialGradient(s.x-R*0.26,s.y-R*0.26,R*0.13,s.x,s.y,R*1.1);
   g.addColorStop(0,SK.c[0]); g.addColorStop(0.6,SK.c[1]); g.addColorStop(1,SK.c[2]);
@@ -25079,13 +25234,9 @@ function drawAlien(){
   // trazados, y sin esto el contorno se aplicaba al último de ellos (los
   // rombos del huaso asomaban fuera del cuerpo y el cuerpo quedaba sin borde).
   ctx.beginPath(); ctx.arc(s.x, s.y, R, 0, Math.PI*2);
-  ctx.lineWidth=3; ctx.stroke();
-  for (const side of [-1,1]){
-    ctx.fillStyle='#0d1f10';
-    ctx.beginPath(); ctx.ellipse(s.x+side*R*0.32, s.y-R*0.16, R*0.16, R*0.21, 0,0,Math.PI*2); ctx.fill();
-    ctx.fillStyle='#ffe066';
-    ctx.beginPath(); ctx.arc(s.x+side*R*0.32, s.y-R*0.16, R*0.065,0,Math.PI*2); ctx.fill();
-  }
+  ctx.lineWidth=2.4; ctx.stroke();
+  if (!SK.cosmic && !SK.imgRef) criaBrillo(ctx, s.x, s.y, R);
+  criaOjos(ctx, s.x, s.y, R, player.tentaclePhase);
   if (SK.huaso) drawChupalla(s.x, s.y - R*0.66, R*2.3);   // la chupalla, bien puesta
   if (SK.calabaza) drawTallo(s.x, s.y - R*0.92, R*0.62);  // tallo y hoja arriba
   if (SK.navidad)  drawGorroNavidad(s.x, s.y - R*0.70, R*1.7);
