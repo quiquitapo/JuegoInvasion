@@ -5414,71 +5414,177 @@ function triDescarga(e){
 }
 
 // ---- dibujo ----
+// El trípode marciano, entre el grabado de Wells y la máquina de cine: un
+// sombrero cónico de alas afiladas con antena, debajo una cabina con un ojo
+// central que brilla y dos luces, un cuello acanalado con faldón de láminas,
+// pelos que cuelgan, dos brazos con garfio, una manguera articulada que se
+// enrosca y la cámara del rayo de calor en su brazo. Patas largas y finas con
+// anillas en las articulaciones. Se dibuja en coordenadas propias: origen en
+// el centro de la cabina; pies: posiciones de los pies respecto a él.
+const TRI_COL = { osc:'#15191a', med:'#2c3334', cla:'#5f6c6a', luz:'#a9b6b2', pelo:'#22282a' };
+// Lo fijo del trípode, pintado una vez al doble de resolución.
+let triCuerpo = null;
+function triCuerpoCv(){
+  if (triCuerpo) return triCuerpo;
+  const c = document.createElement('canvas'); c.width = 320; c.height = 240;
+  const g = c.getContext('2d'), C = TRI_COL;
+  g.scale(2, 2); g.translate(80, 72); g.lineCap = 'round'; g.lineJoin = 'round';
+  // ---- cuello acanalado con faldón de láminas y la lámpara de abajo ----
+  g.fillStyle = C.osc; g.beginPath(); g.moveTo(-17, 10); g.lineTo(17, 10); g.lineTo(9, 38); g.lineTo(-9, 38); g.closePath(); g.fill();
+  g.strokeStyle = C.cla; g.lineWidth = 1.2;
+  for (let i = 0; i < 6; i++){ const y = 14 + i*4.4, w = 15.5 - i*1.25; g.beginPath(); g.moveTo(-w, y); g.quadraticCurveTo(0, y + 2.4, w, y); g.stroke(); }
+  g.fillStyle = C.med; g.beginPath(); g.moveTo(-26, 8); g.lineTo(26, 8); g.lineTo(19, 20); g.lineTo(-19, 20); g.closePath(); g.fill();
+  g.strokeStyle = C.osc; g.lineWidth = 1;
+  for (let i = -4; i <= 4; i++){ g.beginPath(); g.moveTo(i*5.6, 8.5); g.lineTo(i*4.1, 19.5); g.stroke(); }
+  g.fillStyle = C.osc; g.beginPath(); g.ellipse(0, 40, 6, 4, 0, 0, Math.PI*2); g.fill();
+  g.fillStyle = 'rgba(223,246,255,0.5)'; g.beginPath(); g.ellipse(0, 41.5, 3.2, 1.8, 0, 0, Math.PI*2); g.fill();
+  // ---- cabina: un tambor oscuro con ojos de buey ----
+  const gr = g.createLinearGradient(0, -10, 0, 14);
+  gr.addColorStop(0, C.cla); gr.addColorStop(0.5, C.med); gr.addColorStop(1, C.osc);
+  g.fillStyle = gr; g.beginPath(); g.moveTo(-40, -9); g.lineTo(40, -9); g.lineTo(33, 10); g.ellipse(0, 10, 33, 6, 0, 0, Math.PI); g.closePath(); g.fill();
+  g.strokeStyle = C.osc; g.lineWidth = 1.6; g.stroke();
+  g.strokeStyle = C.luz; g.lineWidth = 0.8; g.beginPath(); g.ellipse(0, 3, 37, 5, 0, 0.15, Math.PI - 0.15); g.stroke();
+  for (const [x, y, r] of [[-28, 0, 3], [28, 0, 3]]){             // ojos de buey: cristal oscuro con reflejo
+    g.fillStyle = C.osc; g.beginPath(); g.arc(x, y, r + 1.2, 0, Math.PI*2); g.fill();
+    g.fillStyle = '#3d4b4e'; g.beginPath(); g.arc(x, y, r, 0, Math.PI*2); g.fill();
+    g.fillStyle = 'rgba(200,225,230,0.7)'; g.beginPath(); g.arc(x - 1, y - 1, r*0.35, 0, Math.PI*2); g.fill();
+  }
+  // ---- sombrero cónico de alas afiladas, con luces en el borde ----
+  const gs = g.createLinearGradient(-50, -50, 40, -6);
+  gs.addColorStop(0, '#8d9a97'); gs.addColorStop(0.4, '#3a4443'); gs.addColorStop(1, '#141819');
+  g.fillStyle = gs; g.beginPath();
+  g.moveTo(0, -52);
+  g.quadraticCurveTo(-30, -30, -74, -17);                         // ala izquierda, afilada y algo vuelta
+  g.quadraticCurveTo(-40, -12, -6, -6);
+  g.quadraticCurveTo(0, -5, 6, -6);
+  g.quadraticCurveTo(40, -12, 74, -17);
+  g.quadraticCurveTo(30, -30, 0, -52);
+  g.closePath(); g.fill();
+  g.strokeStyle = C.osc; g.lineWidth = 2; g.stroke();
+  g.strokeStyle = 'rgba(200,214,210,0.35)'; g.lineWidth = 1;     // nervios del sombrero
+  for (const x of [-46, -22, 22, 46]){ g.beginPath(); g.moveTo(0, -50); g.quadraticCurveTo(x*0.45, -26, x, -10 - Math.abs(x)*0.1); g.stroke(); }
+  g.fillStyle = '#d8e4e0';
+  for (const x of [-60, -44, -28, 30, 46, 62]) { g.beginPath(); g.arc(x, -12.5 - Math.abs(x)*0.06, 1.2, 0, Math.PI*2); g.fill(); }
+  // antena con su bola y bigotes
+  g.strokeStyle = C.osc; g.lineWidth = 1.2; g.beginPath(); g.moveTo(0, -52); g.lineTo(1.5, -66); g.stroke();
+  g.lineWidth = 0.7; g.beginPath(); g.moveTo(1, -58); g.lineTo(-5, -61); g.moveTo(1, -58); g.lineTo(7, -60); g.moveTo(1.4, -63); g.lineTo(5, -67); g.stroke();
+  g.fillStyle = C.osc; g.beginPath(); g.arc(0, -52, 3, 0, Math.PI*2); g.fill();
+  // ---- el ojo central que brilla y dos luces más pequeñas ----
+  const halo = g.createRadialGradient(0, -1, 1, 0, -1, 22);
+  halo.addColorStop(0, 'rgba(255,250,215,0.45)'); halo.addColorStop(1, 'rgba(255,250,215,0)');
+  g.fillStyle = halo; g.beginPath(); g.arc(0, -1, 22, 0, Math.PI*2); g.fill();
+  g.fillStyle = C.osc; g.beginPath(); g.arc(0, -1, 8.6, 0, Math.PI*2); g.fill();
+  g.fillStyle = '#fffbe2'; g.beginPath(); g.arc(0, -1, 6.6, 0, Math.PI*2); g.fill();
+  g.strokeStyle = 'rgba(150,140,100,0.55)'; g.lineWidth = 0.7;  // el aro de la lente
+  g.beginPath(); g.arc(0, -1, 4, 0, Math.PI*2); g.stroke();
+  for (const sg of [-1, 1]){                                     // las dos luces, a los lados del ojo
+    g.fillStyle = 'rgba(220,240,255,0.3)'; g.beginPath(); g.arc(sg*15, 1, 4.6, 0, Math.PI*2); g.fill();
+    g.fillStyle = '#eaf6ff'; g.beginPath(); g.arc(sg*15, 1, 2, 0, Math.PI*2); g.fill();
+  }
+  return (triCuerpo = c);
+}
+function triFigura(g, o){
+  const C = TRI_COL, t = o.t, f = o.f || 1, a = o.a, ca = Math.cos(a), sa = Math.sin(a);
+  g.lineCap = 'round'; g.lineJoin = 'round';
+  // ---- patas: largas y finas, con anillas; las de atrás primero ----
+  for (const i of [0, 1, 2]){
+    const [fx, fy] = o.pies[i], hx = o.cad[i], hy = 14, sx = Math.sign(hx) || 0;
+    const kx = hx + (fx - hx)*0.42 + sx*10, ky = hy + (fy - hy)*0.38 - 6;    // en A, algo abiertas
+    g.strokeStyle = C.osc; g.lineWidth = 7.5; g.beginPath(); g.moveTo(hx, hy); g.lineTo(kx, ky); g.stroke();
+    g.lineWidth = 5.5; g.beginPath(); g.moveTo(kx, ky); g.quadraticCurveTo(kx + (fx - kx)*0.5 + sx*5, ky + (fy - ky)*0.5, fx, fy); g.stroke();
+    g.strokeStyle = C.cla; g.lineWidth = 1.4;
+    g.beginPath(); g.moveTo(hx - 1.5, hy); g.lineTo(kx - 1.5, ky); g.quadraticCurveTo(kx + (fx - kx)*0.5 + sx*5 - 1.2, ky + (fy - ky)*0.5, fx - 1, fy - 2); g.stroke();
+    // anillas: rodilla, media pierna y tobillo
+    for (const q of [0.45, 0.85]){
+      const x = kx + (fx - kx)*q + sx*5*2*q*(1 - q), y = ky + (fy - ky)*q, dx = fx - kx, dy = fy - ky, l = Math.hypot(dx, dy) || 1;
+      const nx = -dy/l*5, ny = dx/l*5;
+      g.strokeStyle = C.osc; g.lineWidth = 3.4; g.beginPath(); g.moveTo(x - nx, y - ny); g.lineTo(x + nx, y + ny); g.stroke();
+      g.strokeStyle = C.luz; g.lineWidth = 1; g.beginPath(); g.moveTo(x - nx, y - ny); g.lineTo(x + nx, y + ny); g.stroke();
+    }
+    g.fillStyle = C.osc; g.beginPath(); g.arc(kx, ky, 5.4, 0, Math.PI*2); g.fill();
+    g.strokeStyle = C.cla; g.lineWidth = 1.2; g.beginPath(); g.arc(kx, ky, 3.6, 0, Math.PI*2); g.stroke();
+    if (o.infierno){ if (o.pezuna) o.pezuna(fx, fy); }
+    else {                                                       // pie en punta, con un disco de apoyo
+      g.fillStyle = C.osc; g.beginPath(); g.ellipse(fx, fy + 1, 7, 2.8, 0, 0, Math.PI*2); g.fill();
+      g.strokeStyle = C.cla; g.lineWidth = 1; g.beginPath(); g.ellipse(fx, fy + 0.4, 5, 1.6, 0, Math.PI, 0); g.stroke();
+    }
+  }
+  // ---- pelos que cuelgan de la cabina y se mecen ----
+  g.strokeStyle = C.pelo; g.lineWidth = 0.9; g.globalAlpha = 0.6; g.beginPath();
+  for (let i = 0; i < 11; i++){
+    const x0 = -32 + i*6.4, L = 38 + ((i*37) % 5)*7, w = Math.sin(t*1.7 + i*1.9)*7;
+    g.moveTo(x0, 11); g.bezierCurveTo(x0 + w*0.4, 11 + L*0.35, x0 - w, 11 + L*0.7, x0 + w*0.6 + (x0 > 0 ? 3 : -3), 11 + L);
+  }
+  g.stroke(); g.globalAlpha = 1;
+  // ---- brazos con garfio, a los lados ----
+  for (const sg of [-1, 1]){
+    const w = Math.sin(t*1.3 + sg)*4;
+    const x0 = sg*34, y0 = 4, x1 = sg*58, y1 = 10 + w*0.4, x2 = sg*66 + w*0.5, y2 = 30 + w;
+    g.strokeStyle = C.osc; g.lineWidth = 4.2; g.beginPath(); g.moveTo(x0, y0); g.quadraticCurveTo(x1, y1 - 6, x1, y1); g.lineTo(x2, y2); g.stroke();
+    g.strokeStyle = C.cla; g.lineWidth = 1; g.beginPath(); g.moveTo(x0, y0 - 1); g.quadraticCurveTo(x1, y1 - 7, x1, y1 - 1); g.stroke();
+    g.strokeStyle = C.osc; g.lineWidth = 2.6;                    // el garfio
+    g.beginPath(); g.moveTo(x2, y2); g.quadraticCurveTo(x2 + sg*6, y2 + 4, x2 + sg*3, y2 + 9); g.stroke();
+    g.beginPath(); g.moveTo(x2, y2); g.quadraticCurveTo(x2 - sg*5, y2 + 5, x2 - sg*2, y2 + 9); g.stroke();
+    g.fillStyle = C.med; g.beginPath(); g.arc(x1, y1, 3, 0, Math.PI*2); g.fill();
+  }
+  // ---- manguera articulada que se enrosca (del lado de atrás) ----
+  const sgM = -f;
+  g.beginPath();
+  for (let i = 0; i <= 14; i++){
+    const u = i/14, ph = u*Math.PI*2.4 + t*1.4;
+    const x = sgM*(30 + u*34 + Math.sin(ph)*12*u), y = 2 + u*22 + Math.sin(ph*1.6)*10*u;
+    if (i) g.lineTo(x, y); else g.moveTo(x, y);
+  }
+  g.strokeStyle = C.osc; g.lineWidth = 6.4; g.stroke();
+  g.strokeStyle = C.cla; g.lineWidth = 3.8; g.setLineDash([2.2, 1.6]); g.stroke(); g.setLineDash([]);
+  // ---- la cámara del rayo, por detrás si apunta hacia arriba ----
+  const camara = ()=>{
+    const ox = ca*38, oy = sa*16, bx = ca*22, by = 2 + sa*8;
+    const mx = (bx + ox)/2 - sa*6, my = (by + oy)/2 - 9;
+    g.strokeStyle = C.osc; g.lineWidth = 4.4; g.beginPath(); g.moveTo(bx, by); g.quadraticCurveTo(mx, my, ox, oy); g.stroke();
+    g.strokeStyle = C.cla; g.lineWidth = 1.1; g.setLineDash([2, 2]); g.beginPath(); g.moveTo(bx, by); g.quadraticCurveTo(mx, my, ox, oy); g.stroke(); g.setLineDash([]);
+    g.save(); g.translate(ox, oy); g.rotate(Math.atan2(sa*0.42, ca));
+    g.fillStyle = C.osc; g.fillRect(-10, -6, 14, 12);              // caja
+    g.fillStyle = C.med; g.fillRect(-9, -5, 12, 5);
+    g.fillStyle = C.osc; g.beginPath(); g.moveTo(4, -5); g.lineTo(11, -7); g.lineTo(11, 7); g.lineTo(4, 5); g.closePath(); g.fill();   // objetivo
+    g.fillStyle = C.cla; g.fillRect(-6, -9, 4, 3);                 // visor de arriba
+    const rr = 3 + o.carga*2.5 + (o.fuego ? 3 : 0);
+    g.globalAlpha = o.fuego ? 0.95 : 0.35 + o.carga*0.5 + (o.carga ? Math.sin(t*30)*0.1 : 0);
+    g.fillStyle = '#dff6ff'; g.beginPath(); g.ellipse(11, 0, rr*0.8, rr + 2, 0, 0, Math.PI*2); g.fill();
+    g.globalAlpha = 1; g.fillStyle = o.fuego ? '#ffffff' : '#9fe8ff'; g.beginPath(); g.ellipse(11, 0, 1.6, 3.6, 0, 0, Math.PI*2); g.fill();
+    g.restore();
+  };
+  if (sa < -0.35) camara();
+  // ---- cuello, cabina, sombrero y ojos: siempre iguales, de una imagen guardada ----
+  g.drawImage(triCuerpoCv(), -80, -72, 160, 120);
+  // el ojo late, y más cuando carga el rayo
+  const late = Math.max(0, Math.sin(t*2.2)*0.12 + o.carga*0.35);
+  if (late > 0.01){
+    g.globalAlpha = late; g.fillStyle = '#fff6cf';
+    g.beginPath(); g.arc(0, -1, 14, 0, Math.PI*2); g.fill(); g.globalAlpha = 1;
+  }
+  if (sa >= -0.35) camara();
+}
 function drawTripode(e){
   const s = S(e.x, e.y);
   const paso = e.paso || 0;
   const bob = Math.sin(paso*2)*2.2;
   const c = { x: s.x, y: s.y - 44 + bob };
   sombra(s.x, s.y + 58, 128, 36, 0.9);
-
   // patas: dos atrás y una delante; los pies se levantan por turnos
-  const pies = [[-56, 44], [56, 44], [0, 66]];
-  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  const P = [[-56, 44], [56, 44], [0, 66]], pies = [], cad = [];
   for (let i = 0; i < 3; i++){
     const ph = paso + i*2.094;
-    const fx = s.x + pies[i][0] + Math.sin(ph)*9;
-    const fy = s.y + pies[i][1] - Math.max(0, Math.cos(ph))*7;
-    const hx = c.x + pies[i][0]*0.32, hy = c.y + 14;
-    const sx = Math.sign(pies[i][0]) || 0;
-    const kx = hx + (fx - hx)*0.45 + sx*26, ky = hy + (fy - hy)*0.45 - 28;
-    ctx.strokeStyle = '#2d3534'; ctx.lineWidth = 8;
-    ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(kx, ky); ctx.lineTo(fx, fy); ctx.stroke();
-    ctx.strokeStyle = '#8e9c98'; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(kx, ky); ctx.lineTo(fx, fy); ctx.stroke();
-    ctx.fillStyle = '#1d2322';
-    ctx.beginPath(); ctx.arc(kx, ky, 5, 0, Math.PI*2); ctx.fill();
-    if (esInfierno()) pezunaTripode(fx, fy);                 // en el castigo, pezuñas
-    else { ctx.beginPath(); ctx.ellipse(fx, fy, 9, 4, 0, 0, Math.PI*2); ctx.fill(); }
+    pies.push([P[i][0] + Math.sin(ph)*9, s.y + P[i][1] - Math.max(0, Math.cos(ph))*7 - c.y]);
+    cad.push(P[i][0]*0.32);
   }
-
-  // tentáculos colgando
-  ctx.strokeStyle = '#6e4a5a'; ctx.lineWidth = 4;
-  for (let i = -1; i <= 1; i++){
-    const w = Math.sin(gameTime*2.2 + i*1.7)*10;
-    const ax = c.x + i*16, ay = c.y + 20;
-    ctx.beginPath(); ctx.moveTo(ax, ay);
-    ctx.quadraticCurveTo(ax + w, ay + 28, ax + i*10 - w*0.6, ay + 52);
-    ctx.stroke();
-  }
-  // cúpula
-  ctx.fillStyle = '#232a29';
-  ctx.beginPath(); ctx.ellipse(c.x, c.y + 10, 60, 24, 0, 0, Math.PI*2); ctx.fill();
-  const g = ctx.createLinearGradient(c.x, c.y - 40, c.x, c.y + 14);
-  g.addColorStop(0, '#c9d3cf'); g.addColorStop(0.45, '#7d8b87'); g.addColorStop(1, '#343d3b');
-  ctx.fillStyle = g;
-  ctx.beginPath(); ctx.ellipse(c.x, c.y + 4, 54, 40, 0, Math.PI, 0); ctx.closePath(); ctx.fill();
-  ctx.strokeStyle = '#1b2120'; ctx.lineWidth = 2.5;
-  ctx.beginPath(); ctx.ellipse(c.x, c.y + 8, 58, 20, 0, 0, Math.PI*2); ctx.stroke();
-  // ranuras
-  ctx.fillStyle = 'rgba(20,26,25,0.85)';
-  for (let i = -2; i <= 2; i++){
-    ctx.beginPath(); ctx.ellipse(c.x + i*17, c.y - 6 + Math.abs(i)*4, 4, 2.2, 0, 0, Math.PI*2); ctx.fill();
-  }
-  if (esInfierno()) ojosTripode(e, c);                       // en el castigo le brotan ojos
-  // emisor del rayo: mira hacia donde va a disparar
   const a = (e.miraA != null) ? e.miraA : (e.facing >= 0 ? 0 : Math.PI);
-  const ox = c.x + Math.cos(a)*38, oy = c.y + Math.sin(a)*16;
   const carga = e.rayFase === 'apunta' ? clamp(1 - e.rayT / TRI_RAYO_AVISO, 0, 1) : 0;
-  const fuego = e.rayFase === 'dispara';
-  const rr = 7 + carga*5 + (fuego ? 6 : 0);
-  ctx.fillStyle = '#1b2120';
-  ctx.beginPath(); ctx.arc(ox, oy, 10, 0, Math.PI*2); ctx.fill();
-  ctx.globalAlpha = fuego ? 0.95 : 0.35 + carga*0.5 + (carga ? Math.sin(gameTime*30)*0.1 : 0);
-  ctx.fillStyle = '#dff6ff';
-  ctx.beginPath(); ctx.arc(ox, oy, rr, 0, Math.PI*2); ctx.fill();
-  ctx.globalAlpha = 1;
-  ctx.fillStyle = fuego ? '#ffffff' : '#9fe8ff';
-  ctx.beginPath(); ctx.arc(ox, oy, 4, 0, Math.PI*2); ctx.fill();
+  ctx.save(); ctx.translate(c.x, c.y);
+  triFigura(ctx, { t: gameTime, f: e.facing >= 0 ? 1 : -1, a, carga, fuego: e.rayFase === 'dispara', pies, cad,
+                   infierno: esInfierno(), pezuna: pezunaTripode });
+  ctx.restore();
+  if (esInfierno()) ojosTripode(e, c);                       // en el castigo le brotan ojos
 
   // el tentáculo que atrapa
   if (e.tentFase){
@@ -5489,12 +5595,14 @@ function drawTripode(e){
     const nx = -(ey - ay), ny = ex - ax, nl = Math.hypot(nx, ny) || 1;
     const w = Math.sin(gameTime*9)*18;
     const mx = (ax + ex)/2 + nx/nl*w, my = (ay + ey)/2 + ny/nl*w;
-    ctx.strokeStyle = '#8a4f6a'; ctx.lineWidth = 7;
+    // manguera de metal, por anillas, acabada en garfio
+    ctx.strokeStyle = TRI_COL.osc; ctx.lineWidth = 8;
     ctx.beginPath(); ctx.moveTo(ax, ay); ctx.quadraticCurveTo(mx, my, ex, ey); ctx.stroke();
-    ctx.strokeStyle = '#d98cb0'; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(ax, ay); ctx.quadraticCurveTo(mx, my, ex, ey); ctx.stroke();
-    ctx.fillStyle = '#d98cb0';
-    ctx.beginPath(); ctx.arc(ex, ey, 6, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = TRI_COL.cla; ctx.lineWidth = 5; ctx.setLineDash([3, 3]);
+    ctx.beginPath(); ctx.moveTo(ax, ay); ctx.quadraticCurveTo(mx, my, ex, ey); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = TRI_COL.osc; ctx.beginPath(); ctx.arc(ex, ey, 7, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = TRI_COL.luz; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(ex, ey, 5, 0.4, Math.PI*2 - 0.4); ctx.stroke();
   }
 
   // escudo pequeño
@@ -5585,19 +5693,8 @@ function tripodeIconCv(){
   c.width = c.height = 48;
   const g = c.getContext('2d');
   if (!g) return null;
-  g.lineCap = 'round';
-  g.strokeStyle = '#2d3534'; g.lineWidth = 3.5;
-  for (const [hx, kx, ky, fx, fy] of [[-6,-15,26,-18,44],[6,15,26,18,44],[0,2,32,0,46]]){
-    g.beginPath(); g.moveTo(24+hx, 20); g.lineTo(24+kx, ky); g.lineTo(24+fx, fy); g.stroke();
-  }
-  const gr = g.createLinearGradient(0, 4, 0, 22);
-  gr.addColorStop(0, '#c9d3cf'); gr.addColorStop(1, '#343d3b');
-  g.fillStyle = gr;
-  g.beginPath(); g.ellipse(24, 20, 20, 15, 0, Math.PI, 0); g.closePath(); g.fill();
-  g.fillStyle = '#232a29';
-  g.beginPath(); g.ellipse(24, 21, 22, 6, 0, 0, Math.PI*2); g.fill();
-  g.fillStyle = '#dff6ff';
-  g.beginPath(); g.arc(37, 17, 3.5, 0, Math.PI*2); g.fill();
+  g.translate(24, 17); g.scale(0.26, 0.26);
+  triFigura(g, { t: 0.6, f: 1, a: 0.35, carga: 0.3, fuego: false, pies: [[-69, 102], [69, 102], [0, 110]], cad: [-18, 18, 0] });   // pies donde la versión D pone las pezuñas
   return c;
 }
 
