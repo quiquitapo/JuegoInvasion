@@ -10633,12 +10633,13 @@ function miniVil(c, x, y, r, t, hx, hy){
 // o: { mirA, rayos }: hacia dónde miran las cabezas y si escupen rayos.
 // Devuelve dónde quedan sus tres bocas (para pintar los rayos).
 function miniDragon(c, x, y, r, t, o){
-  const ru = dra.rumbo, ma = dra.mirA, rg = dra.rugeT, rv = dra.rugidoT, k = r/40;
-  dra.rumbo = Math.PI/2; dra.mirA = o && o.mirA != null ? o.mirA : -0.25; dra.rugeT = 0; dra.rugidoT = 0;
+  o = o || {};
+  const ru = dra.rumbo, ma = dra.mirA, rg = dra.rugeT, rv = dra.rugidoT, k = r/40, rumbo = o.rumbo != null ? o.rumbo : Math.PI/2;
+  dra.rumbo = rumbo; dra.mirA = o.mirA != null ? o.mirA : -0.25; dra.rugeT = 0; dra.rugidoT = 0;
   try {
-    dibujaDragon(c, x, y + r*0.2, k, { t, vol:false, lift:0, aleteoT:0, colaFase:'', colaT:0,
-      rayos: !!(o && o.rayos), mordT:0, mordCab:0, pal: draPaleta() });
-    return [0, 1, 2].map(i => { const h = draCabeza(i, 0, Math.PI/2);
+    dibujaDragon(c, x, y + r*0.2, k, { t, rumbo, vol: !!o.vol, lift: o.lift || 0, aleteoT: o.aleteoT || 0, colaFase: o.colaFase || '', colaT: o.colaT || 0,
+      rayos: !!o.rayos, mordT:0, mordCab:0, pal: draPaleta(), anda: !!o.anda, paso: o.paso || 0, incl: o.incl || 0 });
+    return [0, 1, 2].map(i => { const h = draCabeza(i, 0, rumbo);
       return { x: x + (h.x + Math.cos(h.a)*15)*k, y: y + r*0.2 + (h.y + Math.sin(h.a)*9)*k }; });
   } finally { dra.rumbo = ru; dra.mirA = ma; dra.rugeT = rg; dra.rugidoT = rv; }
 }
@@ -10655,10 +10656,11 @@ function animRayo(c, x0, y0, x1, y1, col, w, sem){
   c.strokeStyle = '#ffffff'; c.lineWidth = Math.max(1, w*0.4); c.stroke();
 }
 // La máquina en miniatura con un arma concreta, apuntando y disparando.
-function miniMaquinaArma(c, x, y, r, t, arma, a, fuego, ret){
+function miniMaquinaArma(c, x, y, r, t, arma, a, fuego, ret, inc){
   const st = maqDemo(t);
   st.arma = arma; st.a = a; st.hacha = 0; st.plasma = 0; st.carga = 0; st.llama = 0; st.nova = 0; st.apuntaZ = 0; st.esc = 0;
   st.fogon = fuego ? 0.06 : 0; st.ret = ret || 0;
+  if (inc) Object.assign(st, inc);                                        // la incineración: carga, apuntaZ, llama, nova, zL
   dibujaMaquina(c, x, y + r*0.3, r/26, st);
   const k = r/26, f = Math.cos(a) >= 0 ? 1 : -1;                         // la boca del arma
   return { x: x + (f*6 + Math.cos(a)*22)*k, y: y + r*0.3 + (-16 + Math.sin(a)*14)*k };
@@ -10756,64 +10758,327 @@ function animGround(c, W, H){
   c.beginPath(); c.moveTo(0,H*0.86); c.lineTo(W,H*0.86); c.stroke(); c.setLineDash([]);
 }
 
-// --- MODO INVASIÓN: el artillado dispara misiles y el invasor se defiende ---
-// La cría y el viltrumita se escudan con un tanque; el dragón los derriba con
-// sus rayos; la máquina, a tiros; el mago, con su escudo de energía.
+// ---- las unidades de las animaciones, según el mapa elegido ----
+// En el planeta marciano salen las suyas más parecidas; en el castigo, las de
+// la ciudad deformadas (y el auto, calcinado). Cada imagen se prepara una sola
+// vez, recortada a lo que se ve, y luego cuesta lo mismo que el original.
+const ANIM_EQUIV = {
+  alien:    { soldier:'centinelaF', tank:'aranaF', gunship:'aveF', siege:'bichoF', missile:'caza40kF', car:'@capsula' },
+  infierno: { soldier:'~soldier', tank:'~tank', gunship:'~gunship', siege:'~siege', missile:'@meteoro', car:'@calcinado' }
+};
+const ANIM_SUELO = { soldier:1, tank:1, siege:1, car:1 };          // apoyadas en el suelo
+const ANIM_NOMBRE = {
+  ciudad:   { tank:'TANQUE', siege:'CAÑÓN DE ASEDIO', missile:'MISILES GUIADOS' },
+  alien:    { tank:'TANQUE ARAÑA', siege:'BICHO GUERRERO', missile:'DRONES KAMIKAZE' },
+  infierno: { tank:'TANQUE D.', siege:'ASEDIO D.', missile:'FUEGO DEL CIELO' }
+};
+const animVarCache = new Map();
+function animMapa(){ return mapaElegido === 'alien' || mapaElegido === 'infierno' ? mapaElegido : 'ciudad'; }
+function animNombre(k){ return ANIM_NOMBRE[animMapa()][k]; }
+// lo que se ve de una imagen (sin el borde transparente)
+function animRecorta(src){
+  const W = src.naturalWidth || src.width, H = src.naturalHeight || src.height;
+  if (!W || !H) return null;
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const g = c.getContext('2d'); g.drawImage(src, 0, 0);
+  let x0 = W, y0 = H, x1 = -1, y1 = -1;
+  try {
+    const p = g.getImageData(0, 0, W, H).data;
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++)
+      if (p[(y*W + x)*4 + 3] > 24){ if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+  } catch(e){ return c; }
+  if (x1 < 0) return null;
+  const o = document.createElement('canvas'); o.width = x1 - x0 + 1; o.height = y1 - y0 + 1;
+  o.getContext('2d').drawImage(c, -x0, -y0);
+  return o;
+}
+function animVariante(key){
+  const m = animMapa(), eq = ANIM_EQUIV[m] && ANIM_EQUIV[m][key];
+  if (!eq) return null;
+  const ck = m + '|' + key;
+  if (animVarCache.has(ck)) return animVarCache.get(ck);
+  let src = null, face = 1, fijo = false;
+  try {
+    regLibre();                                     // en el menú no corre el reloj: sin cupo por fotograma
+    if (eq[0] === '~'){ const s0 = sprites[eq.slice(1)], im = spriteListo(eq.slice(1)); if (im){ src = deformCv(im, true); face = s0.face; } }
+    else if (eq === '@capsula') src = hoverFrame('capsula', HOVER_COL[1], 0, 'l');
+    else if (eq === '@calcinado') src = autoFrame('compacto', AUTO_COLORES[8], 2, 'l', 0);   // rojo oscuro: se distingue sobre el asfalto
+    else if (eq === '@meteoro'){ src = spriteListo('meteoroF'); fijo = true; }   // cae en diagonal: no se gira
+    else src = spriteListo(eq);
+  } catch(e){ src = null; }
+  const cv = src && animRecorta(src);
+  if (!cv) return null;                            // aún no está: se reintenta en el próximo fotograma
+  const v = { cv, face, fijo, w: cv.width, h: cv.height };
+  animVarCache.set(ck, v);
+  return v;
+}
+// Una unidad del ejército en la animación: la de la ciudad o su equivalente.
+function animUnidad(c, key, x, y, w, h, facing, rot){
+  const v = animVariante(key);
+  if (!v){ animSprite(c, key, x, y, w, h, facing, rot); return; }
+  const e = v.fijo ? 18/Math.max(v.w, v.h) : Math.min(w*0.86/v.w, h*0.86/v.h), dw = v.w*e, dh = v.h*e;
+  const cy = ANIM_SUELO[key] ? y + h*0.43 - dh/2 : y;                 // los de suelo, con los pies donde iban
+  c.save(); c.translate(x, cy);
+  if (v.fijo){ c.drawImage(v.cv, -dw/2, -dh/2, dw, dh); c.restore(); return; }
+  if (rot) c.rotate(rot);
+  if (facing !== v.face) c.scale(-1, 1);
+  c.drawImage(v.cv, -dw/2, -dh/2, dw, dh);
+  c.restore();
+}
+// Chispas y cascotes de algo que revienta (sin estado: salen de la semilla).
+function animCascotes(c, x, y, q, n, col, sem){
+  const R = mulberry32(sem | 0);
+  c.fillStyle = col;
+  for (let i = 0; i < n; i++){
+    const a = -Math.PI*(0.1 + R()*0.8), v = 30 + R()*50, s = 2 + R()*3;
+    c.globalAlpha = Math.max(0, 1 - q);
+    c.fillRect(x + Math.cos(a)*v*q - s/2, y + Math.sin(a)*v*q + 60*q*q - s/2, s, s);
+  }
+  c.globalAlpha = 1;
+}
+// Lenguas de fuego sobre un blindado que arde.
+function animLlamas(c, x, y, w, k, t){
+  if (k <= 0) return;
+  for (let i = 0; i < 6; i++){
+    const fx = x - w/2 + (i + 0.5)*w/6, fl = (Math.sin(t*17 + i*2.1) + 1)*0.5, hh = (8 + fl*9)*k;
+    c.globalAlpha = 0.85*k; c.fillStyle = i % 2 ? '#ff8a2a' : '#ffcf4a';
+    c.beginPath(); c.moveTo(fx - 4*k, y); c.quadraticCurveTo(fx, y - hh*1.4, fx + 4*k, y); c.closePath(); c.fill();
+  }
+  c.globalAlpha = 1;
+}
+
+// --- MODO INVASIÓN: cada invasor con su forma de quitarse de encima al ejército ---
+// La cría y el viltrumita se escudan con un tanque de los misiles; el mago, con
+// su escudo de energía; el dragón salta con la embestida sobre un tanque y
+// barre a la tropa con un aleteo; la máquina incinera un cañón de asedio.
 function drawAnimInvasion(c, t){
-  const W=230, H=130, CYCLE=3.2;
-  const p = (t % CYCLE) / CYCLE;
+  const W=230, H=130;
   animGround(c,W,H);
   const quien = isDra() ? 'dra' : isMaq() ? 'maq' : isMag() ? 'mag' : isVil() ? 'vil' : 'cria';
+  if (quien === 'dra') return animInvDragon(c, t, W, H);
+  if (quien === 'maq') return animInvMaquina(c, t, W, H);
+  const CYCLE=3.2, p = (t % CYCLE) / CYCLE;
 
   const ax=46, ay=H*0.62;
   const conTanque = quien === 'cria' || quien === 'vil';
-  const shX = conTanque ? ax+44 : quien === 'mag' ? ax + 24 : ax + 62, shY = conTanque ? ay-6 : ay - 14;   // donde revientan
+  const shX = conTanque ? ax+44 : ax + 24, shY = conTanque ? ay-6 : ay - 14;   // donde revientan
   const hx=W-34, hy=34 + Math.sin(t*2)*3;       // el artillado
 
-  animSprite(c,'gunship',hx,hy,58,46,-1,0);
-  c.strokeStyle='rgba(230,230,220,0.4)'; c.lineWidth=2;
-  c.beginPath(); c.ellipse(hx,hy-14,30,4,0,0,Math.PI*2); c.stroke();
+  animUnidad(c,'gunship',hx,hy,58,46,-1,0);
+  if (animMapa() === 'ciudad'){                  // el rotor
+    c.strokeStyle='rgba(230,230,220,0.4)'; c.lineWidth=2;
+    c.beginPath(); c.ellipse(hx,hy-14,30,4,0,0,Math.PI*2); c.stroke();
+  }
 
   // dos misiles que van del artillado al invasor y revientan antes de llegar
-  const vivos = [];
   for (let i=0;i<2;i++){
     const mp = ((p + i*0.5) % 1) / 0.78;
     if (mp <= 1){
       const mx = hx + (shX+12 - hx)*mp;
       const my = hy + (shY - hy)*mp + Math.sin(mp*Math.PI)*10;
-      animSprite(c,'missile',mx,my,26,10,-1,Math.atan2(shY-hy, shX-hx));
-      c.globalAlpha=0.5;
+      animUnidad(c,'missile',mx,my,26,10,-1,Math.atan2(shY-hy, shX-hx));
+      if (animMapa() === 'ciudad'){ c.globalAlpha=0.5;
       c.fillStyle='#ffb24d';
       c.beginPath(); c.arc(mx+9,my,2.5,0,Math.PI*2); c.fill();
-      c.globalAlpha=1;
-      vivos.push({ x: mx, y: my, mp });
+      c.globalAlpha=1; }
     } else {
       animBoom(c, shX+12, shY, (mp-1)/0.28);
     }
   }
-  // el misil más avanzado: el que se ataca
-  const blanco = vivos.filter(v => v.mp > 0.45).sort((a, b)=> b.mp - a.mp)[0];
 
-  if (conTanque) animSprite(c,'tank',shX,shY,52,40,1,Math.sin(t*3)*0.05);
-  if (quien === 'dra'){
-    const bocas = miniDragon(c, ax, ay, 17, t, { mirA: blanco ? Math.atan2(blanco.y - ay, blanco.x - ax) : -0.3, rayos: !!blanco });
-    if (blanco) for (const b of bocas) animRayo(c, b.x, b.y, blanco.x, blanco.y, '#ffe066', 2, t + b.y);
-  } else if (quien === 'maq'){
-    const a = blanco ? Math.atan2(blanco.y - ay + 6, blanco.x - ax) : -0.2;
-    const m = miniMaquinaArma(c, ax, ay, 17, t, 1, a, !!blanco && (t*14 % 1) < 0.5, 0);
-    if (blanco){
-      c.fillStyle = '#ffd54a';
-      for (let i = 0; i < 4; i++){ const q = (t*4 + i*0.25) % 1; c.fillRect(m.x + (blanco.x - m.x)*q - 2, m.y + (blanco.y - m.y)*q - 1, 5, 2); }
-    }
-  } else if (quien === 'mag'){
+  if (conTanque) animUnidad(c,'tank',shX,shY,52,40,1,Math.sin(t*3)*0.05);
+  if (quien === 'mag'){
     miniMagoPose(c, ax, ay, 17, t, { a: -0.3, cast: 0, esc: 1 });            // con su escudo de energía
   } else if (quien === 'vil') miniVil(c, ax, ay, 17, t, shX-16, shY);
   else miniAlien(c, ax, ay, 17, t, shX-16, shY);
 
   c.fillStyle='#7bffa0'; c.font='900 9px monospace'; c.textAlign='left';
-  c.fillText(quien === 'dra' ? 'RAYOS: DERRIBA' : quien === 'maq' ? 'RÁFAGA: DERRIBA' : quien === 'mag' ? 'ESCUDO MÁGICO' : 'ESCUDO: TANQUE', 6, 13);
+  c.fillText(quien === 'mag' ? 'ESCUDO MÁGICO' : 'ESCUDO: ' + animNombre('tank'), 6, 13);
   c.fillStyle='#ff9d3b'; c.textAlign='right';
-  c.fillText('MISILES GUIADOS', W-6, 13);
+  c.fillText(animNombre('missile'), W-6, 13);
+}
+
+// El dragón: mantiene C apuntando la embestida, salta sobre el tanque y lo
+// revienta rematando con el coletazo; llega la tropa y, cuando se le acerca,
+// la barre con un aleteo (Z). Vuelve a su sitio y llega otro tanque.
+const ANIM_DRA_T = 6.4;
+function animInvDragon(c, t, W, H){
+  const u = t % ANIM_DRA_T, vuelta = Math.floor(t / ANIM_DRA_T);
+  const r = 17, k = r/40, ax = 46, ay = H*0.62;
+  const tx = 152, ty = ay - 4;                                   // donde se para el tanque
+  const ox = tx - 6, oy = ay - 2;                                // donde cae el dragón
+  const SALTA = 1.25, CAE = 1.75, ALETEA = 3.55, VUELVE = 4.5, LLEGA = 5.5;
+
+  // el tanque: llega, espera, revienta al caerle encima y quedan sus restos
+  if (u < CAE){
+    const q = clamp(u/0.9, 0, 1), x = tx + (1 - q)*(1 - q)*110;
+    animUnidad(c, 'tank', x, ty, 52, 40, -1, q < 1 ? Math.sin(t*14)*0.03 : 0);
+    if (u > 0.95 && u < 1.1){ c.fillStyle = '#ffe9a0'; c.beginPath(); c.arc(x - 26, ty - 8, 4, 0, Math.PI*2); c.fill(); }   // fogonazo del cañón
+  } else if (u < VUELVE + 0.4){
+    const q = clamp((u - CAE)/0.55, 0, 1), fu = 1 - clamp((u - VUELVE + 0.4)/0.8, 0, 1);   // se desvanecen al irse
+    c.globalAlpha = (1 - q*0.35)*fu;
+    animUnidad(c, 'tank', tx, ty + q*3, 52, 40, -1, 0.08*q);          // los restos, ahumados
+    c.globalAlpha = 0.45*(1 - q*0.4)*fu; c.fillStyle = '#1a1210';
+    c.beginPath(); c.ellipse(tx, ty + 2, 28, 15, 0, 0, Math.PI*2); c.fill(); c.globalAlpha = 1;
+    for (let i = 0; i < 3; i++){                                   // humo
+      const h = ((u*0.9 + i/3) % 1);
+      c.globalAlpha = 0.3*(1 - h)*fu; c.fillStyle = '#3a3634';
+      c.beginPath(); c.arc(tx - 8 + i*8 + h*6, ty - 10 - h*30, 5 + h*8, 0, Math.PI*2); c.fill();
+    }
+    c.globalAlpha = 1;
+  }
+
+  // la tropa: llega a pie disparando y sale volando con el aleteo
+  const tropa = [[0, 2.0, 192], [1, 2.25, 214]];
+  for (const [i, t0, xF] of tropa){
+    if (u < t0 || u > ALETEA + 1.1) continue;
+    let x, y = ay - 2, rot = 0, al = 1;
+    if (u < ALETEA){
+      const q = clamp((u - t0)/(ALETEA - 0.25 - t0), 0, 1);
+      x = xF + (1 - q)*(70 + i*12);
+      y -= Math.abs(Math.sin((u - t0)*11 + i))*1.6;              // el paso
+      if (q >= 1 && ((u*5 + i*0.5) % 1) < 0.5){                   // disparan al dragón
+        c.fillStyle = '#ffe27b'; c.fillRect(x - 22 - ((u*60) % 18), y - 6, 4, 2);
+      }
+    } else {
+      const q = (u - ALETEA)/1.1;
+      x = xF + q*(80 + i*16); y = ay - 2 - Math.sin(Math.min(1, q*1.4)*Math.PI)*(26 + i*8) + q*8;
+      rot = q*(7 + i*2); al = 1 - clamp((q - 0.6)/0.4, 0, 1);
+    }
+    c.globalAlpha = al;
+    animUnidad(c, 'soldier', x, y, 41, 34, -1, rot);
+    c.globalAlpha = 1;
+  }
+
+  // el dragón
+  const o = { mirA: 0, rumbo: Math.PI/2 };
+  let dx = ax, dy = ay;
+  let etiqueta = '', apunta = 0;
+  if (u < SALTA){
+    o.mirA = Math.atan2(ty - ay, tx - ax)*0.5;
+    if (u > 0.35){ apunta = clamp((u - 0.35)/0.6, 0, 1); etiqueta = 'C: EMBESTIDA'; }
+  } else if (u < CAE){                                              // el salto
+    const q = (u - SALTA)/(CAE - SALTA);
+    dx = ax + (ox - ax)*q; dy = ay + (oy - ay)*q;
+    Object.assign(o, { rumbo: 0, mirA: 0.15, vol: true, lift: Math.sin(q*Math.PI)*34/k, incl: (q - 0.5)*0.5 });
+    etiqueta = 'C: EMBESTIDA';
+  } else if (u < VUELVE){
+    dx = ox; dy = oy;
+    const dc = u - CAE;
+    o.rumbo = dc < 0.6 ? 0 : 0.35; o.mirA = 0.2;
+    if (dc < DRA_COLA_T){ o.colaFase = 'golpe'; o.colaT = DRA_COLA_T - dc; etiqueta = 'C: COLETAZO'; }
+    if (u >= ALETEA && u < ALETEA + DRA_ALE_T){ o.aleteoT = DRA_ALE_T - (u - ALETEA); }
+    if (u >= ALETEA - 0.25 && u < ALETEA + 0.9) etiqueta = 'Z: ALETEO';
+  } else if (u < LLEGA){                                            // vuelve andando a su sitio
+    const q = (u - VUELVE)/(LLEGA - VUELVE), e = q*q*(3 - 2*q);
+    dx = ox + (ax - ox)*e; dy = oy + (ay - oy)*e;
+    Object.assign(o, { rumbo: Math.PI, mirA: Math.PI, anda: true, paso: u*9 });
+  }
+
+  // la estela de la embestida: lo que traza mientras mantiene C
+  if (apunta > 0){
+    c.save();
+    c.setLineDash([5, 4]); c.lineDashOffset = -t*30;
+    c.strokeStyle = 'rgba(255,214,120,' + (0.4 + apunta*0.5) + ')'; c.lineWidth = 2;
+    const ex = ax + (ox - ax)*apunta, ey = ay + (oy - ay)*apunta;
+    c.beginPath(); c.moveTo(ax + 8, ay); c.quadraticCurveTo((ax + ex)/2, ay - 30*apunta, ex, ey); c.stroke();
+    c.setLineDash([]);
+    c.globalAlpha = 0.25 + apunta*0.35; c.fillStyle = '#ff7a3a';
+    c.beginPath(); c.ellipse(ex, ey + 8, 16*apunta + 4, 6*apunta + 2, 0, 0, Math.PI*2); c.fill();
+    c.globalAlpha = 1;
+    c.restore();
+  }
+  miniDragon(c, dx, dy, r, t, o);
+
+  // al caer: revienta el tanque y el coletazo barre alrededor
+  if (u >= CAE && u < CAE + 0.75){
+    const q = (u - CAE)/0.75;
+    animBoom(c, tx, ty - 4, q);
+    animBoom(c, tx + 14, ty - 12, clamp(q*1.3 - 0.15, 0, 1));
+    animCascotes(c, tx, ty - 6, q, 9, '#6a5a3a', 977 + vuelta);
+    c.strokeStyle = 'rgba(255,230,170,' + (0.7*(1 - q)) + ')'; c.lineWidth = 2;
+    c.beginPath(); c.ellipse(ox, oy + 10, 14 + q*46, 5 + q*14, 0, 0, Math.PI*2); c.stroke();
+  }
+  // el aleteo: dos ondas de aire y polvo que barren a la tropa
+  if (u >= ALETEA && u < ALETEA + 0.7){
+    const q = (u - ALETEA)/0.7;
+    for (const [d, a] of [[0, 1], [0.18, 0.7]]){
+      const qq = clamp(q - d, 0, 1);
+      if (qq <= 0) continue;
+      c.strokeStyle = 'rgba(239,230,176,' + (a*(1 - qq)) + ')'; c.lineWidth = 2.5 - qq*1.5;
+      c.beginPath(); c.ellipse(ox, oy + 2, 18 + qq*70, 8 + qq*24, 0, 0, Math.PI*2); c.stroke();
+    }
+    animCascotes(c, ox + 20, oy + 10, q, 7, '#c8b890', 31 + vuelta);
+  }
+
+  c.fillStyle='#7bffa0'; c.font='900 9px monospace'; c.textAlign='left';
+  if (etiqueta) c.fillText(etiqueta, 6, 13);
+  c.fillStyle='#ff9d3b'; c.textAlign='right';
+  c.fillText(animNombre('tank') + ' + TROPA', W-6, 13);
+}
+
+// La máquina: el cañón de asedio llega y dispara; ella mantiene Z apuntando la
+// incineración, suelta la llamarada y el cañón arde hasta reventar.
+const ANIM_MAQ_T = 4.6;
+function animInvMaquina(c, t, W, H){
+  const u = t % ANIM_MAQ_T, vuelta = Math.floor(t / ANIM_MAQ_T);
+  const r = 17, ax = 44, ay = H*0.62;
+  const sx = 166, sy = ay - 8;                                  // el cañón, parado
+  const LLEGA = 0.7, APUNTA = 1.25, LLAMA = 2.0, CORTA = 2.9, REVIENTA = 3.05;
+
+  // el cañón: llega, dispara un obús, arde y revienta
+  if (u < REVIENTA){
+    const q = clamp(u/LLEGA, 0, 1), x = sx + (1 - q)*(1 - q)*120;
+    const arde = clamp((u - LLAMA - 0.15)/(REVIENTA - LLAMA - 0.15), 0, 1);
+    const tiembla = arde > 0 ? Math.sin(t*60)*arde*1.5 : 0;
+    animUnidad(c, 'siege', x + tiembla, sy, 84, 47, -1, 0);
+    if (arde > 0){                                                // al rojo
+      c.save(); c.globalCompositeOperation = 'lighter';
+      c.globalAlpha = 0.35*arde; c.fillStyle = '#ff5a1a';
+      c.beginPath(); c.ellipse(x, sy, 40, 18, 0, 0, Math.PI*2); c.fill();
+      c.restore();
+      animLlamas(c, x, sy + 4, 70, arde, t);
+    }
+    // el obús: sale de la boca y cae corto, delante de la máquina
+    const d = u - (LLEGA + 0.05);
+    if (d >= 0 && d < 0.5){
+      const qq = d/0.5, bx = x - 40 + (ax + 34 - (x - 40))*qq, by = sy - 16 - Math.sin(qq*Math.PI)*26 + qq*18;
+      c.fillStyle = '#2a2a2a'; c.beginPath(); c.arc(bx, by, 3.2, 0, Math.PI*2); c.fill();
+      if (d < 0.08){ c.fillStyle = '#ffe9a0'; c.beginPath(); c.arc(x - 40, sy - 16, 6, 0, Math.PI*2); c.fill(); }
+    } else if (d >= 0.5 && d < 0.9) animBoom(c, ax + 34, ay + 2, (d - 0.5)/0.4);
+  } else {
+    const q = clamp((u - REVIENTA)/0.9, 0, 1);
+    if (q < 0.3){                                                 // lo último que se ve de él, calcinado
+      c.globalAlpha = 1 - q/0.3; animUnidad(c, 'siege', sx, sy + q*8, 84, 47, -1, q*0.3);
+      c.fillStyle = '#1a0c06'; c.globalAlpha *= 0.6; c.beginPath(); c.ellipse(sx, sy, 38, 16, 0, 0, Math.PI*2); c.fill();
+      c.globalAlpha = 1;
+    }
+    animBoom(c, sx, sy - 4, q);
+    animBoom(c, sx - 22, sy, clamp(q*1.4 - 0.1, 0, 1));
+    animBoom(c, sx + 20, sy - 10, clamp(q*1.4 - 0.3, 0, 1));
+    animCascotes(c, sx, sy - 6, q, 12, '#3a3f4a', 4111 + vuelta);
+    const h = clamp((u - REVIENTA)/1.4, 0, 1);                    // el humo que queda
+    c.globalAlpha = 0.35*(1 - h); c.fillStyle = '#2c2a2a';
+    c.beginPath(); c.arc(sx, sy - 10 - h*26, 10 + h*14, 0, Math.PI*2); c.fill(); c.globalAlpha = 1;
+  }
+
+  // la máquina con la incineración
+  const inc = { zL: 150 };
+  let etiqueta = '';
+  if (u >= APUNTA && u < LLAMA){
+    const q = clamp((u - APUNTA)/0.45, 0, 1);
+    inc.carga = Math.max(0.05, q*0.8); inc.apuntaZ = q; etiqueta = 'Z: INCINERAR';
+  } else if (u >= LLAMA && u < CORTA + 0.2){
+    inc.carga = 1; inc.llama = Math.min(1, (u - LLAMA)/0.18)*(u > CORTA ? (CORTA + 0.2 - u)/0.2 : 1);
+    inc.nova = Math.max(0, 0.35 - (u - LLAMA)); etiqueta = 'Z: INCINERAR';
+  }
+  const a = Math.atan2(sy - 2 - (ay - 8), sx - ax);
+  miniMaquinaArma(c, ax, ay, r, t, 0, a, false, 0, inc);
+
+  c.fillStyle='#7bffa0'; c.font='900 9px monospace'; c.textAlign='left';
+  if (etiqueta) c.fillText(etiqueta, 6, 13);
+  c.fillStyle='#ff9d3b'; c.textAlign='right';
+  c.fillText(animNombre('siege'), W-6, 13);
 }
 
 // --- MODO VS: el invasor acaba con el soldado a su manera; el J2 planta otro ---
@@ -10841,7 +11106,7 @@ function drawAnimVs(c, t){
   // soldado (vivo salvo mientras muere/planta)
   const soldierAlive = !dying && !planting;
   if (soldierAlive){
-    animSprite(c,'soldier',sx,sy,41,34,-1,0);
+    animUnidad(c,'soldier',sx,sy,41,34,-1,0);
     const bp = (p/0.28) % 1;                    // dispara al invasor
     if (grabbing || flying){
       const bx = sx - 18 - bp*(sx-18-ax);
@@ -10858,7 +11123,7 @@ function drawAnimVs(c, t){
       c.globalAlpha = 1;
     } else animBoom(c, sx, sy, q);
     c.globalAlpha = 1-q;
-    animSprite(c,'soldier',sx,sy+q*10,41,34,-1,(p-0.55)*4);
+    animUnidad(c,'soldier',sx,sy+q*10,41,34,-1,(p-0.55)*4);
     c.globalAlpha = 1;
   }
 
@@ -10879,7 +11144,7 @@ function drawAnimVs(c, t){
       c.globalAlpha = 0.35 + Math.sin(t*9)*0.1; c.fillStyle = '#c77dff';
       c.beginPath(); c.ellipse(carX, carY, 26, 18, 0, 0, Math.PI*2); c.fill(); c.globalAlpha = 1;
     }
-    animSprite(c,'car',carX,carY,40,28,1,carRot);
+    animUnidad(c,'car',carX,carY,40,28,1,carRot);
   }
 
   // cursor del J2 bajando a plantar el relevo
@@ -10889,7 +11154,7 @@ function drawAnimVs(c, t){
     animSprite(c,'p2cur',sx,cy,26,36,1,0);
     if (q > 0.72){
       c.globalAlpha = (q-0.72)/0.28;
-      animSprite(c,'soldier',sx,sy,41,34,-1,0);
+      animUnidad(c,'soldier',sx,sy,41,34,-1,0);
       c.globalAlpha = 1;
     }
   }
@@ -19462,7 +19727,7 @@ function dibujaMaquina(g, x, y, esc, st){
   // la incineración en pequeño (solo en el holograma: en partida el cono se
   // dibuja en el suelo, a tamaño real)
   if (st.apuntaZ > 0 || st.llama > 0){
-    const aZ = Math.atan2(Math.sin(st.a), Math.cos(st.a)*f) - inclina, ox = hx + 8, oy = hyA + 2, L = 64, sp = 0.36;
+    const aZ = Math.atan2(Math.sin(st.a), Math.cos(st.a)*f) - inclina, ox = hx + 8, oy = hyA + 2, L = st.zL || 64, sp = 0.36;
     const cono = (l, w)=>{ g.beginPath(); g.moveTo(ox, oy); for (let i = 0; i <= 6; i++){ const a = aZ - w + 2*w*i/6; g.lineTo(ox + Math.cos(a)*l, oy + Math.sin(a)*l); } g.closePath(); };
     if (st.llama > 0){
       for (const [fl, fs, col] of [[1, 1, 'rgba(196,40,10,0.6)'], [0.9, 0.75, 'rgba(255,110,25,0.75)'], [0.7, 0.5, 'rgba(255,180,50,0.9)'], [0.42, 0.26, 'rgba(255,246,205,0.95)']]){
