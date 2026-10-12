@@ -20551,7 +20551,7 @@ function pixelArte(cv, contorno){
 const UI_PIEZAS = [
   { id:'act',   el:'btnAction',  nombre:'ACCIÓN',   def:{ v:[0.86,0.60], h:[0.92,0.72] } },
   { id:'punch', el:'btnPunch',   nombre:'GOLPE',    def:{ v:[0.86,0.79], h:[0.78,0.78] } },
-  { id:'vilPre', el:'btnPresa',  nombre:'PRESA',    def:{ v:[0.66,0.70], h:[0.92,0.48] } },
+  { id:'vilPre', el:'btnPresa',  nombre:'PRESA',    def:{ v:[0.66,0.70], h:[0.92,0.53] } },
   // los tres del dragón (el de acción hace de mordisco)
   { id:'draAle', el:'btnAleteo',   nombre:'ALETEO', def:{ v:[0.66,0.70], h:[0.80,0.56] } },
   { id:'draRay', el:'btnRayosDra', nombre:'RAYOS',  def:{ v:[0.86,0.42], h:[0.92,0.50] } },
@@ -20825,6 +20825,28 @@ try {
   window.addEventListener('keydown',    ()=>noteInput(false), {capture:true});
 } catch(e){}
 
+// Joystick sobre un botón que ya gestiona sus toques (acción y golpe): aparece
+// centrado en él al pulsar y se maneja arrastrando el dedo, como los del dragón.
+const JOY_APUNTA = 0.22;                       // a partir de aquí cuenta como apuntar
+function joyBotonEmpieza(b, tipo, x, y, idToque){
+  if (!b || draJoy.tipo || !running) return false;
+  const r = b.getBoundingClientRect();
+  draJoy.tipo = tipo; draJoy.id = idToque;
+  draJoy.cx = r.left + r.width/2; draJoy.cy = r.top + r.height/2;
+  if (draJoyBase) showJoy(draJoyBase, draJoy.cx, draJoy.cy);
+  joyBotonMueve(x, y);
+  return true;
+}
+function joyBotonMueve(x, y){
+  let dx = (x - draJoy.cx) / JOY_R, dy = (y - draJoy.cy) / JOY_R;
+  const m = Math.hypot(dx, dy); if (m > 1){ dx /= m; dy /= m; }
+  draJoy.dx = dx; draJoy.dy = dy; draJoy.m = Math.min(1, m);
+  if (draJoyKnob) knob(draJoyKnob, dx, dy);
+}
+// Hacia dónde apunta ese joystick (null si no se ha arrastrado lo bastante).
+function joyBotonDir(tipo){ return draJoy.tipo === tipo && draJoy.m > JOY_APUNTA ? Math.atan2(draJoy.dy, draJoy.dx) : null; }
+// Toque o ratón, con su identificador.
+function puntoDe(e){ const t = e.changedTouches ? e.changedTouches[0] : e; return { x: t.clientX, y: t.clientY, id: e.changedTouches ? t.identifier : 'raton' }; }
 function bindBtn(el, fn){
   el.addEventListener('touchstart', e=>{ e.preventDefault(); e.stopPropagation(); fn(); }, {passive:false});
   el.addEventListener('mousedown',  e=>{ e.preventDefault(); e.stopPropagation(); fn(); });
@@ -20835,7 +20857,7 @@ function bindBtn(el, fn){
 const ACT_LONG_MS = 330;
 let actTimer = null, actLongFired = false;
 
-function actionPressStart(){
+function actionPressStart(pt){
   if (isMaq() || isMag()) return;                 // tienen sus propios botones
   if (isDra()){ const b = document.getElementById('btnAction'); if (b) b.classList.add('pressed'); return; }
   actLongFired = false;
@@ -20844,12 +20866,25 @@ function actionPressStart(){
   if (btn) btn.classList.add('pressed');
   if (heldObject){
     if (btn) btn.classList.add('charging');
+    // con algo agarrado, el botón es un joystick: se arrastra hacia donde lanzarlo
+    if (pt) joyBotonEmpieza(btn, 'lanza', pt.x, pt.y, pt.id);
     actTimer = setTimeout(()=>{
+      if (joyBotonDir('lanza') !== null) return;  // está apuntando: no golpea
       actLongFired = true;
       onGrab();                       // golpear con el objeto
       if (btn) btn.classList.remove('charging');
     }, ACT_LONG_MS);
   }
+}
+function actionPressMove(pt){
+  if (draJoy.tipo !== 'lanza' || pt.id !== draJoy.id) return;
+  joyBotonMueve(pt.x, pt.y);
+  if (draJoy.m > JOY_APUNTA) clearTimeout(actTimer);
+}
+function actionPressCancel(){
+  clearTimeout(actTimer); actLongFired = false;
+  if (draJoy.tipo === 'lanza') soltarDraJoy();
+  const b = document.getElementById('btnAction'); if (b){ b.classList.remove('pressed'); b.classList.remove('charging'); }
 }
 function actionPressEnd(conDedo){
   clearTimeout(actTimer);
@@ -20861,8 +20896,9 @@ function actionPressEnd(conDedo){
     else draMordisco(!!conDedo);                  // con el dedo, la cabeza va sola a por lo más cercano
     return;
   }
-  if (actLongFired){ actLongFired = false; return; }
-  if (heldObject){ onThrow(); return; }
+  if (actLongFired){ actLongFired = false; if (draJoy.tipo === 'lanza') soltarDraJoy(); return; }
+  if (heldObject){ onThrow(); if (draJoy.tipo === 'lanza') soltarDraJoy(); return; }   // hacia donde se arrastró
+  if (draJoy.tipo === 'lanza') soltarDraJoy();
   // En táctil no hay clic derecho: el mismo botón de acción prueba primero a
   // levantar un edificio (solo puede con el regalo del OVNI) y, si no hay
   // ninguno a mano, agarra lo de siempre.
@@ -20872,14 +20908,20 @@ function actionPressEnd(conDedo){
 function bindActionBtn(){
   const b = document.getElementById('btnAction');
   if (!b) return;
-  b.addEventListener('touchstart', e=>{ e.preventDefault(); e.stopPropagation(); actionPressStart(); }, {passive:false});
-  b.addEventListener('touchend',   e=>{ e.preventDefault(); e.stopPropagation(); actionPressEnd(true); }, {passive:false});
-  b.addEventListener('touchcancel',()=>{ clearTimeout(actTimer); actLongFired=false;
-    b.classList.remove('pressed'); b.classList.remove('charging'); }, {passive:true});
-  b.addEventListener('mousedown',  e=>{ e.preventDefault(); e.stopPropagation(); actionPressStart(); });
-  b.addEventListener('mouseup',    e=>{ e.preventDefault(); e.stopPropagation(); actionPressEnd(false); });
-  b.addEventListener('mouseleave', ()=>{ clearTimeout(actTimer); actLongFired=false;
-    b.classList.remove('pressed'); b.classList.remove('charging'); });
+  let dedo = null;                                  // el toque que empezó en el botón
+  b.addEventListener('touchstart', e=>{ e.preventDefault(); e.stopPropagation(); const pt = puntoDe(e); dedo = pt.id; actionPressStart(pt); }, {passive:false});
+  b.addEventListener('touchmove',  e=>{ e.preventDefault(); e.stopPropagation();
+    for (const t of e.changedTouches) actionPressMove({ x: t.clientX, y: t.clientY, id: t.identifier }); }, {passive:false});
+  b.addEventListener('touchend',   e=>{ e.preventDefault(); e.stopPropagation();
+    for (const t of e.changedTouches) if (t.identifier === dedo){ dedo = null; actionPressEnd(true); } }, {passive:false});
+  b.addEventListener('touchcancel',()=>{ dedo = null; actionPressCancel(); }, {passive:true});
+  // con ratón (mandos táctiles forzados en un ordenador): se puede arrastrar fuera del botón
+  b.addEventListener('mousedown',  e=>{ e.preventDefault(); e.stopPropagation();
+    actionPressStart(puntoDe(e));
+    const mm = ev=> actionPressMove({ x: ev.clientX, y: ev.clientY, id: 'raton' });
+    const mu = ()=>{ window.removeEventListener('mousemove', mm); window.removeEventListener('mouseup', mu); actionPressEnd(false); };
+    window.addEventListener('mousemove', mm); window.addEventListener('mouseup', mu);
+  });
 }
 bindActionBtn();
 
@@ -20995,26 +21037,39 @@ function bindHeroesBtns(){
 bindHeroesBtns();
 
 // Botón de golpe del viltrumita: toque = puñetazo, mantenido = golpe cargado.
+// Al mantenerlo aparece un joystick encima: arrastrando se elige hacia dónde
+// va el puñetazo (y el brazo cargado lo sigue); sin arrastrar, a lo más cercano.
 function bindPunchBtn(){
   const b = document.getElementById('btnPunch');
   if (!b) return;
+  let dedo = null;
   const abajo = (e)=>{ if(e){e.preventDefault(); e.stopPropagation();}
     if (!isVil()) return;
     vil.holding = true; vil.charge = 0.0001;
     b.classList.add('charging');
+    const pt = puntoDe(e); dedo = pt.id;
+    joyBotonEmpieza(b, 'golpe', pt.x, pt.y, pt.id);
   };
-  const arriba = (e)=>{ if(e){e.preventDefault(); e.stopPropagation();}
-    if (!isVil() || !vil.holding) return;
+  const mueve = (x, y, id)=>{ if (draJoy.tipo === 'golpe' && id === draJoy.id) joyBotonMueve(x, y); };
+  const arriba = ()=>{
+    dedo = null;
+    if (!isVil() || !vil.holding){ if (draJoy.tipo === 'golpe') soltarDraJoy(); return; }
     vil.holding = false;
     b.classList.remove('charging');
-    vilRelease();
+    vilRelease();                                   // con el joystick aún puesto: pega hacia él
+    if (draJoy.tipo === 'golpe') soltarDraJoy();
   };
+  const cancela = ()=>{ dedo = null; vil.holding = false; vil.charge = 0; b.classList.remove('charging'); if (draJoy.tipo === 'golpe') soltarDraJoy(); };
   b.addEventListener('touchstart', abajo, {passive:false});
-  b.addEventListener('touchend',   arriba, {passive:false});
-  b.addEventListener('touchcancel',()=>{ vil.holding=false; vil.charge=0; b.classList.remove('charging'); }, {passive:true});
-  b.addEventListener('mousedown',  abajo);
-  b.addEventListener('mouseup',    arriba);
-  b.addEventListener('mouseleave', ()=>{ if(vil.holding){ vil.holding=false; vil.charge=0; b.classList.remove('charging'); } });
+  b.addEventListener('touchmove',  e=>{ e.preventDefault(); e.stopPropagation(); for (const t of e.changedTouches) mueve(t.clientX, t.clientY, t.identifier); }, {passive:false});
+  b.addEventListener('touchend',   e=>{ e.preventDefault(); e.stopPropagation(); for (const t of e.changedTouches) if (t.identifier === dedo) arriba(); }, {passive:false});
+  b.addEventListener('touchcancel', cancela, {passive:true});
+  b.addEventListener('mousedown',  e=>{
+    abajo(e);
+    const mm = ev=> mueve(ev.clientX, ev.clientY, 'raton');
+    const mu = ()=>{ window.removeEventListener('mousemove', mm); window.removeEventListener('mouseup', mu); arriba(); };
+    window.addEventListener('mousemove', mm); window.addEventListener('mouseup', mu);
+  });
 }
 bindPunchBtn();
 
@@ -21324,6 +21379,10 @@ function aimAngle(){
 function aimVector(){
   if (_apCompa) return _apCompa;                        // dibujando al compañero
   if (_apRed && esVisorVs()) return _apRed;             // el tentáculo del anfitrión
+  if ((draJoy.tipo === 'lanza' || draJoy.tipo === 'golpe') && draJoy.m > JOY_APUNTA){
+    const m = Math.hypot(draJoy.dx, draJoy.dy) || 1;
+    return { dx: draJoy.dx/m, dy: draJoy.dy/m, mag: draJoy.m };
+  }
   if (aimJoy.active){
     const m = Math.hypot(aimJoy.dx, aimJoy.dy);
     if (m < 0.08) return { dx:1, dy:0, mag:0.2 };
@@ -23115,6 +23174,7 @@ function vilHoldPoint(){
 // Hacia dónde pega a pie: la mira (ratón o joystick derecho); en el móvil sin
 // apuntar, al enemigo más cercano a mano, o al frente.
 function vilApuntaGolpe(){
+  const jd = joyBotonDir('golpe'); if (jd !== null) return jd;      // el joystick del botón de golpe
   if (aimJoy.active || !lastInputTouch) return Math.atan2(Math.sin(aimAngle()), Math.cos(aimAngle()));
   let mejor = null, md = 150*150;
   for (const pool of [enemies, civilians]) for (const e of pool){
