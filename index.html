@@ -12027,7 +12027,7 @@ const DRA_TORM_DMG = 90, DRA_TORM_CD = [0.6, 1.3], DRA_TORM_ALC = 650;
 const dra = { mordCd:0, mordT:0, mordCab:0, aleteoCd:0, aleteoT:0,
               rayos:false, rayoA:0, rayoL:300, rayoTick:0, mirA:-Math.PI/2,
               colaApunta:false, colaA:0, colaL:200, colaFase:'', colaT:0, colaEX:0, colaEY:0,
-              tormentaCd:0, paso:0, incl:0, pisaT:0, mordL:0, rayoOy:-30, rugeT:0, rayoDecoT:0, rugidoT:0, rugidoCd:0 };
+              tormentaCd:0, paso:0, incl:0, pisaT:0, mordL:0, rayoOy:-30, rugeT:0, rayoDecoT:0, rugidoT:0, rugidoCd:0, muerdeMant:false };
 let draGolpeados = null, draMuros = null;
 // Pisotón: lo que queda bajo sus patas (o bajo su cuerpo al volar bajo)
 // recibe un daño leve. A golpes de 0,2 s, no por fotograma.
@@ -12037,7 +12037,7 @@ function isDra(){ return hero === 'dragon'; }
 function draReset(){
   dra.mordCd = 0; dra.mordT = 0; dra.aleteoCd = 0; dra.aleteoT = 0; dra.rayos = false;
   dra.colaApunta = false; dra.colaFase = ''; dra.colaT = 0; dra.tormentaCd = 0;
-  dra.paso = 0; dra.incl = 0; dra.pisaT = 0; dra.rumbo = Math.PI/2; dra.rugeT = 0; dra.rayoDecoT = 0; dra.rugidoT = 0; dra.rugidoCd = 0;
+  dra.paso = 0; dra.incl = 0; dra.pisaT = 0; dra.rumbo = Math.PI/2; dra.rugeT = 0; dra.rayoDecoT = 0; dra.rugidoT = 0; dra.rugidoCd = 0; dra.muerdeMant = false;
   relampagos.length = 0;
 }
 function sinEstamina(){ sfx('deny'); toast('SIN ESTAMINA'); }
@@ -12333,6 +12333,8 @@ function updateDragon(dt){
   }
   dra.mordCd -= dt; if (dra.mordT > 0) dra.mordT -= dt;
   dra.aleteoCd -= dt; if (dra.aleteoT > 0) dra.aleteoT -= dt;
+  // con MORDER mantenido, una dentellada tras otra (si queda estamina)
+  if (dra.muerdeMant && dra.mordCd <= 0 && !dra.colaFase && vil.stam >= DRA_MORD_STAM) draMordisco();
   const ap = draApunta();
   dra.mirA = ap.a;
 
@@ -20834,9 +20836,12 @@ let actTimer = null, actLongFired = false;
 
 function actionPressStart(pt){
   if (isMaq() || isMag()) return;                 // tienen sus propios botones
-  if (isDra()){                                   // morder: joystick para apuntar la dentellada
-    const b = document.getElementById('btnAction'); if (b) b.classList.add('pressed');
-    if (pt && !(dra.rayos && draJoy.tipo !== 'rayo')) joyBotonEmpieza(b, 'muerde', pt.x, pt.y, pt.id);
+  if (isDra()){                                   // morder: muerde sin parar mientras se mantiene,
+    const b = document.getElementById('btnAction'); if (b) b.classList.add('pressed');   // hacia el joystick
+    if (dra.rayos && draJoy.tipo !== 'rayo'){ dra.rayos = false; sfx('ui'); return; }   // con rayos: los apaga
+    if (pt) joyBotonEmpieza(b, 'muerde', pt.x, pt.y, pt.id);
+    dra.muerdeMant = true;
+    draMordisco();
     return;
   }
   actLongFired = false;
@@ -20845,8 +20850,8 @@ function actionPressStart(pt){
   if (btn) btn.classList.add('pressed');
   if (heldObject){
     if (btn) btn.classList.add('charging');
-    // con algo agarrado, el botón es un joystick: se arrastra hacia donde lanzarlo
-    if (pt) joyBotonEmpieza(btn, 'lanza', pt.x, pt.y, pt.id);
+    // el viltrumita, con algo agarrado: el botón es un joystick para apuntar el lanzamiento
+    if (pt && isVil()) joyBotonEmpieza(btn, 'lanza', pt.x, pt.y, pt.id);
     actTimer = setTimeout(()=>{
       if (joyBotonDir('lanza') !== null) return;  // está apuntando: no golpea
       actLongFired = true;
@@ -20861,7 +20866,7 @@ function actionPressMove(pt){
   if (draJoy.m > JOY_APUNTA) clearTimeout(actTimer);
 }
 function actionPressCancel(){
-  clearTimeout(actTimer); actLongFired = false;
+  clearTimeout(actTimer); actLongFired = false; dra.muerdeMant = false;
   if (draJoy.tipo === 'lanza' || draJoy.tipo === 'muerde') soltarDraJoy();
   const b = document.getElementById('btnAction'); if (b){ b.classList.remove('pressed'); b.classList.remove('charging'); }
 }
@@ -20871,8 +20876,7 @@ function actionPressEnd(conDedo){
   const btn = document.getElementById('btnAction');
   if (btn){ btn.classList.remove('pressed'); btn.classList.remove('charging'); }
   if (isDra()){
-    if (dra.rayos && draJoy.tipo !== 'rayo'){ dra.rayos = false; sfx('ui'); }
-    else draMordisco();                           // hacia el joystick (o al frente si no se arrastró)
+    dra.muerdeMant = false;                       // deja de morder al soltar
     if (draJoy.tipo === 'muerde') soltarDraJoy();
     return;
   }
@@ -21327,7 +21331,7 @@ function refreshActionBtn(){
   if (dragon){                                // el dragón muerde (o apaga los rayos)
     if (lab)  lab.textContent  = apaga ? 'APAGAR' : 'MORDER';
     iconoBtn('btnAction', apaga ? 'apagar' : 'morder');
-    if (hint) hint.textContent = apaga ? 'los rayos' : 'toca';
+    if (hint) hint.textContent = apaga ? 'los rayos' : 'mantén y apunta';
     if (btn)  btn.classList.remove('holding');
     const br = document.getElementById('btnRayosDra'); if (br) br.classList.toggle('on', dra.rayos);
     const bc = document.getElementById('btnCola');     if (bc) bc.classList.toggle('charging', dra.colaApunta);
@@ -29285,7 +29289,7 @@ function fichaHeroe(h){
           ['Click der.', 'Rayos de las tres bocas (cualquier click los apaga)'], [K('draAle'), 'Aletazo en área'],
           ['Mantén ' + K('draCola'), 'Traza la embestida; al soltar, carga y remata con un coletazo'],
           ['OVNI', 'Tormenta eléctrica sobre los enemigos cercanos']],
-      m: 'MORDER, RAYOS y COLA son joysticks: mantén, apunta y suelta (MORDER con un toque muerde al frente). ALETEO al tocarlo.' },
+      m: 'MORDER muerde sin parar mientras lo mantienes, hacia donde arrastres su joystick (al frente si no lo mueves); RAYOS y COLA: mantén, apunta y suelta. ALETEO al tocarlo.' },
     maquina: {
       desc: 'Máquina de guerra con armadura azul y oro, un solo ojo y alas-cuchilla. Tiene poca vida, pero se recompone con cada víctima. Coge carrerilla y cambia de arma sobre la marcha.',
       t: [[mover, 'Moverse (mantener la dirección acelera hasta correr a tope)'],
