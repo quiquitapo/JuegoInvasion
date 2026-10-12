@@ -10917,7 +10917,7 @@ function drawAnimVs(c, t){
     }
   } else if (quien === 'mag'){
     const lanza = flying || (hechizo === 'tk' && grabbing);
-    const mano = miniMagoPose(c, ax, ay, 16, t, { a: aS, cast: lanza ? 1 : 0, tk: hechizo === 'tk' && (grabbing || flying), hielo: hechizo === 'hielo' && flying ? 1 - fa : 0 });
+    const mano = miniMagoPose(c, ax, ay, 16, t, { a: aS, cast: lanza ? 1 : 0, tk: hechizo === 'tk' && (grabbing || flying), hielo: hechizo === 'hielo' && flying ? 0.6*(1 - fa) : 0 });   // la onda va de 0,6 a 0
     if (flying && hechizo === 'rayo'){                                        // un rayo cae del cielo
       animRayo(c, sx + 6, 0, sx, sy - 6, '#c77dff', 2.6, t);
       c.globalAlpha = 0.4*(1 - fa); c.fillStyle = '#e6c2ff'; c.beginPath(); c.ellipse(sx, sy + 12, 22, 7, 0, 0, Math.PI*2); c.fill(); c.globalAlpha = 1;
@@ -11035,15 +11035,20 @@ function modeAnimLoop(now){
   modeAnim.last = now;
   const dt = Math.min((now - (modeAnim.prev||now))/1000, 0.05);
   modeAnim.prev = now;
-  try {
-    if (modeAnim.invCtx) drawAnimInvasion(modeAnim.invCtx, modeAnim.t);
-    if (modeAnim.vsCtx)  drawAnimVs(modeAnim.vsCtx,  modeAnim.t);
-    for (const k of ['inv','vs']){
-      const st = btnTent[k];
-      updateBtnTent(st, dt);
-      if (st.ctx) drawBtnTentacles(st.ctx, st, modeAnim.t);
-    }
-  } catch(e){}
+  // Cada lienzo por separado y empezando limpio: si un dibujo fallara a medias,
+  // no dejaría la escala o la posición torcidas para los siguientes.
+  const pinta = (c, fn)=>{
+    if (!c) return;
+    c.setTransform(1, 0, 0, 1, 0, 0); c.globalAlpha = 1; c.globalCompositeOperation = 'source-over';
+    try { fn(c); } catch(e){ c.setTransform(1, 0, 0, 1, 0, 0); c.globalAlpha = 1; }
+  };
+  pinta(modeAnim.invCtx, c => drawAnimInvasion(c, modeAnim.t));
+  pinta(modeAnim.vsCtx,  c => drawAnimVs(c, modeAnim.t));
+  for (const k of ['inv','vs']){
+    const st = btnTent[k];
+    updateBtnTent(st, dt);
+    pinta(st.ctx, c => drawBtnTentacles(c, st, modeAnim.t));
+  }
   modeAnim.raf = requestAnimationFrame(modeAnimLoop);
 }
 let btnTentBound = false;
@@ -20336,7 +20341,7 @@ function dibujaMago(g, x, y, esc, st){
   g.globalAlpha = 1;
   // onda de hielo
   if (st.hielo > 0){
-    const k = 1 - st.hielo/0.6, R = MAG_HIELO_R*(arc ? 1.4 : 1)*k;
+    const k = clamp(1 - st.hielo/0.6, 0, 1), R = MAG_HIELO_R*(arc ? 1.4 : 1)*k;   // nunca un radio negativo
     g.globalAlpha = 0.5*(1 - k); g.strokeStyle = '#cff4ff'; g.lineWidth = 4;
     g.beginPath(); g.ellipse(0, 20, R, R*0.6, 0, 0, Math.PI*2); g.stroke();
     g.globalAlpha = 0.18*(1 - k); g.fillStyle = '#9fe8ff'; g.fill();
