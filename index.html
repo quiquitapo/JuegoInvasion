@@ -12045,7 +12045,6 @@ function sinEstamina(){ sfx('deny'); toast('SIN ESTAMINA'); }
 // Hacia dónde apunta: ratón o joystick derecho. Devuelve ángulo y distancia.
 // Joystick de los botones RAYOS y COLA (móvil). tipo: 'rayo' | 'cola'.
 const draJoy = { tipo:'', id:null, cx:0, cy:0, dx:0, dy:0, m:0 };
-const DRA_AUTO = 460;                 // en táctil, las cabezas buscan enemigos a esta distancia
 // El enemigo (o, si no hay, el civil) más cercano dentro de R.
 function draCercano(R){
   let mejor = null, md = R*R;
@@ -12063,6 +12062,7 @@ function draHacia(t){
   const ty = t.y - alturaVisible(t);
   return { a: Math.atan2(ty - (player.y - 30), t.x - player.x), d: Math.hypot(t.x - player.x, ty - (player.y - 30)) };
 }
+function draMiraLibre(){ return dra.rumbo == null ? dra.mirA : dra.rumbo; }
 function draApunta(){
   if (draJoy.tipo){                                // mantenido RAYOS o COLA: manda su joystick
     if (draJoy.m >= 0.2){
@@ -12071,6 +12071,7 @@ function draApunta(){
                                        : DRA_RAYO_MAX*clamp(draJoy.m, 0.35, 1);
       return { a, d, oy: 0 };                        // medido desde el suelo
     }
+    if (draJoy.tipo === 'muerde') return { a: draMiraLibre(), d: 300 };   // morder sin arrastrar: al frente
     if (draJoy.id !== 'raton'){
       const o = draCercano(DRA_RAYO_MAX);          // tocado sin arrastrar: al más cercano
       if (o) return draHacia(o);
@@ -12083,14 +12084,10 @@ function draApunta(){
     if (m >= 0.08) return { a: Math.atan2(aimJoy.dy, aimJoy.dx), d: clamp(m, 0.3, 1) * DRA_RAYO_MAX };
     return { a: dra.mirA, d: DRA_RAYO_MAX*0.6 };
   }
-  // Solo jugando con los dedos: las cabezas miran al enemigo cercano. Se mira
-  // cuál fue la última entrada, no si el equipo "parece" un móvil: un
-  // portátil con pantalla táctil o una ventana estrecha siguen apuntando
-  // con el ratón.
-  if (lastInputTouch){
-    const o = draCercano(DRA_AUTO);
-    return o ? draHacia(o) : { a: dra.mirA, d: 300 };
-  }
+  // Solo jugando con los dedos y sin apuntar: las cabezas miran hacia donde va
+  // el cuerpo (ya no se giran solas al enemigo más cercano). Se mira cuál fue
+  // la última entrada: un portátil táctil sigue apuntando con el ratón.
+  if (lastInputTouch) return { a: draMiraLibre(), d: 300 };
   const wx = mouse.x / ZOOM + camX, wy = mouse.y / ZOOM + camY;
   const dx = wx - player.x, dy = wy - (player.y - 30);
   return { a: Math.atan2(dy, dx), d: Math.hypot(dx, dy) };
@@ -12178,23 +12175,17 @@ function draDanaArea(x, y, R, dmg, empuje, aturde){
   }
   return dio;
 }
-// auto: en el móvil la cabeza se lanza sola a por lo más cercano.
-const DRA_MORD_AUTO = 150;             // hasta dónde se estira el cuello a por la presa
-function draMordisco(auto){
+// Muerde hacia donde se apunta (ratón, joystick del botón o el de puntería).
+function draMordisco(){
   if (vil.intro || dra.rugidoT > 0 || dra.mordCd > 0 || dra.colaFase) return;
   if (vil.stam < DRA_MORD_STAM){ sinEstamina(); return; }
   vil.stam -= DRA_MORD_STAM; tutEv('mordisco');
   dra.mordCd = DRA_MORD_CD; dra.mordT = DRA_MORD_T;
   dra.mordCab = (dra.mordCab + 1) % 3;
   dra.mordL = 0;
-  const presa = auto ? draCercano(DRA_MORD_AUTO) : null;
-  const ap = presa ? draHacia(presa) : draApunta();
+  const ap = draApunta();
   dra.mirA = ap.a;
-  let px2 = player.x + Math.cos(ap.a)*48, py2 = player.y - 20 + Math.sin(ap.a)*40;
-  if (presa){                                       // la dentellada cae sobre ella
-    px2 = presa.x; py2 = presa.y - alturaVisible(presa);
-    dra.mordL = clamp(ap.d - 50, 0, 70);
-  }
+  const px2 = player.x + Math.cos(ap.a)*48, py2 = player.y - 20 + Math.sin(ap.a)*40;
   let dio = false;
   for (const pool of [civilians, enemies]){
     for (const t of pool){
@@ -19504,7 +19495,7 @@ const MAG_TK_MANA = 4, MAG_TK_USO = 6, MAG_TK_MAX = 5, MAG_TK_R = 190, MAG_TK_AL
 // la órbita: daño al rozar (por peso) y cada cuánto puede volver a dar al mismo;
 // las rocas del suelo; la pausa entre lanzamientos y el radio que atrae lo lanzado
 const MAG_ORB_DMG = 15, MAG_ORB_CD = 0.4, MAG_ROCA_MANA = 4, MAG_ROCA_N = 3, MAG_ROCA_DMG = 42;
-const MAG_TK_CADENA = 0.07, MAG_TK_FIJA = 210;
+const MAG_TK_CADENA = 0.07;
 const MAG_HIELO_MANA = 24, MAG_HIELO_CD = 1.3, MAG_HIELO_R = 200, MAG_HIELO_T = 3.0, MAG_HIELO_DMG = 18;
 const MAG_ESC_MANA = 30, MAG_ESC_T = 4.5, MAG_ESC_CD = 2.0, MAG_ESC_R = 46;
 const MAG_FUEGO_MANA = 18, MAG_FUEGO_CD = 0.9, MAG_FUEGO_AVISO = 0.75, MAG_FUEGO_R = 80, MAG_FUEGO_DMG = 95, MAG_FUEGO_MAX = 560;
@@ -19763,21 +19754,6 @@ function magOrbita(o, i, dt, roca){
     }
   }
 }
-// El enemigo más cercano a un punto (si no hay, un civil): atrae lo lanzado.
-function magFija(x, y){
-  for (const pool of [enemies, civilians]){
-    let mejor = null, md = MAG_TK_FIJA*MAG_TK_FIJA;
-    for (const e of pool){
-      if (e.dead || e.held || e.thrown || e.pacifico || e.type === 'ovni') continue;
-      const dx = e.x - x, dy = e.y - alturaVisible(e) - y;
-      if (Math.abs(dx) > MAG_TK_FIJA || Math.abs(dy) > MAG_TK_FIJA) continue;
-      const d2 = dx*dx + dy*dy;
-      if (d2 < md){ md = d2; mejor = e; }
-    }
-    if (mejor) return mejor;
-  }
-  return null;
-}
 // Suelta lo que sostiene: lo pone en cola para lanzarlo de uno en uno, o lo
 // deja caer (sin=true).
 function magSueltaTK(sin){
@@ -19796,16 +19772,16 @@ function magSueltaTK(sin){
     }
     return;
   }
-  // a dónde: el punto al que se apunta al soltar; lo atrae el enemigo más cercano a él
+  // a dónde: el punto al que se apunta al soltar; sale recto hacia él
   const ap = magApunta(), d = clamp(ap.d, 90, MAG_RAYO_MAX);
   mag.tkLX = player.x + Math.cos(ap.a)*d; mag.tkLY = player.y - 8 + Math.sin(ap.a)*d;
-  mag._fija = magFija(mag.tkLX, mag.tkLY);
+  mag._fija = null;
   const cola = mag._cola, n0 = cola.length;
   for (const o of mag.tk) if (!cola.some(q => q.o === o)) cola.push({ o, d:cola.length*MAG_TK_CADENA, roca:false, ya:false });
   for (const p of proyJ) if (p.k === 'roca' && !p.vuela && !cola.some(q => q.o === p)) cola.push({ o:p, d:cola.length*MAG_TK_CADENA, roca:true, ya:false });
   if (cola.length > n0){ tutEv('tksuelta'); mag.castT = 0.45; }
 }
-// Lanza una de las cosas de la cola hacia la mira (o hacia su blanco).
+// Lanza una de las cosas de la cola hacia la mira.
 function magLanzaUno(o, roca){
   const arc = magArc(), h = mag._fija && !mag._fija.dead && !mag._fija.held ? mag._fija : null;
   const tx = h ? h.x : mag.tkLX, ty = h ? h.y - alturaVisible(h) : mag.tkLY;
@@ -20002,7 +19978,6 @@ function updateMago(dt){
     else if (mag.tkN){                       // a dónde saldría y qué lo atraería (para la mira)
       const d = clamp(ap.d, 90, MAG_RAYO_MAX);
       mag.tkLX = player.x + Math.cos(ap.a)*d; mag.tkLY = player.y - 8 + Math.sin(ap.a)*d;
-      mag._fija = magFija(mag.tkLX, mag.tkLY);
     }
   }
   // lo que soltó sale de uno en uno
@@ -20859,7 +20834,11 @@ let actTimer = null, actLongFired = false;
 
 function actionPressStart(pt){
   if (isMaq() || isMag()) return;                 // tienen sus propios botones
-  if (isDra()){ const b = document.getElementById('btnAction'); if (b) b.classList.add('pressed'); return; }
+  if (isDra()){                                   // morder: joystick para apuntar la dentellada
+    const b = document.getElementById('btnAction'); if (b) b.classList.add('pressed');
+    if (pt && !(dra.rayos && draJoy.tipo !== 'rayo')) joyBotonEmpieza(b, 'muerde', pt.x, pt.y, pt.id);
+    return;
+  }
   actLongFired = false;
   clearTimeout(actTimer);
   const btn = document.getElementById('btnAction');
@@ -20877,13 +20856,13 @@ function actionPressStart(pt){
   }
 }
 function actionPressMove(pt){
-  if (draJoy.tipo !== 'lanza' || pt.id !== draJoy.id) return;
+  if ((draJoy.tipo !== 'lanza' && draJoy.tipo !== 'muerde') || pt.id !== draJoy.id) return;
   joyBotonMueve(pt.x, pt.y);
   if (draJoy.m > JOY_APUNTA) clearTimeout(actTimer);
 }
 function actionPressCancel(){
   clearTimeout(actTimer); actLongFired = false;
-  if (draJoy.tipo === 'lanza') soltarDraJoy();
+  if (draJoy.tipo === 'lanza' || draJoy.tipo === 'muerde') soltarDraJoy();
   const b = document.getElementById('btnAction'); if (b){ b.classList.remove('pressed'); b.classList.remove('charging'); }
 }
 function actionPressEnd(conDedo){
@@ -20893,7 +20872,8 @@ function actionPressEnd(conDedo){
   if (btn){ btn.classList.remove('pressed'); btn.classList.remove('charging'); }
   if (isDra()){
     if (dra.rayos && draJoy.tipo !== 'rayo'){ dra.rayos = false; sfx('ui'); }
-    else draMordisco(!!conDedo);                  // con el dedo, la cabeza va sola a por lo más cercano
+    else draMordisco();                           // hacia el joystick (o al frente si no se arrastró)
+    if (draJoy.tipo === 'muerde') soltarDraJoy();
     return;
   }
   if (actLongFired){ actLongFired = false; if (draJoy.tipo === 'lanza') soltarDraJoy(); return; }
@@ -29305,7 +29285,7 @@ function fichaHeroe(h){
           ['Click der.', 'Rayos de las tres bocas (cualquier click los apaga)'], [K('draAle'), 'Aletazo en área'],
           ['Mantén ' + K('draCola'), 'Traza la embestida; al soltar, carga y remata con un coletazo'],
           ['OVNI', 'Tormenta eléctrica sobre los enemigos cercanos']],
-      m: 'MORDER va solo a por lo más cercano; RAYOS y COLA son joysticks: mantén, apunta y suelta. ALETEO al tocarlo.' },
+      m: 'MORDER, RAYOS y COLA son joysticks: mantén, apunta y suelta (MORDER con un toque muerde al frente). ALETEO al tocarlo.' },
     maquina: {
       desc: 'Máquina de guerra con armadura azul y oro, un solo ojo y alas-cuchilla. Tiene poca vida, pero se recompone con cada víctima. Coge carrerilla y cambia de arma sobre la marcha.',
       t: [[mover, 'Moverse (mantener la dirección acelera hasta correr a tope)'],
