@@ -3727,28 +3727,11 @@ function civCabezaAlien(g, L, piel, pielO, pielL, pose){
 }
 
 // ---------- cielo, música e introducción ----------
-// PLANETA ROJO: tecno industrial de estación espacial, rápido y metálico (en
-// el espíritu de las fases mecánicas de los juegos de 16 bits): bajo que salta
-// de octava, batería quebrada, acordes cortos y una melodía con cromatismos.
-// Cada hora del día lo varía: tono, ritmo, instrumento y densidad.
-const ALIEN_VARIANTES = {
-  manana:    { trans: 3,  tempo: 122, lead:'triangle', bajo:'square',   stab:0.14, kickLigero:true,  noche:false },
-  dia:       { trans: 0,  tempo: 110, lead:'square',   bajo:'square',   stab:0.12, kickLigero:false, noche:false },
-  atardecer: { trans: -2, tempo: 116, lead:'sawtooth', bajo:'sawtooth', stab:0.34, kickLigero:false, noche:false },
-  noche:     { trans: -5, tempo: 128, lead:'triangle', bajo:'sine',     stab:0,    kickLigero:true,  noche:true  }
-};
-const ALIEN_PISTAS = {};
-for (const k in ALIEN_VARIANTES) ALIEN_PISTAS[k] = Object.assign({ name:'PLANETA ROJO', style:'futuro', fase:k, root:55,
-  scale:[110, 123.47, 130.81, 146.83, 164.81, 174.61, 196, 220] }, ALIEN_VARIANTES[k]);
-const ALIEN_TRACK = ALIEN_PISTAS.dia;
-function pistaAlien(){ try { return ALIEN_PISTAS[phase().id] || ALIEN_TRACK; } catch(e){ return ALIEN_TRACK; } }
-const PR_BAJO  = [0,-1,12,-1, 0,0,-1,12, 10,-1,12,-1, 7,-1,8,10];
-const PR_BAJO2 = [0,-1,12,0, -1,12,0,-1, 0,-1,15,-1, 12,10,7,-1];
-const PR_ACORDE = [[0,3,7], [5,8,12], [8,12,15], [7,11,14]];           // i, iv, VI, V
-const PR_MELO = [12,-1,15,-1, 14,12,-1,10, 12,-1,-1,7, -1,-1,-1,-1,
-                 17,-1,15,-1, 14,-1,12,14, 15,-1,-1,12, -1,10,-1,-1,
-                 20,-1,19,-1, 17,15,-1,14, 15,-1,17,-1, 19,-1,20,-1,
-                 19,-1,-1,-1, 18,-1,19,-1, 23,-1,-1,-1, -1,-1,-1,-1];
+// PLANETA ROJO: el tema del Mundo Alienígena es una pieza de dollchan
+// (bytebeat), que suena con el motor de más abajo (ver bbGeneradores).
+const ALIEN_TRACK = { name:'PLANETA ROJO', bb:'alien', tempo:250,
+  scale:[110, 123.47, 130.81, 146.83, 164.81, 174.61, 196, 220] };
+function pistaAlien(){ return ALIEN_TRACK; }
 function muestraIntroMapa(){
   const el = document.getElementById('introMapa');
   if (!el) return;
@@ -9242,21 +9225,17 @@ const BOSS_TRACKS = {
   kaiyin:    { scale:[82.41,87.31,98.00,110.00,123.47,130.81,146.83,164.81],
                bass:[41.20,43.65,41.20,36.71], tempo:185, name:'TRES CABEZAS', style:'kaiju',
                ost:[0,1,2,-1, 0,1,2,-1, 0,1,3,2, 1,-1,-1,-1, 0,1,2,-1, 0,1,2,-1, 4,3,2,1, 0,-1,-1,-1] },
-  // El Centurión: sintetizador de máquina de guerra. Bajo en semicorcheas,
-  // bombo industrial y un riff de onda cuadrada que se repite como una alarma.
+  // El Centurión: una pieza de dollchan (bytebeat), ver bbGeneradores.
   // El Desgarrador: monstruo gigante de película, con metales en ostinato y
   // golpes de orquesta, más rápido y metálico que el del Kaiyin.
   desgarrador: { scale:[73.42,77.78,87.31,98.00,103.83,116.54,130.81,146.83],
                bass:[36.71,38.89,36.71,32.70], tempo:150, name:'SIERRA DE ACERO', style:'kaiju',
                ost:[0,0,1,-1, 0,0,3,-1, 0,0,1,-1, 4,3,1,-1, 0,0,1,-1, 0,0,3,-1, 6,5,4,3, 1,-1,0,-1] },
   centurion: { scale:[146.83,155.56,174.61,196.00,220.00,233.08,261.63,293.66],
-               bass:[73.42,73.42,77.78,65.41], tempo:172, name:'ACERO ORBITAL', style:'mecha',
-               mel:[0,-1,0,3, -1,2,-1,1, 0,-1,0,5, -1,4,3,-1, 0,-1,0,3, -1,2,-1,1, 6,5,4,3, 2,-1,1,-1] },
-  // Refuerzos: la misma máquina de guerra, en marcha de flota: más rápida y
-  // con una fanfarria cuadrada que sube.
+               tempo:250, name:'ACERO ORBITAL', bb:'centurion', bbReinicia:true },
+  // Refuerzos alienígenas: una pieza de dollchan (bytebeat), como el Centurión.
   refuerzos: { scale:[123.47,130.81,146.83,164.81,174.61,196.00,220.00,246.94],
-               bass:[61.74,61.74,65.41,55.00], tempo:160, name:'LA FLOTA RESPONDE', style:'mecha',
-               mel:[0,-1,4,-1, 3,-1,0,-1, 5,4,3,-1, 1,-1,-1,-1, 0,-1,4,-1, 3,-1,0,-1, 6,5,4,3, 4,-1,-1,-1] },
+               tempo:250, name:'LA FLOTA RESPONDE', bb:'refuerzos', bbReinicia:true },
   // La Tejedora: órgano de villano sobre un bajo que baja, con un motivo que
   // sube y baja por semitonos como patas que se acercan.
   // Desesperación: terror de persecución. Racimo de cuerdas disonante, un
@@ -9323,19 +9302,361 @@ const CIUDAD_PISTAS = {
          23,-1,-1,-1, 19,-1,-1,-1, 20,-1,23,-1, 26,-1,-1,-1] }
 };
 function pistaCiudad(){ try { return CIUDAD_PISTAS[phase().id] || CIUDAD_PISTAS.dia; } catch(e){ return CIUDAD_PISTAS.dia; } }
-// Tema de los menús: pentatónica mayor, lenta y sin percusión. Nada de
-// tensión, porque aquí no está pasando nada.
-const MENU_TRACK = {
-  scale: [196.00, 220.00, 246.94, 293.66, 329.63, 392.00, 440.00, 493.88],
-  bass:  [98.00, 110.00, 82.41, 87.31],
-  tempo: 480, name:'CIUDAD DORMIDA', style:'menu'
-};
+// Temas de los menús, piezas de dollchan: uno en el menú principal y otro
+// mientras se está en la tienda o en los controles.
+const MENU_TRACK = { scale: [196.00, 220.00, 246.94, 293.66, 329.63, 392.00, 440.00, 493.88],
+  tempo: 250, name:'CIUDAD DORMIDA', bb:'menu' };
+const TIENDA_TRACK = { scale: [196.00, 220.00, 246.94, 293.66, 329.63, 392.00, 440.00, 493.88],
+  tempo: 250, name:'DE COMPRAS', bb:'tienda' };
+const PANTALLAS_TIENDA = ['tienda', 'controles'];
+function enTienda(){
+  for (const id of PANTALLAS_TIENDA){ const el = document.getElementById(id); if (el && !el.classList.contains('hidden')) return true; }
+  return false;
+}
 let menuMusica = false;
+
+// ================= MÚSICA DE DOLLCHAN (bytebeat y funcbeat) =================
+// Las músicas de dollchan (bytebeat y funcbeat): cada una es una fábrica que
+// devuelve su generador. sr: muestras por segundo a las que se escribió (0 =
+// funcbeat, que recibe el tiempo en segundos y corre a la frecuencia real).
+// Se escriben tal cual, solo con las variables declaradas, para que suenen
+// igual que en el original; corren en el hilo de audio, lejos del juego.
+function bbGeneradores(){
+  'use strict';
+  const { sin, cos, tan, abs, min, max, sqrt, cbrt, atanh, tanh, exp, pow, PI, random } = Math;
+  return {
+    // Mundo Alienígena (estéreo, 44,1 kHz). Tras la primera vuelta repite a
+    // partir del compás 64 (sin la intro), para no subir de tono sin fin.
+    alien: { sr: 44100, estereo: true, bucle: [Math.floor(192*8192/0.22), Math.floor(64*8192/0.22)], crear(){
+      // Lo mismo que el original, pero las funciones auxiliares se crean una
+      // sola vez (no en cada muestra) y r() recuerda sus notas mientras no
+      // cambie el tono (M).
+      let t, h, q, u, Q, H, m, X, Z, e, p, B, S, M, J, K, i, j, k, E, r, T, F, N, f, w, P, Y, z, R, l, L, fc;
+      h=4096,q=h/2,u=12,X=16,Z=1.5,i=.1,j=.01,k=.001;
+      E=(m,q=0,j=1,B=1)=>min(max((m-(t+q)*j%(m*j))/m,0),B)/B;
+      const r0 = m=>(m+=4,(1.45+.09*M)*(1<<m/7)*1.0594**(2*m%14-(m%7>3)));
+      const rC = new Float64Array(256), rOk = new Uint8Array(256); let rM = -1;
+      r = m => { const ix = m + 64;
+        if (ix >= 0 && ix < 256 && (ix | 0) === ix){ if (M !== rM){ rOk.fill(0); rM = M; } if (rOk[ix]) return rC[ix]; rOk[ix] = 1; return rC[ix] = r0(m); }
+        return r0(m); };
+      N=m=>m*m/(1+(495&t))%1*64;
+      z=(m,q=1+j,B=1,E=1,K=i,p=0)=>B*(r(m)*(p*w+K*F+t)|q*r(m)*(K*F+p*w+t)<<E)%256;
+      R=m=>t%m/m;
+      L=(m,q=1)=>K*(j+i*R(h))*z(m,1+k+k*fc,q,1+e);
+      f=(f,n)=>(fc=f,min(1.2*(w=4*B/(t%(64*q)%(2+t/2%(32*q)/(2*q))),P=N(t+f),Y=N(T+f),l=7==p?1:(5^Q%7)%2+1,64*(m>2)*abs(sin(2e3/(t%(X*q)%((7-5*(m>15&&K))*q)%(4*q)/8+48)))+.22*(m>6)*(Y+P)*E(h>>((K&&m>12)^Q+m-(6==p))%3+1-(K&&m>12),0,Z+H%5,.1)*S+(m>7)*(.5*P*E(h,q,4)*S+.54*Y*E(2*h,h,4)+i*(Y+P)*E(32*q,0,1.3)+.14*(3-2*S)*P*R(h))+.3*(m>13)*Y*E(q/2,0,8-p,1)*S+(m>15)*(11==B||B>12&&J?((7^m)%3+1)%2:1)*((B%4!=2+(m<24||m>96))*(.16-j*!J)*z(9+4*K-(e?Q%4-3+p:Q%4==3)+H%2,1.025-2*j*(f||S)+32*K*n,1+.5*(B%14>10),1,H%5*.3)*E(q/2*(1+(t%(X*q)%(7*q)>>12)%4),0,.5*(14==B)+1.4-.2*K,k)+.14*K*z(X,1+k+X*n*K,Z,1+e)*E(q,0,2,k)+Z*L(2,Z)+Z*!!M*L(6-(m>>1)%4,3))+9*(m%X<14)*j*z(9+(p>5),1+j+n*(m>7),Z,1,1,1)*E(q/l,0,1.27+(7==p),k)+12*(m>2)*j*z(2-H%2,1+j+(m>6),Z,0)*((Q+18)%X<3)+1.3*(m>96)*i*J*(B%4!=2)*z(H%8+4*B%8+(1<<p%2)*((2+(p>5))*t>>11)%6,1+j*f,1,1,.4)*E(q/2<<(B^Q)%2,0,1.4-(3-m%3)/4,j)),255));
+      return tt => (t=tt*.22,Q=t>>11,H=t>>12,m=t>>13,e=m%2,p=m%8,B=m>>3,S=m%32<31,M=B<24?m>>7:m>>6,J=(m>>4)%2,K=!J,T=0|t,F=80/(T%q/64),[f(0,0),f(1,1e-4)]);
+    } },
+    // Refuerzos alienígenas (44,1 kHz).
+    refuerzos: { sr: 44100, crear(){
+      // Lo mismo que el original, pero las funciones se crean una sola vez y
+      // las tablas de notas (que solo cambian con u) se preparan de antemano.
+      let T, U, b, u, v, w, G, R, C, S, L, D, i, j, x, y, r, e;
+      w='797479';
+      const tablas = u => { let x, y; const F = [[(y='5 5  5')+`T ${y}T ${y}T 5`+(u?'T  1T55':'SS4SSSS')],[y+`5D5 5  1DD${y}T 5SOCSSSS`],[`4${x='SSSSSSS'}4${x}4S`+x+x],[(x='4CSSS0444CSSS444')+x],[(x='4C   0444C   444')+x]]; const Nn = [['9 9  9997 7  7775 5  77 99'+(u?'  99AC':x='CEC9CE'),'9 9  999A A  AAAC A  AA 99'+(u?'  AA77':x)],[(x='4 4  444')+'0 2  2220 0  22 44'+(u?'  4457':w),x+y+`557 5  55 44`+(u?'  5522':w)],[`C4${w}E4${w}C4${w}24`+w],[`CC${w}EE${w}CC${w}77`+w],['77242024992420247724202422242024']]; return [F, Nn]; };
+      const TB = [tablas(false), tablas(true)];
+      G=(c,o)=>33E5*T*2**(o+parseInt(c,36)/12);
+      R=x=>((x^-(x>>8&1))&240)*(i=32*T%32,j=32*T%1,i<1||i>=16&&i<17?j:i>31||i>15&&i<16?1-j:1);
+      C=(a,T)=>a[T>>5&a.length-1][T&31];
+      S=(n,f,o=1,d)=>(f=parseInt(C(TB[+u][0][f],T-d),36),n=C(TB[+u][1][n],T-d),isNaN(f)||n==' '?0:(r=G(n,o-2)*(4*T&3||f/4&1?1:2**(-1/12))>>8,e=f>>3&3,d=f&3,128*(((e==1?r+64*sin(PI*U):e==2&&!(U&1)||e==3&&U&1?0:r)&255)>(!d?224:d==1?192:d==2?128:(8*T&3)<2?64:128))));
+      L=(n,f,o)=>S(n,f,o,0)+S(n,f,o,1.5)/2+S(n,f,o,3)/3;
+      D=(i,p,s)=>(1E5*sin(i*T|0)&64)*(1-U%2/3)*(p>>(U>>s)&1);
+      return t => (T=t/7500,U=2*T,b=T/8%88,u=b<16,v=b<80,min(255,(b<32?L(0,0,0):b<48?L(0,1):b<56?L(2,2):L(3,v?3:4))/3+(b<32?L(1,0,0):b<48?L(1,1):b>64&&L(4,4,b<72||!v?1:2))/3+.6*R(G('9 9 9 9 9 9 9 997 7 7 7 7 7 7 775 5 5 5 5 5 5 5 4 4 4 445 5 5 55'[U&63],-3)/64)+(v&&D(290,b<15.5?0x31111111:0xE4444444,1)+(b<15.5?D(1E6,0xC4A4A4A4,1):D(1E6,0xD4445444,0))/3+(!u&&50*(sin(150*(T%4)**.4)+1)*(1-T/4%1)))));
+    } },
+    // El Centurión (32 kHz).
+    centurion: { sr: 32000, crear(){
+      let b, wv, f, tick, p1, p2, p3, p4, p5, p6, e, d, i, x;
+      // (en el juego: las funciones se crean una sola vez, no en cada muestra)
+      let o1, o2, o3, o4, a1 = i=>atanh(sin(i*PI)/sqrt(2)), a2 = i=>sin(i*PI/2);
+      b=110; wv=(sin,s,r=256,q=32,i=1,j=1)=>sin(s/2+sin(s/2-1)*sin(sin(s+sin(s))/2+sin(s/2))**3*(j?(i?1:-1)*(t/r%64-(i?64:0))/q:r))/2; f=(c,k=1/0,p=1,e=i=>16&i)=>{let a,v;for(d=0,i=0;i<c.length;i++)x=c[i]>>16,(v=tick%k>x)&&(a=max(-(tick-x)%k/(32*p)+1,0))>0&&(d+=e(t*(65535&c[i])/256)*a*v);return d};
+      o1=k=>wv(a1,k/16,2,2,1,0)*32+16; o2=k=>wv(a2,k/(e?16:32),2,2,1,0)*64+32; o3=k=>(k*8&255)/8; o4=k=>k&16;
+      let t;
+      const g = tt => (t=tt,t*=5.5125/4,(tick=t/b)||(p1=[192,1573025,3145856,6291627,7864448,9437312,11010219,12583115,14155904,15728811,17301707,18874560,20447403,22020248,23593152,25165938,26738840,28311696,29884530,31457451,33030288,34603152,36176043,37748864,39321744,40894625,42467456,44040384,45613217,47186081,48758976,51904673],p2=[42,3145770,6291498,9437226,12582954,15728682,18874410,22020138,25165852,28311580,31457308,34603036,37748768,40894496,44040224,47185952],p3=[3145856,3145984,3342678,3342507,3735958,3735755,3932416,3932288,4129110,4128939,4325504,4325632,4718720,12583168,12779862,12779691,13173142,13172939,13369600,13369472,13566294,13566123,13762688,13762816,14155890,28311780,28508447,28508304,28901718,28901547,29098212,29098098,29294879,29294736,29491314,29491428,29884544,37748992,37945667,37945505,38338944,38338752,38535424,38535296,38732099,38731937,38928512,38928640],p4=[85,3145813,6291541,9437269,12582993,15728721,18874449,22020177,25165892,28311620,31457348,34603076,37748793,40894521,44040249,47185977],p5=[256,524373,1572992,3146070,3145813,6291627,7864448,9437387,11010219,12583104,14155979,15728801,17301696,18874496,20447393,22020192,23593088,25165909,26738784,28311654,29884501,31457472,33030246,34603179,36176064,37748907,39321771,40894667,42467499,44040448,45613259,47186262],p6=[6291584,12583040,18874496,22020267,31457451,34603152,44040306,47186048,56623232,62914688,69206144,72351915,81789099,84934817,94372001,97517696]),tick%=9216,(tick%6144>48?f((e=tick<6144)?p1:p5,768,2,o1):0)+(tick>768?f(e?p2:p4,tick<1536?48:768,2,o2):0)+(tick>3072&&e?f(p6,1536,2,o3)*2+f(p3,768,1/4,o4):0)+((tick>1408)?[tick%48<24,1][tick/48&1]*random()*-(tick%24-24)+(cbrt(tick%96)*(tick/96&1?512:256)&24):0));
+      g(0);                                  // en t = 0 arma sus tablas de notas
+      return g;
+    } },
+    // Menú (funcbeat, con filtros: lleva estado y corre a la frecuencia real).
+    menu: { sr: 0, crear(sr){
+      let LPF, Decay, BPM, time, filter, supersaw, clap, supersaw_out, m, g;
+      const fn = (function(){
+        const bassline = [1, 4];
+        const supersawline = [[1, 8], [4, 11]];
+        const key = 2;
+        // (en el juego: pow(2, x) y la del acorde, calculadas una sola vez)
+        const POT = [], POTS = [[{}, {}], [{}, {}]];
+        for (let x = 2; x < 5; x += 2){ POT[x] = pow(2, x); for (const mm of [0, 1]) for (const y in supersawline[mm]) POTS[mm][y][x] = pow(2, (supersawline[mm][y] + key + x / 20) / 12); }
+
+        //LPF (4-pole)
+        LPF = function(s = 48e3) {
+           this.fs = s;
+           this.cutoff = 1e3;
+           this.resonance = 1;
+           this.g = 0;
+           this.stage = Array(8).fill(0);
+           this.updateCoeffs = function() {
+              this.g = 2 * sin((PI * this.cutoff) / this.fs);
+           }
+
+           this.setSampleRate = function(sr) {
+              this.fs = sr;
+              this.updateCoeffs();
+           }
+
+           this.setCutoff = function(freq) {
+              this.cutoff = freq;
+              if (this.cutoff < 20) this.cutoff = 20;
+              if (this.cutoff > this.fs * .45) this.cutoff = this.fs * .45;
+              this.updateCoeffs();
+           }
+
+           this.setResonance = function(res) {
+              this.resonance = res;
+              if (this.resonance < 0) this.resonance = 0;
+              if (this.resonance > 4) this.resonance = 4;
+           }
+
+           this.process = function(input) {
+              let x = input - this.resonance * this.stage[3];
+
+              for (let i = 0; i < 4; ++i) {
+                 this.stage[i] += this.g * (tanh(x) - tanh(this.stage[i]));
+                 x = this.stage[i];
+              }
+
+              return this.stage[3];
+           }
+
+           this.updateCoeffs()
+        }
+
+        Decay = function(sr = 48000, at = 0.1, rt = 0.1, freq = 1.0, mode = "inout", smooth = 0.001) {
+           this.phase = 0;
+           this.sampleRate = sr;
+           this.rate = freq / this.sampleRate;
+           this.attack = at;
+           this.release = rt;
+           this.mode = mode; // "inout", "in", "out"
+
+           // smoothing state
+           this.smooth = 0;
+           this.alpha = smooth; // tweak: 0.001 → very smooth, 0.05 → snappier
+
+           this.setFreq = function(freq) {
+              this.rate = freq / this.sampleRate;
+           }
+
+           this.setTimes = function(at, rt) {
+              this.attack = at;
+              this.release = rt;
+           }
+
+           this.setMode = function(mode) {
+              this.mode = mode;
+           }
+
+           this.setSmooth = function(alpha) {
+              this.alpha = alpha;
+           }
+
+           this.rawEnvelope = function() {
+              this.phase += this.rate;
+              if (this.phase >= 1) this.phase -= 1;
+
+              if (this.mode === "inout") {
+                 if (this.phase < 0.5) {
+                    let t = this.phase / 0.5;
+                    let raw = 1.0 - exp(-t / this.attack);
+                    let max = 1.0 - exp(-1.0 / this.attack);
+                    return raw / max;
+                 } else {
+                    let t = (this.phase - 0.5) / 0.5;
+                    let raw = exp(-t / this.release);
+                    let min = exp(-1.0 / this.release);
+                    return (raw - min) / (1.0 - min);
+                 }
+              } else if (this.mode === "in") {
+                 let t = this.phase;
+                 let raw = 1.0 - exp(-t / this.attack);
+                 let max = 1.0 - exp(-1.0 / this.attack);
+                 return raw / max; // 0→1 then reset to 0
+              } else if (this.mode === "out") {
+                 let t = this.phase;
+                 let raw = exp(-t / this.release);
+                 let min = exp(-1.0 / this.release);
+                 return (raw - min) / (1.0 - min); // 1→0 then reset to 1
+              }
+           }
+
+           this.process = function() {
+              let raw = this.rawEnvelope();
+              // smooth discontinuities
+              this.smooth = this.alpha * raw + (1 - this.alpha) * this.smooth;
+              return this.smooth;
+           }
+        }
+
+        return function(t, samplerate) {
+        	BPM = 150;
+        	time = t * BPM / 120;
+           if (time == 0) {
+              filter = new LPF(samplerate);
+        		supersaw = new LPF(samplerate);
+        		clap = new LPF(samplerate);
+        		clap.setCutoff(6e3);
+        		clap.setResonance(.1);
+           }
+        	supersaw_out = 0;
+
+           filter.setCutoff(500 + abs(cos(time / 8)) * 1e3);
+           filter.setResonance(abs(sin(time / 4)) * 4);
+
+        	supersaw.setCutoff(1 + abs(sin(time * 4 * PI)) * 5e3);
+        	supersaw.setResonance(.6);
+
+        	for (const y in supersawline[m = 1 & time >> 3]) {
+        		for (let x = 2; x < 5; x += 2) {
+        			supersaw_out += (t / 8 * 110 * POT[x] * POTS[m][y][x] % 1 - .5) / 1.5 * (g = 0 < (3 & time * 4)) / 2
+        		}
+        	}
+        	const r = tan(random() * (1 / pow(exp((time+1)%2), 30) * 4 % 1) * 4)
+
+           return (filter.process(-t * 220 * pow(2, (bassline[m] + key) / 12) / 2 % 2 + 1) / 1.5 + supersaw.process(supersaw_out * 1.2) + sin(350 * sqrt(time % 1)) / 4 + clap.process(r) + (random()-.5) / pow(exp(4 * time % 1), 12) * g) / 1.4
+        }
+      })();
+      return n => fn(n/sr, sr);
+    } },
+    // Tienda y controles (funcbeat). Igual que el original, pero en vez de
+    // recorrer todas las notas en cada muestra mira solo las que suenan en esa
+    // octava parte de segundo (todas empiezan y acaban en múltiplos de 1/8).
+    // Repite cada 64 s, donde vuelve a empezar la melodía.
+    tienda: { sr: 0, crear(sr){
+      let m, d, w, u, n, _;
+      m=["K0,0.25|N0.25,0.25|P0.5,0.125|Q0.625,0.125|R0.75,0.5|K1.25,0.125|R1.5,0.125|Q1.75,0.125|K2,0.25|N2.25,0.25|P2.5,0.125|Q2.625,0.125|R2.75,0.5|K3.25,0.125|R3.5,0.125|P3.75,0.125|I4,0.25|N4.25,0.25|P4.5,0.125|Q4.625,0.125|P4.75,0.5|I5.25,0.25|K5.5,0.25|I5.75,0.25|I6,0.25|N6.25,0.25|P6.5,0.125|Q6.625,0.125|P6.75,0.5|I7.25,0.25|P7.5,0.125|N7.75,0.125|K8,0.25|N8.25,0.25|P8.5,0.125|Q8.625,0.125|R8.75,0.5|K9.25,0.125|R9.5,0.125|Q9.75,0.125|K10,0.25|N10.25,0.25|P10.5,0.125|Q10.625,0.125|R10.75,0.5|K11.25,0.125|R11.5,0.125|P11.75,0.125|I12,0.25|N12.25,0.25|P12.5,0.125|Q12.625,0.125|P12.75,0.5|I13.25,0.25|K13.5,0.25|I13.75,0.25|I14,0.25|N14.25,0.25|P14.5,0.125|Q14.625,0.125|P14.75,0.5|I15.25,0.25|P15.5,0.125|N15.75,0.125|K16,0.25|N16.25,0.25|P16.5,0.125|Q16.625,0.125|R16.75,0.5|K17.25,0.125|R17.5,0.125|Q17.75,0.125|K18,0.25|N18.25,0.25|P18.5,0.125|Q18.625,0.125|R18.75,0.5|K19.25,0.125|R19.5,0.125|P19.75,0.125|I20,0.25|N20.25,0.25|P20.5,0.125|Q20.625,0.125|P20.75,0.5|I21.25,0.25|K21.5,0.25|I21.75,0.25|I22,0.25|N22.25,0.25|P22.5,0.125|Q22.625,0.125|P22.75,0.5|I23.25,0.25|P23.5,0.125|N23.75,0.125|K24,0.25|N24.25,0.25|P24.5,0.125|Q24.625,0.125|R24.75,0.5|K25.25,0.125|R25.5,0.125|Q25.75,0.125|K26,0.25|N26.25,0.25|P26.5,0.125|Q26.625,0.125|R26.75,0.5|K27.25,0.125|R27.5,0.125|P27.75,0.125|I28,0.25|N28.25,0.25|P28.5,0.125|Q28.625,0.125|P28.75,0.5|I29.25,0.25|K29.5,0.25|I29.75,0.25|I30,0.25|N30.25,0.25|P30.5,0.125|Q30.625,0.125|P30.75,0.5|I31.25,0.25|P31.5,0.125|N31.75,0.125|K32,0.25|N32.25,0.25|P32.5,0.125|Q32.625,0.125|R32.75,0.5|K33.25,0.125|R33.5,0.125|Q33.75,0.125|K34,0.25|N34.25,0.25|P34.5,0.125|Q34.625,0.125|R34.75,0.5|K35.25,0.125|R35.5,0.125|P35.75,0.125|I36,0.25|N36.25,0.25|P36.5,0.125|Q36.625,0.125|P36.75,0.5|I37.25,0.25|K37.5,0.25|I37.75,0.25|I38,0.25|N38.25,0.25|P38.5,0.125|Q38.625,0.125|P38.75,0.5|I39.25,0.25|P39.5,0.125|N39.75,0.125|K40,0.25|N40.25,0.25|P40.5,0.125|Q40.625,0.125|R40.75,0.5|K41.25,0.125|R41.5,0.125|Q41.75,0.125|K42,0.25|N42.25,0.25|P42.5,0.125|Q42.625,0.125|R42.75,0.5|K43.25,0.125|R43.5,0.125|P43.75,0.125|I44,0.25|N44.25,0.25|P44.5,0.125|Q44.625,0.125|P44.75,0.5|I45.25,0.25|K45.5,0.25|I45.75,0.25|I46,0.25|N46.25,0.25|P46.5,0.125|Q46.625,0.125|P46.75,0.5|I47.25,0.25|P47.5,0.125|N47.75,0.125|K48,0.25|N48.25,0.25|P48.5,0.125|Q48.625,0.125|R48.75,0.5|K49.25,0.125|R49.5,0.125|Q49.75,0.125|K50,0.25|N50.25,0.25|P50.5,0.125|Q50.625,0.125|R50.75,0.5|K51.25,0.125|R51.5,0.125|P51.75,0.125|I52,0.25|N52.25,0.25|P52.5,0.125|Q52.625,0.125|P52.75,0.5|I53.25,0.25|K53.5,0.25|I53.75,0.25|I54,0.25|N54.25,0.25|P54.5,0.125|Q54.625,0.125|P54.75,0.5|I55.25,0.25|P55.5,0.125|N55.75,0.125|K56,0.25|N56.25,0.25|P56.5,0.125|Q56.625,0.125|R56.75,0.5|K57.25,0.125|R57.5,0.125|Q57.75,0.125|K58,0.25|N58.25,0.25|P58.5,0.125|Q58.625,0.125|R58.75,0.5|K59.25,0.125|R59.5,0.125|P59.75,0.125|I60,0.25|N60.25,0.25|P60.5,0.125|Q60.625,0.125|P60.75,0.5|I61.25,0.25|K61.5,0.25|I61.75,0.25|I62,0.25|N62.25,0.25|P62.5,0.125|Q62.625,0.125|P62.75,0.5|I63.25,0.25|P63.5,0.125|N63.75,0.125|K64,0.25","K0.25,0.25|R0.25,0.25|N0.25,0.25|N0.75,0.25|K0.75,0.25|R0.75,0.25|R1.25,0.25|K1.25,0.25|N1.25,0.25|R1.75,0.25|N1.75,0.25|K1.75,0.25|N2.25,0.25|K2.25,0.25|R2.25,0.25|N2.75,0.25|K2.75,0.25|R2.75,0.25|R3.25,0.25|N3.25,0.25|K3.25,0.25|R3.75,0.25|N3.75,0.25|K3.75,0.25|I4.25,0.25|N4.25,0.25|Q4.25,0.25|I4.75,0.25|N4.75,0.25|Q4.75,0.25|I5.25,0.25|N5.25,0.25|Q5.25,0.25|I5.75,0.25|N5.75,0.25|Q5.75,0.25|I6.25,0.25|N6.25,0.25|Q6.25,0.25|I6.75,0.25|N6.75,0.25|Q6.75,0.25|I7.25,0.25|N7.25,0.25|Q7.25,0.25|Q7.75,0.25|N7.75,0.25|I7.75,0.25|K8.25,0.25|R8.25,0.25|N8.25,0.25|N8.75,0.25|K8.75,0.25|R8.75,0.25|R9.25,0.25|K9.25,0.25|N9.25,0.25|R9.75,0.25|N9.75,0.25|K9.75,0.25|N10.25,0.25|K10.25,0.25|R10.25,0.25|N10.75,0.25|K10.75,0.25|R10.75,0.25|R11.25,0.25|N11.25,0.25|K11.25,0.25|R11.75,0.25|N11.75,0.25|K11.75,0.25|I12.25,0.25|N12.25,0.25|Q12.25,0.25|I12.75,0.25|N12.75,0.25|Q12.75,0.25|I13.25,0.25|N13.25,0.25|Q13.25,0.25|I13.75,0.25|N13.75,0.25|Q13.75,0.25|I14.25,0.25|N14.25,0.25|Q14.25,0.25|I14.75,0.25|N14.75,0.25|Q14.75,0.25|I15.25,0.25|N15.25,0.25|Q15.25,0.25|Q15.75,0.25|N15.75,0.25|I15.75,0.25|K16.25,0.25|R16.25,0.25|N16.25,0.25|N16.75,0.25|K16.75,0.25|R16.75,0.25|R17.25,0.25|K17.25,0.25|N17.25,0.25|R17.75,0.25|N17.75,0.25|K17.75,0.25|N18.25,0.25|K18.25,0.25|R18.25,0.25|N18.75,0.25|K18.75,0.25|R18.75,0.25|R19.25,0.25|N19.25,0.25|K19.25,0.25|R19.75,0.25|N19.75,0.25|K19.75,0.25|I20.25,0.25|N20.25,0.25|Q20.25,0.25|I20.75,0.25|N20.75,0.25|Q20.75,0.25|I21.25,0.25|N21.25,0.25|Q21.25,0.25|I21.75,0.25|N21.75,0.25|Q21.75,0.25|I22.25,0.25|N22.25,0.25|Q22.25,0.25|I22.75,0.25|N22.75,0.25|Q22.75,0.25|I23.25,0.25|N23.25,0.25|Q23.25,0.25|Q23.75,0.25|N23.75,0.25|I23.75,0.25|K24.25,0.25|R24.25,0.25|N24.25,0.25|N24.75,0.25|K24.75,0.25|R24.75,0.25|R25.25,0.25|K25.25,0.25|N25.25,0.25|R25.75,0.25|N25.75,0.25|K25.75,0.25|N26.25,0.25|K26.25,0.25|R26.25,0.25|N26.75,0.25|K26.75,0.25|R26.75,0.25|R27.25,0.25|N27.25,0.25|K27.25,0.25|R27.75,0.25|N27.75,0.25|K27.75,0.25|I28.25,0.25|N28.25,0.25|Q28.25,0.25|I28.75,0.25|N28.75,0.25|Q28.75,0.25|I29.25,0.25|N29.25,0.25|Q29.25,0.25|I29.75,0.25|N29.75,0.25|Q29.75,0.25|I30.25,0.25|N30.25,0.25|Q30.25,0.25|I30.75,0.25|N30.75,0.25|Q30.75,0.25|I31.25,0.25|N31.25,0.25|Q31.25,0.25|Q31.75,0.25|N31.75,0.25|I31.75,0.25|R34.25,0.25|K34.25,0.25|N34.25,0.25|R34.75,0.25|K34.75,0.25|N34.75,0.25|K35.25,0.25|N35.25,0.25|R35.25,0.25|K35.75,0.25|N35.75,0.25|R35.75,0.25|Q36.25,0.25|N36.25,0.25|I36.25,0.25|Q36.75,0.25|N36.75,0.25|I36.75,0.25|Q37.25,0.25|N37.25,0.25|I37.25,0.25|Q37.75,0.25|N37.75,0.25|I37.75,0.25|Q38.25,0.25|N38.25,0.25|I38.25,0.25|Q38.75,0.25|N38.75,0.25|I38.75,0.25|Q39.25,0.25|N39.25,0.25|I39.25,0.25|Q39.75,0.25|N39.75,0.25|I39.75,0.25|N40.25,0.25|R40.25,0.25|K40.25,0.25|R40.75,0.25|K40.75,0.25|N40.75,0.25|N41.25,0.25|K41.25,0.25|R41.25,0.25|K41.75,0.25|N41.75,0.25|R41.75,0.25|R42.25,0.25|K42.25,0.25|N42.25,0.25|R42.75,0.25|K42.75,0.25|N42.75,0.25|K43.25,0.25|N43.25,0.25|R43.25,0.25|K43.75,0.25|N43.75,0.25|R43.75,0.25|Q44.25,0.25|N44.25,0.25|I44.25,0.25|Q44.75,0.25|N44.75,0.25|I44.75,0.25|Q45.25,0.25|N45.25,0.25|I45.25,0.25|Q45.75,0.25|N45.75,0.25|I45.75,0.25|Q46.25,0.25|N46.25,0.25|I46.25,0.25|Q46.75,0.25|N46.75,0.25|I46.75,0.25|Q47.25,0.25|N47.25,0.25|I47.25,0.25|Q47.75,0.25|N47.75,0.25|I47.75,0.25|N48.25,0.25|R48.25,0.25|K48.25,0.25|R48.75,0.25|K48.75,0.25|N48.75,0.25|N49.25,0.25|K49.25,0.25|R49.25,0.25|K49.75,0.25|N49.75,0.25|R49.75,0.25|R50.25,0.25|K50.25,0.25|N50.25,0.25|R50.75,0.25|K50.75,0.25|N50.75,0.25|K51.25,0.25|N51.25,0.25|R51.25,0.25|K51.75,0.25|N51.75,0.25|R51.75,0.25|Q52.25,0.25|N52.25,0.25|I52.25,0.25|Q52.75,0.25|N52.75,0.25|I52.75,0.25|Q53.25,0.25|N53.25,0.25|I53.25,0.25|Q53.75,0.25|N53.75,0.25|I53.75,0.25|Q54.25,0.25|N54.25,0.25|I54.25,0.25|Q54.75,0.25|N54.75,0.25|I54.75,0.25|Q55.25,0.25|N55.25,0.25|I55.25,0.25|Q55.75,0.25|N55.75,0.25|I55.75,0.25|N56.25,0.25|R56.25,0.25|K56.25,0.25|R56.75,0.25|K56.75,0.25|N56.75,0.25|N57.25,0.25|K57.25,0.25|R57.25,0.25|K57.75,0.25|N57.75,0.25|R57.75,0.25|R58.25,0.25|K58.25,0.25|N58.25,0.25|R58.75,0.25|K58.75,0.25|N58.75,0.25|K59.25,0.25|N59.25,0.25|R59.25,0.25|K59.75,0.25|N59.75,0.25|R59.75,0.25|Q60.25,0.25|N60.25,0.25|I60.25,0.25|Q60.75,0.25|N60.75,0.25|I60.75,0.25|Q61.25,0.25|N61.25,0.25|I61.25,0.25|Q61.75,0.25|N61.75,0.25|I61.75,0.25|Q62.25,0.25|N62.25,0.25|I62.25,0.25|Q62.75,0.25|N62.75,0.25|I62.75,0.25|Q63.25,0.25|N63.25,0.25|I63.25,0.25|Q63.75,0.25|N63.75,0.25|I63.75,0.25","K16,0.75|N16.75,0.75|I17.5,0.5|P18,0.75|N18.75,0.75|K19.5,0.5|I20,0.75|N20.75,0.75|I21.5,0.5|N22,0.5|K22.5,0.5|N23,0.5|I23.5,0.5|K24,0.75|N24.75,0.75|I25.5,0.5|P26,0.75|N26.75,0.75|K27.5,0.5|I28,0.75|N28.75,0.75|I29.5,0.5|N30,0.5|K30.5,0.5|N31,0.5|I31.5,0.5|K40,0.75|N40.75,0.75|I41.5,0.5|P42,0.75|N42.75,0.75|K43.5,0.5|I44,0.75|N44.75,0.75|I45.5,0.5|N46,0.5|K46.5,0.5|N47,0.5|I47.5,0.5"].map(e=>e.split("|").map(e=>(_=e.substr(1).split(','),[e[0].charCodeAt(0),parseFloat(_[0]),parseFloat(_[1])]))),d=["$8|*8.25|&8.5|$8.75|*8.75|*9|$9.25|*9.25|&9.5|*9.75|$10|*10.25|&10.5|$10.75|*10.75|*11|$11.25|*11.25|&11.5|*11.75|$12|*12.25|&12.5|$12.75|*12.75|*13|$13.25|*13.25|&13.5|*13.75|$14|*14.25|&14.5|$14.75|*14.75|*15|$15.25|*15.25|&15.5|*15.75|$16|*16.25|&16.5|$16.75|*16.75|*17|$17.25|*17.25|&17.5|*17.75|$18|*18.25|&18.5|$18.75|*18.75|*19|$19.25|*19.25|&19.5|*19.75|$20|*20.25|&20.5|$20.75|*20.75|*21|$21.25|*21.25|&21.5|*21.75|$22|*22.25|&22.5|$22.75|*22.75|*23|$23.25|*23.25|&23.5|*23.75|$24|*24.25|&24.5|$24.75|*24.75|*25|$25.25|*25.25|&25.5|*25.75|$26|*26.25|&26.5|$26.75|*26.75|*27|$27.25|*27.25|&27.5|*27.75|$28|*28.25|&28.5|$28.75|*28.75|*29|$29.25|*29.25|&29.5|*29.75|$30|*30.25|&30.5|$30.75|*30.75|*31|$31.25|*31.25|&31.5|*31.75|$34|*34.25|&34.5|$34.75|*34.75|*35|$35.25|*35.25|&35.5|*35.75|$36|*36.25|&36.5|$36.75|*36.75|*37|$37.25|*37.25|&37.5|*37.75|$38|*38.25|&38.5|$38.75|*38.75|*39|$39.25|*39.25|&39.5|*39.75|$40|*40.25|&40.5|$40.75|*40.75|*41|$41.25|*41.25|&41.5|*41.75|$42|*42.25|&42.5|$42.75|*42.75|*43|$43.25|*43.25|&43.5|*43.75|$44|*44.25|&44.5|$44.75|*44.75|*45|$45.25|*45.25|&45.5|*45.75|$46|*46.25|&46.5|$46.75|*46.75|*47|$47.25|*47.25|&47.5|*47.75"].map(e=>e.split("|").map(e=>([e.charCodeAt(0),parseFloat(e.substr(1))]))),w=[t=>sin(sin(sin(PI*t/8)/4+PI*t/128)*1.3*max(1-t/4E4,0)+PI*t/128)*max(1-t/4E4,0),t=>sin(sin(sin(PI*t/8)/4+PI*t/128)*1.3*max(1-t/4E4,0)+PI*t/128)*max(1-t/4E4,0)/2,t=>((sin(t/40)>0.5)?t:256-t%256)%256/256-0.5],u={36:t=>sin(sqrt(t*6E4))*max(1-t*4,0),42:t=>(random()-0.5)*max(1-t*8,0),38:t=>(t*=24000,n=(t,d)=>cos(t*cos(t))/d,(tan(sin(6*sqrt(t*2)**.8))/1.5+n(t>>3,3)+n(t>>2,3)+n(t,4))*(1-min(t/4096,1)))};
+      const LARGO = 64, rodajas = [];
+      for (let s = 0; s < LARGO*8; s++){
+        const t0 = s/8, tN = [];
+        m.forEach((r, i)=> r.forEach(e=>{ if (t0 >= e[1] && t0 < e[1] + e[2]) tN.push(i, e[0], e[1], 7040*2**(e[0]/12)/8); }));
+        d.forEach(r=> r.forEach(e=>{ if (t0 >= e[1] && t0 < e[1] + 1) tN.push(-1, e[0], e[1], 0); }));
+        rodajas.push(tN);
+      }
+      return n_ => {
+        const t = (n_/sr) % LARGO, tN = rodajas[(t*8) | 0];
+        let o = 0;
+        for (let k = 0; k < tN.length; k += 4){
+          const i = tN[k];
+          if (i >= 0) o += w[i]((t - tN[k + 2])*tN[k + 3]);
+          else o += u[tN[k + 1]](t - tN[k + 2]);
+        }
+        return o/2;
+      };
+    } }
+  };
+}
+
+// Volumen de cada pieza, para que suenen como el resto de la música.
+const BB_GANANCIA = { alien:0.5, refuerzos:0.19, centurion:0.41, menu:0.31, tienda:0.18 };
+// Mezcla y cambio de pista. Corre en el hilo de audio (AudioWorklet); si el
+// navegador no lo tiene, en un ScriptProcessor. Las de bytebeat se calculan a
+// su frecuencia propia y se sostienen entre muestra y muestra; las de
+// funcbeat, a la del dispositivo. Al cambiar de pieza baja una y sube la otra;
+// la que se deja queda en pausa donde iba (los jefes vuelven a empezar).
+function bbMezclador(G, sr, GAN){
+  const inst = {};
+  let cur = null, sig = null, vol = 0, obj = 0, xl = 0, xr = 0, yl = 0, yr = 0;
+  const PASO = 1/(0.35*sr), DC = 1 - 2*Math.PI*5/sr;
+  const nueva = id => { const def = G[id]; return { id, def, g: def.crear(sr), n: 0, pos: 0, idx: -1, l: 0, r: 0, gan: GAN[id] || 0.25 }; };
+  const byte = v => (v & 255)/127.5 - 1;
+  const muestra = x => {
+    const d = x.def;
+    if (!d.sr){                                                  // funcbeat
+      let v = x.g(x.n++); if (!(v > -8 && v < 8)) v = 0;
+      x.l = x.r = v; return;
+    }
+    x.pos += d.sr/sr;
+    if (d.bucle && x.pos >= d.bucle[0]){ x.pos -= d.bucle[0] - d.bucle[1]; x.idx = -1; }
+    const i = Math.floor(x.pos);
+    if (i === x.idx) return;                                     // aún la misma muestra
+    x.idx = i;
+    const v = x.g(i);
+    if (Array.isArray(v)){ x.l = byte(v[0]); x.r = byte(v[1]); } else x.l = x.r = byte(v);
+  };
+  return {
+    msg(m){
+      if (!m || m.id == null){ sig = null; obj = 0; return; }
+      if (!G[m.id]) return;
+      if (cur && cur.id === m.id && !m.reinicia){ sig = null; obj = 1; return; }
+      if (m.reinicia || !inst[m.id]) inst[m.id] = nueva(m.id);
+      if (!cur || vol <= 0){ cur = inst[m.id]; sig = null; obj = 1; xl = xr = yl = yr = 0; }
+      else { sig = inst[m.id]; obj = 0; }
+    },
+    llena(L, R, N){
+      if (!cur || (vol <= 0 && obj <= 0 && !sig)){ L.fill(0); if (R !== L) R.fill(0); return; }   // en silencio: no calcula nada
+      for (let k = 0; k < N; k++){
+        if (vol < obj){ vol += PASO; if (vol > obj) vol = obj; }
+        else if (vol > obj){ vol -= PASO; if (vol < obj) vol = obj; }
+        if (vol <= 0 && sig){ cur = sig; sig = null; obj = 1; xl = xr = yl = yr = 0; }
+        let a = 0, b = 0;
+        if (vol > 0){
+          try { muestra(cur); } catch(e){ cur.l = cur.r = 0; }
+          yl = cur.l - xl + DC*yl; xl = cur.l;                   // sin corriente continua
+          yr = cur.r - xr + DC*yr; xr = cur.r;
+          const g = vol*vol*cur.gan;
+          a = yl*g; b = yr*g;
+          a = a > 1 ? 1 : a < -1 ? -1 : a; b = b > 1 ? 1 : b < -1 ? -1 : b;
+        }
+        L[k] = a; if (R !== L) R[k] = b;
+      }
+    }
+  };
+}
+const bbMus = { nodo:null, estado:'nada', id:null, reinicia:false };
+function bbArranca(){
+  if (bbMus.estado !== 'nada' || !audio.ctx) return;
+  bbMus.estado = 'cargando';
+  const listo = nodo => { bbMus.nodo = nodo; bbMus.estado = 'listo'; bbManda(); };
+  const respaldo = ()=>{
+    try {
+      const m = bbMezclador(bbGeneradores(), audio.ctx.sampleRate, BB_GANANCIA);
+      const sp = audio.ctx.createScriptProcessor(4096, 0, 2);
+      sp.onaudioprocess = e => { const o = e.outputBuffer; m.llena(o.getChannelData(0), o.getChannelData(1), o.length); };
+      sp.connect(audio.musGain);
+      listo({ port: { postMessage: d => m.msg(d) }, sp });
+    } catch(e){ bbMus.estado = 'roto'; }
+  };
+  try {
+    if (!audio.ctx.audioWorklet || typeof AudioWorkletNode === 'undefined') throw 0;
+    const fuente = 'const bbGeneradores = ' + bbGeneradores.toString() + ';\n' +
+      'const bbMezclador = ' + bbMezclador.toString() + ';\n' +
+      'const BB_GANANCIA = ' + JSON.stringify(BB_GANANCIA) + ';\n' +
+      'registerProcessor("musica-bb", class extends AudioWorkletProcessor {\n' +
+      '  constructor(){ super(); this.m = bbMezclador(bbGeneradores(), sampleRate, BB_GANANCIA); this.port.onmessage = e => this.m.msg(e.data); }\n' +
+      '  process(i, o){ const c = o[0]; if (c && c[0]) this.m.llena(c[0], c[1] || c[0], c[0].length); return true; }\n' +
+      '});\n';
+    const url = URL.createObjectURL(new Blob([fuente], { type:'application/javascript' }));
+    audio.ctx.audioWorklet.addModule(url).then(()=>{
+      const n = new AudioWorkletNode(audio.ctx, 'musica-bb', { numberOfInputs:0, numberOfOutputs:1, outputChannelCount:[2] });
+      n.connect(audio.musGain);
+      listo(n);
+    }).catch(respaldo).finally(()=> URL.revokeObjectURL(url));
+  } catch(e){ respaldo(); }
+}
+function bbManda(){
+  if (bbMus.estado !== 'listo') return;
+  bbMus.nodo.port.postMessage({ id: bbMus.id, reinicia: bbMus.reinicia });
+  bbMus.reinicia = false;
+}
+// Qué pieza de dollchan debe sonar (null: ninguna).
+function bbPon(id, reinicia){
+  if (id === bbMus.id) return;
+  bbMus.id = id; bbMus.reinicia = !!reinicia;
+  if (id != null) bbArranca();
+  bbManda();
+}
+function bbSigue(bt){ bbPon(bt && bt.bb ? bt.bb : null, !!(bt && (bt.bbReinicia || bt === previewTrack))); }
 
 // El tema que manda: muestra del registro, jefe, menú o, en el planeta
 // marciano, su propio tema futurista.
 function pistaBase(){
-  return previewTrack || bossTrack || (menuMusica ? MENU_TRACK : null) || (running && esAlien() ? pistaAlien() : null) || (running && esInfierno() ? (gameTime > INF_CAMBIO_T ? INFIERNO_TRACK2 : INFIERNO_TRACK) : null)
+  return previewTrack || bossTrack || (menuMusica ? (enTienda() ? TIENDA_TRACK : MENU_TRACK) : null) || (running && esAlien() ? pistaAlien() : null) || (running && esInfierno() ? (gameTime > INF_CAMBIO_T ? INFIERNO_TRACK2 : INFIERNO_TRACK) : null)
       || (running ? pistaCiudad() : null);                     // la ciudad: su tema de cada hora
 }
 function musicStep(){
@@ -9343,6 +9664,8 @@ function musicStep(){
   if (menuMusica && running) menuMusica = false;   // jugando manda la partida
   if (bossTrack && !running) bossTrack = null;     // ni un jefe suena en el menú
   const bt = pistaBase();
+  bbSigue(bt);
+  if (bt && bt.bb) return;                         // suena una pieza de dollchan: el secuenciador calla
   const key = (typeof phase === 'function') ? phase().id : 'dia';
   const sc = bt ? bt.scale : (MUSIC_SCALES[key] || MUSIC_SCALES.dia);
   const t0 = audio.ctx.currentTime;
@@ -9447,44 +9770,6 @@ function musicStep(){
       }
       if (V.eco && i >= 3){ const e2 = V.mel[i - 3]; if (e2 >= 0) mk(f(e2 + 12), 0.16, 'triangle', 0.018); }
     }
-    return;
-  }
-  if (bt && bt.style === 'futuro'){
-    // PLANETA ROJO (ver ALIEN_VARIANTES). Ciclo de 4 compases de 16 pasos y
-    // cuatro secciones: base, con acordes, con melodía y melodía una octava arriba.
-    const V = bt, f = n => V.root*Math.pow(2, (n + V.trans)/12);
-    const paso = s % 16, comp = (s/16 | 0) % 4, sec = (s/64 | 0) % 4;
-    const raiz = PR_ACORDE[comp][0];
-    // batería quebrada
-    const kick = paso === 0 || paso === 8 || (!V.kickLigero && (paso === 6 || paso === 11));
-    if (kick){ mk(f(-12)*0.9, 0.12, 'sine', 0.3); noise(0.03, 0.1, 120); }
-    if (V.noche ? paso === 8 : (paso === 4 || paso === 12)){ noise(0.1, 0.16, 2400); mk(220, 0.05, 'triangle', 0.04); }
-    if (!V.noche && (paso === 7 || paso === 15) && sec >= 1) noise(0.04, 0.05, 2600);          // golpes fantasma
-    if (paso % 2 === 1) noise(0.02, V.kickLigero ? 0.03 : 0.05, 8500);                         // charles
-    if (paso === 14 && sec >= 2) noise(0.12, 0.05, 6000);                                       // abierto
-    // bajo que salta de octava, siguiendo el acorde
-    const nb = (comp % 2 ? PR_BAJO2 : PR_BAJO)[paso];
-    if (nb >= 0) mk(f(raiz + nb), 0.1, V.bajo, 0.17);
-    // acordes cortos en contratiempo
-    if (V.stab > 0 && sec >= 1 && (paso === 2 || paso === 7 || paso === 10 || paso === 14)){
-      for (const n of PR_ACORDE[comp]){ mk(f(n + 12), V.stab, 'square', 0.03); mk(f(n + 12)*1.004, V.stab, 'sawtooth', 0.02); }
-    }
-    // arpegio de los acordes en la primera sección (y suave toda la noche)
-    if ((sec === 1 || V.noche) && paso % 2 === 0){
-      const ac = PR_ACORDE[comp], n = ac[(paso/2) % 3] + 24 + ((paso/6 | 0) % 2)*12;
-      if (!V.noche || paso % 4 === 0) mk(f(n), 0.09, 'square', V.noche ? 0.025 : 0.035);
-    }
-    // la melodía
-    if (sec >= 2){
-      const m = PR_MELO[(s % 64)];
-      if (m >= 0){
-        const o = sec === 3 && !V.noche ? 12 : 0;
-        mk(f(m + 12 + o), 0.16, V.lead, V.lead === 'sawtooth' ? 0.04 : 0.055);
-        if (V.noche) mk(f(m + 24), 0.12, 'sine', 0.018);                                           // eco brillante
-      }
-      if (V.noche && s % 64 >= 2){ const e2 = PR_MELO[(s - 2) % 64]; if (e2 >= 0) mk(f(e2 + 12), 0.14, 'triangle', 0.02); }   // eco
-    }
-    if (s % 128 === 124) mk(f(31), 0.5, 'sine', 0.03);                                          // destello al cerrar el ciclo
     return;
   }
   if (bt && bt.style === 'militar'){
@@ -9763,6 +10048,7 @@ function retuneMusic(){
   const bt = pistaBase();
   clearInterval(audio.musicTimer);
   audio.musicTimer = setInterval(musicStep, bt ? bt.tempo : 260);
+  bbSigue(bt);
 }
 
 // Suena el tema del jefe mientras siga en pie. Se revisa 3 veces por segundo:
@@ -9819,9 +10105,11 @@ function startMusic(){
   if (audio.musicTimer){ clearInterval(audio.musicTimer); audio.musicTimer = null; }
   const t = pistaBase();
   audio.musicTimer = setInterval(musicStep, t ? t.tempo : 260);
+  bbSigue(t);
 }
 function stopMusic(){
   if (audio.musicTimer){ clearInterval(audio.musicTimer); audio.musicTimer = null; }
+  bbPon(null);
 }
 
 // ================= REGISTRO (bestiario) =================
@@ -10025,7 +10313,7 @@ const OST_TEMAS = [
   // Los temas de los otros mapas: se desbloquean jugando una partida en ellos.
   { id:'mapa_alien',    icon:'\u{1FA90}', name:'PLANETA ROJO', pista: ()=> ALIEN_TRACK,
     bloqueo:'Juega una partida en el MUNDO ALIENÍGENA para desbloquearlo. Toca el icono para ver otro tema.',
-    desc:'El tema del Mundo Alienígena. Bajo pulsante de sintetizador, un arpegio frío que sube y baja y destellos agudos: la ciudad futurista de los marcianos.' },
+    desc:'El tema del Mundo Alienígena: una pieza de bytebeat que va creciendo, con bombo, bajos y arpegios de chip que cambian cada pocos compases y suben de tono a mitad de camino.' },
   { id:'mapa_infierno', icon:'\u{1F525}', name:'LAMENTO ETERNO', pista: ()=> INFIERNO_TRACK,
     bloqueo:'Juega una partida en CASTIGO DIVINO para desbloquearlo. Toca el icono para ver otro tema.',
     desc:'El tema de Castigo Divino. Un órgano grave que nunca se resuelve, un coro desafinado, el Dies irae arrastrado y un tambor lento como un latido.' },
