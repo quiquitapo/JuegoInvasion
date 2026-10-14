@@ -3291,7 +3291,7 @@ function alienSet(cat, R){
 }
 // Al empezar la partida, cada solar toma el edificio del mapa elegido.
 function aplicaMapa(){
-  for (const b of buildings){
+  for (let __i66 = 0, __a66 = buildings; __i66 < __a66.length; __i66++){ const b = __a66[__i66];
     if (b.setCiudad === undefined) b.setCiudad = b.set;
     b.set = esAlien() ? alienSet(b.cat || 'medio', mulberry32(((b.seed || 1)*7 + 3) | 0))
           : esInfierno() ? infiernoSet(b, mulberry32(((b.seed || 1)*13 + 5) | 0)) : b.setCiudad;
@@ -3480,7 +3480,7 @@ function alienFachada(g, b, P, R, rh, fh, ventanas){
 
 // ---------- calles, aceras y parques ----------
 function drawRoadsAlien(){
-  for (const r of roads){
+  for (let __i67 = 0, __a67 = roads; __i67 < __a67.length; __i67++){ const r = __a67[__i67];
     if (r.x + r.w < camX || r.x > camX + VW || r.y + r.h < camY || r.y > camY + VH) continue;
     const s = S(r.x, r.y);
     ctx.fillStyle = '#1b2130'; ctx.fillRect(s.x, s.y, r.w, r.h);
@@ -3824,7 +3824,7 @@ function makeLavaTile(){
 function drawRoadsInf(){
   if (!lavaPat){ try { lavaPat = ctx.createPattern(makeLavaTile(), 'repeat'); } catch(e){} }
   ctx.save(); ctx.translate(-camX, -camY);              // patrón anclado al mundo
-  for (const r of roads){
+  for (let __i68 = 0, __a68 = roads; __i68 < __a68.length; __i68++){ const r = __a68[__i68];
     if (r.x + r.w < camX || r.x > camX + VW || r.y + r.h < camY || r.y > camY + VH) continue;
     ctx.fillStyle = lavaPat || '#1d1715'; ctx.fillRect(r.x, r.y, r.w, r.h);
     ctx.fillStyle = 'rgba(0,0,0,0.35)';
@@ -4049,7 +4049,7 @@ function restoCanvas(tipo){
 function drawRestosJefes(){
   if (!restosJefes.length) return;
   const suave = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = false;
-  for (const o of restosJefes){
+  for (let __i69 = 0, __a69 = restosJefes; __i69 < __a69.length; __i69++){ const o = __a69[__i69];
     if (o.x < camX - 200 || o.x > camX + VW + 200 || o.y < camY - 140 || o.y > camY + VH + 140) continue;
     const c = restoCanvas(o.tipo), s = S(o.x, o.y);
     ctx.save(); ctx.translate(s.x, s.y); ctx.rotate(o.rot); ctx.scale(o.f, 1);
@@ -4277,7 +4277,9 @@ let VW = CW / ZOOM, VH = CH / ZOOM;                    // mundo visible (unidade
 // dibuja a la densidad de la pantalla, con un tope de 2×. Si el equipo no
 // aguanta el ritmo, vigilaRendimiento() lo devuelve a 1× para que no haya lag.
 let DPR = 1, dprTope = 2;
+let _congelado = false;            // partida parada y ya pintada (ver mundoCongelado)
 function resize(){
+  _congelado = false;                            // el tamaño cambió: hay que repintar
   CW = window.innerWidth; CH = window.innerHeight;
   const dprPant = window.devicePixelRatio || 1;
   DPR = Math.max(1, Math.min(dprTope, dprPant));
@@ -4389,10 +4391,10 @@ const BANCO_MONEDAS = 79;
   // Un punto solo es válido si NO cae dentro de un edificio ni sobre la calzada.
   const SIDEWALK = (block - roadW)/2 - (block - roadW - pad0*2)/2; // ancho real de la vereda
   function freeSpot(x, y, r){
-    for (const b of buildings){
+    for (let __i70 = 0, __a70 = buildings; __i70 < __a70.length; __i70++){ const b = __a70[__i70];
       if (x > b.x-r && x < b.x+b.w+r && y > b.y-r && y < b.y+b.h+r) return false;
     }
-    for (const rd of roads){
+    for (let __i71 = 0, __a71 = roads; __i71 < __a71.length; __i71++){ const rd = __a71[__i71];
       if (x > rd.x-r*0.5 && x < rd.x+rd.w+r*0.5 && y > rd.y-r*0.5 && y < rd.y+rd.h+r*0.5) return false;
     }
     return x > r && x < WORLD_W-r && y > r && y < WORLD_H-r;
@@ -4400,11 +4402,11 @@ const BANCO_MONEDAS = 79;
 
   const mid = SIDEWALK/2;            // centro de la vereda
   // Cada edificio guarda su anillo de vereda y qué tramos salen agrietados.
-  for (const b of buildings){
+  for (let __i72 = 0, __a72 = buildings; __i72 < __a72.length; __i72++){ const b = __a72[__i72];
     b.walk = { x: b.x - SIDEWALK, y: b.y - SIDEWALK,
                w: b.w + SIDEWALK*2, h: b.h + SIDEWALK*2, s: SIDEWALK };
   }
-  for (const b of buildings){
+  for (let __i73 = 0, __a73 = buildings; __i73 < __a73.length; __i73++){ const b = __a73[__i73];
     const n = 3 + Math.floor(R()*3);
     let placed = 0, tries = 0;
     while (placed < n && tries++ < 40){
@@ -4423,7 +4425,7 @@ const BANCO_MONEDAS = 79;
   }
 
   // ---- parques: árboles en los cuadros de césped, bancas junto a la fuente ----
-  for (const p of parques){
+  for (let __i74 = 0, __a74 = parques; __i74 < __a74.length; __i74++){ const p = __a74[__i74];
     const cx = p.x + p.w/2, cy = p.y + p.h/2;
     for (const [qx, qy] of [[0.25, 0.25], [0.75, 0.25], [0.25, 0.75], [0.75, 0.75]]){
       for (let k = 0; k < 3; k++){
@@ -4438,7 +4440,7 @@ const BANCO_MONEDAS = 79;
   }
 
   // ---- farolas: en las esquinas de vereda, nunca sobre calzada ni edificio ----
-  for (const b of buildings){
+  for (let __i75 = 0, __a75 = buildings; __i75 < __a75.length; __i75++){ const b = __a75[__i75];
     const corners = [
       {x:b.x - mid,       y:b.y - mid},
       {x:b.x + b.w + mid, y:b.y - mid},
@@ -4454,7 +4456,7 @@ const BANCO_MONEDAS = 79;
   }
 
   // ---- basureros: unos pocos, siempre sobre la vereda ----
-  for (const b of buildings){
+  for (let __i76 = 0, __a76 = buildings; __i76 < __a76.length; __i76++){ const b = __a76[__i76];
     if (R() > 0.28) continue;
     for (let tries=0; tries<12; tries++){
       const side = Math.floor(R()*4), inset = 34;
@@ -4472,7 +4474,7 @@ const BANCO_MONEDAS = 79;
   }
 
   // ---- bancas: baja probabilidad, apoyadas en la vereda ----
-  for (const b of buildings){
+  for (let __i77 = 0, __a77 = buildings; __i77 < __a77.length; __i77++){ const b = __a77[__i77];
     if (R() > 0.20) continue;                       // pocas
     for (let tries=0; tries<12; tries++){
       const side = Math.floor(R()*4), inset = 46;
@@ -4492,17 +4494,21 @@ const BANCO_MONEDAS = 79;
 })();
 
 // circle vs rect: returns push-out normal + penetration, or null
+// Devuelve siempre el mismo objeto (o null): quien lo usa lee los valores al
+// momento, y así no se crea uno por choque en cada fotograma.
+const _crHit = { nx:0, ny:0, pen:0 };
+function crHit(nx, ny, pen){ _crHit.nx = nx; _crHit.ny = ny; _crHit.pen = pen; return _crHit; }
 function circleRect(px,py,r,b){
   const cx = clamp(px, b.x, b.x+b.w), cy = clamp(py, b.y, b.y+b.h);
   const dx = px-cx, dy = py-cy, d = Math.sqrt(dx*dx+dy*dy);
   if (d >= r) return null;
-  if (d > 0.0001) return { nx:dx/d, ny:dy/d, pen:r-d };
+  if (d > 0.0001) return crHit(dx/d, dy/d, r-d);
   const l = px-b.x, rr = b.x+b.w-px, t = py-b.y, bo = b.y+b.h-py;
   const m = Math.min(l,rr,t,bo);
-  if (m===l)  return {nx:-1,ny:0,pen:l+r};
-  if (m===rr) return {nx: 1,ny:0,pen:rr+r};
-  if (m===t)  return {nx:0,ny:-1,pen:t+r};
-  return {nx:0,ny:1,pen:bo+r};
+  if (m===l)  return crHit(-1, 0, l+r);
+  if (m===rr) return crHit( 1, 0, rr+r);
+  if (m===t)  return crHit(0, -1, t+r);
+  return crHit(0, 1, bo+r);
 }
 
 // Resolve an entity against all standing buildings.
@@ -4518,7 +4524,7 @@ function damageBuilding(b, dmg){
 }
 
 function collideBuildings(ent, r, dt, breaker, libreDentro){
-  for (const b of buildings){
+  for (let __i56 = 0, __a56 = buildings; __i56 < __a56.length; __i56++){ const b = __a56[__i56];
     if (b.stage >= 2) continue;
     // Con libreDentro, el edificio en el que ya se está no expulsa: se puede
     // quedar dentro y salir andando; los demás siguen siendo muros.
@@ -4528,15 +4534,16 @@ function collideBuildings(ent, r, dt, breaker, libreDentro){
         ent.y + r < b.y || ent.y - r > b.y + b.h) continue;              // por los escombros se puede pasar
     const hit = circleRect(ent.x, ent.y, r, b);
     if (!hit) continue;
+    const hnx = hit.nx, hny = hit.ny, hpen = hit.pen;          // el objeto se reutiliza: se copia ya
     if (breaker > 0){
       damageBuilding(b, breaker*dt);
       if (Math.random() < 0.35){
-        addParticles(ent.x + hit.nx*r*0.6, ent.y + hit.ny*r*0.6, '#9aa6ad', 2, 70);
+        addParticles(ent.x + hnx*r*0.6, ent.y + hny*r*0.6, '#9aa6ad', 2, 70);
       }
       if (b.stage >= 2) continue;
     }
-    ent.x += hit.nx*hit.pen;
-    ent.y += hit.ny*hit.pen;
+    ent.x += hnx*hpen;
+    ent.y += hny*hpen;
   }
 }
 
@@ -4650,7 +4657,7 @@ function resetGame(){
   clima = 'sol'; nubeK = 0; lluviaK = 0; climaMostrado = null;
   auraTxts.length = 0;
   buffT = 0; buffTipo = null; ovniCd = rand(50, 90); rayosOn = false;
-  for (const b of buildings){ b.stage=0; b.hp=b.maxhp; b.hitFlash=0; b.downAt=undefined; b._aguj = null; b._agCv = null; b._agBase = null; b._pisX = undefined; }
+  for (let __i78 = 0, __a78 = buildings; __i78 < __a78.length; __i78++){ const b = __a78[__i78]; b.stage=0; b.hp=b.maxhp; b.hitFlash=0; b.downAt=undefined; b._aguj = null; b._agCv = null; b._agBase = null; b._pisX = undefined; }
   vilPaso.edif = null; vilPasoCompa.edif = null; vilPasoCompa.ok = false;
   for (const k in regenSeen) regenSeen[k] = {};
   // spawn player on a road intersection so it isn't stuck inside a building
@@ -4719,7 +4726,7 @@ const WRECK_HP = 0.22;
 function isWreck(c){ return c.hp <= c.maxhp * WRECK_HP; }
 // ¿está el vehículo sobre el asfalto?
 function sobreCarretera(x, y){
-  for (const r of roads) if (x > r.x && x < r.x+r.w && y > r.y && y < r.y+r.h) return true;
+  for (let __i79 = 0, __a79 = roads; __i79 < __a79.length; __i79++){ const r = __a79[__i79]; if (x > r.x && x < r.x+r.w && y > r.y && y < r.y+r.h) return true; }
   return false;
 }
 const WRECK_FUSE = 4.5;      // segundos humeando antes de reventar
@@ -4758,7 +4765,7 @@ function spawnCar(){
 // ¿Cae este punto dentro de un edificio en pie?
 function dentroDeEdificio(x, y, margen){
   const m = margen || 0;
-  for (const b of buildings){
+  for (let __i80 = 0, __a80 = buildings; __i80 < __a80.length; __i80++){ const b = __a80[__i80];
     if (b.stage >= 2) continue;
     if (x > b.x - m && x < b.x + b.w + m && y > b.y - m && y < b.y + b.h + m) return true;
   }
@@ -4958,12 +4965,12 @@ function beamHit(e, dmg){
   let dmin = 1e9;                                        // lo primero que toca el haz
   const toca = (x, y)=>{ const d = (x - ox)*ca + (y - oy)*sa; if (d > 0 && d < dmin) dmin = d; };
   for (const pool of [civilians, enemies]){
-    for (const t of pool){
+    for (let __i270 = 0, __a270 = pool; __i270 < __a270.length; __i270++){ const t = __a270[__i270];
       if (t.dead || t.held || t === e) continue;
       if (rayoToca(t, ox, oy, ang, OMNI_BEAM_LEN, OMNI_BEAM_W)){ damageEnemy(t, dmg, t.x, t.y - alturaVisible(t)); toca(t.x, t.y - alturaVisible(t)); }
     }
   }
-  for (const c of cars){
+  for (let __i81 = 0, __a81 = cars; __i81 < __a81.length; __i81++){ const c = __a81[__i81];
     if (c.dead || c.held) continue;
     if (!inBeam(c.x, c.y, ox, oy, ang, OMNI_BEAM_LEN, OMNI_BEAM_W)) continue;
     c.hp -= dmg; toca(c.x, c.y);
@@ -4989,7 +4996,7 @@ function laserChoca(st, ox, oy, ca, sa, d, col){
 function omniThrow(e){
   let mejor = null, mejorD = 210*210;   // tiene que acercarse para poder cogerlo
   for (const pool of [trees, lamps, trash, benches]){
-    for (const o of pool){
+    for (let __i271 = 0, __a271 = pool; __i271 < __a271.length; __i271++){ const o = __a271[__i271];
       if (o.dead || o.held || o.thrown) continue;
       const dx = o.x-e.x, dy = o.y-e.y, d2 = dx*dx+dy*dy;
       if (d2 < mejorD){ mejorD = d2; mejor = o; }
@@ -5023,7 +5030,7 @@ function updateOmni(e, dt, a, angP){
     e.x = clamp(e.x, 40, WORLD_W-40); e.y = clamp(e.y, 40, WORLD_H-40);
     // atropella lo que pilla por delante
     for (const pool of [civilians, enemies]){
-      for (const t of pool){
+      for (let __i272 = 0, __a272 = pool; __i272 < __a272.length; __i272++){ const t = __a272[__i272];
         if (t.dead || t.held || t === e) continue;
         if (dist(t.x,t.y,e.x,e.y) >= 56) continue;
         damageEnemy(t, esBlindado(t) ? 120*dt : 999, t.x, t.y);
@@ -5223,7 +5230,7 @@ let marcianaAvisoT = 0;
 
 // ¿Hay trípodes que sigan frenando al ejército? (los que agotaron su plazo, no)
 function marcianosActivos(){
-  for (const e of enemies) if (e.type === 'tripode' && !e.dead && !e.ignorado) return true;
+  for (let __i82 = 0, __a82 = enemies; __i82 < __a82.length; __i82++){ const e = __a82[__i82]; if (e.type === 'tripode' && !e.dead && !e.ignorado) return true; }
   return false;
 }
 function lanzaInvasionMarciana(){
@@ -5257,10 +5264,10 @@ function triBuscaPresa(e){
     const dx = o.x - e.x, dy = o.y - e.y, d2 = dx*dx + dy*dy;
     if (d2 < md){ md = d2; mejor = o; }
   };
-  for (const c of cars) mira(c);
-  for (const l of lamps) mira(l);
-  for (const t of enemies) if (t.person) mira(t);
-  for (const c of civilians) mira(c);
+  for (let __i84 = 0, __a84 = cars; __i84 < __a84.length; __i84++){ const c = __a84[__i84]; mira(c); }
+  for (let __i85 = 0, __a85 = lamps; __i85 < __a85.length; __i85++){ const l = __a85[__i85]; mira(l); }
+  for (let __i86 = 0, __a86 = enemies; __i86 < __a86.length; __i86++){ const t = __a86[__i86]; if (t.person) mira(t); }
+  for (let __i87 = 0, __a87 = civilians; __i87 < __a87.length; __i87++){ const c = __a87[__i87]; mira(c); }
   return mejor;
 }
 function triSueltaPresa(e){
@@ -5307,7 +5314,7 @@ function updateTripode(e, dt, d, ang){
     const lado = e.lado || 1;                     // cada uno rodea hacia su lado
     vx += -Math.sin(ang)*0.35*lado; vy += Math.cos(ang)*0.35*lado;
     // no se amontonan unos encima de otros
-    for (const o of enemies){
+    for (let __i88 = 0, __a88 = enemies; __i88 < __a88.length; __i88++){ const o = __a88[__i88];
       if (o === e || o.dead || o.type !== 'tripode') continue;
       const dx = e.x - o.x, dy = e.y - o.y, dd = Math.hypot(dx, dy);
       if (dd > 0.1 && dd < 190){ vx += dx/dd*0.8; vy += dy/dd*0.8; }
@@ -5402,7 +5409,7 @@ function triDescarga(e){
     shake(14, 0.3); sfx('hurt');
   }
   for (const pool of [civilians, enemies]){
-    for (const t of pool){
+    for (let __i274 = 0, __a274 = pool; __i274 < __a274.length; __i274++){ const t = __a274[__i274];
       if (t.dead || t.held || t.type === 'tripode') continue;
       // En el suelo, dentro del área; lo que vuela, solo si el haz cruza su
       // dibujo (antes bastaba con que su sombra estuviera en el área).
@@ -5411,12 +5418,12 @@ function triDescarga(e){
       if (toca) damageEnemy(t, TRI_RAYO_DMG*1.5, t.x, t.y - alturaVisible(t));
     }
   }
-  for (const c of cars){
+  for (let __i89 = 0, __a89 = cars; __i89 < __a89.length; __i89++){ const c = __a89[__i89];
     if (c.dead || c.held || !enAreaRayo(c.x, c.y, x, y, 0)) continue;
     c.hp -= TRI_RAYO_DMG;
     if (c.hp <= 0) autoAbatido(c);
   }
-  for (const b of buildings){
+  for (let __i90 = 0, __a90 = buildings; __i90 < __a90.length; __i90++){ const b = __a90[__i90];
     if (b.stage >= 2) continue;
     const cx = clamp(x, b.x, b.x+b.w), cy = clamp(y, b.y, b.y+b.h);
     if (dist(x, y, cx, cy) < R) damageBuilding(b, TRI_RAYO_DMG*1.2);
@@ -5646,7 +5653,7 @@ function drawTripode(e){
 }
 // Área marcada en el suelo mientras calcula (va por debajo de todo).
 function drawTriAvisos(){
-  for (const e of enemies){
+  for (let __i91 = 0, __a91 = enemies; __i91 < __a91.length; __i91++){ const e = __a91[__i91];
     if (e.dead || e.type !== 'tripode' || e.rayFase !== 'apunta') continue;
     const p = clamp(1 - e.rayT / TRI_RAYO_AVISO, 0, 1);
     const s2 = S(e.rayX, e.rayY), R = TRI_RAYO_R;
@@ -5667,7 +5674,7 @@ function drawTriAvisos(){
 }
 // El rayo en sí, por encima de todo lo demás.
 function drawTriRayos(){
-  for (const e of enemies){
+  for (let __i92 = 0, __a92 = enemies; __i92 < __a92.length; __i92++){ const e = __a92[__i92];
     if (e.dead || e.type !== 'tripode' || !e.rayFase) continue;
     const c0 = triCupula(e);
     const a = Math.atan2(e.rayY - e.y, e.rayX - e.x);
@@ -5739,7 +5746,7 @@ function updateHumos(dt){
     if (enAreaHumo(player.x, player.y, h)) dentro = true;
     const d = HUMO_DPS * HUMO_TICK;
     for (const pool of [civilians, enemies]){
-      for (const t of pool){
+      for (let __i275 = 0, __a275 = pool; __i275 < __a275.length; __i275++){ const t = __a275[__i275];
         if (t.dead || t.held || t.type === 'tripode') continue;
         if (enAreaHumo(t.x, t.y, h)) damageEnemy(t, d, t.x, t.y);
       }
@@ -5841,14 +5848,14 @@ function inCone(x, y, ox, oy, ang, len, spread){
 function burn(e, ox, oy, ang, len, spread, dmg){
   let any = false;
   for (const pool of [civilians, enemies]){
-    for (const t of pool){
+    for (let __i276 = 0, __a276 = pool; __i276 < __a276.length; __i276++){ const t = __a276[__i276];
       if (t.dead || t.held || t.type === 'flametank') continue;
       if (!inCone(t.x, t.y, ox, oy, ang, len, spread)) continue;
       damageEnemy(t, dmg, t.x, t.y);
       any = true;
     }
   }
-  for (const c of cars){
+  for (let __i93 = 0, __a93 = cars; __i93 < __a93.length; __i93++){ const c = __a93[__i93];
     if (c.dead || c.held) continue;
     if (!inCone(c.x, c.y, ox, oy, ang, len, spread)) continue;
     c.hp -= dmg;
@@ -6045,7 +6052,7 @@ function explode(x, y, radius, dmg, big, hurtPlayer){
   }
   if (gameMode === 'vs' && dmg > 0 && dist(x,y,player.x,player.y) < radius) p2Gain(dmg*0.5);
   if (dmg > 0 && culpaJug <= 0 && zombis.length){
-    for (const z of zombis) if (z.sube <= 0 && dist(x, y, z.x, z.y) < radius) z.hp -= dmg;
+    for (let __i94 = 0, __a94 = zombis; __i94 < __a94.length; __i94++){ const z = __a94[__i94]; if (z.sube <= 0 && dist(x, y, z.x, z.y) < radius) z.hp -= dmg; }
   }
   if (chainDepth === 0){
     sfxEn(_boomDisparo ? (big ? 'bigboomD' : 'boomD') : (big ? 'bigboom' : 'boom'), x, y);
@@ -6075,15 +6082,15 @@ function explode(x, y, radius, dmg, big, hurtPlayer){
   addParticles(x,y,'#ff6a2b', big?18:10, big?220:150);
   addParticles(x,y,'#fff4d0', big?10:6, big?340:260);            // chispas blancas que salen disparadas
   shake(big?18:11, big?0.42:0.26);
-  for (const e of enemies){
+  for (let __i95 = 0, __a95 = enemies; __i95 < __a95.length; __i95++){ const e = __a95[__i95];
     if (e.dead || e.held) continue;
     if (dist(x,y,e.x,e.y) < radius) damageEnemy(e, dmg, e.x, e.y);
   }
-  for (const c of civilians){
+  for (let __i96 = 0, __a96 = civilians; __i96 < __a96.length; __i96++){ const c = __a96[__i96];
     if (c.dead || c.held) continue;
     if (dist(x,y,c.x,c.y) < radius) damageEnemy(c, dmg, c.x, c.y);
   }
-  for (const c of cars){
+  for (let __i97 = 0, __a97 = cars; __i97 < __a97.length; __i97++){ const c = __a97[__i97];
     if (c.dead || c.held) continue;
     if (dist(x,y,c.x,c.y) < radius*0.8){
       c.dead = true;
@@ -6094,11 +6101,11 @@ function explode(x, y, radius, dmg, big, hurtPlayer){
       else explodeSmall(c.x, c.y);
     }
   }
-  for (const t of trees){
+  for (let __i98 = 0, __a98 = trees; __i98 < __a98.length; __i98++){ const t = __a98[__i98];
     if (t.dead || t.held) continue;
     if (dist(x,y,t.x,t.y) < radius*0.8){ t.dead = true; discoverObj(t); propScore(t); addParticles(t.x,t.y,'#5c8a3a',12,130); }
   }
-  for (const b of buildings){
+  for (let __i99 = 0, __a99 = buildings; __i99 < __a99.length; __i99++){ const b = __a99[__i99];
     if (b.stage >= 2) continue;
     const cx = clamp(x,b.x,b.x+b.w), cy = clamp(y,b.y,b.y+b.h);
     if (dist(x,y,cx,cy) < radius) damageBuilding(b, dmg*1.6);
@@ -6397,7 +6404,7 @@ function updateFuegos(dt){
                                            f.y + rand(-f.r*0.4, f.r*0.4), '#ff8a2b', 1, 60);
     if (f.amigo){                                   // hoguera tuya: solo quema a los demás
       for (const pool of [civilians, enemies]){
-        for (const t of pool){
+        for (let __i277 = 0, __a277 = pool; __i277 < __a277.length; __i277++){ const t = __a277[__i277];
           if (t.dead || t.held || t.thrown || alturaVisible(t) > 0) continue;
           if (quemadosJ.indexOf(t) < 0 && dist(t.x, t.y, f.x, f.y) < f.r) quemadosJ.push(t);
         }
@@ -6406,7 +6413,7 @@ function updateFuegos(dt){
     }
     if (dist(player.x, player.y, f.x, f.y) < f.r) ardiendo = true;
     for (const pool of [civilians, enemies]){       // fuego amigo
-      for (const t of pool){
+      for (let __i278 = 0, __a278 = pool; __i278 < __a278.length; __i278++){ const t = __a278[__i278];
         if (t.dead || t.held || t.type === 'artillero') continue;
         if (quemados.indexOf(t) >= 0) continue;
         if (dist(t.x, t.y, f.x, f.y) < f.r) quemados.push(t);
@@ -6423,7 +6430,7 @@ function updateFuegos(dt){
 }
 // Avisos del Artillero: dónde caerán los misiles y por dónde va a arrasar.
 function drawArtAvisos(){
-  for (const e of enemies){
+  for (let __i100 = 0, __a100 = enemies; __i100 < __a100.length; __i100++){ const e = __a100[__i100];
     if (e.dead || e.type !== 'artillero') continue;
     if (e.marcas){
       for (const m of e.marcas){
@@ -6461,7 +6468,7 @@ function drawArtAvisos(){
 }
 
 function drawFuegos(){
-  for (const f of fuegos){
+  for (let __i101 = 0, __a101 = fuegos; __i101 < __a101.length; __i101++){ const f = __a101[__i101];
     const a = clamp(f.t / f.max, 0, 1);
     const s2 = S(f.x, f.y);
     ctx.globalAlpha = 0.20 + a*0.30;
@@ -6477,7 +6484,7 @@ function drawFuegos(){
 // Daña los edificios que toca con el casco, ande o embista.
 function artAplasta(e, dt, dps){
   const hw = e.w*0.42, hh = e.h*0.34;
-  for (const b of buildings){
+  for (let __i102 = 0, __a102 = buildings; __i102 < __a102.length; __i102++){ const b = __a102[__i102];
     if (b.stage >= 2) continue;
     if (e.x + hw < b.x || e.x - hw > b.x + b.w ||
         e.y + hh < b.y || e.y - hh > b.y + b.h) continue;
@@ -6515,7 +6522,7 @@ const EDIF_ALCANCE = 46;     // margen alrededor de la punta del tentáculo
 // escombros, que es justo lo que no debe pasar.
 function edificioCercano(desde, R){
   let mejor = null, md = R;
-  for (const b of buildings){
+  for (let __i103 = 0, __a103 = buildings; __i103 < __a103.length; __i103++){ const b = __a103[__i103];
     // en pie o dañado sirve; en escombros no queda nada que levantar
     if (b.stage >= 2) continue;
     const cx = clamp(desde.x, b.x, b.x + b.w), cy = clamp(desde.y, b.y, b.y + b.h);
@@ -6606,20 +6613,20 @@ function updateRayosOjos(dt){
   let dmin = 1e9;                                       // lo primero que alcanza el haz
   const toca = (x, y)=>{ const d = (x - ox)*ca + (y - oy)*sa; if (d > 0 && d < dmin) dmin = d; };
   for (const pool of [civilians, enemies]){
-    for (const t of pool){
+    for (let __i279 = 0, __a279 = pool; __i279 < __a279.length; __i279++){ const t = __a279[__i279];
       if (t.dead || t.held) continue;
       if (!rayoToca(t, ox, oy, a, RAYO_LARGO, RAYO_ANCHO)) continue;
       porJugador(()=> damageEnemy(t, RAYO_DPS*dt, t.x, t.y - alturaVisible(t)));
       toca(t.x, t.y - alturaVisible(t));
     }
   }
-  for (const c of cars){
+  for (let __i104 = 0, __a104 = cars; __i104 < __a104.length; __i104++){ const c = __a104[__i104];
     if (c.dead || c.held) continue;
     if (!enLinea(c.x, c.y, ox, oy, a, RAYO_LARGO, RAYO_ANCHO)) continue;
     c.hp -= RAYO_DPS*dt; toca(c.x, c.y);
     if (c.hp <= 0) porJugador(()=> autoAbatido(c));
   }
-  for (const b of buildings){
+  for (let __i105 = 0, __a105 = buildings; __i105 < __a105.length; __i105++){ const b = __a105[__i105];
     if (b.stage >= 2) continue;
     const cx = clamp(ox + ca*RAYO_LARGO*0.5, b.x, b.x+b.w);
     const cy = clamp(oy + sa*RAYO_LARGO*0.5, b.y, b.y+b.h);
@@ -6835,7 +6842,7 @@ function arbIndexa(){
   arbCols = Math.ceil(WORLD_W / ARB_CELDA);
   const filas = Math.ceil(WORLD_H / ARB_CELDA);
   arbGrid = new Array(arbCols * filas);
-  for (const t of trees){
+  for (let __i106 = 0, __a106 = trees; __i106 < __a106.length; __i106++){ const t = __a106[__i106];
     const c = (Math.floor(t.y / ARB_CELDA) * arbCols) + Math.floor(t.x / ARB_CELDA);
     (arbGrid[c] || (arbGrid[c] = [])).push(t);
   }
@@ -6905,7 +6912,7 @@ const arbDoblados = [];
 function updateViento(dt){
   if (((isVil() || isDra()) && vil.flying || isMaq() && maq.impulso > 0.7) && !vil.intro) rafagaArboles();
   arbDoblados.length = 0;
-  for (const t of trees){
+  for (let __i41 = 0, __a41 = trees; __i41 < __a41.length; __i41++){ const t = __a41[__i41];
     if (!t.viento) continue;
     t.viento -= t.viento * Math.min(1, ARB_VUELTA*dt);
     if (Math.abs(t.viento) < 0.004) t.viento = 0;
@@ -6942,13 +6949,13 @@ function mbtDispara(e){
   // el rayo barre en línea recta: alcanza a todo lo que cruce
   const ox = bo.x, oy = bo.y, ang = e.rayoAng;
   for (const pool of [civilians, enemies]){
-    for (const t of pool){
+    for (let __i280 = 0, __a280 = pool; __i280 < __a280.length; __i280++){ const t = __a280[__i280];
       if (t.dead || t.held || t === e) continue;
       if (!rayoToca(t, ox, oy, ang, MBT_ALCANCE, MBT_ANCHO)) continue;
       damageEnemy(t, MBT_DMG*1.6, t.x, t.y - alturaVisible(t));
     }
   }
-  for (const c of cars){
+  for (let __i107 = 0, __a107 = cars; __i107 < __a107.length; __i107++){ const c = __a107[__i107];
     if (c.dead || c.held) continue;
     if (enLinea(c.x, c.y, ox, oy, ang, MBT_ALCANCE, MBT_ANCHO)){ c.hp -= MBT_DMG*1.6; if (c.hp<=0) autoAbatido(c); }
   }
@@ -7039,7 +7046,7 @@ function updateRayos(dt){
 
 // Línea de aviso mientras carga, y el rayo al disparar.
 function drawMbtRayos(){
-  for (const e of enemies){
+  for (let __i108 = 0, __a108 = enemies; __i108 < __a108.length; __i108++){ const e = __a108[__i108];
     if (e.dead || (e.type !== 'mbt' && e.type !== 'mbtFrio')) continue;
     // Agarrado o por los aires no apunta a nada: su línea de tiro no pinta.
     if (e.held || e.thrown) continue;
@@ -7056,7 +7063,7 @@ function drawMbtRayos(){
     ctx.setLineDash([]);
     ctx.globalAlpha = 1;
   }
-  for (const r of rayos){
+  for (let __i109 = 0, __a109 = rayos; __i109 < __a109.length; __i109++){ const r = __a109[__i109];
     const a = clamp(r.t / r.max, 0, 1);
     const s2 = S(r.x, r.y);
     const fx = s2.x + Math.cos(r.ang)*MBT_ALCANCE;
@@ -7178,18 +7185,18 @@ function updateArtillero(e, dt, d, ang){
     // arrasa con lo que pilla por delante
     const rr = ART_CARGA_W/2;
     for (const pool of [civilians, enemies]){
-      for (const t of pool){
+      for (let __i281 = 0, __a281 = pool; __i281 < __a281.length; __i281++){ const t = __a281[__i281];
         if (t.dead || t.held || t === e) continue;
         if (dist(t.x, t.y, e.x, e.y) > rr + 30) continue;
         damageEnemy(t, esBlindado(t) ? 260*dt : 9999, t.x, t.y);
       }
     }
-    for (const c of cars){
+    for (let __i110 = 0, __a110 = cars; __i110 < __a110.length; __i110++){ const c = __a110[__i110];
       if (c.dead || c.held) continue;
       if (dist(c.x, c.y, e.x, e.y) < rr + 30) autoAbatido(c);
     }
     for (const pool of [trees, lamps, trash, benches]){
-      for (const o of pool){
+      for (let __i282 = 0, __a282 = pool; __i282 < __a282.length; __i282++){ const o = __a282[__i282];
         if (o.dead || o.held || o.thrown) continue;
         if (dist(o.x, o.y, e.x, e.y) < rr) propAbatido(o);
       }
@@ -10059,7 +10066,7 @@ function updateBossMusic(dt){
   if (bossMusicT > 0) return;
   bossMusicT = 0.33;
   let cual = null;
-  for (const e of enemies){
+  for (let __i111 = 0, __a111 = enemies; __i111 < __a111.length; __i111++){ const e = __a111[__i111];
     if (e.dead) continue;
     if (e.type === 'superx'){ cual = 'superx'; break; }
     if (e.type === 'artillero'){ cual = 'artillero'; break; }
@@ -11805,7 +11812,7 @@ function p2Place(){
   if (u.especial === 'refuerzos' && refz){ sfx('deny'); return; }     // una flota a la vez
   // no plantar dentro de un edificio en pie (la oleada no se planta en ningún
   // sitio, y el meteorito cae donde sea)
-  if (!u.oleada && u.especial !== 'meteoro') for (const b of buildings){
+  if (!u.oleada && u.especial !== 'meteoro') for (let __i112 = 0, __a112 = buildings; __i112 < __a112.length; __i112++){ const b = __a112[__i112];
     if (b.stage >= 2) continue;
     if (p2.x > b.x-10 && p2.x < b.x+b.w+10 && p2.y > b.y-10 && p2.y < b.y+b.h+10){ sfx('deny'); return; }
   }
@@ -11857,7 +11864,7 @@ function esTelefono(){
 // línea, quien manda al ejército los sigue teniendo en su pantalla.
 function vsLocalTelefono(){ return gameMode === 'vs' && !Online.activo && esTelefono(); }
 function libreDeEdificios(x, y){
-  for (const b of buildings){
+  for (let __i113 = 0, __a113 = buildings; __i113 < __a113.length; __i113++){ const b = __a113[__i113];
     if (b.stage >= 2) continue;
     if (x > b.x-10 && x < b.x+b.w+10 && y > b.y-10 && y < b.y+b.h+10) return false;
   }
@@ -12480,7 +12487,7 @@ function ondaDeViento(ang){
   shake(14, 0.3);
   addParticles(player.x, player.y, '#dfe9f5', 22, 300);
   for (const pool of [civilians, enemies]){
-    for (const t of pool){
+    for (let __i283 = 0, __a283 = pool; __i283 < __a283.length; __i283++){ const t = __a283[__i283];
       if (t.dead || t.held) continue;
       const d = distCuerpo(player.x, player.y, t);
       if (d > VIL_ONDA_R) continue;
@@ -12500,7 +12507,7 @@ function ondaDeViento(ang){
       }
     }
   }
-  for (const c of cars){
+  for (let __i114 = 0, __a114 = cars; __i114 < __a114.length; __i114++){ const c = __a114[__i114];
     if (c.dead || c.held) continue;
     const d = dist(c.x, c.y, player.x, player.y);
     if (d > VIL_ONDA_R) continue;
@@ -12508,7 +12515,7 @@ function ondaDeViento(ang){
     if (c.hp <= 0) autoAbatido(c);
   }
   for (const pool of [trees, lamps, trash, benches]){
-    for (const o of pool){
+    for (let __i284 = 0, __a284 = pool; __i284 < __a284.length; __i284++){ const o = __a284[__i284];
       if (o.dead || o.held || o.thrown) continue;
       if (dist(o.x, o.y, player.x, player.y) > VIL_ONDA_R*0.8) continue;
       porJugador(()=> propAbatido(o));
@@ -12538,7 +12545,7 @@ function rafagaViento(ang){
     return (0.55 + centro*0.45) * (0.5 + (1 - d/VIL_RAFAGA_R)*0.5);
   };
   for (const pool of [civilians, enemies]){
-    for (const t of pool){
+    for (let __i285 = 0, __a285 = pool; __i285 < __a285.length; __i285++){ const t = __a285[__i285];
       if (t.dead || t.held) continue;
       const f = enAbanico(t.x, t.y);
       if (!f) continue;
@@ -12551,7 +12558,7 @@ function rafagaViento(ang){
       }
     }
   }
-  for (const c of cars){
+  for (let __i115 = 0, __a115 = cars; __i115 < __a115.length; __i115++){ const c = __a115[__i115];
     if (c.dead || c.held) continue;
     const f = enAbanico(c.x, c.y);
     if (!f) continue;
@@ -12559,7 +12566,7 @@ function rafagaViento(ang){
     if (c.hp <= 0) autoAbatido(c);
   }
   for (const pool of [trees, lamps, trash, benches]){
-    for (const o of pool){
+    for (let __i286 = 0, __a286 = pool; __i286 < __a286.length; __i286++){ const o = __a286[__i286];
       if (o.dead || o.held || o.thrown) continue;
       if (!enAbanico(o.x, o.y)) continue;
       porJugador(()=> propAbatido(o));
@@ -12711,7 +12718,7 @@ const draJoy = { tipo:'', id:null, cx:0, cy:0, dx:0, dy:0, m:0 };
 function draCercano(R){
   let mejor = null, md = R*R;
   for (const pool of [enemies, civilians]){
-    for (const t of pool){
+    for (let __i287 = 0, __a287 = pool; __i287 < __a287.length; __i287++){ const t = __a287[__i287];
       if (t.dead || t.held || t.thrown || t.pacifico) continue;
       const dx = t.x - player.x, dy = t.y - alturaVisible(t) - player.y, d2 = dx*dx + dy*dy;
       if (d2 < md){ md = d2; mejor = t; }
@@ -12810,7 +12817,7 @@ function draBoca(i){
 function draDanaArea(x, y, R, dmg, empuje, aturde){
   let dio = false;
   for (const pool of [civilians, enemies]){
-    for (const t of pool){
+    for (let __i288 = 0, __a288 = pool; __i288 < __a288.length; __i288++){ const t = __a288[__i288];
       if (t.dead || t.held) continue;
       const d = distCuerpo(x, y, t);
       if (d > R) continue;
@@ -12825,7 +12832,7 @@ function draDanaArea(x, y, R, dmg, empuje, aturde){
       }
     }
   }
-  for (const c of cars){
+  for (let __i116 = 0, __a116 = cars; __i116 < __a116.length; __i116++){ const c = __a116[__i116];
     if (c.dead || c.held) continue;
     const d = dist(c.x, c.y, x, y);
     if (d > R) continue;
@@ -12850,20 +12857,20 @@ function draMordisco(){
   const px2 = player.x + Math.cos(ap.a)*48, py2 = player.y - 20 + Math.sin(ap.a)*40;
   let dio = false;
   for (const pool of [civilians, enemies]){
-    for (const t of pool){
+    for (let __i289 = 0, __a289 = pool; __i289 < __a289.length; __i289++){ const t = __a289[__i289];
       if (t.dead || t.held) continue;
       if (distCuerpo(px2, py2, t) > DRA_MORD_ALC) continue;
       const jf = JEFES[t.type] ? 0.8 : 1;
       porJugador(()=> damageEnemy(t, DRA_MORD_DMG*jf, t.x, t.y)); dio = true;
     }
   }
-  for (const c of cars){
+  for (let __i117 = 0, __a117 = cars; __i117 < __a117.length; __i117++){ const c = __a117[__i117];
     if (c.dead || c.held || dist(c.x, c.y, px2, py2) > DRA_MORD_ALC + 10) continue;
     c.hp -= DRA_MORD_DMG;
     if (c.hp <= 0) porJugador(()=> autoAbatido(c));
     dio = true;
   }
-  for (const b of buildings){
+  for (let __i118 = 0, __a118 = buildings; __i118 < __a118.length; __i118++){ const b = __a118[__i118];
     if (b.stage >= 2) continue;
     if (px2 < b.x-16 || px2 > b.x+b.w+16 || py2 < b.y-16 || py2 > b.y+b.h+16) continue;
     porJugador(()=> damageBuilding(b, 30)); dio = true; break;
@@ -12928,7 +12935,7 @@ function draColaSuelta(){
 function draColetazo(){
   const x = player.x, y = player.y;
   draDanaArea(x, y, DRA_COLA_R, DRA_COLA_DMG, 300, 1.2);
-  for (const b of buildings){
+  for (let __i119 = 0, __a119 = buildings; __i119 < __a119.length; __i119++){ const b = __a119[__i119];
     if (b.stage >= 2) continue;
     const cx = clamp(x, b.x, b.x+b.w), cy = clamp(y, b.y, b.y+b.h);
     if (dist(x, y, cx, cy) < DRA_COLA_R*0.6) porJugador(()=> damageBuilding(b, 120));
@@ -13014,7 +13021,7 @@ function updateDragon(dt){
     }
     // arrolla lo que pilla por el camino (una vez a cada uno)
     for (const pool of [civilians, enemies]){
-      for (const t of pool){
+      for (let __i290 = 0, __a290 = pool; __i290 < __a290.length; __i290++){ const t = __a290[__i290];
         if (t.dead || t.held || draGolpeados.has(t)) continue;
         if (distCuerpo(player.x, player.y, t) > DRA_R + 22) continue;
         draGolpeados.add(t);
@@ -13022,12 +13029,12 @@ function updateDragon(dt){
         porJugador(()=> damageEnemy(t, DRA_COLA_PASO*jf, t.x, t.y));
       }
     }
-    for (const c of cars){
+    for (let __i120 = 0, __a120 = cars; __i120 < __a120.length; __i120++){ const c = __a120[__i120];
       if (c.dead || c.held || draGolpeados.has(c) || dist(c.x, c.y, player.x, player.y) > DRA_R + 26) continue;
       draGolpeados.add(c); c.hp -= DRA_COLA_PASO;
       if (c.hp <= 0) porJugador(()=> autoAbatido(c));
     }
-    for (const b of buildings){
+    for (let __i121 = 0, __a121 = buildings; __i121 < __a121.length; __i121++){ const b = __a121[__i121];
       if (b.stage >= 2 || draMuros.has(b)) continue;
       if (player.x < b.x || player.x > b.x+b.w || player.y < b.y || player.y > b.y+b.h) continue;
       draMuros.add(b); porJugador(()=> damageBuilding(b, 70));
@@ -13119,7 +13126,7 @@ function draPisoton(){
   const x = player.x, y = player.y + (vuela ? 0 : 20), R = DRA_PISA_R + (vuela ? 12 : 0);
   let dio = false;
   for (const pool of [civilians, enemies]){
-    for (const t of pool){
+    for (let __i291 = 0, __a291 = pool; __i291 < __a291.length; __i291++){ const t = __a291[__i291];
       if (t.dead || t.held || t.thrown) continue;
       if (!vuela && alturaVisible(t) > 0) continue;           // a pie no alcanza lo que vuela
       if (distCuerpo(x, y, t) > R + (cajaCuerpo(t) ? 0 : (t.w || 26)*0.3)) continue;
@@ -13128,7 +13135,7 @@ function draPisoton(){
       dio = true;
     }
   }
-  for (const c of cars){
+  for (let __i122 = 0, __a122 = cars; __i122 < __a122.length; __i122++){ const c = __a122[__i122];
     if (c.dead || c.held || c.thrown || dist(c.x, c.y, x, y) > R + 20) continue;
     c.hp -= DRA_PISA_DMG;
     if (c.hp <= 0) porJugador(()=> autoAbatido(c));
@@ -13166,7 +13173,7 @@ function draRayosDanan(){
   const suelo = dra.rayoOy === 0;
   const sAng = Math.atan2(T.y - player.y, T.x - player.x), sLen = Math.hypot(T.x - player.x, T.y - player.y);
   for (const pool of [civilians, enemies]){
-    for (const t of pool){
+    for (let __i292 = 0, __a292 = pool; __i292 < __a292.length; __i292++){ const t = __a292[__i292];
       if (t.dead || t.held) continue;
       let n = 0;
       for (const h of haces) if (rayoToca(t, h.x, h.y, h.ang, h.len, 7)) n++;
@@ -13174,7 +13181,7 @@ function draRayosDanan(){
       if (n) porJugador(()=> damageEnemy(t, dmg*n, t.x, t.y - alturaVisible(t)));
     }
   }
-  for (const c of cars){
+  for (let __i123 = 0, __a123 = cars; __i123 < __a123.length; __i123++){ const c = __a123[__i123];
     if (c.dead || c.held) continue;
     let n = 0;
     for (const h of haces) if (enLinea(c.x, c.y, h.x, h.y, h.ang, h.len + 10, 16)) n++;
@@ -13183,7 +13190,7 @@ function draRayosDanan(){
     c.hp -= dmg*n;
     if (c.hp <= 0) porJugador(()=> autoAbatido(c));
   }
-  for (const b of buildings){
+  for (let __i124 = 0, __a124 = buildings; __i124 < __a124.length; __i124++){ const b = __a124[__i124];
     if (b.stage >= 2) continue;
     if (T.x < b.x || T.x > b.x+b.w || T.y < b.y || T.y > b.y+b.h) continue;
     porJugador(()=> damageBuilding(b, dmg*3*1.2));
@@ -13196,7 +13203,7 @@ function draRayosDanan(){
 // Un rayo de la tormenta sobre un enemigo cercano (o donde caiga, si no hay).
 function draRelampago(){
   let obj = null, n = 0;
-  for (const e of enemies){
+  for (let __i125 = 0, __a125 = enemies; __i125 < __a125.length; __i125++){ const e = __a125[__i125];
     if (e.dead || e.held || e.thrown || e.pacifico) continue;
     if (dist(e.x, e.y, player.x, player.y) > DRA_TORM_ALC) continue;
     if (Math.random() * (++n) < 1) obj = e;           // uno al azar entre los cercanos
@@ -13206,7 +13213,7 @@ function draRelampago(){
   relampagos.push({ x, y, t:0.35, max:0.35, sem:Math.random()*1000 });
   if (obj) porJugador(()=> damageEnemy(obj, DRA_TORM_DMG, x, y));
   for (const pool of [civilians, enemies]){          // chispazo alrededor
-    for (const t of pool){
+    for (let __i293 = 0, __a293 = pool; __i293 < __a293.length; __i293++){ const t = __a293[__i293];
       if (t.dead || t.held || t === obj) continue;
       if (distCuerpo(x, y, t) > 70) continue;
       porJugador(()=> damageEnemy(t, DRA_TORM_DMG*0.4, t.x, t.y));
@@ -13738,7 +13745,7 @@ function golpeFantasma(T, dmg){
 function golemGolpe(e){
   const R = 95;
   if (dist(e.x, e.y, player.x, player.y) < R + F().r) golpeFantasma(player, 28);
-  for (const z of zombis) if (z.sube <= 0 && dist(e.x, e.y, z.x, z.y) < R) z.hp -= 28;
+  for (let __i126 = 0, __a126 = zombis; __i126 < __a126.length; __i126++){ const z = __a126[__i126]; if (z.sube <= 0 && dist(e.x, e.y, z.x, z.y) < R) z.hp -= 28; }
   for (const c of cars) if (!c.dead && !c.held && dist(e.x, e.y, c.x, c.y) < R){ c.hp -= 20; if (c.hp <= 0) autoAbatido(c); }
   kaiOndas.push({ x:e.x, y:e.y, t:0, max:0.35, R, col:'#bfe8ff' });
   addParticles(e.x, e.y, '#9ad8ff', 16, 170); shake(7, 0.18); sfx('boomD');
@@ -13799,7 +13806,7 @@ function updateFantasma(e, dt, a, ang){
 function cuentaFantasmas(){ let n = 0; for (const o of enemies) if (!o.dead && FANT_TIPOS[o.type]) n++; return n; }
 function aliadosHeroe(e, R){
   const L = [];
-  for (const o of enemies){
+  for (let __i129 = 0, __a129 = enemies; __i129 < __a129.length; __i129++){ const o = __a129[__i129];
     if (o.dead || o === e || o.held || o.thrown || o.pacifico || o.type === 'ovni') continue;
     if (dist(o.x, o.y, e.x, e.y) < R) L.push(o);
   }
@@ -13833,7 +13840,7 @@ function updateHeroe(e, dt, a, ang){
 }
 function heroeInvoca(e){
   const n = 2 + (Math.random() < 0.45 ? 1 : 0);
-  let golems = 0; for (const o of enemies) if (!o.dead && o.type === 'golem') golems++;
+  let golems = 0; for (let __i130 = 0, __a130 = enemies; __i130 < __a130.length; __i130++){ const o = __a130[__i130]; if (!o.dead && o.type === 'golem') golems++; }
   for (let i = 0; i < n && cuentaFantasmas() < FANT_MAX; i++){
     const r = Math.random();
     const t = r < 0.45 ? 'arquero' : (r < 0.8 || golems >= 2) ? 'caballero' : 'golem';
@@ -13865,7 +13872,7 @@ function heroeCura(e){
 }
 // Al caer el Héroe su ejército se deshace en niebla.
 function heroeCae(e){
-  for (const o of enemies){
+  for (let __i131 = 0, __a131 = enemies; __i131 < __a131.length; __i131++){ const o = __a131[__i131];
     if (o.dead || !o.deHeroe) continue;
     o.dead = true;
     addParticles(o.x, o.y - 14, '#bfe8ff', 14, 120);
@@ -13966,7 +13973,7 @@ function updateKaiyin(e, dt, a, ang){
         e.mordHecho = 1;
         const bx = e.x + Math.cos(e.mA)*70, by = e.y + Math.sin(e.mA)*50;
         if (dist(bx, by, player.x, player.y) < 90 + F().r) golpeFantasma(player, 34);
-        for (const z of zombis) if (dist(bx, by, z.x, z.y) < 80) z.hp -= 60;
+        for (let __i132 = 0, __a132 = zombis; __i132 < __a132.length; __i132++){ const z = __a132[__i132]; if (dist(bx, by, z.x, z.y) < 80) z.hp -= 60; }
       }
       if (e.ft <= 0){ e.fase = 'aterriza'; e.ft = 0.6; }
       break;
@@ -14006,7 +14013,7 @@ function kaiImpacto(ox, oy, tx, ty, px, py, largo){
   const edif = [];
   // la cabeza del gigante asoma por encima de los tejados: ni el edificio sobre el
   // que está su boca ni el que está pisando le tapan el disparo
-  for (const b of buildings){ if (b.stage < 2 && b.x < x1 && b.x + b.w > x0 && b.y < y1 && b.y + b.h > y0 &&
+  for (let __i133 = 0, __a133 = buildings; __i133 < __a133.length; __i133++){ const b = __a133[__i133]; if (b.stage < 2 && b.x < x1 && b.x + b.w > x0 && b.y < y1 && b.y + b.h > y0 &&
                                   !(ox > b.x && ox < b.x + b.w && oy > b.y && oy < b.y + b.h) &&
                                   !(px > b.x - 40 && px < b.x + b.w + 40 && py > b.y - 40 && py < b.y + b.h + 40)) edif.push(b); }
   const hr = heldObject ? heldRect() : null;
@@ -14025,7 +14032,7 @@ function kaiImpacto(ox, oy, tx, ty, px, py, largo){
     }
     for (const b of edif){ if (x > b.x && x < b.x + b.w && y > b.y && y < b.y + b.h) return { x, y, que:'edif', ref:b }; }
     if (dist(x, y, player.x, player.y) < pr) return { x, y, que:'jugador' };
-    for (const z of zombis){ if (z.sube <= 0 && dist(x, y, z.x, z.y) < 16) return { x, y, que:'zombi', ref:z }; }
+    for (let __i134 = 0, __a134 = zombis; __i134 < __a134.length; __i134++){ const z = __a134[__i134]; if (z.sube <= 0 && dist(x, y, z.x, z.y) < 16) return { x, y, que:'zombi', ref:z }; }
   }
   return { x:ex, y:ey, que:null };
 }
@@ -14056,12 +14063,12 @@ function kaiAleteo(e){
     if (!(isVil() && vil.flying)) desatascar(F().r);
   }
   for (const t of civilians) if (!t.dead && !t.held && dist(e.x, e.y, t.x, t.y) < R){ t.hp -= 20; if (t.hp <= 0) t.dead = true; }
-  for (const t of enemies){
+  for (let __i136 = 0, __a136 = enemies; __i136 < __a136.length; __i136++){ const t = __a136[__i136];
     if (t.dead || t === e || t.held || !t.person || dist(e.x, e.y, t.x, t.y) > R) continue;
     const a2 = Math.atan2(t.y - e.y, t.x - e.x);
     t.stunT = Math.max(t.stunT || 0, 1.2); t.stunVx = Math.cos(a2)*260; t.stunVy = Math.sin(a2)*260;
   }
-  for (const c of cars){ if (c.dead || c.held || dist(e.x, e.y, c.x, c.y) > R) continue; const a2 = Math.atan2(c.y - e.y, c.x - e.x); c.x += Math.cos(a2)*50; c.y += Math.sin(a2)*50; c.hp -= 12; if (c.hp <= 0) autoAbatido(c); }
+  for (let __i137 = 0, __a137 = cars; __i137 < __a137.length; __i137++){ const c = __a137[__i137]; if (c.dead || c.held || dist(e.x, e.y, c.x, c.y) > R) continue; const a2 = Math.atan2(c.y - e.y, c.x - e.x); c.x += Math.cos(a2)*50; c.y += Math.sin(a2)*50; c.hp -= 12; if (c.hp <= 0) autoAbatido(c); }
   sacudeArboles(e.x, e.y, R + 60, 0.5);
   kaiOndas.push({ x:e.x, y:e.y, t:0, max:0.5, R, col:'#e8f4ff' });
   shake(9, 0.25); sfx('aleteo');
@@ -14069,19 +14076,19 @@ function kaiAleteo(e){
 // Embestida: arrasa todo a su paso, edificios incluidos.
 function kaiArrasa(e, dt){
   const R = 72;
-  for (const b of buildings){
+  for (let __i138 = 0, __a138 = buildings; __i138 < __a138.length; __i138++){ const b = __a138[__i138];
     if (b.stage >= 2) continue;
     const cx = clamp(e.x, b.x, b.x + b.w), cy = clamp(e.y, b.y, b.y + b.h);
     if (dist(cx, cy, e.x, e.y) < R) damageBuilding(b, 900*dt);
   }
   for (const pool of [civilians, enemies]){
-    for (const t of pool){
+    for (let __i297 = 0, __a297 = pool; __i297 < __a297.length; __i297++){ const t = __a297[__i297];
       if (t.dead || t.held || t === e || JEFES[t.type] || t._kaiG === e.colaId) continue;
       if (dist(t.x, t.y, e.x, e.y) > R) continue;
       t._kaiG = e.colaId; damageEnemy(t, 90, t.x, t.y);
     }
   }
-  for (const c of cars){ if (!c.dead && !c.held && dist(c.x, c.y, e.x, e.y) < R){ c.hp -= 60; if (c.hp <= 0) autoAbatido(c); } }
+  for (let __i139 = 0, __a139 = cars; __i139 < __a139.length; __i139++){ const c = __a139[__i139]; if (!c.dead && !c.held && dist(c.x, c.y, e.x, e.y) < R){ c.hp -= 60; if (c.hp <= 0) autoAbatido(c); } }
   if (!e.colaGolpeo && dist(player.x, player.y, e.x, e.y) < R + F().r){ e.colaGolpeo = 1; golpeFantasma(player, 30); }
   if (Math.random() < 0.5) addParticles(e.x, e.y, '#b8a888', 4, 140);
 }
@@ -14102,7 +14109,7 @@ function updateJefes2(dt){
     relampagos.push({ x:k.x, y:k.y, t:0.35, max:0.35, sem:Math.random()*1000 });
     if (dist(k.x, k.y, player.x, player.y) < 58 + F().r) golpeFantasma(player, 24);
     for (const c of cars) if (!c.dead && !c.held && dist(k.x, k.y, c.x, c.y) < 60){ c.hp -= 30; if (c.hp <= 0) autoAbatido(c); }
-    for (const t of civilians) if (!t.dead && !t.held && dist(k.x, k.y, t.x, t.y) < 50) t.dead = true;
+    for (let __i141 = 0, __a141 = civilians; __i141 < __a141.length; __i141++){ const t = __a141[__i141]; if (!t.dead && !t.held && dist(k.x, k.y, t.x, t.y) < 50) t.dead = true; }
     addParticles(k.x, k.y, '#cfe8ff', 14, 200); shake(5, 0.1); sfx('trueno');
   }
   for (const L of [kaiOndas, heroeAnillos]){
@@ -14111,7 +14118,7 @@ function updateJefes2(dt){
   for (let i = heroeOrbes.length - 1; i >= 0; i--){ heroeOrbes[i].t += dt*2.5; if (heroeOrbes[i].t >= 1) heroeOrbes.splice(i, 1); }
   for (let i = fuegoAliado.length - 1; i >= 0; i--){ fuegoAliado[i].t -= dt; if (fuegoAliado[i].t <= 0) fuegoAliado.splice(i, 1); }
   // con el Kaiyin llamando a la tormenta, llueve
-  for (const e of enemies){ if (!e.dead && e.type === 'kaiyin' && e.tormT > 0){ clima = 'lluvia'; break; } }
+  for (let __i142 = 0, __a142 = enemies; __i142 < __a142.length; __i142++){ const e = __a142[__i142]; if (!e.dead && e.type === 'kaiyin' && e.tormT > 0){ clima = 'lluvia'; break; } }
 }
 function limpiaJefes2(){ kaiAvisos.length = 0; kaiOndas.length = 0; heroeOrbes.length = 0; heroeAnillos.length = 0; fuegoAliado.length = 0; }
 
@@ -14223,7 +14230,7 @@ function drawKaiyin(e){
 }
 // Rayos del Kaiyin, por encima de todo.
 function drawJefes2Rayos(){
-  for (const e of enemies){
+  for (let __i143 = 0, __a143 = enemies; __i143 < __a143.length; __i143++){ const e = __a143[__i143];
     if (e.dead || e.type !== 'kaiyin' || e.fase !== 'rayos') continue;
     for (let i = 0; i < 3; i++){
       const m = kaiBoca(e, i), o = S(m.x, m.y);
@@ -14273,7 +14280,7 @@ function drawJefes2Rayos(){
 }
 // Avisos en el suelo: rayos de la tormenta, línea de la embestida, ondas y anillos.
 function drawJefes2Avisos(){
-  for (const k of kaiAvisos){
+  for (let __i144 = 0, __a144 = kaiAvisos; __i144 < __a144.length; __i144++){ const k = __a144[__i144];
     const s = S(k.x, k.y), p = 1 - k.t/k.max;
     ctx.globalAlpha = 0.25 + p*0.5; ctx.strokeStyle = '#cfe8ff'; ctx.lineWidth = 2.5;
     ctx.beginPath(); ctx.ellipse(s.x, s.y, 58, 36, 0, 0, Math.PI*2); ctx.stroke();
@@ -14281,7 +14288,7 @@ function drawJefes2Avisos(){
     ctx.beginPath(); ctx.ellipse(s.x, s.y, 58*p, 36*p, 0, 0, Math.PI*2); ctx.fill();
   }
   ctx.globalAlpha = 1;
-  for (const e of enemies){
+  for (let __i145 = 0, __a145 = enemies; __i145 < __a145.length; __i145++){ const e = __a145[__i145];
     if (e.dead || e.type !== 'kaiyin' || e.fase !== 'colaApunta') continue;
     const s0 = S(e.x, e.y), s1 = S(e.x + Math.cos(e.colaA)*470, e.y + Math.sin(e.colaA)*470);
     ctx.save();
@@ -14683,7 +14690,7 @@ function cabezonDispara(e){
   else if (imp.que === 'tk'){ const o = imp.ref; if (o.tkDur === undefined) o.tkDur = objDurability(o); o.tkDur -= 1.5; if (o.tkDur <= 0){ const j = mag.tk.indexOf(o); if (j >= 0) mag.tk.splice(j, 1); rompeTK(o); } }
   else if (imp.que === 'zombi') imp.ref.hp -= 90;
   for (const pool of [civilians, enemies]){
-    for (const t of pool){
+    for (let __i299 = 0, __a299 = pool; __i299 < __a299.length; __i299++){ const t = __a299[__i299];
       if (t === e || t.dead || t.held || alturaVisible(t) > 0) continue;
       if (enLinea(t.x, t.y, m.x, m.y, e.rA, L, 16)){ damageEnemy(t, 60, t.x, t.y); addParticles(t.x, t.y - 10, '#9aff7a', 10, 120); }
     }
@@ -14749,7 +14756,7 @@ function updateEscaner(e, dt, a, ang){
   e.llama -= dt;
   if (e.llama <= 0){
     e.llama = 11;
-    let n = 0; for (const o of enemies) if (!o.dead && (o.type === 'centinela' || o.type === 'centElite')) n++;
+    let n = 0; for (let __i146 = 0, __a146 = enemies; __i146 < __a146.length; __i146++){ const o = __a146[__i146]; if (!o.dead && (o.type === 'centinela' || o.type === 'centElite')) n++; }
     if (n < 12){
       for (let i = 0; i < 3; i++){
         const an = Math.random()*Math.PI*2, r = 50 + Math.random()*40;
@@ -14919,7 +14926,7 @@ function drawUnidadAlien(e){
 }
 // Rayos de los cabezones, ácido y meteoritos (por encima de las unidades).
 function drawAlienEfectos(){
-  for (const e of enemies){
+  for (let __i147 = 0, __a147 = enemies; __i147 < __a147.length; __i147++){ const e = __a147[__i147];
     if (e.dead || e.type !== 'cabezon' || !e.fase) continue;
     const m = bocaCabezon(e), o = S(m.x, m.y);
     if (e.fase === 'carga'){
@@ -14951,7 +14958,7 @@ function drawAlienSuelo(){
     for (let i = 0; i < 4; i++){ const a = gameTime*2 + i*1.7, rr = r*0.5*((i*0.37 + gameTime*0.6) % 1); ctx.beginPath(); ctx.arc(s.x + Math.cos(a)*rr, s.y + Math.sin(a)*rr*0.6, 2.5, 0, Math.PI*2); ctx.fill(); }
     ctx.globalAlpha = 1;
   }
-  for (const m of meteoros){
+  for (let __i148 = 0, __a148 = meteoros; __i148 < __a148.length; __i148++){ const m = __a148[__i148];
     const s = S(m.x, m.y), p = 1 - m.t/m.max, pul = 0.6 + Math.sin(gameTime*14)*0.3;
     const M = MISIL_TIPOS[m.tipo] || MISIL_TIPOS.meteoro, MR = M.R;
     ctx.save();
@@ -14972,7 +14979,7 @@ function drawAlienSuelo(){
 }
 // La roca cayendo del cielo, por encima de todo.
 function drawMeteorosCayendo(){
-  for (const m of meteoros){ drawMisilCayendo(m); }
+  for (let __i149 = 0, __a149 = meteoros; __i149 < __a149.length; __i149++){ const m = __a149[__i149]; drawMisilCayendo(m); }
 }
 function drawRayoLaser(b, s){
   const v = Math.hypot(b.vx, b.vy) || 1, ux = b.vx/v, uy = b.vy/v;
@@ -15103,7 +15110,7 @@ function updateRefuerzos(dt){
   const G = refz.guion;
   while (refz.i < G.length && G[refz.i][0] <= refz.t){ const g = G[refz.i++]; refuerzoLlega(g[1], g[2]); }
   let vivo = 0, quedan = 0;
-  for (const e of enemies){ if (e.llega > 0) e.llega -= dt; if (e.refz && !e.dead){ vivo += Math.max(0, Math.min(e.hp, e.maxhp)); quedan++; } }
+  for (let __i150 = 0, __a150 = enemies; __i150 < __a150.length; __i150++){ const e = __a150[__i150]; if (e.llega > 0) e.llega -= dt; if (e.refz && !e.dead){ vivo += Math.max(0, Math.min(e.hp, e.maxhp)); quedan++; } }
   let pend = 0; for (let k = refz.i; k < G.length; k++) pend += G[k][2]*REFZ_HP[G[k][1]];
   refz.hp = Math.min(refz.max, vivo + pend);
   if (!refz.ign){
@@ -15300,7 +15307,7 @@ function dibGravitron(g, pose, f){
 // segundos suelta un pulso que cura un poco a todos los suyos. Huye de ti.
 function medicoObjetivo(e){
   let mejor = null, mk = 0.995;
-  for (const o of enemies){
+  for (let __i151 = 0, __a151 = enemies; __i151 < __a151.length; __i151++){ const o = __a151[__i151];
     if (o.dead || o.held || o.thrown || o === e || o.type === 'ovni' || o.type === 'medico' || o.hp >= o.maxhp || enPresa(o)) continue;
     const d = dist(o.x, o.y, e.x, e.y); if (d > 650) continue;
     const k = o.hp/o.maxhp + d/2600;
@@ -15336,7 +15343,7 @@ function updateMedico(e, dt, a, ang){
   if (e.pulso <= 0){
     e.pulso = MED_PULSO;
     let n = 0;
-    for (const o of enemies){
+    for (let __i152 = 0, __a152 = enemies; __i152 < __a152.length; __i152++){ const o = __a152[__i152];
       if (o.dead || o.held || o === e || o.hp >= o.maxhp || dist(o.x, o.y, e.x, e.y) > MED_PULSO_R) continue;
       o.hp = Math.min(o.maxhp, o.hp + (JEFES[o.type] ? MED_PULSO_CURA*0.4 : MED_PULSO_CURA)); n++;
     }
@@ -15401,13 +15408,13 @@ function updateMachacador(e, dt, a, ang){
 function machGolpe(e){
   const x = e.mx, y = e.my, R = MACH_R;
   aCadaInvasor(x, y, R*0.85, ()=>{ golpeDesSuave(MACH_DMG); shake(14, 0.35); sfx('hurt'); });
-  for (const pool of [civilians, enemies]) for (const t of pool){
+  for (const pool of [civilians, enemies]) for (let __i300 = 0, __a300 = pool; __i300 < __a300.length; __i300++){ const t = __a300[__i300];
     if (t === e || t.dead || t.held || alturaVisible(t) > 0 || dist(t.x, t.y, x, y) > R) continue;
     if (t.kind === 'civ') damageEnemy(t, 999, t.x, t.y);
     else if (!JEFES[t.type] && !t.refz) t.stunT = Math.max(t.stunT || 0, 1.2);
   }
-  for (const z of zombis) if (z.sube <= 0 && dist(z.x, z.y, x, y) < R) z.hp -= 80;
-  for (const b of buildings){ if (b.stage < 2){ const cx = clamp(x, b.x, b.x + b.w), cy = clamp(y, b.y, b.y + b.h); if (dist(cx, cy, x, y) < R) damageBuilding(b, 60); } }
+  for (let __i153 = 0, __a153 = zombis; __i153 < __a153.length; __i153++){ const z = __a153[__i153]; if (z.sube <= 0 && dist(z.x, z.y, x, y) < R) z.hp -= 80; }
+  for (let __i154 = 0, __a154 = buildings; __i154 < __a154.length; __i154++){ const b = __a154[__i154]; if (b.stage < 2){ const cx = clamp(x, b.x, b.x + b.w), cy = clamp(y, b.y, b.y + b.h); if (dist(cx, cy, x, y) < R) damageBuilding(b, 60); } }
   addParticles(x, y, '#bfd0ff', 20, 220); addParticles(x, y, '#ffffff', 8, 160);
   booms.push({ x, y, r:10, max:R*1.3, life:0.45, maxlife:0.45, ring:true, color:'#bfd0ff' });
   shake(10, 0.25); sfx('hachazo'); sfx('laserE');
@@ -15488,7 +15495,7 @@ function gravBomba(e){
 var gravT = 0;
 function updateGravedad(dt){
   if (gravT > 0) gravT -= dt;
-  for (const e of enemies){
+  for (let __i155 = 0, __a155 = enemies; __i155 < __a155.length; __i155++){ const e = __a155[__i155];
     if (e.type !== 'gravitron' || !e.gF) continue;
     if (e.dead || e.held || e.thrown){ e.gF = ''; continue; }
     if (e.stunT > 0){ e.gT -= dt; if (e.gT <= 0){ e.gF = e.gF === 'aviso' ? 'activo' : ''; e.gT = GRAV_DUR; } }   // tumbada, el reloj sigue
@@ -15541,7 +15548,7 @@ function drawOrbeElectrico(b, s){
 // ---- marcas en el suelo y efectos encima ----
 function drawRefuerzosSuelo(){
   const t = gameTime;
-  for (const e of enemies){
+  for (let __i156 = 0, __a156 = enemies; __i156 < __a156.length; __i156++){ const e = __a156[__i156];
     if (e.dead) continue;
     if (e.type === 'machacador' && e.fase === 'golpe'){      // el tajo de la espada, un arco de luz
       const s = S(e.mx, e.my), k = clamp(e.ft/0.35, 0, 1), f = e.facing || 1;
@@ -15585,7 +15592,7 @@ function drawRefuerzosSuelo(){
   }
 }
 function drawRefuerzosEfectos(){
-  for (const e of enemies){
+  for (let __i157 = 0, __a157 = enemies; __i157 < __a157.length; __i157++){ const e = __a157[__i157];
     if (e.dead || e.held || e.thrown) continue;
     if (e.llega > 0){                                     // el haz en el que bajan
       const s = S(e.x, e.y), k = e.llega/0.6;
@@ -15847,13 +15854,13 @@ function aracTelaLlega(e){
 // Salto y pisotón: todo lo que haya debajo, al suelo.
 function aracGolpeSuelo(e, x, y, R, dmg){
   aCadaInvasor(x, y, R*0.8, ()=>{ golpeDesSuave(dmg); sfx('hurt'); });
-  for (const pool of [civilians, enemies]) for (const t of pool){
+  for (const pool of [civilians, enemies]) for (let __i301 = 0, __a301 = pool; __i301 < __a301.length; __i301++){ const t = __a301[__i301];
     if (t === e || t.dead || t.held || alturaVisible(t) > 0 || dist(t.x, t.y, x, y) > R) continue;
     if (t.kind === 'civ') damageEnemy(t, 999, t.x, t.y);
     else if (!JEFES[t.type]) t.stunT = Math.max(t.stunT || 0, 1.3);
   }
-  for (const z of zombis) if (z.sube <= 0 && dist(z.x, z.y, x, y) < R) z.hp -= 120;
-  for (const b of buildings){ if (b.stage < 2){ const cx = clamp(x, b.x, b.x + b.w), cy = clamp(y, b.y, b.y + b.h); if (dist(cx, cy, x, y) < R) damageBuilding(b, 140); } }
+  for (let __i158 = 0, __a158 = zombis; __i158 < __a158.length; __i158++){ const z = __a158[__i158]; if (z.sube <= 0 && dist(z.x, z.y, x, y) < R) z.hp -= 120; }
+  for (let __i159 = 0, __a159 = buildings; __i159 < __a159.length; __i159++){ const b = __a159[__i159]; if (b.stage < 2){ const cx = clamp(x, b.x, b.x + b.w), cy = clamp(y, b.y, b.y + b.h); if (dist(cx, cy, x, y) < R) damageBuilding(b, 140); } }
   addParticles(x, y, '#b8b0a0', 26, 260); addParticles(x, y, '#e8f0f8', 10, 180);
   booms.push({ x, y, r:10, max:R*1.35, life:0.5, maxlife:0.5, ring:true });
   shake(18, 0.45); sfx('caidaGolpe'); sfx('boomD');
@@ -15941,7 +15948,7 @@ function dibRed(x, y, R, a){
   ctx.restore();
 }
 function drawAracnidoSuelo(){
-  for (const e of enemies){
+  for (let __i160 = 0, __a160 = enemies; __i160 < __a160.length; __i160++){ const e = __a160[__i160];
     if (e.dead || e.type !== 'aracnido') continue;
     for (let k = 0; k < 3; k++){ const t = e['p' + k + 't']; if (t > 0){ const s = S(e['p' + k + 'x'], e['p' + k + 'y']); dibRed(s.x, s.y, ARAC_RED_R, 0.7*clamp(t/1.5, 0, 1)); } }
     ctx.save();
@@ -15965,7 +15972,7 @@ function drawAracnidoSuelo(){
   }
 }
 function drawAracnidoEfectos(){
-  for (const e of enemies){
+  for (let __i161 = 0, __a161 = enemies; __i161 < __a161.length; __i161++){ const e = __a161[__i161];
     if (e.dead || e.type !== 'aracnido') continue;
     const o = aracBoca(e), so = S(o.x, o.y);
     ctx.save(); ctx.lineCap = 'round';
@@ -16107,14 +16114,14 @@ function mvCorta(e, x0, y0, x1, y1, R, dmgUnid, dmgJug, unaVez){
   const toca = (x, y, r)=> distSeg(x, y, x0, y0, x1, y1) < R + r;
   if (!vil.intro && toca(player.x, player.y, F().r) && (!unaVez || e._golJ !== e.tajo) && (e.golJN || 0) < MV_MAX_TAJOS_J){ e._golJ = e.tajo; if (unaVez) e.golJN = (e.golJN || 0) + 1; golpeDesSuave(dmgJug); shake(8, 0.15); sfx('hurt'); addParticles(player.x, player.y - 10, '#bfe8ff', 8, 140); }
   if (dobleAnf() && Online.av && !Online.av.caido && toca(Online.proxy.x, Online.proxy.y, 20) && (!unaVez || e._golI !== e.tajo)){ e._golI = e.tajo; Online.danoInv += dmgJug; }
-  for (const pool of [civilians, enemies]) for (const t of pool){
+  for (const pool of [civilians, enemies]) for (let __i302 = 0, __a302 = pool; __i302 < __a302.length; __i302++){ const t = __a302[__i302];
     if (t === e || t.dead || t.held || alturaVisible(t) > 30 || !toca(t.x, t.y, 10)) continue;
     if (unaVez && t._mvT === e.tajo) continue;
     t._mvT = e.tajo;
     damageEnemy(t, t.kind === 'civ' ? 999 : dmgUnid, t.x, t.y); addParticles(t.x, t.y - 10, '#9fd8ff', 6, 120);
   }
-  for (const c of cars){ if (!c.dead && !c.held && !c.thrown && toca(c.x, c.y, 16)){ c.hp -= unaVez ? 60 : dmgUnid*0.5; addParticles(c.x, c.y, '#dfe4e8', 3, 90); } }
-  for (const z of zombis) if (z.sube <= 0 && toca(z.x, z.y, 10)) z.hp -= dmgUnid;
+  for (let __i162 = 0, __a162 = cars; __i162 < __a162.length; __i162++){ const c = __a162[__i162]; if (!c.dead && !c.held && !c.thrown && toca(c.x, c.y, 16)){ c.hp -= unaVez ? 60 : dmgUnid*0.5; addParticles(c.x, c.y, '#dfe4e8', 3, 90); } }
+  for (let __i163 = 0, __a163 = zombis; __i163 < __a163.length; __i163++){ const z = __a163[__i163]; if (z.sube <= 0 && toca(z.x, z.y, 10)) z.hp -= dmgUnid; }
 }
 function mvBoom(e, an){                                    // rompe la barrera del sonido
   for (let i = 0; i < 3; i++) sonicRings.push({ x: e.x, y: e.y - 40, ang: an, r: 8 + i*13, life: 0.5 - i*0.06, max: 0.5 });
@@ -16137,7 +16144,7 @@ function mvAvanza(e, dt){
   const x0 = e.x, y0 = e.y;
   if (d > 0.1){ e.x += (e.dtx - e.x)/d*paso; e.y += (e.dty - e.y)/d*paso; }
   mvCorta(e, x0, y0, e.x, e.y, MV_CORTE, 120, MV_DASH_DMG, true);
-  for (const b of buildings){ if (b.stage < 2){ const cx = clamp(e.x, b.x, b.x + b.w), cy = clamp(e.y, b.y, b.y + b.h); if (dist(cx, cy, e.x, e.y) < 30) damageBuilding(b, 400*dt); } }
+  for (let __i164 = 0, __a164 = buildings; __i164 < __a164.length; __i164++){ const b = __a164[__i164]; if (b.stage < 2){ const cx = clamp(e.x, b.x, b.x + b.w), cy = clamp(e.y, b.y, b.y + b.h); if (dist(cx, cy, e.x, e.y) < 30) damageBuilding(b, 400*dt); } }
   if (paso >= d - 0.5){ mvRastro(e, e.d0x, e.d0y, e.x, e.y); sacudeArboles((e.d0x + e.x)/2, (e.d0y + e.y)/2, 200, 0.55); return true; }
   return false;
 }
@@ -16191,7 +16198,7 @@ function updateMuerteVeloz(e, dt, a, ang){
       e.x = clamp(e.x + (player.x - e.x)/d*sp, 40, WORLD_W - 40); e.y = clamp(e.y + (player.y - e.y)/d*sp, 40, WORLD_H - 40);
       e.giroK -= dt;
       if (e.giroK <= 0){ e.giroK = 0.16; e.tajo = (e.tajo || 0) + 1; mvCorta(e, e.x, e.y, e.x, e.y, MV_GIRO_R, 60, 7, true); }
-      for (const c of cars){ if (!c.dead && !c.held && !c.thrown && dist(c.x, c.y, e.x, e.y) < MV_GIRO_R + 20){ const an = Math.atan2(c.y - e.y, c.x - e.x) + 1.2; c.x += Math.cos(an)*160*dt; c.y += Math.sin(an)*160*dt; } }
+      for (let __i165 = 0, __a165 = cars; __i165 < __a165.length; __i165++){ const c = __a165[__i165]; if (!c.dead && !c.held && !c.thrown && dist(c.x, c.y, e.x, e.y) < MV_GIRO_R + 20){ const an = Math.atan2(c.y - e.y, c.x - e.x) + 1.2; c.x += Math.cos(an)*160*dt; c.y += Math.sin(an)*160*dt; } }
       if (Math.random() < 0.2) sfx('sierra');
       if (e.ft <= 0){ e.fase = 'frena'; e.ft = 0.45; e.suave = 1; e.cortaCd = e.roto ? 1.1 : 1.5; }
       return;
@@ -16206,8 +16213,8 @@ function updateMuerteVeloz(e, dt, a, ang){
       e.x = clamp(e.x + (player.x - e.x)/d*sp, 40, WORLD_W - 40); e.y = clamp(e.y + (player.y - e.y)/d*sp, 40, WORLD_H - 40);
       e.giroK = (e.giroK || 0) - dt;
       if (e.giroK <= 0){ e.giroK = 0.25; e.tajo++; mvCorta(e, x0, y0, e.x, e.y, MV_TORN_R, 40, 9, true); sacudeArboles(e.x, e.y, 260, 0.6); }
-      for (const b of buildings){ if (b.stage < 2){ const cx = clamp(e.x, b.x, b.x + b.w), cy = clamp(e.y, b.y, b.y + b.h); if (dist(cx, cy, e.x, e.y) < MV_TORN_R) damageBuilding(b, 220*dt); } }
-      for (const c of cars){ if (!c.dead && !c.held && !c.thrown && dist(c.x, c.y, e.x, e.y) < MV_TORN_R + 20){ const an = Math.atan2(c.y - e.y, c.x - e.x) + 1.2; c.x += Math.cos(an)*200*dt; c.y += Math.sin(an)*200*dt; } }
+      for (let __i166 = 0, __a166 = buildings; __i166 < __a166.length; __i166++){ const b = __a166[__i166]; if (b.stage < 2){ const cx = clamp(e.x, b.x, b.x + b.w), cy = clamp(e.y, b.y, b.y + b.h); if (dist(cx, cy, e.x, e.y) < MV_TORN_R) damageBuilding(b, 220*dt); } }
+      for (let __i167 = 0, __a167 = cars; __i167 < __a167.length; __i167++){ const c = __a167[__i167]; if (!c.dead && !c.held && !c.thrown && dist(c.x, c.y, e.x, e.y) < MV_TORN_R + 20){ const an = Math.atan2(c.y - e.y, c.x - e.x) + 1.2; c.x += Math.cos(an)*200*dt; c.y += Math.sin(an)*200*dt; } }
       if (Math.random() < 0.15) sfx('sierra');
       if (e.ft <= 0){ e.fase = 'frena'; e.ft = 0.8; }
       return;
@@ -16299,7 +16306,7 @@ function drawMuerteVeloz(e){
   for (const m of mvManos(e)){ const sm = S(m.x, m.y); sierraPlasma(sm.x, sm.y, 9, giro); }
 }
 function drawMuerteVelozSuelo(){
-  for (const e of enemies){
+  for (let __i168 = 0, __a168 = enemies; __i168 < __a168.length; __i168++){ const e = __a168[__i168];
     if (e.dead || e.type !== 'muerteVeloz') continue;
     ctx.save(); ctx.lineCap = 'round';
     if (e.fase === 'zonaAviso' || e.fase === 'zona'){
@@ -16328,7 +16335,7 @@ function drawMuerteVelozSuelo(){
   }
 }
 function drawMuerteVelozEfectos(){
-  for (const e of enemies){
+  for (let __i169 = 0, __a169 = enemies; __i169 < __a169.length; __i169++){ const e = __a169[__i169];
     if (e.dead || e.type !== 'muerteVeloz') continue;
     ctx.save(); ctx.lineCap = 'round';
     for (let k = 0; k < 6; k++){                               // las estelas de los tajos
@@ -16426,8 +16433,8 @@ function updateCenturion(e, dt, a, ang){
       e.x = clamp(e.x + Math.cos(e.eA)*paso, 60, WORLD_W - 60); e.y = clamp(e.y + Math.sin(e.eA)*paso, 60, WORLD_H - 60);
       e.rest -= paso;
       // arrasa lo que hay en su camino
-      for (const b of buildings){ if (b.stage < 2){ const cx = clamp(e.x, b.x, b.x + b.w), cy = clamp(e.y, b.y, b.y + b.h); if (dist(cx, cy, e.x, e.y) < 50) damageBuilding(b, 700*dt); } }
-      for (const pool of [civilians, enemies]) for (const t of pool){
+      for (let __i170 = 0, __a170 = buildings; __i170 < __a170.length; __i170++){ const b = __a170[__i170]; if (b.stage < 2){ const cx = clamp(e.x, b.x, b.x + b.w), cy = clamp(e.y, b.y, b.y + b.h); if (dist(cx, cy, e.x, e.y) < 50) damageBuilding(b, 700*dt); } }
+      for (const pool of [civilians, enemies]) for (let __i303 = 0, __a303 = pool; __i303 < __a303.length; __i303++){ const t = __a303[__i303];
         if (t === e || t.dead || t.held || JEFES[t.type] || t._cenG === e.embId || dist(t.x, t.y, e.x, e.y) > 50) continue;
         t._cenG = e.embId; damageEnemy(t, 80, t.x, t.y);
       }
@@ -16520,7 +16527,7 @@ function updateCenturion(e, dt, a, ang){
         else if (imp.que === 'tk'){ const o = imp.ref; if (o.tkDur === undefined) o.tkDur = objDurability(o); o.tkDur -= 0.12; if (o.tkDur <= 0){ const j = mag.tk.indexOf(o); if (j >= 0) mag.tk.splice(j, 1); rompeTK(o); } }
         else if (imp.que === 'zombi') imp.ref.hp -= 40;
         const L = dist(m.x, m.y, imp.x, imp.y);
-        for (const pool of [civilians, enemies]) for (const t of pool){
+        for (const pool of [civilians, enemies]) for (let __i305 = 0, __a305 = pool; __i305 < __a305.length; __i305++){ const t = __a305[__i305];
           if (t === e || t.dead || t.held || JEFES[t.type]) continue;
           if (enLinea(t.x, t.y - alturaVisible(t), m.x, m.y, e.cA, L, 14)) damageEnemy(t, 40, t.x, t.y);
         }
@@ -16638,7 +16645,7 @@ function drawCenturion(e){
   if (showHpBars) hpBar(s.x, dy - 130, 110, e.hp, e.maxhp, '#c81f1f');
 }
 function drawCenturionAvisos(){
-  for (const e of enemies){
+  for (let __i174 = 0, __a174 = enemies; __i174 < __a174.length; __i174++){ const e = __a174[__i174];
     if (e.dead || e.type !== 'centurion') continue;
     if (e.fase === 'embisteAviso'){
       const s0 = S(e.x, e.y), s1 = S(e.x + Math.cos(e.eA)*560, e.y + Math.sin(e.eA)*560);
@@ -16669,7 +16676,7 @@ function drawCenturionAvisos(){
   }
 }
 function drawCenturionEfectos(){
-  for (const e of enemies){
+  for (let __i175 = 0, __a175 = enemies; __i175 < __a175.length; __i175++){ const e = __a175[__i175];
     if (e.dead || e.type !== 'centurion') continue;
     if (e.fase === 'hielo' && e.hx2 !== undefined){
       const m = centCanon(e), o = S(m.x, m.y), d = S(e.hx2, e.hy2);
@@ -16694,7 +16701,7 @@ function drawCenturionEfectos(){
       ctx.globalAlpha = 1;
     }
   }
-  for (const b of bombasPeg){
+  for (let __i176 = 0, __a176 = bombasPeg; __i176 < __a176.length; __i176++){ const b = __a176[__i176];
     const s = S(b.x, b.y);
     const parpadeo = b.t >= b.vuelo && Math.floor(b.mecha*(b.mecha < 0.8 ? 14 : 6)) % 2;
     ctx.fillStyle = '#2a2f3a'; ctx.beginPath(); ctx.arc(s.x, s.y, 6, 0, Math.PI*2); ctx.fill();
@@ -17162,8 +17169,8 @@ function desBusca(e, R, comida){
     const d2 = (o.x - e.x)*(o.x - e.x) + (o.y - e.y)*(o.y - e.y);
     if (d2 < md){ md = d2; mejor = o; }
   };
-  for (const t of enemies) if (t.person || (!comida && t.grabbable && !t.alt)) mira(t);
-  for (const c of civilians) mira(c);
+  for (let __i178 = 0, __a178 = enemies; __i178 < __a178.length; __i178++){ const t = __a178[__i178]; if (t.person || (!comida && t.grabbable && !t.alt)) mira(t); }
+  for (let __i179 = 0, __a179 = civilians; __i179 < __a179.length; __i179++){ const c = __a179[__i179]; mira(c); }
   if (!comida){ for (const c of cars) mira(c); for (const l of lamps) mira(l); for (const b of trash) mira(b); for (const b of benches) mira(b); }
   return mejor;
 }
@@ -17183,7 +17190,7 @@ function desLanza(e){
 }
 // Sus pisadas aplastan a la tropa menuda.
 function desPisa(e, R){
-  for (const pool of [civilians, enemies]) for (const t of pool){
+  for (const pool of [civilians, enemies]) for (let __i313 = 0, __a313 = pool; __i313 < __a313.length; __i313++){ const t = __a313[__i313];
     if (t === e || t.dead || t.held || t.thrown || enPresa(t) || alturaVisible(t) > 0) continue;
     if (!(t.person || t.kind === 'civ' || t.type === 'vengativo')) continue;
     if (Math.abs(t.x - e.x) > R || Math.abs(t.y - e.y) > R*0.7) continue;
@@ -17196,12 +17203,12 @@ function desSangre(e, dt){
   const golpeo = (x, y, r)=> enLinea(x, y, ox, oy, an, L, 26 + r);
   if (!vil.intro && golpeo(player.x, player.y, F().r)) golpeDesSuave(34*dt);
   if (dobleAnf() && Online.av && !Online.av.caido && golpeo(Online.proxy.x, Online.proxy.y, 20)) Online.danoInv += 34*dt;
-  for (const pool of [civilians, enemies]) for (const t of pool){
+  for (const pool of [civilians, enemies]) for (let __i314 = 0, __a314 = pool; __i314 < __a314.length; __i314++){ const t = __a314[__i314];
     if (t === e || t.dead || t.held || !golpeo(t.x, t.y, 10)) continue;
     damageEnemy(t, t.kind === 'civ' ? 999 : 90*dt, t.x, t.y);
   }
-  for (const z of zombis) if (z.sube <= 0 && golpeo(z.x, z.y, 10)) z.hp -= 90*dt;
-  for (const b of buildings){
+  for (let __i184 = 0, __a184 = zombis; __i184 < __a184.length; __i184++){ const z = __a184[__i184]; if (z.sube <= 0 && golpeo(z.x, z.y, 10)) z.hp -= 90*dt; }
+  for (let __i185 = 0, __a185 = buildings; __i185 < __a185.length; __i185++){ const b = __a185[__i185];
     if (b.stage >= 2) continue;
     for (let k = 0.25; k <= 1; k += 0.25){ const x = ox + Math.cos(an)*L*k, y = oy + Math.sin(an)*L*k;
       if (x > b.x && x < b.x + b.w && y > b.y && y < b.y + b.h){ damageBuilding(b, 140*dt); break; } }
@@ -17324,9 +17331,9 @@ function updateDesesperacion(e, dt, a, ang){
       e.x = clamp(e.x + Math.cos(e.eA)*paso, 40, WORLD_W - 40); e.y = clamp(e.y + Math.sin(e.eA)*paso, 40, WORLD_H - 40);
       e.rest -= paso; e.paso = (e.paso || 0) + paso*0.05;
       e.facing = Math.cos(e.eA) >= 0 ? 1 : -1;
-      for (const b of buildings){ if (b.stage < 2){ const cx = clamp(e.x, b.x, b.x + b.w), cy = clamp(e.y, b.y, b.y + b.h); if (dist(cx, cy, e.x, e.y) < 40) damageBuilding(b, 520*dt); } }
-      for (const c of cars){ if (!c.dead && !c.held && !c.thrown && !enPresa(c) && dist(c.x, c.y, e.x, e.y) < 50){ c.x += Math.cos(e.eA)*paso*1.1; c.y += Math.sin(e.eA)*paso*1.1; c.hp -= 90*dt; } }
-      for (const pool of [civilians, enemies]) for (const t of pool){
+      for (let __i186 = 0, __a186 = buildings; __i186 < __a186.length; __i186++){ const b = __a186[__i186]; if (b.stage < 2){ const cx = clamp(e.x, b.x, b.x + b.w), cy = clamp(e.y, b.y, b.y + b.h); if (dist(cx, cy, e.x, e.y) < 40) damageBuilding(b, 520*dt); } }
+      for (let __i187 = 0, __a187 = cars; __i187 < __a187.length; __i187++){ const c = __a187[__i187]; if (!c.dead && !c.held && !c.thrown && !enPresa(c) && dist(c.x, c.y, e.x, e.y) < 50){ c.x += Math.cos(e.eA)*paso*1.1; c.y += Math.sin(e.eA)*paso*1.1; c.hp -= 90*dt; } }
+      for (const pool of [civilians, enemies]) for (let __i315 = 0, __a315 = pool; __i315 < __a315.length; __i315++){ const t = __a315[__i315];
         if (t === e || t.dead || t.held || JEFES[t.type] || t._desG === e.embId || dist(t.x, t.y, e.x, e.y) > 46) continue;
         t._desG = e.embId; damageEnemy(t, t.kind === 'civ' ? 999 : 60, t.x, t.y); if (!t.dead) t.stunT = Math.max(t.stunT || 0, 1);
       }
@@ -17441,7 +17448,7 @@ function drawDesesperacion(e){
   pinta(s.x, s.y - alt, 1);
 }
 function drawDesesperacionAvisos(){
-  for (const e of enemies){
+  for (let __i188 = 0, __a188 = enemies; __i188 < __a188.length; __i188++){ const e = __a188[__i188];
     if (e.dead || e.type !== 'desesperacion') continue;
     ctx.save();
     for (let k = 0; k < 6; k++){                          // charcos de sangre
@@ -17483,7 +17490,7 @@ function drawDesesperacionAvisos(){
 
 // El chorro de sangre, de la boca al suelo, por encima de todo.
 function drawDesesperacionEfectos(){
-  for (const e of enemies){
+  for (let __i189 = 0, __a189 = enemies; __i189 < __a189.length; __i189++){ const e = __a189[__i189];
     if (e.dead || e.type !== 'desesperacion' || e.fase !== 'sangre') continue;
     const o = desBoca(e), so = S(o.x, o.y), an = e.sA, L = DESES_SANGRE_L;
     const se = S(o.x + Math.cos(an)*L, e.y + Math.sin(an)*L), cx = (so.x + se.x)/2, cy = Math.min(so.y, se.y) - 30;
@@ -17704,14 +17711,14 @@ function gigMazo(z){
 const GIG_ALC_GOLPE = 150;
 function gigGolpe(z){
   const f = z.facing || 1, x = z.x + f*GIG_ALC_GOLPE*0.95, y = z.y + 4, dmg = ALIADO_STATS.gigante.dmg;
-  for (const o of enemies){
+  for (let __i190 = 0, __a190 = enemies; __i190 < __a190.length; __i190++){ const o = __a190[__i190];
     if (o.dead || o.held || o.thrown || o.pacifico || o.type === 'ovni' || alturaVisible(o) > 40) continue;
     if (distCuerpo(x, y, o) > GIG_R) continue;
     porJugador(()=> damageEnemy(o, dmg*(JEFES[o.type] ? 0.6 : 1), o.x, o.y));
     if (!o.dead && !JEFES[o.type]) o.stunT = Math.max(o.stunT || 0, 0.8);
   }
-  for (const c of civilians) if (!c.dead && !c.held && dist(c.x, c.y, x, y) < GIG_R) porJugador(()=> damageEnemy(c, 999, c.x, c.y));
-  for (const b of buildings){ if (b.stage < 2){ const cx = clamp(x, b.x, b.x + b.w), cy = clamp(y, b.y, b.y + b.h); if (dist(cx, cy, x, y) < GIG_R*0.7) damageBuilding(b, 90); } }
+  for (let __i191 = 0, __a191 = civilians; __i191 < __a191.length; __i191++){ const c = __a191[__i191]; if (!c.dead && !c.held && dist(c.x, c.y, x, y) < GIG_R) porJugador(()=> damageEnemy(c, 999, c.x, c.y)); }
+  for (let __i192 = 0, __a192 = buildings; __i192 < __a192.length; __i192++){ const b = __a192[__i192]; if (b.stage < 2){ const cx = clamp(x, b.x, b.x + b.w), cy = clamp(y, b.y, b.y + b.h); if (dist(cx, cy, x, y) < GIG_R*0.7) damageBuilding(b, 90); } }
   addParticles(x, y, '#ff7a1a', 22, 240); addParticles(x, y, '#ffd23a', 10, 180); addParticles(x, y, '#3a2a22', 12, 160);
   booms.push({ x, y, r:10, max:GIG_R*1.4, life:0.5, maxlife:0.5, ring:true, color:'#ff8a2a' });
   shake(9, 0.25); sfx('caidaGolpe'); sfx('incinera');
@@ -17809,7 +17816,7 @@ function updateAmalgama(e, dt, a, ang){
   if (e.golpeCd > 0) e.golpeCd -= dt;
   const k = e.k || 1;
   // se traga a las almas en pena que toca y crece
-  for (const c of civilians){
+  for (let __i193 = 0, __a193 = civilians; __i193 < __a193.length; __i193++){ const c = __a193[__i193];
     if (c.dead || !c.alma || c.held || c.thrown || dist(c.x, c.y, e.x, e.y) > 30*k) continue;
     c.dead = true;
     addParticles(c.x, c.y - 10, '#cfe0ff', 14, 120);
@@ -17851,7 +17858,7 @@ function updateAmalgama(e, dt, a, ang){
     const paso = 640*dt;
     e.x = clamp(e.x + Math.cos(e.eA)*paso, 40, WORLD_W - 40); e.y = clamp(e.y + Math.sin(e.eA)*paso, 40, WORLD_H - 40);
     e.rest -= paso;
-    for (const b of buildings){ if (b.stage < 2){ const cx = clamp(e.x, b.x, b.x + b.w), cy = clamp(e.y, b.y, b.y + b.h); if (dist(cx, cy, e.x, e.y) < 30*k) damageBuilding(b, 300*dt); } }
+    for (let __i194 = 0, __a194 = buildings; __i194 < __a194.length; __i194++){ const b = __a194[__i194]; if (b.stage < 2){ const cx = clamp(e.x, b.x, b.x + b.w), cy = clamp(e.y, b.y, b.y + b.h); if (dist(cx, cy, e.x, e.y) < 30*k) damageBuilding(b, 300*dt); } }
     if (!e.golpeo && a < 30*k + F().r && !vil.intro){
       e.golpeo = 1; const d0 = hp; hp = clamp(hp - recibe(28), 0, maxHp()); p2Gain(d0 - hp); shake(12, 0.3); sfx('hurt');
     }
@@ -17862,7 +17869,7 @@ function updateAmalgama(e, dt, a, ang){
   // ¿un auto a mano para lanzárselo?
   if (e.cd <= 0 && a < 650){
     let mejor = null, md = 150*150;
-    for (const c of cars){
+    for (let __i195 = 0, __a195 = cars; __i195 < __a195.length; __i195++){ const c = __a195[__i195];
       if (c.dead || c.held || c.thrown || enPresa(c)) continue;
       const d2 = (c.x - e.x)*(c.x - e.x) + (c.y - e.y)*(c.y - e.y);
       if (d2 < md){ md = d2; mejor = c; }
@@ -17875,7 +17882,7 @@ function updateAmalgama(e, dt, a, ang){
   let tx = player.x, ty = player.y;
   if (k < AMAL_MAX){
     let md = 380*380;
-    for (const c of civilians){
+    for (let __i196 = 0, __a196 = civilians; __i196 < __a196.length; __i196++){ const c = __a196[__i196];
       if (c.dead || !c.alma || c.held || c.thrown) continue;
       const d2 = (c.x - e.x)*(c.x - e.x) + (c.y - e.y)*(c.y - e.y);
       if (d2 < md){ md = d2; tx = c.x; ty = c.y; }
@@ -17910,7 +17917,7 @@ function drawAmalgama(e){
   hpBar(s.x, s.y - 112*k, 50 + 20*k, e.hp, e.maxhp, '#9ab8e8');
 }
 function drawAmalgamaAvisos(){
-  for (const e of enemies){
+  for (let __i197 = 0, __a197 = enemies; __i197 < __a197.length; __i197++){ const e = __a197[__i197];
     if (e.dead || e.type !== 'amalgama' || e.fase !== 'embAviso') continue;
     const s0 = S(e.x, e.y), s1 = S(e.x + Math.cos(e.eA)*440, e.y + Math.sin(e.eA)*440);
     ctx.save(); ctx.globalAlpha = 0.8; ctx.strokeStyle = '#9ab8e8'; ctx.lineWidth = 4; ctx.setLineDash([14, 10]); ctx.lineDashOffset = -gameTime*80;
@@ -18238,12 +18245,12 @@ function updateDesgarrador(e, dt, a, ang){
       e.x = clamp(e.x + Math.cos(e.eA)*paso, 60, WORLD_W - 60); e.y = clamp(e.y + Math.sin(e.eA)*paso, 60, WORLD_H - 60);
       e.rest -= paso;
       const R = vuela ? 58 : 46;
-      for (const b of buildings){ if (b.stage < 2){ const cx = clamp(e.x, b.x, b.x + b.w), cy = clamp(e.y, b.y, b.y + b.h); if (dist(cx, cy, e.x, e.y) < R) damageBuilding(b, (vuela ? 500 : 800)*dt); } }
-      for (const pool of [civilians, enemies]) for (const t of pool){
+      for (let __i198 = 0, __a198 = buildings; __i198 < __a198.length; __i198++){ const b = __a198[__i198]; if (b.stage < 2){ const cx = clamp(e.x, b.x, b.x + b.w), cy = clamp(e.y, b.y, b.y + b.h); if (dist(cx, cy, e.x, e.y) < R) damageBuilding(b, (vuela ? 500 : 800)*dt); } }
+      for (const pool of [civilians, enemies]) for (let __i316 = 0, __a316 = pool; __i316 < __a316.length; __i316++){ const t = __a316[__i316];
         if (t === e || t.dead || t.held || JEFES[t.type] || t._desG === e.cId || dist(t.x, t.y, e.x, e.y) > R) continue;
         t._desG = e.cId; damageEnemy(t, 90, t.x, t.y);
       }
-      for (const c of cars){ if (!c.dead && !c.held && dist(c.x, c.y, e.x, e.y) < R){ c.hp -= 60; if (c.hp <= 0) autoAbatido(c); } }
+      for (let __i199 = 0, __a199 = cars; __i199 < __a199.length; __i199++){ const c = __a199[__i199]; if (!c.dead && !c.held && dist(c.x, c.y, e.x, e.y) < R){ c.hp -= 60; if (c.hp <= 0) autoAbatido(c); } }
       if (a < R + F().r){
         if (vuela){ if (!e.golpeo){ e.golpeo = 1; golpeDes(e.deforme ? 44 : 34); } }
         else {                                         // las motosierras por delante: un tajo al entrar y luego trituran
@@ -18294,7 +18301,7 @@ function updateDesgarrador(e, dt, a, ang){
         e.fase = 'sierras'; e.ft = 0.35; sfx('sierra'); shake(8, 0.2);
         const R = 210;
         if (enLineaArco(player.x, player.y, e.x, e.y, e.sA, R)) golpeDes(e.deforme ? 42 : 32);
-        for (const pool of [civilians, enemies]) for (const t of pool){
+        for (const pool of [civilians, enemies]) for (let __i317 = 0, __a317 = pool; __i317 < __a317.length; __i317++){ const t = __a317[__i317];
           if (t === e || t.dead || t.held || JEFES[t.type]) continue;
           if (enLineaArco(t.x, t.y, e.x, e.y, e.sA, R)) damageEnemy(t, 120, t.x, t.y);
         }
@@ -18315,7 +18322,7 @@ function updateDesgarrador(e, dt, a, ang){
           player.x = clamp(player.x + Math.cos(a2)*emp, 30, WORLD_W - 30); player.y = clamp(player.y + Math.sin(a2)*emp, 30, WORLD_H - 30);
           if (!(isVil() && vil.flying)) desatascar(F().r);
         }
-        for (const pool of [civilians, enemies]) for (const t of pool){
+        for (const pool of [civilians, enemies]) for (let __i318 = 0, __a318 = pool; __i318 < __a318.length; __i318++){ const t = __a318[__i318];
           if (t === e || t.dead || t.held || JEFES[t.type] || dist(e.x, e.y, t.x, t.y) > R) continue;
           damageEnemy(t, 70, t.x, t.y);
         }
@@ -18333,7 +18340,7 @@ function updateDesgarrador(e, dt, a, ang){
       if (a > 230){
         const x0 = e.x, y0 = e.y;
         e.x = clamp(e.x + Math.cos(ang)*e.speed*dt, 60, WORLD_W - 60); e.y = clamp(e.y + Math.sin(ang)*e.speed*dt, 60, WORLD_H - 60);
-        for (const b of buildings){ if (b.stage < 2){ const cx = clamp(e.x, b.x, b.x + b.w), cy = clamp(e.y, b.y, b.y + b.h); if (dist(cx, cy, e.x, e.y) < 40) damageBuilding(b, 160*dt); } }
+        for (let __i200 = 0, __a200 = buildings; __i200 < __a200.length; __i200++){ const b = __a200[__i200]; if (b.stage < 2){ const cx = clamp(e.x, b.x, b.x + b.w), cy = clamp(e.y, b.y, b.y + b.h); if (dist(cx, cy, e.x, e.y) < 40) damageBuilding(b, 160*dt); } }
         e.paso = (e.paso || 0) + dist(x0, y0, e.x, e.y)*0.05;
       }
       e.cd -= dt;
@@ -18384,7 +18391,7 @@ function drawDesgarrador(e){
   if (showHpBars) hpBar(s.x, dy - 175*DES_ESC*0.95, 120, e.hp, e.maxhp, '#c81f1f');
 }
 function drawDesgarradorAvisos(){
-  for (const e of enemies){
+  for (let __i201 = 0, __a201 = enemies; __i201 < __a201.length; __i201++){ const e = __a201[__i201];
     if (e.dead || e.type !== 'desgarrador') continue;
     ctx.save();
     if (e.fase === 'vueloAviso' || e.fase === 'discoAviso'){
@@ -18411,7 +18418,7 @@ function drawDesgarradorAvisos(){
   }
 }
 function drawDesgarradorRayo(){
-  for (const e of enemies){
+  for (let __i202 = 0, __a202 = enemies; __i202 < __a202.length; __i202++){ const e = __a202[__i202];
     if (e.dead || e.type !== 'desgarrador' || e.fase !== 'rayo' || e.rx === undefined) continue;
     const o = desOjo(e), so = S(o.x, o.y), d = S(e.rx, e.ry);
     ctx.lineCap = 'round';
@@ -18463,8 +18470,8 @@ function impactoMisil(m){
   if (m.tipo === 'hielo'){
     explode(m.x, m.y, R*0.6, 0, false);
     aCadaInvasor(m.x, m.y, R, ()=>{ golpeDesSuave(15); congelar(2.6); });
-    for (const pool of [civilians, enemies]) for (const t of pool){ if (!t.dead && !t.held && dist(t.x, t.y, m.x, m.y) < R) congelaUnidad(t, 4); }
-    for (const c of cars){ if (!c.dead && !c.held && dist(c.x, c.y, m.x, m.y) < R){ c.hieloT = 4; c.vx *= 0; c.vy *= 0; } }
+    for (const pool of [civilians, enemies]) for (let __i319 = 0, __a319 = pool; __i319 < __a319.length; __i319++){ const t = __a319[__i319]; if (!t.dead && !t.held && dist(t.x, t.y, m.x, m.y) < R) congelaUnidad(t, 4); }
+    for (let __i203 = 0, __a203 = cars; __i203 < __a203.length; __i203++){ const c = __a203[__i203]; if (!c.dead && !c.held && dist(c.x, c.y, m.x, m.y) < R){ c.hieloT = 4; c.vx *= 0; c.vy *= 0; } }
     addParticles(m.x, m.y, '#bff4ff', 40, 300); addParticles(m.x, m.y, '#ffffff', 20, 200);
     booms.push({ x:m.x, y:m.y, r:10, max:R*1.2, life:0.6, maxlife:0.6, ring:true });
     shake(16, 0.4); sfx('hielo');
@@ -18474,8 +18481,8 @@ function impactoMisil(m){
     // lo deja todo en cenizas y el suelo ardiendo a miles de grados
     explode(m.x, m.y, R, 0, true);
     aCadaInvasor(m.x, m.y, R, (k)=>{ golpeDesSuave(25 + 45*k); quemar(4); });
-    for (const pool of [civilians, enemies]) for (const t of pool){ if (!t.dead && !t.held && dist(t.x, t.y, m.x, m.y) < R) damageEnemy(t, 400, t.x, t.y); }
-    for (const b of buildings){
+    for (const pool of [civilians, enemies]) for (let __i320 = 0, __a320 = pool; __i320 < __a320.length; __i320++){ const t = __a320[__i320]; if (!t.dead && !t.held && dist(t.x, t.y, m.x, m.y) < R) damageEnemy(t, 400, t.x, t.y); }
+    for (let __i204 = 0, __a204 = buildings; __i204 < __a204.length; __i204++){ const b = __a204[__i204];
       if (b.stage >= 2) continue;
       const cx = clamp(m.x, b.x, b.x + b.w), cy = clamp(m.y, b.y, b.y + b.h);
       if (dist(cx, cy, m.x, m.y) < R*0.85) damageBuilding(b, 600);
@@ -18499,7 +18506,7 @@ function impactoMisil(m){
     return;
   }
   explode(m.x, m.y, R, 70, true, true);                                      // el meteorito de siempre
-  for (const b of buildings){
+  for (let __i205 = 0, __a205 = buildings; __i205 < __a205.length; __i205++){ const b = __a205[__i205];
     if (b.stage >= 2) continue;
     const cx = clamp(m.x, b.x, b.x + b.w), cy = clamp(m.y, b.y, b.y + b.h);
     if (dist(cx, cy, m.x, m.y) < R*0.7) damageBuilding(b, 160);
@@ -18622,7 +18629,7 @@ function drawRelampagos(){
     ctx.fillRect(-40, -40, VW + 80, VH + 80);                // toda la vista (ya va escalada)
     ctx.globalAlpha = 1;
   }
-  for (const r of relampagos) dibujaRelampago(r);
+  for (let __i206 = 0, __a206 = relampagos; __i206 < __a206.length; __i206++){ const r = __a206[__i206]; dibujaRelampago(r); }
   for (const r of relRed) dibujaRelampago(r);
 }
 function dibujaRelampago(r){
@@ -18749,7 +18756,7 @@ function drawHieloSobre(e){
 const proyJ = [];
 function proyJBlanco(p, R){
   for (const pool of [civilians, enemies]){
-    for (const t of pool){
+    for (let __i321 = 0, __a321 = pool; __i321 < __a321.length; __i321++){ const t = __a321[__i321];
       if (t.dead || t.held || t.thrown || Math.abs(t.x - p.x) > 90) continue;   // descarte barato
       if (cajaCuerpo(t)){ if (distCuerpo(p.x, p.y, t) < R + 4) return t; continue; }
       const b = blancoRayo(t);
@@ -18760,14 +18767,14 @@ function proyJBlanco(p, R){
   return null;
 }
 function proyJAuto(p, R){
-  for (const c of cars){
+  for (let __i207 = 0, __a207 = cars; __i207 < __a207.length; __i207++){ const c = __a207[__i207];
     if (c.dead || c.held || c.thrown) continue;
     if (Math.abs(p.x - c.x) < c.w/2 + R && Math.abs(p.y - c.y) < c.h/2 + R) return c;
   }
   return null;
 }
 function proyJMuro(p){
-  for (const b of buildings){
+  for (let __i208 = 0, __a208 = buildings; __i208 < __a208.length; __i208++){ const b = __a208[__i208];
     if (b.stage >= 2) continue;
     if (p.x > b.x && p.x < b.x + b.w && p.y > b.y && p.y < b.y + b.h) return b;
   }
@@ -19179,7 +19186,7 @@ function maqTajo(ap){
   const tocados = new Set();                                           // la onda no repite con estos
   let dio = false;
   for (const pool of [civilians, enemies]){
-    for (const t of pool){
+    for (let __i322 = 0, __a322 = pool; __i322 < __a322.length; __i322++){ const t = __a322[__i322];
       if (t.dead || t.held || t.thrown) continue;
       const b = cajaCuerpo(t) ? Object.assign(puntoCuerpo(t, ox, oy), { r: 10 }) : blancoRayo(t);
       if (!enArco(b.x, b.y, b.r)) continue;
@@ -19192,13 +19199,13 @@ function maqTajo(ap){
       }
     }
   }
-  for (const c of cars){
+  for (let __i209 = 0, __a209 = cars; __i209 < __a209.length; __i209++){ const c = __a209[__i209];
     if (c.dead || c.held || c.thrown || !enArco(c.x, c.y, 18)) continue;
     danaAuto(c, dmg); dio = true; tocados.add(c);
     addParticles(c.x, c.y, '#ffb07a', 6, 110);
   }
   for (const pool of [trees, benches, trash, lamps]){
-    for (const pr of pool){
+    for (let __i323 = 0, __a323 = pool; __i323 < __a323.length; __i323++){ const pr = __a323[__i323];
       if (pr.dead || pr.held || pr.thrown || !enArco(pr.x, pr.y, 6)) continue;
       porJugador(()=> propAbatido(pr));
       addParticles(pr.x, pr.y, '#ff8a4a', 8, 110); dio = true;
@@ -19206,7 +19213,7 @@ function maqTajo(ap){
   }
   const px = ox + Math.cos(a)*R*0.7, py = oy + Math.sin(a)*R*0.7;
   let muro = false;
-  for (const b of buildings){
+  for (let __i210 = 0, __a210 = buildings; __i210 < __a210.length; __i210++){ const b = __a210[__i210];
     if (b.stage >= 2) continue;
     if (px < b.x - 6 || px > b.x + b.w + 6 || py < b.y - 6 || py > b.y + b.h + 6) continue;
     porJugador(()=> damageBuilding(b, dmg*0.8)); dio = true; muro = true;
@@ -19230,7 +19237,7 @@ function maqTajo(ap){
 function maqOnda(p){
   const hit = p._hit || (p._hit = new Set()), W = p.W;
   for (const pool of [civilians, enemies]){
-    for (const t of pool){
+    for (let __i324 = 0, __a324 = pool; __i324 < __a324.length; __i324++){ const t = __a324[__i324];
       if (t.dead || t.held || t.thrown || hit.has(t) || Math.abs(t.x - p.x) > W + 70) continue;
       const b = cajaCuerpo(t) ? Object.assign(puntoCuerpo(t, p.x, p.y), { r: 8 }) : blancoRayo(t);
       if (dist(b.x, b.y, p.x, p.y) > W + b.r) continue;
@@ -19244,13 +19251,13 @@ function maqOnda(p){
       }
     }
   }
-  for (const c of cars){
+  for (let __i211 = 0, __a211 = cars; __i211 < __a211.length; __i211++){ const c = __a211[__i211];
     if (c.dead || c.held || c.thrown || hit.has(c) || dist(c.x, c.y, p.x, p.y) > W + 16) continue;
     hit.add(c); danaAuto(c, p.dmg);
     addParticles(c.x, c.y, '#ffb07a', 5, 110);
   }
   for (const pool of [trees, benches, trash, lamps]){
-    for (const pr of pool){
+    for (let __i325 = 0, __a325 = pool; __i325 < __a325.length; __i325++){ const pr = __a325[__i325];
       if (pr.dead || pr.held || pr.thrown || dist(pr.x, pr.y, p.x, p.y) > W) continue;
       porJugador(()=> propAbatido(pr));
       addParticles(pr.x, pr.y, '#ff8a4a', 6, 100);
@@ -19318,7 +19325,7 @@ function maqLlama(p, L){
     return da <= p.sp + Math.atan2(r, d);
   };
   for (const pool of [civilians, enemies]){
-    for (const t of pool){
+    for (let __i326 = 0, __a326 = pool; __i326 < __a326.length; __i326++){ const t = __a326[__i326];
       if (t.dead || t.held || hit.has(t)) continue;
       if (Math.abs(t.x - p.x) > L + 80 || Math.abs(t.y - p.y) > L + 80) continue;   // descarte barato
       const b = cajaCuerpo(t) ? puntoCuerpo(t, p.x, p.y) : { x: t.x, y: t.y - alturaVisible(t) };
@@ -19332,13 +19339,13 @@ function maqLlama(p, L){
       }
     }
   }
-  for (const c of cars){
+  for (let __i212 = 0, __a212 = cars; __i212 < __a212.length; __i212++){ const c = __a212[__i212];
     if (c.dead || c.held || hit.has(c) || !enCono(c.x, c.y, 18)) continue;
     hit.add(c); danaAuto(c, p.dmg*2);
     addParticles(c.x, c.y, '#ff8a2b', 8, 150);
   }
   for (const pool of [trees, benches, trash, lamps]){
-    for (const pr of pool){
+    for (let __i327 = 0, __a327 = pool; __i327 < __a327.length; __i327++){ const pr = __a327[__i327];
       if (pr.dead || pr.held || pr.thrown || !enCono(pr.x, pr.y, 6)) continue;
       porJugador(()=> propAbatido(pr));
       addParticles(pr.x, pr.y, '#ff8a2b', 6, 110);
@@ -19399,7 +19406,7 @@ function maqArrolla(){
   const sob = maqSob(), dmg = MAQ_SIE_PASO*(sob ? MAQ_SOB : 1), R = MAQ_R + 24;
   if (!maqGolpeados) maqGolpeados = new Set();
   for (const pool of [civilians, enemies]){
-    for (const t of pool){
+    for (let __i328 = 0, __a328 = pool; __i328 < __a328.length; __i328++){ const t = __a328[__i328];
       if (t.dead || t.held || t.thrown || maqGolpeados.has(t)) continue;
       if (distCuerpo(player.x, player.y, t) > R + (t.w || 26)*0.25) continue;
       maqGolpeados.add(t);
@@ -19413,13 +19420,13 @@ function maqArrolla(){
       sfx('sierra');
     }
   }
-  for (const c of cars){
+  for (let __i213 = 0, __a213 = cars; __i213 < __a213.length; __i213++){ const c = __a213[__i213];
     if (c.dead || c.held || c.thrown || maqGolpeados.has(c) || dist(c.x, c.y, player.x, player.y) > R + 10) continue;
     maqGolpeados.add(c); danaAuto(c, dmg);
     addParticles(c.x, c.y, '#ffe07a', 8, 140);
   }
   for (const pool of [trees, benches, trash, lamps]){
-    for (const pr of pool){
+    for (let __i329 = 0, __a329 = pool; __i329 < __a329.length; __i329++){ const pr = __a329[__i329];
       if (pr.dead || pr.held || pr.thrown || dist(pr.x, pr.y, player.x, player.y) > R) continue;
       porJugador(()=> propAbatido(pr));
       addParticles(pr.x, pr.y, '#c8a060', 6, 110);
@@ -19430,13 +19437,13 @@ function maqSierrasGiran(){
   const sob = maqSob();
   const R = MAQ_SIE_R*(sob ? 1.3 : 1), dmg = MAQ_SIE_DMG*(sob ? MAQ_SOB : 1);
   draDanaArea(player.x, player.y, R, dmg, 150, 0.5);
-  for (const b of buildings){
+  for (let __i214 = 0, __a214 = buildings; __i214 < __a214.length; __i214++){ const b = __a214[__i214];
     if (b.stage >= 2) continue;
     const cx = clamp(player.x, b.x, b.x + b.w), cy = clamp(player.y, b.y, b.y + b.h);
     if (dist(player.x, player.y, cx, cy) < R*0.55) porJugador(()=> damageBuilding(b, dmg*0.8));
   }
   for (const pool of [trees, benches, trash, lamps]){
-    for (const pr of pool){
+    for (let __i330 = 0, __a330 = pool; __i330 < __a330.length; __i330++){ const pr = __a330[__i330];
       if (pr.dead || pr.held || pr.thrown || dist(pr.x, pr.y, player.x, player.y) > R*0.8) continue;
       porJugador(()=> propAbatido(pr));
       addParticles(pr.x, pr.y, '#c8a060', 8, 120);
@@ -19559,7 +19566,7 @@ function updateMaquina(dt){
   // a toda velocidad arrolla a la gente que se cruza
   if (maq.impulso > 0.55){
     for (const pool of [civilians, enemies]){
-      for (const t of pool){
+      for (let __i331 = 0, __a331 = pool; __i331 < __a331.length; __i331++){ const t = __a331[__i331];
         if (t.dead || t.held || t.thrown || !(t.person || t.kind === 'civ')) continue;
         if ((t._maqT || 0) > gameTime) continue;
         if (dist(t.x, t.y, player.x, player.y) > MAQ_R + 16) continue;
@@ -20197,13 +20204,13 @@ function magErupcion(x, y, arc){
   tutEv('fuego');
   const R = MAG_FUEGO_R*(arc ? 1.35 : 1), dmg = MAG_FUEGO_DMG*(arc ? 1.5 : 1);
   draDanaArea(x, y, R, dmg, 170, 0.7);
-  for (const b of buildings){
+  for (let __i215 = 0, __a215 = buildings; __i215 < __a215.length; __i215++){ const b = __a215[__i215];
     if (b.stage >= 2) continue;
     const cx = clamp(x, b.x, b.x + b.w), cy = clamp(y, b.y, b.y + b.h);
     if (dist(x, y, cx, cy) < R*0.6) porJugador(()=> damageBuilding(b, dmg*0.7));
   }
   for (const pool of [trees, benches, trash]){
-    for (const pr of pool){
+    for (let __i332 = 0, __a332 = pool; __i332 < __a332.length; __i332++){ const pr = __a332[__i332];
       if (pr.dead || pr.held || pr.thrown || dist(pr.x, pr.y, x, y) > R*0.8) continue;
       porJugador(()=> propAbatido(pr));
     }
@@ -20276,14 +20283,14 @@ function magImpacto(x, y, arc){
   const R = MAG_RAYO_R*(arc ? 1.4 : 1), dmg = MAG_RAYO_DMG*(arc ? 1.5 : 1);
   relampagos.push({ x, y, t:0.35, max:0.35, sem:Math.random()*1000, col: arc ? 2 : 1 });
   draDanaArea(x, y, R, dmg, 120, 0.9);
-  for (const b of buildings){
+  for (let __i216 = 0, __a216 = buildings; __i216 < __a216.length; __i216++){ const b = __a216[__i216];
     if (b.stage >= 2) continue;
     if (x > b.x - 10 && x < b.x + b.w + 10 && y > b.y - 10 && y < b.y + b.h + 10){ porJugador(()=> damageBuilding(b, dmg*0.6)); break; }
   }
   // con el poder arcano, el rayo salta a dos enemigos cercanos
   if (arc){
     let n = 0;
-    for (const e of enemies){
+    for (let __i217 = 0, __a217 = enemies; __i217 < __a217.length; __i217++){ const e = __a217[__i217];
       if (n >= 2) break;
       if (e.dead || e.held || e.thrown || e.pacifico || e.type === 'ovni') continue;
       const d = distCuerpo(x, y, e);
@@ -20322,7 +20329,7 @@ function tkLevantable(o){
 // Lo que gira ahora mismo a su alrededor: lo levantado y las rocas arrancadas.
 function magEnOrbita(){
   let n = mag.tk.length;
-  for (const p of proyJ) if (p.k === 'roca' && !p.vuela) n++;
+  for (let __i218 = 0, __a218 = proyJ; __i218 < __a218.length; __i218++){ const p = __a218[__i218]; if (p.k === 'roca' && !p.vuela) n++; }
   return n;
 }
 function magAgarraCerca(){
@@ -20338,7 +20345,7 @@ function magAgarraCerca(){
   } else {
     for (const pool of [enemies, civilians, cars, lamps, trees, trash, benches]){
       const k = pool === enemies || pool === civilians || pool === cars ? 0.6 : 1;
-      for (const o of pool){
+      for (let __i333 = 0, __a333 = pool; __i333 < __a333.length; __i333++){ const o = __a333[__i333];
         const dx = o.x - player.x, dy = o.y - player.y;
         if (Math.abs(dx) > MAG_TK_R || Math.abs(dy) > MAG_TK_R) continue;
         const d2 = dx*dx + dy*dy;
@@ -20402,7 +20409,7 @@ function magOrbita(o, i, dt, roca){
   const rad = roca ? 14 : Math.max(16, Math.min(o.w || 26, o.h || 26)*0.5);
   const peso = roca ? 0.8 : pesado ? 1.8 : o.kind === 'lamp' ? 1.2 : 1;
   for (const pool of [civilians, enemies]){
-    for (const e of pool){
+    for (let __i334 = 0, __a334 = pool; __i334 < __a334.length; __i334++){ const e = __a334[__i334];
       if (e === o || e.dead || e.held || e.thrown || e.pacifico || e.type === 'ovni') continue;
       if (Math.abs(e.x - o.x) > rad + 80 || Math.abs(e.y - o.y) > rad + 80) continue;
       if (distCuerpo(o.x, o.y, e) > rad + 10) continue;
@@ -20442,7 +20449,7 @@ function magSueltaTK(sin){
   mag._fija = null;
   const cola = mag._cola, n0 = cola.length;
   for (const o of mag.tk) if (!cola.some(q => q.o === o)) cola.push({ o, d:cola.length*MAG_TK_CADENA, roca:false, ya:false });
-  for (const p of proyJ) if (p.k === 'roca' && !p.vuela && !cola.some(q => q.o === p)) cola.push({ o:p, d:cola.length*MAG_TK_CADENA, roca:true, ya:false });
+  for (let __i219 = 0, __a219 = proyJ; __i219 < __a219.length; __i219++){ const p = __a219[__i219]; if (p.k === 'roca' && !p.vuela && !cola.some(q => q.o === p)) cola.push({ o:p, d:cola.length*MAG_TK_CADENA, roca:true, ya:false }); }
   if (cola.length > n0){ tutEv('tksuelta'); mag.castT = 0.45; }
 }
 // Lanza una de las cosas de la cola hacia la mira.
@@ -20483,7 +20490,7 @@ function magHielo(){
   const R = MAG_HIELO_R*(arc ? 1.4 : 1), dur = MAG_HIELO_T*(arc ? 1.4 : 1), dmg = MAG_HIELO_DMG*(arc ? 2 : 1);
   const refs = [];
   for (const pool of [civilians, enemies]){
-    for (const t of pool){
+    for (let __i335 = 0, __a335 = pool; __i335 < __a335.length; __i335++){ const t = __a335[__i335];
       if (t.dead || t.held || t.thrown || t.type === 'ovni') continue;
       if (distCuerpo(player.x, player.y, t) > R) continue;
       porJugador(()=> damageEnemy(t, dmg, t.x, t.y));
@@ -20492,14 +20499,14 @@ function magHielo(){
       congelaUnidad(t, dur);
     }
   }
-  for (const c of cars){
+  for (let __i220 = 0, __a220 = cars; __i220 < __a220.length; __i220++){ const c = __a220[__i220];
     if (c.dead || c.held || c.thrown || dist(c.x, c.y, player.x, player.y) > R) continue;
     congelaUnidad(c, dur);
     if (dobleInv()){ const r = refDe(c); if (r) refs.push(r); }
   }
   if (refs.length) enviaAccion({ t:'hielo', rs: refs.slice(0, 40), d: dur });
   // las balas que había cerca se congelan y caen
-  for (const b of bullets){
+  for (let __i221 = 0, __a221 = bullets; __i221 < __a221.length; __i221++){ const b = __a221[__i221];
     if (b.life > 0 && dist(b.x, b.y, player.x, player.y) < R){ b.life = 0; addParticles(b.x, b.y, '#cff4ff', 3, 50); }
   }
   windRings.push({ x:player.x, y:player.y, ang:0, r:20, life:0.5, max:0.5 });
@@ -20586,7 +20593,7 @@ function updateMago(dt){
     if (mag.escudoT <= 0){ mag.escudoT = 0; mag.escudoCd = MAG_ESC_CD; }
     // con el poder arcano la burbuja quema a quien la toca
     if (arc && Math.random() < dt*6){
-      for (const t of enemies){
+      for (let __i222 = 0, __a222 = enemies; __i222 < __a222.length; __i222++){ const t = __a222[__i222];
         if (t.dead || t.held || t.thrown || dist(t.x, t.y, player.x, player.y) > magEscudoR() + 16) continue;
         porJugador(()=> damageEnemy(t, 14, t.x, t.y));
       }
@@ -20660,7 +20667,7 @@ function updateMago(dt){
   mag.tkX = player.x; mag.tkY = player.y - 6;
   let no = 0;
   for (const o of mag.tk) magOrbita(o, no++, dt, false);
-  for (const p of proyJ) if (p.k === 'roca' && !p.vuela) magOrbita(p, no++, dt, true);
+  for (let __i223 = 0, __a223 = proyJ; __i223 < __a223.length; __i223++){ const p = __a223[__i223]; if (p.k === 'roca' && !p.vuela) magOrbita(p, no++, dt, true); }
   mag.tkN = no;
 }
 function puntoAgarre(o, tip){
@@ -21006,7 +21013,7 @@ function drawMagoEfectos(){
   };
   let i = 0;
   for (const o of mag.tk) if (!o.dead) hilo(o.x, o.y, i++);
-  for (const p of proyJ) if (p.k === 'roca' && !p.vuela) hilo(p.x, p.y, i++);
+  for (let __i224 = 0, __a224 = proyJ; __i224 < __a224.length; __i224++){ const p = __a224[__i224]; if (p.k === 'roca' && !p.vuela) hilo(p.x, p.y, i++); }
   const h = mag._fija;
   if (mag.tkOn && mag.tkN > 0 && h && !h.dead){    // mira sobre el blanco
     const s = S(h.x, h.y - alturaVisible(h)), R = 17 + Math.sin(gameTime*7)*2;
@@ -21056,7 +21063,7 @@ function updateZombis(dt){
     if (z.alzaT > 0){ z.alzaT -= dt; if (z.alzaT <= 0){ gigGolpe(z); z.atT = 0.45; } continue; }   // el gigante, con el mazo en alto
     // al enemigo de a pie más cercano; si no hay, junto al mago
     let obj = null, md = 700*700;
-    for (const e of enemies){
+    for (let __i225 = 0, __a225 = enemies; __i225 < __a225.length; __i225++){ const e = __a225[__i225];
       if (e.dead || e.held || e.thrown || e.pacifico || e.type === 'ovni' || (!vuela && alturaVisible(e) > 0)) continue;
       const d2 = (e.x - z.x)*(e.x - z.x) + (e.y - z.y)*(e.y - z.y);
       if (d2 < md){ md = d2; obj = e; }
@@ -21078,10 +21085,10 @@ function updateZombis(dt){
       porJugador(()=> damageEnemy(obj, dmg, obj.x, obj.y));
       if (z.tipo === 'pollo'){                                    // gira y la cola barre todo alrededor
         z.giroT = 0.6;
-        for (const o of enemies){ if (o !== obj && !o.dead && !o.held && alturaVisible(o) <= 0 && dist(o.x, o.y, z.x, z.y) < POLLO_R) porJugador(()=> damageEnemy(o, dmg*0.7, o.x, o.y)); }
+        for (let __i226 = 0, __a226 = enemies; __i226 < __a226.length; __i226++){ const o = __a226[__i226]; if (o !== obj && !o.dead && !o.held && alturaVisible(o) <= 0 && dist(o.x, o.y, z.x, z.y) < POLLO_R) porJugador(()=> damageEnemy(o, dmg*0.7, o.x, o.y)); }
         sfx('coletazo');
       } else if (z.tipo === 'ogro'){                              // el garrotazo alcanza a los de al lado
-        for (const o of enemies){ if (o !== obj && !o.dead && !o.held && alturaVisible(o) <= 0 && dist(o.x, o.y, obj.x, obj.y) < 60) porJugador(()=> damageEnemy(o, dmg*0.5, o.x, o.y)); }
+        for (let __i227 = 0, __a227 = enemies; __i227 < __a227.length; __i227++){ const o = __a227[__i227]; if (o !== obj && !o.dead && !o.held && alturaVisible(o) <= 0 && dist(o.x, o.y, obj.x, obj.y) < 60) porJugador(()=> damageEnemy(o, dmg*0.5, o.x, o.y)); }
         shake(4, 0.1); sfx('hachazo');
       } else if (vuela){
         fuegoAliado.push({ x0:z.x + z.facing*16, y0:z.y - 40, x1:obj.x, y1:obj.y - alturaVisible(obj) - 8, t:0.25 });
@@ -21118,7 +21125,7 @@ function drawZombi(z){
 // invasor (los jefes siguen a lo suyo).
 function zombiObjetivo(e, dJug){
   let mejor = null, md = Math.min(dJug, 650);
-  for (const z of zombis){
+  for (let __i228 = 0, __a228 = zombis; __i228 < __a228.length; __i228++){ const z = __a228[__i228];
     if (z.sube > 0 || z.hp <= 0 || z.t <= 0.8) continue;
     const d = dist(e.x, e.y, z.x, z.y);
     if (d < md){ md = d; mejor = z; }
@@ -21127,7 +21134,7 @@ function zombiObjetivo(e, dJug){
 }
 // Una bala enemiga que da en un zombi.
 function balaEnZombi(b){
-  for (const z of zombis){
+  for (let __i229 = 0, __a229 = zombis; __i229 < __a229.length; __i229++){ const z = __a229[__i229];
     if (z.sube > 0 || z.hp <= 0) continue;
     const gig = z.tipo === 'gigante';
     if (Math.abs(b.x - z.x) > (gig ? 34 : 15) || b.y < z.y - (gig ? 150 : 28) || b.y > z.y + 14) continue;
@@ -22059,13 +22066,13 @@ function tentacleTip(){
 // ================= ACTIONS =================
 function grabbablesNear(tip, range){
   let best=null, bd=range;
-  for (const c of cars){ if (c.dead||c.thrown||c.held) continue; const d=dist(tip.x,tip.y,c.x,c.y); if(d<bd){bd=d;best=c;} }
-  for (const c of civilians){ if (c.dead||c.thrown||c.held) continue; const d=dist(tip.x,tip.y,c.x,c.y); if(d<bd){bd=d;best=c;} }
-  for (const t of trees){ if (t.dead||t.thrown||t.held) continue; const d=dist(tip.x,tip.y,t.x,t.y); if(d<bd){bd=d;best=t;} }
-  for (const l of lamps){ if (l.dead||l.thrown||l.held) continue; const d=dist(tip.x,tip.y,l.x,l.y); if(d<bd){bd=d;best=l;} }
-  for (const b of trash){ if (b.dead||b.thrown||b.held) continue; const d=dist(tip.x,tip.y,b.x,b.y); if(d<bd){bd=d;best=b;} }
-  for (const b of benches){ if (b.dead||b.thrown||b.held) continue; const d=dist(tip.x,tip.y,b.x,b.y); if(d<bd){bd=d;best=b;} }
-  for (const e of enemies){
+  for (let __i230 = 0, __a230 = cars; __i230 < __a230.length; __i230++){ const c = __a230[__i230]; if (c.dead||c.thrown||c.held) continue; const d=dist(tip.x,tip.y,c.x,c.y); if(d<bd){bd=d;best=c;} }
+  for (let __i231 = 0, __a231 = civilians; __i231 < __a231.length; __i231++){ const c = __a231[__i231]; if (c.dead||c.thrown||c.held) continue; const d=dist(tip.x,tip.y,c.x,c.y); if(d<bd){bd=d;best=c;} }
+  for (let __i232 = 0, __a232 = trees; __i232 < __a232.length; __i232++){ const t = __a232[__i232]; if (t.dead||t.thrown||t.held) continue; const d=dist(tip.x,tip.y,t.x,t.y); if(d<bd){bd=d;best=t;} }
+  for (let __i233 = 0, __a233 = lamps; __i233 < __a233.length; __i233++){ const l = __a233[__i233]; if (l.dead||l.thrown||l.held) continue; const d=dist(tip.x,tip.y,l.x,l.y); if(d<bd){bd=d;best=l;} }
+  for (let __i234 = 0, __a234 = trash; __i234 < __a234.length; __i234++){ const b = __a234[__i234]; if (b.dead||b.thrown||b.held) continue; const d=dist(tip.x,tip.y,b.x,b.y); if(d<bd){bd=d;best=b;} }
+  for (let __i235 = 0, __a235 = benches; __i235 < __a235.length; __i235++){ const b = __a235[__i235]; if (b.dead||b.thrown||b.held) continue; const d=dist(tip.x,tip.y,b.x,b.y); if(d<bd){bd=d;best=b;} }
+  for (let __i236 = 0, __a236 = enemies; __i236 < __a236.length; __i236++){ const e = __a236[__i236];
     if (e.dead||e.thrown||e.held||!e.grabbable) continue;
     // la infantería se agarra siempre; los blindados solo siendo COLOSO; el
     // caza y el OVNI son livianos y se agarran igual, sin hacer falta serlo
@@ -22180,12 +22187,12 @@ function alturaVisible(e){
 function enemyNear(tip, range){
   let best=null, bd=range;
   for (const pool of [civilians, enemies]){
-    for (const e of pool){ if (e.dead||e.held) continue; const d=distCuerpo(tip.x,tip.y,e); if(d<bd){bd=d;best=e;} }
+    for (let __i336 = 0, __a336 = pool; __i336 < __a336.length; __i336++){ const e = __a336[__i336]; if (e.dead||e.held) continue; const d=distCuerpo(tip.x,tip.y,e); if(d<bd){bd=d;best=e;} }
   }
   return best;
 }
 function buildingNear(tip, range){
-  for (const b of buildings){
+  for (let __i237 = 0, __a237 = buildings; __i237 < __a237.length; __i237++){ const b = __a237[__i237];
     if (b.stage >= 2) continue;
     const cx=clamp(tip.x,b.x,b.x+b.w), cy=clamp(tip.y,b.y,b.y+b.h);
     if (dist(tip.x,tip.y,cx,cy) < range) return b;
@@ -22555,10 +22562,10 @@ function updateRam(dt){
   };
 
   let any = false;
-  for (const e of civilians){ if (!heldObject) break; if (hitOne(e)) any = true; }
-  for (const e of enemies){   if (!heldObject) break; if (hitOne(e)) any = true; }
+  for (let __i238 = 0, __a238 = civilians; __i238 < __a238.length; __i238++){ const e = __a238[__i238]; if (!heldObject) break; if (hitOne(e)) any = true; }
+  for (let __i239 = 0, __a239 = enemies; __i239 < __a239.length; __i239++){ const e = __a239[__i239];   if (!heldObject) break; if (hitOne(e)) any = true; }
   // empujar otros autos aparcados
-  for (const c of cars){
+  for (let __i240 = 0, __a240 = cars; __i240 < __a240.length; __i240++){ const c = __a240[__i240];
     if (!heldObject) break;              // el escudo ya se rompió durante la pasada
     if (c.dead || c.held || c === o) continue;
     if (Math.abs(c.x-o.x) > halfW || Math.abs(c.y-o.y) > halfH) continue;
@@ -22577,7 +22584,7 @@ function updateRam(dt){
   const props = canRamProps(o) ? [trees, lamps, trash, benches] : [];
   for (const pool of props){
     if (!heldObject) break;
-    for (const pr of pool){
+    for (let __i337 = 0, __a337 = pool; __i337 < __a337.length; __i337++){ const pr = __a337[__i337];
       if (!heldObject) break;
       if (pr.dead || pr.held || pr === o) continue;
       if (Math.abs(pr.x-o.x) > halfW || Math.abs(pr.y-o.y) > halfH) continue;
@@ -22592,7 +22599,7 @@ function updateRam(dt){
     }
   }
   if (heldObject && canRamProps(o)){
-    for (const b of buildings){
+    for (let __i241 = 0, __a241 = buildings; __i241 < __a241.length; __i241++){ const b = __a241[__i241];
       if (b.stage >= 2) continue;
       if (o.x + halfW < b.x || o.x - halfW > b.x + b.w ||
           o.y + halfH < b.y || o.y - halfH > b.y + b.h) continue;
@@ -22709,7 +22716,7 @@ function vilRightRelease(){ rayosOn = false; }
 // Tanque (o blindado con ruedas) al alcance de las manos.
 function tanqueCerca(p, R){
   let mejor = null, md = R;
-  for (const e of enemies){
+  for (let __i242 = 0, __a242 = enemies; __i242 < __a242.length; __i242++){ const e = __a242[__i242];
     if (e.dead || e.held) continue;
     if (e.type !== 'tank' && e.type !== 'mbt' && e.type !== 'mbtFrio') continue;
     const d = dist(p.x, p.y, e.x, e.y);
@@ -22770,7 +22777,7 @@ function vilPresaBlanco(a, L){
   const ca = Math.cos(a), sa = Math.sin(a);
   for (const pool of [enemies, civilians]){
     let mejor = null, md = 1e9;
-    for (const t of pool){
+    for (let __i338 = 0, __a338 = pool; __i338 < __a338.length; __i338++){ const t = __a338[__i338];
       if (t.dead || t.held || t.thrown || t.pacifico || t.type === 'ovni' || enPresa(t)) continue;
       const dx = t.x - player.x, dy = t.y - alturaVisible(t) - player.y;
       if (Math.abs(dx) > L + 60 || Math.abs(dy) > L + 60) continue;
@@ -22784,7 +22791,7 @@ function vilPresaBlanco(a, L){
 }
 function vilPresaContacto(){
   for (const pool of [enemies, civilians]){
-    for (const t of pool){
+    for (let __i339 = 0, __a339 = pool; __i339 < __a339.length; __i339++){ const t = __a339[__i339];
       if (t.dead || t.held || t.thrown || t.pacifico || t.type === 'ovni' || enPresa(t)) continue;
       if (Math.abs(t.x - player.x) > 90 || Math.abs(t.y - player.y) > 110) continue;
       if (distCuerpo(player.x, player.y - 6, t) < 30) return t;
@@ -22826,7 +22833,7 @@ function vilPresaDirLanza(o){
   if (vil.presaLanzaA !== null && vil.presaLanzaA !== undefined) return vil.presaLanzaA;
   if (lastInputTouch && !aimJoy.active){
     let mejor = null, md = 700*700;
-    for (const e of enemies){
+    for (let __i243 = 0, __a243 = enemies; __i243 < __a243.length; __i243++){ const e = __a243[__i243];
       if (e === o || e.dead || e.held || e.thrown || e.pacifico || e.type === 'ovni') continue;
       const dx = e.x - player.x, dy = e.y - player.y, d2 = dx*dx + dy*dy;
       if (d2 < md){ md = d2; mejor = e; }
@@ -22969,7 +22976,7 @@ function drawVilAvisos(){
 // atrapado en la junta: aquí se le saca del bloque entero de una vez.
 function desatascar(r){
   let dentro = null;
-  for (const b of buildings){
+  for (let __i244 = 0, __a244 = buildings; __i244 < __a244.length; __i244++){ const b = __a244[__i244];
     if (b.stage >= 2) continue;
     if (player.x > b.x - r && player.x < b.x + b.w + r &&
         player.y > b.y - r && player.y < b.y + b.h + r){ dentro = b; break; }
@@ -22979,7 +22986,7 @@ function desatascar(r){
   // como un solo bloque, así que no hay junta donde encajarse.
   let x0 = dentro.x, y0 = dentro.y, x1 = dentro.x + dentro.w, y1 = dentro.y + dentro.h;
   for (let paso = 0; paso < 3; paso++){
-    for (const b of buildings){
+    for (let __i245 = 0, __a245 = buildings; __i245 < __a245.length; __i245++){ const b = __a245[__i245];
       if (b.stage >= 2) continue;
       if (b.x > x1 + 2 || b.x + b.w < x0 - 2 || b.y > y1 + 2 || b.y + b.h < y0 - 2) continue;
       x0 = Math.min(x0, b.x); y0 = Math.min(y0, b.y);
@@ -23006,7 +23013,7 @@ function desatascar(r){
 // edificio cambia de etapa: el resto de fotogramas cuesta lo mismo que antes.
 const AGUJ_MAX = 10;
 function edifEn(x, y){
-  for (const b of buildings) if (b.stage < 2 && x > b.x && x < b.x + b.w && y > b.y && y < b.y + b.h) return b;
+  for (let __i246 = 0, __a246 = buildings; __i246 < __a246.length; __i246++){ const b = __a246[__i246]; if (b.stage < 2 && x > b.x && x < b.x + b.w && y > b.y && y < b.y + b.h) return b; }
   return null;
 }
 // El punto del muro por donde se cruza: el del borde más cercano.
@@ -23135,7 +23142,7 @@ function edifPisada(b, x, y, r, golpe){
 function colosoAplasta(dt){
   const f = F(), r = f.r, R = r*0.9;
   let sobre = false;
-  for (const b of buildings){
+  for (let __i247 = 0, __a247 = buildings; __i247 < __a247.length; __i247++){ const b = __a247[__i247];
     if (b.stage >= 2 || !colosoEnEdif(b, player.x, player.y, r)) continue;
     sobre = true;
     damageBuilding(b, f.breaker*dt);                    // lo sigue destrozando, como al empujarlo
@@ -23157,7 +23164,7 @@ function colosoAplasta(dt){
 }
 // Las pisadas del compañero coloso en línea: solo el dibujo (el daño es suyo).
 function colosoPisadasCompa(x, y, r){
-  for (const b of buildings) if (b.stage < 2 && colosoEnEdif(b, x, y, r)) edifPisada(b, clamp(x, b.x, b.x + b.w), clamp(y, b.y, b.y + b.h), r*0.9, false);
+  for (let __i248 = 0, __a248 = buildings; __i248 < __a248.length; __i248++){ const b = __a248[__i248]; if (b.stage < 2 && colosoEnEdif(b, x, y, r)) edifPisada(b, clamp(x, b.x, b.x + b.w), clamp(y, b.y, b.y + b.h), r*0.9, false); }
 }
 const colosoPaso = { humo:0 };
 const vilPaso = { edif:null }, vilPasoCompa = { edif:null, x:0, y:0, ok:false };   // el jugador y el compañero en línea
@@ -23186,7 +23193,7 @@ function updateViltrum(dt){
       grietas.push({ x:player.x, y:player.y + 18, t0:gameTime, sem:Math.random()*1000, m: esAlien() ? 1 : 0, esc:2.6, dur:14 });
       sfx('caidaGolpe'); sfxEn('colapso', player.x, player.y, 0.45);
       for (const pool of [civilians, enemies]){          // aparta lo que pille debajo
-        for (const t of pool){
+        for (let __i340 = 0, __a340 = pool; __i340 < __a340.length; __i340++){ const t = __a340[__i340];
           if (t.dead || t.held) continue;
           if (distCuerpo(player.x, player.y, t) < 120) porJugador(()=> damageEnemy(t, 60, t.x, t.y));
         }
@@ -23823,7 +23830,7 @@ function vilApuntaGolpe(){
   const jd = joyBotonDir('golpe'); if (jd !== null) return jd;      // el joystick del botón de golpe
   if (aimJoy.active || !lastInputTouch) return Math.atan2(Math.sin(aimAngle()), Math.cos(aimAngle()));
   let mejor = null, md = 150*150;
-  for (const pool of [enemies, civilians]) for (const e of pool){
+  for (const pool of [enemies, civilians]) for (let __i341 = 0, __a341 = pool; __i341 < __a341.length; __i341++){ const e = __a341[__i341];
     if (e.dead || e.held || e.thrown || e.pacifico) continue;
     const dx = e.x - player.x, dy = e.y - alturaVisible(e) - player.y, d2 = dx*dx + dy*dy;
     if (d2 < md){ md = d2; mejor = e; }
@@ -23834,7 +23841,7 @@ function vilApuntaGolpe(){
 // Embestida en vuelo: derriba edificios y machaca lo que lleva por delante.
 function vilSmash(dt){
   const px2 = player.x + vil.fx*44, py2 = player.y + vil.fy*44;
-  for (const b of buildings){
+  for (let __i249 = 0, __a249 = buildings; __i249 < __a249.length; __i249++){ const b = __a249[__i249];
     if (b.stage >= 2) continue;
     if (px2 + 26 < b.x || px2 - 26 > b.x + b.w || py2 + 26 < b.y || py2 - 26 > b.y + b.h) continue;
     damageBuilding(b, 260*dt);
@@ -23845,7 +23852,7 @@ function vilSmash(dt){
   }
   // arrolla a quien pille
   for (const pool of [civilians, enemies]){
-    for (const t of pool){
+    for (let __i342 = 0, __a342 = pool; __i342 < __a342.length; __i342++){ const t = __a342[__i342];
       if (t.dead || t.held) continue;
       if (distCuerpo(px2,py2,t) >= 44) continue;
       // Los blindados y los mini jefes resisten: reciben daño por segundo,
@@ -23865,7 +23872,7 @@ function vilSmash(dt){
     }
   }
   vilInquilinos(px2, py2, 44);               // arrolla también a los de dentro
-  for (const c of cars){
+  for (let __i250 = 0, __a250 = cars; __i250 < __a250.length; __i250++){ const c = __a250[__i250];
     if (c.dead || c.held) continue;
     if (dist(c.x,c.y,px2,py2) < 46){
       c.hp -= 220*dt;
@@ -23895,7 +23902,7 @@ function vilPunch(carga, modo){
   const px2 = player.x + Math.cos(ang)*40, py2 = player.y - 4 + Math.sin(ang)*40;
   let dio = false;
   for (const pool of [civilians, enemies]){
-    for (const t of pool){
+    for (let __i343 = 0, __a343 = pool; __i343 < __a343.length; __i343++){ const t = __a343[__i343];
       if (t.dead || t.held) continue;
       if (distCuerpo(px2,py2,t) > alcance) continue;
       // Contra los jefes, el puño cargado del viltrumita rinde la mitad.
@@ -23904,7 +23911,7 @@ function vilPunch(carga, modo){
       if (t.type === 'desesperacion' && (lleno || carga >= 0.6)) desEmpuja(t, ang);   // el puño cargado la manda lejos
     }
   }
-  for (const c of cars){
+  for (let __i251 = 0, __a251 = cars; __i251 < __a251.length; __i251++){ const c = __a251[__i251];
     if (c.dead || c.held) continue;
     if (dist(c.x,c.y,px2,py2) > alcance+4) continue;
     c.hp -= dmg;
@@ -23912,7 +23919,7 @@ function vilPunch(carga, modo){
     dio = true;
   }
   if (vilInquilinos(px2, py2, alcance)) dio = true;   // vecinos dentro de los edificios
-  for (const b of buildings){
+  for (let __i252 = 0, __a252 = buildings; __i252 < __a252.length; __i252++){ const b = __a252[__i252];
     if (b.stage >= 2) continue;
     if (px2 < b.x-20 || px2 > b.x+b.w+20 || py2 < b.y-20 || py2 > b.y+b.h+20) continue;
     damageBuilding(b, 34 + 150*carga); dio = true; break;
@@ -23927,7 +23934,7 @@ function vilPunch(carga, modo){
 
 function updateCivilians(dt){
   const tip = tentacleTip();
-  for (const c of civilians){
+  for (let __i64 = 0, __a64 = civilians; __i64 < __a64.length; __i64++){ const c = __a64[__i64];
     if (c.dead) continue;
     if (c.held){ { const pt = puntoAgarre(c, tip); c.x = pt.x; c.y = pt.y; } continue; }
     if (c.thrown) continue;
@@ -23948,12 +23955,12 @@ function updateCivilians(dt){
     c.y = clamp(c.y + c.vy*dt, 16, WORLD_H-16);
     collideBuildings(c, 11, dt, 0);
   }
-  civilians = civilians.filter(c=>!c.dead);
+  if (civilians.some(c=>c.dead)) civilians = civilians.filter(c=>!c.dead);   // sin bajas, la misma lista: nada que copiar
 }
 
 function updateCars(dt){
   const tip = tentacleTip();
-  for (const c of cars){
+  for (let __i253 = 0, __a253 = cars; __i253 < __a253.length; __i253++){ const c = __a253[__i253];
     if (c.dead) continue;
     if (c.held){ { const pt = puntoAgarre(c, tip); c.x = pt.x; c.y = pt.y; } continue; }
     if (c.thrown) continue;
@@ -24002,33 +24009,33 @@ function updateCars(dt){
       else                  c.x = c.vx>0 ? -50 : WORLD_W+50;
     }
   }
-  cars = cars.filter(c=>!c.dead);
+  if (cars.some(c=>c.dead)) cars = cars.filter(c=>!c.dead);   // sin bajas, la misma lista: nada que copiar
 }
 
 function updateTrees(dt){
   const tip = tentacleTip();
-  for (const t of trees){
+  for (let __i36 = 0, __a36 = trees; __i36 < __a36.length; __i36++){ const t = __a36[__i36];
     if (t.dead || t.thrown) continue;
     if (t.held){ { const pt = puntoAgarre(t, tip); t.x = pt.x; t.y = pt.y; } }
   }
   runStats.trees += trees.reduce((n,t)=>n+(t.dead?1:0),0);
-  trees = trees.filter(t=>!t.dead);
-  for (const l of lamps){
+  if (trees.some(t=>t.dead)) trees = trees.filter(t=>!t.dead);   // sin bajas, la misma lista: nada que copiar
+  for (let __i37 = 0, __a37 = lamps; __i37 < __a37.length; __i37++){ const l = __a37[__i37];
     if (l.dead || l.thrown) continue;
     if (l.held){ { const pt = puntoAgarre(l, tip); l.x = pt.x; l.y = pt.y; } }
   }
   runStats.lamps += lamps.reduce((n,l)=>n+(l.dead?1:0),0);
-  lamps = lamps.filter(l=>!l.dead);
-  for (const b of trash){
+  if (lamps.some(l=>l.dead)) lamps = lamps.filter(l=>!l.dead);   // sin bajas, la misma lista: nada que copiar
+  for (let __i38 = 0, __a38 = trash; __i38 < __a38.length; __i38++){ const b = __a38[__i38];
     if (b.dead || b.thrown) continue;
     if (b.held){ { const pt = puntoAgarre(b, tip); b.x = pt.x; b.y = pt.y; } }
   }
-  trash = trash.filter(b=>!b.dead);
-  for (const b of benches){
+  if (trash.some(b=>b.dead)) trash = trash.filter(b=>!b.dead);   // sin bajas, la misma lista: nada que copiar
+  for (let __i39 = 0, __a39 = benches; __i39 < __a39.length; __i39++){ const b = __a39[__i39];
     if (b.dead || b.thrown) continue;
     if (b.held){ { const pt = puntoAgarre(b, tip); b.x = pt.x; b.y = pt.y; } }
   }
-  benches = benches.filter(b=>!b.dead);
+  if (benches.some(b=>b.dead)) benches = benches.filter(b=>!b.dead);   // sin bajas, la misma lista: nada que copiar
 }
 
 let throwPools = [];
@@ -24038,8 +24045,8 @@ function updateThrown(dt){
   if (throwPools.length !== 7 || throwPools[0] !== cars || throwPools[1] !== civilians ||
       throwPools[2] !== enemies || throwPools[3] !== trees || throwPools[4] !== lamps ||
       throwPools[5] !== trash || throwPools[6] !== benches) refreshThrowPools();
-  for (const pool of throwPools){
-   for (const o of pool){
+  for (let __i57 = 0, __a57 = throwPools; __i57 < __a57.length; __i57++){ const pool = __a57[__i57];
+   for (let __i58 = 0, __a58 = pool; __i58 < __a58.length; __i58++){ const o = __a58[__i58];
     if (!o.thrown || o.dead) continue;
     Online.culpaInv = !!o.porInv;          // lo lanzó el invitado: lo que tumbe es suyo
     if (o._home) curvaHacia(o, o._home, dt);   // lo que lanza el mago busca su blanco
@@ -24049,7 +24056,7 @@ function updateThrown(dt){
 
     let impact = null;
     for (const pool of [civilians, enemies]){
-      for (const e of pool){
+      for (let __i59 = 0, __a59 = pool; __i59 < __a59.length; __i59++){ const e = __a59[__i59];
         if (e === o || e.dead || e.held) continue;
         if (o.golpeados && o.golpeados.indexOf(e) >= 0) continue;   // ya atravesado
         if ((e.type === 'tripode' || e.type === 'amalgama' || e.type === 'desesperacion') && o.marcianoT > gameTime) continue;   // lo acaba de lanzar uno
@@ -24061,7 +24068,7 @@ function updateThrown(dt){
     }
     // choque contra un vehículo: cualquier cosa lanzada puede estrellarse contra él
     if (!impact){
-      for (const c of cars){
+      for (let __i60 = 0, __a60 = cars; __i60 < __a60.length; __i60++){ const c = __a60[__i60];
         if (c === o || c.dead || c.held || c.thrown) continue;
         if (o.golpeados && o.golpeados.indexOf(c) >= 0) continue;   // ya atravesado
         const hw = c.w/2 + 12, hh = c.h/2 + 12;
@@ -24098,7 +24105,7 @@ function updateThrown(dt){
     // árbol contra farola, farola contra banca, etc.
     if (!impact){
       for (const pool of [trees, lamps, trash, benches]){
-        for (const pr of pool){
+        for (let __i61 = 0, __a61 = pool; __i61 < __a61.length; __i61++){ const pr = __a61[__i61];
           if (pr === o || pr.dead || pr.held || pr.thrown) continue;
           const hw = (pr.w||30)/2 + 10, hh = (pr.h||30)/2 + 10;
           if (Math.abs(o.x-pr.x) > hw || Math.abs(o.y-pr.y) > hh) continue;
@@ -24114,7 +24121,7 @@ function updateThrown(dt){
       }
     }
     if (!impact){
-      for (const b of buildings){
+      for (let __i62 = 0, __a62 = buildings; __i62 < __a62.length; __i62++){ const b = __a62[__i62];
         if (b.stage >= 2) continue;
         const cx=clamp(o.x,b.x,b.x+b.w), cy=clamp(o.y,b.y,b.y+b.h);
         if (dist(o.x,o.y,cx,cy) < 18){
@@ -24276,7 +24283,7 @@ function chocaDerribado(e){
     shake(4, 0.1); sfx('hit');
   };
   for (const pool of [trees, lamps]){
-    for (const pr of pool){
+    for (let __i344 = 0, __a344 = pool; __i344 < __a344.length; __i344++){ const pr = __a344[__i344];
       if (pr.dead || pr.held || pr.thrown) continue;
       if (Math.abs(e.x - pr.x) > (pr.w || 30)/2 + 8 || Math.abs(e.y - pr.y) > (pr.h || 30)/2 + 8) continue;
       culpa(()=> propAbatido(pr));
@@ -24284,7 +24291,7 @@ function chocaDerribado(e){
       return;
     }
   }
-  for (const c of cars){
+  for (let __i254 = 0, __a254 = cars; __i254 < __a254.length; __i254++){ const c = __a254[__i254];
     if (c.dead || c.held || c.thrown) continue;
     if (Math.abs(e.x - c.x) > c.w/2 + 10 || Math.abs(e.y - c.y) > c.h/2 + 10) continue;
     c.hp -= dmg;
@@ -24298,7 +24305,7 @@ function chocaDerribado(e){
 
 function updateEnemies(dt){
   const tip = tentacleTip();
-  for (const e of enemies){
+  for (let __i63 = 0, __a63 = enemies; __i63 < __a63.length; __i63++){ const e = __a63[__i63];
     if (e.dead) continue;
     if (e.escMag > 0) e.escMag -= dt;            // escudo que pone el Héroe Mágico
     if (e.held){ { const pt = puntoAgarre(e, tip); e.x = pt.x; e.y = pt.y; } continue; }
@@ -24507,7 +24514,7 @@ function updateEnemies(dt){
         if (e.person) gritaMil(e); }
     }
   }
-  enemies = enemies.filter(e=>!e.dead);
+  if (enemies.some(e=>e.dead)) enemies = enemies.filter(e=>!e.dead);   // sin bajas, la misma lista: nada que copiar
 }
 
 function mkBullet(e, ang, spd, dmg, color, size, shell){
@@ -24518,7 +24525,7 @@ function mkBullet(e, ang, spd, dmg, color, size, shell){
 function updateBullets(dt){ bumDisparo(()=> updateBalas(dt)); }
 function updateBalas(dt){
   let hr = heldRect();
-  for (const b of bullets){
+  for (let __i34 = 0, __a34 = bullets; __i34 < __a34.length; __i34++){ const b = __a34[__i34];
     if (b.delay > 0){ b.delay -= dt; continue; }
 
     // --- misil autoguiado: corrige rumbo mientras le queda combustible de guía ---
@@ -24578,7 +24585,7 @@ function updateBalas(dt){
     if (!b.artillery && zombis.length && balaEnZombi(b)){ b.life = 0; continue; }
     // standing buildings stop bullets too
     let blocked = false;
-    if (!b.artillery && !b.pierce) for (const bl of buildings){
+    if (!b.artillery && !b.pierce) for (let __i35 = 0, __a35 = buildings; __i35 < __a35.length; __i35++){ const bl = __a35[__i35];
       if (bl.stage >= 2 || bl === b.ignEdif) continue;     // el del que sale (el Centurión dispara desde lo alto)
       if (b.x>bl.x && b.x<bl.x+bl.w && b.y>bl.y && b.y<bl.y+bl.h){
         damageBuilding(bl, b.dmg*0.4);
@@ -24617,7 +24624,7 @@ function updateBalas(dt){
       else if (b.shell) explode(b.x, b.y, 70, 0, false);
     }
   }
-  bullets = bullets.filter(b=>b.life>0);
+  if (bullets.some(b=>!(b.life>0))) bullets = bullets.filter(b=>b.life>0);   // sin bajas, la misma lista: nada que copiar
 }
 
 function updateFX(dt){
@@ -24632,10 +24639,10 @@ function updateFX(dt){
       particles[partN] = p;
     }
   }
-  for (const b of booms){ b.life -= dt; b.r = b.max * (1 - b.life/b.maxlife); }
-  booms = booms.filter(b=>b.life>0);
+  for (let __i44 = 0, __a44 = booms; __i44 < __a44.length; __i44++){ const b = __a44[__i44]; b.life -= dt; b.r = b.max * (1 - b.life/b.maxlife); }
+  if (booms.some(b=>!(b.life>0))) booms = booms.filter(b=>b.life>0);   // sin bajas, la misma lista: nada que copiar
   updateRestosFx(dt);
-  for (const b of buildings) if (b.hitFlash>0) b.hitFlash -= dt;
+  for (let __i45 = 0, __a45 = buildings; __i45 < __a45.length; __i45++){ const b = __a45[__i45]; if (b.hitFlash>0) b.hitFlash -= dt; }
   if (toastTimer > 0){
     toastTimer -= dt;
     if (toastTimer <= 0) document.getElementById('toast').style.opacity = '0';
@@ -24693,7 +24700,7 @@ function updateRegen(dt){
   if (regenTick > 0) return;
   regenTick = 1;                       // basta con revisarlo una vez por segundo
 
-  for (const b of buildings){
+  for (let __i255 = 0, __a255 = buildings; __i255 < __a255.length; __i255++){ const b = __a255[__i255];
     if (b.stage < 2) continue;
     if (b.downAt === undefined){ b.downAt = gameTime; continue; }
     if (gameTime - b.downAt < REGEN_TIME) continue;
@@ -24722,7 +24729,7 @@ function updateRegen(dt){
 const JEFE_FRENO = 0.75;
 function jefeEnPartida(){
   if (refz) return true;
-  for (const e of enemies) if (!e.dead && JEFES[e.type] && !e.normal) return true;
+  for (let __i256 = 0, __a256 = enemies; __i256 < __a256.length; __i256++){ const e = __a256[__i256]; if (!e.dead && JEFES[e.type] && !e.normal) return true; }
   return false;
 }
 function updateSpawns(dt){
@@ -24768,7 +24775,7 @@ function updateSpawns(dt){
   // Si un jefe aguanta más de BOSS_PLAZO sin caer, la ciudad deja de esperar:
   // sigue vivo y peleando, pero el ejército vuelve a llegar y más adelante
   // puede presentarse otro. No da puntaje por esto: solo deja de bloquear.
-  for (const e of enemies){
+  for (let __i257 = 0, __a257 = enemies; __i257 < __a257.length; __i257++){ const e = __a257[__i257];
     if (e.dead || !JEFES[e.type] || e.ignorado) continue;
     e.plazo = (e.plazo || 0) + dt;
     if (e.plazo >= BOSS_PLAZO){
@@ -25008,14 +25015,8 @@ function lluviaPat(){
 function drawClima(){
   if (nubeK <= 0 && lluviaK <= 0) return;
   // 1) el cielo se apaga: velo gris azulado, más espeso con lluvia. De noche
-  // es azul oscuro y más fino, para que la lluvia no apague las luces.
-  const noche = oscuridadAhora() > 0.3;
-  const velo = (nubeK * 0.16 + lluviaK * 0.12)*(noche ? 0.45 : 1);
-  if (velo > 0.004){
-    ctx.globalAlpha = velo;
-    ctx.fillStyle = esInfierno() ? '#4a0c08' : noche ? '#14213d' : '#39465a';
-    ctx.fillRect(0, 0, CW, CH);
-  }
+  // es azul oscuro y más fino, para que la lluvia no apague las luces. Va
+  // dentro de la estampa de la hora (ver veloClima y overlayFase).
   // 2) sombras de nubes deslizándose, ancladas al mundo. Son sombras del sol:
   // se desvanecen al anochecer y de noche no se pintan (un relleno menos)
   const sombraNube = nubeK*clamp(1 - (oscuridadAhora() - 0.15)/0.3, 0, 1);
@@ -25099,7 +25100,7 @@ function drawSalpicaduras(){
 let lamps = [];   // se rellena en resetGame a partir de lampSpots
 
 function drawLamps(){
-  for (const l of lamps){
+  for (let __i51 = 0, __a51 = lamps; __i51 < __a51.length; __i51++){ const l = __a51[__i51];
     if (l.dead || l.held || l.thrown || l.presa) continue;     // en mano o volando se dibuja aparte
     if (l.x<camX-60 || l.x>camX+VW+60 || l.y<camY-60 || l.y>camY+VH+60) continue;
     const s2 = S(l.x, l.y);
@@ -25206,7 +25207,7 @@ function drawBombillas(oscuro){
   if (esInfierno() || !lucesEncendidas()) return;
   const halo = bombillaSp(esAlien()), a = Math.min(1, oscuro*1.5)*0.85, Z = ZOOM;
   ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = a;
-  for (const l of lamps){
+  for (let __i40 = 0, __a40 = lamps; __i40 < __a40.length; __i40++){ const l = __a40[__i40];
     if (l.dead || l.held || l.thrown || l.presa) continue;
     if (l.x < camX - 40 || l.x > camX + VW + 40 || l.y < camY - 20 || l.y > camY + VH + 60) continue;
     const hx = (l.x + 7.6 - camX + temblorX)*Z, hy = (l.y - 41 - camY + temblorY)*Z;
@@ -25287,11 +25288,11 @@ function lucesJefes(L, k, mx, Mx, my, My, tinta){
     L.globalAlpha = fuerza;
     L.drawImage(tinta ? sp : holeSprite, sx - rr, sy - rr, rr*2, rr*2);
   };
-  for (const b of buildings){                              // el banco, bañado en luz cálida
+  for (let __i10 = 0, __a10 = buildings; __i10 < __a10.length; __i10++){ const b = __a10[__i10];                              // el banco, bañado en luz cálida
     if (b.set !== 'B' || b.stage >= 2) continue;
     luz(b.x + b.w/2, b.y + b.h/2, Math.max(b.w, b.h)*0.75, warmSprite, tinta ? 0.5 : 0.7);
   }
-  for (const e of enemies){
+  for (let __i11 = 0, __a11 = enemies; __i11 < __a11.length; __i11++){ const e = __a11[__i11];
     if (e.dead || e.held || e.thrown) continue;
     if (e.type === 'omni'){                                 // el ojo y, disparando, todo el rayo
       const o = omniOjo(e);
@@ -25310,19 +25311,19 @@ function lucesJefes(L, k, mx, Mx, my, My, tinta){
       }
     }
   }
-  for (const f of fuegos) luz(f.x, f.y, f.r*1.7, luzFuego, clamp(f.t / f.max, 0, 1)*(0.8 + Math.random()*0.2));
-  for (const b of buildings){                              // edificios en llamas
+  for (let __i12 = 0, __a12 = fuegos; __i12 < __a12.length; __i12++){ const f = __a12[__i12]; luz(f.x, f.y, f.r*1.7, luzFuego, clamp(f.t / f.max, 0, 1)*(0.8 + Math.random()*0.2)); }
+  for (let __i13 = 0, __a13 = buildings; __i13 < __a13.length; __i13++){ const b = __a13[__i13];                              // edificios en llamas
     if (b.stage !== 1 || !b._rotas || !b._rotas.length) continue;
     const v = b._rotas[0];
     luz(b.x + v[0] + v[2]/2, b.y + v[1], 70, luzFuego, 0.6 + Math.random()*0.15);
   }
-  for (const c of cars){                                   // sirena de la ambulancia
+  for (let __i14 = 0, __a14 = cars; __i14 < __a14.length; __i14++){ const c = __a14[__i14];                                   // sirena de la ambulancia
     if (c.modelo !== 'ambulancia' || c.type !== 'car' || c.dead || c.held || c.thrown || isWreck(c)) continue;
     const on = Math.floor(gameTime*6) % 2;
     luz(c.x, c.y - 22, 70, on ? luzFuego : luzAzul, 0.75);
   }
   // la máquina y el mago: fogonazos, cohetes, el haz, la burbuja y los rayos
-  for (const p of proyJ){
+  for (let __i15 = 0, __a15 = proyJ; __i15 < __a15.length; __i15++){ const p = __a15[__i15];
     if (p.k === 'cohete') luz(p.x, p.y, 60, luzFuego, 0.8);
     else if (p.k === 'erupcion') luz(p.x, p.y - p.R, p.R*2.4, luzFuego, clamp(p.t / p.max, 0, 1));
     else if (p.k === 'pilar') luz(p.x, p.y, p.R*1.2, luzFuego, 0.4*clamp(1 - p.t / p.max, 0, 1));
@@ -25337,13 +25338,13 @@ function lucesJefes(L, k, mx, Mx, my, My, tinta){
     if (maq.fogon > 0) luz(player.x + Math.cos(maq.mirA)*26, player.y - 16, 50, luzFuego, 0.7);
   }
   if (isMag() && mag.escudoT > 0) luz(player.x, player.y - 12, 90, luzAzul, 0.7);
-  if (esAlien()) for (const t of trees) if (!t.dead && !t.held && !t.thrown) luz(t.x, t.y - 22, 38, luzAzul, 0.4);
+  if (esAlien()) for (let __i16 = 0, __a16 = trees; __i16 < __a16.length; __i16++){ const t = __a16[__i16]; if (!t.dead && !t.held && !t.thrown) luz(t.x, t.y - 22, 38, luzAzul, 0.4); }
   if (esInfierno()){
-    for (const p of parques) luz(p.x + p.w/2, p.y + p.h/2, 120, luzFuego, 0.85);
-    for (const o of restosJefes) if (o.tipo === 'omni' || o.tipo === 'centurion') luz(o.x, o.y - 26, 40, luzRoja, 0.6); else if (o.tipo === 'heroe') luz(o.x, o.y - 30, 44, luzAzul, 0.5);
+    for (let __i17 = 0, __a17 = parques; __i17 < __a17.length; __i17++){ const p = __a17[__i17]; luz(p.x + p.w/2, p.y + p.h/2, 120, luzFuego, 0.85); }
+    for (let __i18 = 0, __a18 = restosJefes; __i18 < __a18.length; __i18++){ const o = __a18[__i18]; if (o.tipo === 'omni' || o.tipo === 'centurion') luz(o.x, o.y - 26, 40, luzRoja, 0.6); else if (o.tipo === 'heroe') luz(o.x, o.y - 30, 44, luzAzul, 0.5); }
     if (infPortalT >= 0) luz(player.x, player.y - caidaAlto(), 190, luzBlanca, 0.95);
   }
-  for (const e of enemies){
+  for (let __i19 = 0, __a19 = enemies; __i19 < __a19.length; __i19++){ const e = __a19[__i19];
     if (e.dead) continue;
     if (e.type === 'heroe') luz(e.x, e.y - 30, 110, luzAzul, 0.6);
     else if (e.type === 'escaner') luz(e.x, e.y - alturaVisible(e), 44, luzRoja, e.flashT > 0 ? 0.9 : 0.5);
@@ -25359,10 +25360,10 @@ function lucesJefes(L, k, mx, Mx, my, My, tinta){
       luz(e.x, e.y - 120 - (e.lift || 0), 90, luzAmarilla, 0.6);
     }
   }
-  for (const m of meteoros) luz(m.x, m.y, (MISIL_TIPOS[m.tipo] || MISIL_TIPOS.meteoro).R, m.tipo === 'hielo' ? luzAzul : luzFuego, 0.25 + (1 - m.t/m.max)*0.5);
+  for (let __i20 = 0, __a20 = meteoros; __i20 < __a20.length; __i20++){ const m = __a20[__i20]; luz(m.x, m.y, (MISIL_TIPOS[m.tipo] || MISIL_TIPOS.meteoro).R, m.tipo === 'hielo' ? luzAzul : luzFuego, 0.25 + (1 - m.t/m.max)*0.5); }
   lucesDinamicas(luz);                                      // explosiones, relámpagos y rayos
   for (const z of zombis) if (z.tipo === 'gigante' && z.sube <= 0){ const m = gigMazo(z); luz(m.x, m.y + 30, 90, luzFuego, 0.7); }
-  for (const e of enemies){
+  for (let __i22 = 0, __a22 = enemies; __i22 < __a22.length; __i22++){ const e = __a22[__i22];
     if (e.dead) continue;
     if (e.type === 'muerteVeloz'){ for (const m of mvManos(e)) luz(m.x, m.y, 40, luzAzul, 0.6); if (e.fase === 'tornado') luz(e.x, e.y - 40, 110, luzAzul, 0.6); }
     else if (e.type === 'desesperacion') luz(e.x + (e.facing || 1)*24, e.y - alturaVisible(e) - ((e.etapa || 0) < 2 ? 70 : 150), 34, luzRoja, 0.55);
@@ -25371,11 +25372,11 @@ function lucesJefes(L, k, mx, Mx, my, My, tinta){
     else if (e.type === 'medico' && e.cura) luz(e.cx, e.cy, 40, luzRoja, 0.5);
   }
   for (const e of enemies) if (!e.dead && e.type === 'desgarrador'){ const o = desOjo(e); luz(o.x, o.y, 50, luzRoja, 0.7); if (e.fase === 'rayo' && e.rx !== undefined) for (const f of [0.3, 0.65, 1]) luz(o.x + (e.rx - o.x)*f, o.y + (e.ry - o.y)*f, 110, luzRoja, 0.8); }
-  for (const b of bombasPeg) if (b.t >= b.vuelo) luz(b.x, b.y, 34, luzRoja, 0.5);
-  for (const k of kaiAvisos) luz(k.x, k.y, 60, luzBlanca, 0.25*(1 - k.t/k.max));
+  for (let __i24 = 0, __a24 = bombasPeg; __i24 < __a24.length; __i24++){ const b = __a24[__i24]; if (b.t >= b.vuelo) luz(b.x, b.y, 34, luzRoja, 0.5); }
+  for (let __i25 = 0, __a25 = kaiAvisos; __i25 < __a25.length; __i25++){ const k = __a25[__i25]; luz(k.x, k.y, 60, luzBlanca, 0.25*(1 - k.t/k.max)); }
   if (vil.intro && isMaq()) luz(player.x, player.y + 22, 110, luzFuego, 0.9);
   if (vil.intro && isMag()){ const P = portalMago(); luz(P.x, P.y, 100, luzAzul, 0.8); }
-  for (const r of relampagos) luz(r.x, r.y, 130, luzBlanca, clamp(r.t / r.max, 0, 1));
+  for (let __i26 = 0, __a26 = relampagos; __i26 < __a26.length; __i26++){ const r = __a26[__i26]; luz(r.x, r.y, 130, luzBlanca, clamp(r.t / r.max, 0, 1)); }
   // Los rayos del viltrumita y del dragón alumbran un poco a lo largo del haz:
   // cuatro manchas de luz en el búfer reducido, nada más.
   if (rayosOn && isVil() && buffActivo('rayos')){
@@ -25387,7 +25388,7 @@ function lucesJefes(L, k, mx, Mx, my, My, tinta){
     for (const f of [0.2, 0.55, 0.85]) luz(m.x + (T.x - m.x)*f, m.y + (T.y - m.y)*f, 55, luzAmarilla, 0.55);
     luz(T.x, T.y, 80, luzAmarilla, 0.75);
   }
-  for (const b of booms){
+  for (let __i27 = 0, __a27 = booms; __i27 < __a27.length; __i27++){ const b = __a27[__i27];
     if (b.ring) continue;
     const a = clamp(b.life / b.maxlife, 0, 1);
     luz(b.x, b.y, b.max*1.6, b.flash ? luzBlanca : luzFuego, a);
@@ -25408,7 +25409,7 @@ function triTeVe(e){
 // así el haz se desliza en vez de saltar.
 function updateFocos(dt){
   if (!lucesEncendidas()) return;         // se encienden justo antes de anochecer
-  for (const e of enemies){
+  for (let __i260 = 0, __a260 = enemies; __i260 < __a260.length; __i260++){ const e = __a260[__i260];
     if (e.dead || e.thrown || e.held || !llevaFoco(e)) continue;
     if (e.focoX === undefined){ e.focoX = e.x; e.focoY = e.y + 60; }
     if (e.focoT === undefined) e.focoT = rand(0, 6.28);
@@ -25463,9 +25464,18 @@ function leerRGBA(c){
   const v = m[1].split(',').map(Number);
   return [v[0]||0, v[1]||0, v[2]||0, v.length>3 ? v[3] : 1];
 }
+// El velo gris del clima nublado o lluvioso va también en esta estampa (encima
+// de todo lo demás, como antes): así es un relleno de pantalla menos.
+function veloClima(){
+  if (nubeK <= 0 && lluviaK <= 0) return null;
+  const noche = oscuridadAhora() > 0.3;
+  const velo = (nubeK * 0.16 + lluviaK * 0.12)*(noche ? 0.45 : 1);
+  if (!(velo > 0.004)) return null;
+  return { a: velo, col: esInfierno() ? '#4a0c08' : noche ? '#14213d' : '#39465a' };
+}
 function overlayFase(){
-  const a = phase(), b = faseSiguiente(), m = Math.round(mezclaFase()*8)/8;
-  const key = a.id + '|' + b.id + '|' + m + '|' + CW + 'x' + CH + '|' + mapa;
+  const a = phase(), b = faseSiguiente(), m = Math.round(mezclaFase()*8)/8, vel = veloClima();
+  const key = a.id + '|' + b.id + '|' + m + '|' + CW + 'x' + CH + '|' + mapa + (vel ? '|' + vel.col + vel.a : '');
   if (key === _ovKey && _ovCv) return _ovCv;
   const p1 = leerRGBA(a.tint), p2 = leerRGBA(b.tint);
   const c = [ p1[0]*(1-m)+p2[0]*m, p1[1]*(1-m)+p2[1]*m,
@@ -25501,6 +25511,7 @@ function overlayFase(){
   vg.addColorStop(0.72,'rgba(0,0,0,0.09)');
   vg.addColorStop(1,   'rgba(0,0,0,0.32)');
   g.fillStyle = vg; g.fillRect(0,0,cv.width,cv.height);
+  if (vel){ g.globalAlpha = vel.a; g.fillStyle = vel.col; g.fillRect(0, 0, cv.width, cv.height); g.globalAlpha = 1; }
   _ovKey = key; _ovCv = cv;
   return cv;
 }
@@ -25524,7 +25535,7 @@ function drawLighting(){
       const my = camY - LAMP_R, My = camY + VH + LAMP_R;
       // 1) abrir claros en la oscuridad
       L.globalCompositeOperation = 'destination-out';
-      for (const l of lamps){
+      for (let __i28 = 0, __a28 = lamps; __i28 < __a28.length; __i28++){ const l = __a28[__i28];
         if (l.dead || infOscuro) continue;          // farola destruida = calle a oscuras (en el infierno, todas)
         if (l.x < mx || l.x > Mx || l.y < my || l.y > My) continue;
         const sx = (l.x - camX)*k, sy = (l.y + 20 - camY)*k;
@@ -25535,14 +25546,14 @@ function drawLighting(){
       // claros de los focos: el haz desde el aparato más el círculo del suelo
       const fr = FOCO_R*k;
       // faros: el haz abre un claro suave y largo en la oscuridad
-      for (const c of cars){
+      for (let __i29 = 0, __a29 = cars; __i29 < __a29.length; __i29++){ const c = __a29[__i29];
         if (c.dead || c.held || c.thrown || isWreck(c)) continue;
         if (c.x < mx - FARO_LARGO || c.x > Mx + FARO_LARGO ||
             c.y < my - FARO_LARGO || c.y > My + FARO_LARGO) continue;
         if (c.vx*c.vx + c.vy*c.vy < 16) continue;
         pintaFaro(L, c, k, 0.9);
       }
-      for (const e of enemies){
+      for (let __i30 = 0, __a30 = enemies; __i30 < __a30.length; __i30++){ const e = __a30[__i30];
         if (e.dead || e.thrown || e.held || !llevaFoco(e) || e.focoX === undefined) continue;
         if (e.focoX < mx || e.focoX > Mx || e.focoY < my || e.focoY > My) continue;
         const bo = bocaFoco(e);
@@ -25555,21 +25566,21 @@ function drawLighting(){
       // 2) tinte dentro de los claros
       const fr2 = FOCO_R*k;
       L.globalCompositeOperation = 'lighter';
-      for (const l of lamps){
+      for (let __i31 = 0, __a31 = lamps; __i31 < __a31.length; __i31++){ const l = __a31[__i31];
         if (l.dead || infOscuro) continue;
         if (l.x < mx || l.x > Mx || l.y < my || l.y > My) continue;
         const sx = (l.x - camX)*k, sy = (l.y + 20 - camY)*k;
         L.drawImage(esAlien() ? cianSprite : warmSprite, sx - r, sy - r, r*2, r*2);
       }
       // y un tinte cálido muy leve dentro del haz, sin deslumbrar
-      for (const c of cars){
+      for (let __i32 = 0, __a32 = cars; __i32 < __a32.length; __i32++){ const c = __a32[__i32];
         if (c.dead || c.held || c.thrown || isWreck(c)) continue;
         if (c.x < mx - FARO_LARGO || c.x > Mx + FARO_LARGO ||
             c.y < my - FARO_LARGO || c.y > My + FARO_LARGO) continue;
         if (c.vx*c.vx + c.vy*c.vy < 16) continue;
         pintaFaro(L, c, k, 0.32);
       }
-      for (const e of enemies){
+      for (let __i33 = 0, __a33 = enemies; __i33 < __a33.length; __i33++){ const e = __a33[__i33];
         if (e.dead || e.thrown || e.held || !llevaFoco(e) || e.focoX === undefined) continue;
         if (e.focoX < mx || e.focoX > Mx || e.focoY < my || e.focoY > My) continue;
         const bo = bocaFoco(e);
@@ -25638,8 +25649,95 @@ function drawManchasLuz(){
   ctx.save();
   ctx.translate(ox, oy);
   ctx.fillStyle = p;
-  ctx.fillRect(0, 0, VW + T, VH + T);
+  rellenaSuelo(ox, oy, VW + T, VH + T);
   ctx.restore();
+}
+
+// ---- el suelo no se pinta debajo de los edificios ----
+// Un edificio en pie tapa por completo su solar, así que las baldosas y las
+// manchas de luz de debajo (dos rellenos de pantalla) no hacía falta pintarlas.
+// Se rellena solo lo que queda entre edificios: los cortes van por píxeles
+// enteros del lienzo (sin costuras) y el borde de cada edificio (un par de
+// píxeles) sí lleva suelo debajo, como siempre. La imagen no cambia (a lo sumo
+// un nivel de color en alguna junta de baldosa, invisible).
+const huecosSuelo = [];               // [x0, y0, x1, y1] en píxeles del lienzo
+let nHuecos = 0;
+function lienzoOpaco(cv){
+  if (cv._opaco === undefined){
+    let ok = true;
+    try { const d = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data;
+      for (let i = 3; i < d.length; i += 4) if (d[i] !== 255){ ok = false; break; } } catch(e){ ok = false; }
+    cv._opaco = ok;
+  }
+  return cv._opaco;
+}
+// ¿Este edificio se va a pintar entero y opaco en este fotograma? (lo mismo que
+// decide drawBuildings, sin crear nada nuevo)
+function edifTapa(b){
+  if (b.stage >= 2 || !b._cv || b._cvK !== edifClave(b)) return false;
+  const et = b.stage === 0 && esInfierno() ? 1 : b.stage, cv0 = b._cv[et];
+  if (!cv0) return false;
+  const debajo = b.stage === 1 || esInfierno() || (b._aguj && b._aguj.length);      // se pinta el interior debajo
+  if (debajo && b._int && lienzoOpaco(b._int)) return true;
+  return !(b._aguj && b._aguj.length) && lienzoOpaco(cv0);
+}
+function huecoSuelo(x, y, w, h){
+  const k = ZOOM*DPR, M = 2;
+  const x0 = Math.max(0, Math.ceil((x - camX + temblorX)*k) + M), x1 = Math.min(canvas.width, Math.floor((x + w - camX + temblorX)*k) - M);
+  const y0 = Math.max(0, Math.ceil((y - camY + temblorY)*k) + M), y1 = Math.min(canvas.height, Math.floor((y + h - camY + temblorY)*k) - M);
+  if (x1 - x0 < 8 || y1 - y0 < 8) return;
+  let q = huecosSuelo[nHuecos]; if (!q) q = huecosSuelo[nHuecos] = [0, 0, 0, 0];
+  q[0] = x0; q[1] = y0; q[2] = x1; q[3] = y1; nHuecos++;
+}
+function preparaHuecosSuelo(){
+  nHuecos = 0;
+  for (let i = 0; i < buildings.length; i++){
+    const b = buildings[i];
+    if (b.x + b.w < camX || b.x > camX + VW || b.y + b.h < camY || b.y > camY + VH) continue;
+    if (edifTapa(b)) huecoSuelo(b.x, b.y, b.w, b.h);
+  }
+  // los parques también tapan su manzana entera (si su lámina ya está hecha)
+  for (let i = 0; i < parques.length; i++){
+    const p = parques[i];
+    if (p.x + p.w < camX || p.x > camX + VW || p.y + p.h < camY || p.y > camY + VH) continue;
+    const cv = esAlien() ? p._cvA : esInfierno() ? p._cvI : p._cv;
+    if (cv && lienzoOpaco(cv)) huecoSuelo(p.x, p.y, p.w, p.h);
+  }
+}
+// Rellena (con el estilo y la transformación ya puestos, trasladada en
+// ox, oy) el rectángulo 0,0,w,h salvo los huecos de los edificios.
+const _cortesY = [], _tramos = [];
+function ordenNum(a, b){ return a - b; }
+function rellenaSuelo(ox, oy, w, h){
+  if (!nHuecos){ ctx.fillRect(0, 0, w, h); return; }
+  const k = ZOOM*DPR, dx = (ox + temblorX)*k, dy = (oy + temblorY)*k;     // origen del relleno en píxeles del lienzo
+  // en píxeles del lienzo: el rectángulo original y los huecos (dentro de él)
+  const X0 = dx, Y0 = dy, X1 = dx + w*k, Y1 = dy + h*k;
+  _cortesY.length = 0; _cortesY.push(Y0, Y1);
+  for (let i = 0; i < nHuecos; i++){ const q = huecosSuelo[i]; if (q[1] > Y0 && q[1] < Y1) _cortesY.push(q[1]); if (q[3] > Y0 && q[3] < Y1) _cortesY.push(q[3]); }
+  _cortesY.sort(ordenNum);
+  for (let j = 0; j + 1 < _cortesY.length; j++){
+    const ya = _cortesY[j], yb = _cortesY[j + 1];
+    if (yb <= ya) continue;
+    // tramos de x tapados en esta franja
+    _tramos.length = 0;
+    for (let i = 0; i < nHuecos; i++){ const q = huecosSuelo[i]; if (q[1] <= ya && q[3] >= yb && q[2] > X0 && q[0] < X1) _tramos.push(q[0], q[2]); }
+    const uy = (ya - dy)/k, uh = (yb - ya)/k;
+    if (!_tramos.length){ ctx.fillRect(0, uy, w, uh); continue; }
+    // ordenar los tramos por su inicio (son pocos)
+    for (let a = 2; a < _tramos.length; a += 2){
+      const s0 = _tramos[a], s1 = _tramos[a + 1]; let c = a - 2;
+      while (c >= 0 && _tramos[c] > s0){ _tramos[c + 2] = _tramos[c]; _tramos[c + 3] = _tramos[c + 1]; c -= 2; }
+      _tramos[c + 2] = s0; _tramos[c + 3] = s1;
+    }
+    let x = X0;
+    for (let a = 0; a < _tramos.length; a += 2){
+      const t0 = _tramos[a], t1 = _tramos[a + 1];
+      if (t0 > x) ctx.fillRect((x - dx)/k, uy, (t0 - x)/k, uh);
+      if (t1 > x) x = t1;
+    }
+    if (x < X1) ctx.fillRect((x - dx)/k, uy, (X1 - x)/k, uh);
+  }
 }
 
 // ============ SOMBRAS SUAVES ============
@@ -25705,14 +25803,14 @@ function drawBackground(){
   ctx.save();
   ctx.translate(ox, oy);
   ctx.fillStyle = (esAlien() ? walkPatAlien : esInfierno() ? walkPatInf : walkPat) || '#a7a5aa';
-  ctx.fillRect(0, 0, VW + T, VH + T);     // un poco de más para tapar el desfase
+  rellenaSuelo(ox, oy, VW + T, VH + T);   // un poco de más para tapar el desfase (y nada bajo los edificios)
   ctx.restore();
 }
 
 function drawRoads(){
   if (esAlien()) return drawRoadsAlien();
   if (esInfierno()) return drawRoadsInf();
-  for (const r of roads){
+  for (let __i261 = 0, __a261 = roads; __i261 < __a261.length; __i261++){ const r = __a261[__i261];
     if (r.x+r.w<camX || r.x>camX+VW || r.y+r.h<camY || r.y>camY+VH) continue;
     const s = S(r.x,r.y);
     // El asfalto baja un punto y se enfría: así la acera clara y los edificios
@@ -25910,7 +26008,7 @@ function drawVentanasNoche(oscuro){
   const cambio = Math.floor(gameTime/14);
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
-  for (const b of buildings){
+  for (let __i49 = 0, __a49 = buildings; __i49 < __a49.length; __i49++){ const b = __a49[__i49];
     if (b.stage >= 2 || !b._win || b.x > x1 || b.x + b.w < x0 || b.y > y1 || b.y + b.h < y0) continue;
     const bx = (b.x - camX + temblorX)*Z, by = (b.y - camY + temblorY)*Z, sd = (b.seed|0);
     for (let i = 0; i < b._win.length; i++){
@@ -25926,7 +26024,7 @@ function drawVentanasNoche(oscuro){
     ctx.globalAlpha = 1;
     if (b._neon && !esInfierno()){
       const pul = 0.75 + Math.sin(gameTime*3 + sd)*0.25;
-      for (const n of b._neon){
+      for (let __i50 = 0, __a50 = b._neon; __i50 < __a50.length; __i50++){ const n = __a50[__i50];
         ctx.globalAlpha = a*0.45*pul; ctx.fillStyle = n[4];
         ctx.fillRect(bx + (n[0] - 4)*Z, by + (n[1] - 4)*Z, (n[2] + 8)*Z, (n[3] + 8)*Z);
         ctx.globalAlpha = a*0.35*pul;
@@ -25941,7 +26039,7 @@ function drawVentanasNoche(oscuro){
 // ven por los rayos X: cuentan como civiles (puntos, cadena, vida y bajas).
 function vilInquilinos(x, y, R){
   let n = 0;
-  for (const b of buildings){
+  for (let __i262 = 0, __a262 = buildings; __i262 < __a262.length; __i262++){ const b = __a262[__i262];
     if (b.stage >= 2 || !b._gente || !b._gente.length) continue;
     if (x < b.x - R || x > b.x + b.w + R || y < b.y - R || y > b.y + b.h + R) continue;
     for (let i = b._gente.length - 1; i >= 0; i--){
@@ -25965,7 +26063,7 @@ const humoEdif = [];
 const HUMO_EDIF_MAX = 180;
 function updateHumoEdif(dt){
   const x0 = camX - 60, x1 = camX + VW + 60, y0 = camY - 60, y1 = camY + VH + 120;
-  for (const b of buildings){
+  for (let __i46 = 0, __a46 = buildings; __i46 < __a46.length; __i46++){ const b = __a46[__i46];
     if (b.x > x1 || b.x + b.w < x0 || b.y > y1 || b.y + b.h < y0) continue;
     if (b.stage >= 2){
       // los escombros humean un rato tras el derrumbe
@@ -25983,7 +26081,7 @@ function updateHumoEdif(dt){
     const fuentes = b.stage === 1 && b._win && b._win.length ? b._humos.concat([[b._win[(b.seed|0) % b._win.length][0] + 5, b._win[(b.seed|0) % b._win.length][1], 3]]) : b._humos;
     if (!fuentes.length){ b._hT = 99; continue; }
     b._hT = b.stage === 1 ? 0.2 : 0.42;
-    for (const f of fuentes){
+    for (let __i47 = 0, __a47 = fuentes; __i47 < __a47.length; __i47++){ const f = __a47[__i47];
       if (humoEdif.length >= HUMO_EDIF_MAX) humoEdif.shift();
       humoEdif.push({ x: b.x + f[0] + rand(-1.5, 1.5), y: b.y + f[1], vx: rand(4, 12), vy: rand(-22, -14), t:0,
                       max: f[2] === 2 ? 3.2 : f[2] === 3 ? 2.4 : 2.2, r: f[2] === 2 ? 5 : 3.5, oscuro: f[2] >= 2 || b.stage === 1 });
@@ -26046,11 +26144,11 @@ function drawDerrumbe(b, s2){
 
 function drawBuildings(){
   getWalkPats();
-  for (const p of parques){
+  for (let __i42 = 0, __a42 = parques; __i42 < __a42.length; __i42++){ const p = __a42[__i42];
     if (p.x + p.w < camX || p.x > camX + VW || p.y + p.h < camY || p.y > camY + VH) continue;
     drawParque(p);
   }
-  for (const b of buildings){
+  for (let __i43 = 0, __a43 = buildings; __i43 < __a43.length; __i43++){ const b = __a43[__i43];
     // el paso a escombros se anima (sirve también para el invitado, que lo recibe por red)
     if (b._etAnt !== undefined && b._etAnt < 2 && b.stage >= 2){
       // Si en ese momento hay un trozo suyo en un tentáculo es que lo han
@@ -26607,7 +26705,7 @@ function drawStun(x, y, tLeft){
 
 function drawBullets(){
   // marcador del punto de impacto del obús
-  for (const b of bullets){
+  for (let __i263 = 0, __a263 = bullets; __i263 < __a263.length; __i263++){ const b = __a263[__i263];
     if (!b.artillery || b.delay>0) continue;
     const m = S(b.tx, b.ty);
     const pulse = 0.55 + Math.sin(gameTime*11)*0.35;
@@ -26623,7 +26721,7 @@ function drawBullets(){
     ctx.stroke();
     ctx.restore();
   }
-  for (const b of bullets){
+  for (let __i264 = 0, __a264 = bullets; __i264 < __a264.length; __i264++){ const b = __a264[__i264];
     if (b.delay>0) continue;
     const s = S(b.x,b.y);
     // se pasa su propia orientación para que NO se espeje: la rotación ya lo apunta
@@ -26711,7 +26809,7 @@ function drawFX(){
   // Bola de fuego: antes se construía un degradado radial nuevo por estallido
   // y por fotograma, que es de lo más caro que hay. Ahora es una estampa.
   const bs = boomSprite();
-  for (const b of booms){
+  for (let __i265 = 0, __a265 = booms; __i265 < __a265.length; __i265++){ const b = __a265[__i265];
     const a = clamp(b.life/b.maxlife,0,1);
     const r = Math.max(b.r,1);
     const bx = b.x-camX, by = b.y-camY;
@@ -26772,6 +26870,7 @@ function draw(){
   temblorX = temblorY = 0;
   if (shakeTime>0 && temblorOn){ temblorX = rand(-shakeMag,shakeMag); temblorY = rand(-shakeMag,shakeMag); ctx.translate(temblorX, temblorY); }   // se puede apagar en Ajustes
   actualizaSol();
+  preparaHuecosSuelo();
   drawBackground(); drawRoads();
   if (esInfierno()){ drawRestosJefes(); drawCraterInf(); drawCharcosLava(); } else drawCharcosAgua();
   drawManchasLuz();                    // profundidad del suelo, un solo relleno
@@ -26790,17 +26889,17 @@ function draw(){
   // Se ordena por donde PISA cada uno, no por su centro: la gente se dibuja
   // centrada en su y, mientras que basureros y bancas se apoyan en la suya.
   // Con el centro, un soldado plantado delante de un basurero quedaba detrás.
-  for (const c of civilians) if (!c.dead && vis(c)) dlPush(c.y + 10, 0, c);
-  for (const c of cars)      if (!c.dead && vis(c)) dlPush(c.y, 1, c);
-  for (const t of trees)     if (!t.dead && vis(t)) dlPush(t.y, 2, t);
-  for (const b of trash)     if (!b.dead && vis(b)) dlPush(b.y, 3, b);
-  for (const b of benches)   if (!b.dead && vis(b)) dlPush(b.y, 4, b);
-  for (const l of lamps)     if (!l.dead && (l.held || l.thrown || l.presa) && vis(l)) dlPush(l.y, 5, l);
+  for (let __i1 = 0, __a1 = civilians; __i1 < __a1.length; __i1++){ const c = __a1[__i1]; if (!c.dead && vis(c)) dlPush(c.y + 10, 0, c); }
+  for (let __i2 = 0, __a2 = cars; __i2 < __a2.length; __i2++){ const c = __a2[__i2]; if (!c.dead && vis(c)) dlPush(c.y, 1, c); }
+  for (let __i3 = 0, __a3 = trees; __i3 < __a3.length; __i3++){ const t = __a3[__i3]; if (!t.dead && vis(t)) dlPush(t.y, 2, t); }
+  for (let __i4 = 0, __a4 = trash; __i4 < __a4.length; __i4++){ const b = __a4[__i4]; if (!b.dead && vis(b)) dlPush(b.y, 3, b); }
+  for (let __i5 = 0, __a5 = benches; __i5 < __a5.length; __i5++){ const b = __a5[__i5]; if (!b.dead && vis(b)) dlPush(b.y, 4, b); }
+  for (let __i6 = 0, __a6 = lamps; __i6 < __a6.length; __i6++){ const l = __a6[__i6]; if (!l.dead && (l.held || l.thrown || l.presa) && vis(l)) dlPush(l.y, 5, l); }
   // El tanque de fuego usa un margen mayor: su llamarada llega lejos y antes
   // desaparecía de la pantalla aunque siguiera quemando.
   const bx0 = camX - FLAME_LEN - 120, bx1 = camX + VW + FLAME_LEN + 120;
   const by0 = camY - FLAME_LEN - 120, by1 = camY + VH + FLAME_LEN + 120;
-  for (const e of enemies){
+  for (let __i7 = 0, __a7 = enemies; __i7 < __a7.length; __i7++){ const e = __a7[__i7];
     if (e.dead) continue;
     const dentro = (e.type === 'flametank' || e.type === 'omni' || e.type === 'tripode')
       ? (e.x > bx0 && e.x < bx1 && e.y > by0 && e.y < by1)
@@ -26809,7 +26908,7 @@ function draw(){
     const vuela = (e.type==='heli'||e.type==='gunship'||e.type==='plane');
     dlPush(vuela ? e.y+900 : e.y + (e.h||34)*0.32, 6, e);
   }
-  for (const z of zombis) if (vis(z)) dlPush(z.y + 10, 9, z);
+  for (let __i8 = 0, __a8 = zombis; __i8 < __a8.length; __i8++){ const z = __a8[__i8]; if (vis(z)) dlPush(z.y + 10, 9, z); }
   drawEstelas();                                  // detrás de lo que vuela
   dlPush(player.y + F().r*0.5, 7, null);      // el alien, también por los pies
   if (esDoble()){ const cp = datosCompanero(); if (cp && cp.pl) dlPush(cp.pl.y + 12, 8, null); }
@@ -26819,7 +26918,7 @@ function draw(){
   dlSorted.length = dlN;
   for (let i = 0; i < dlN; i++) dlSorted[i] = dl[i];
   dlSorted.sort(dlCmp);
-  for (const d of dlSorted){
+  for (let __i9 = 0, __a9 = dlSorted; __i9 < __a9.length; __i9++){ const d = __a9[__i9];
     switch (d.k){
       case 0: drawCivilian(d.o); break;
       case 1: drawCar(d.o); break;
@@ -26861,7 +26960,7 @@ function drawEstelas(){
   ESTELA_POOLS.length = 0; ESTELA_POOLS.push(cars, civilians, enemies, trees, lamps, trash, benches);
   const ahora = gameTime;
   for (const pool of ESTELA_POOLS){
-    for (const o of pool){
+    for (let __i65 = 0, __a65 = pool; __i65 < __a65.length; __i65++){ const o = __a65[__i65];
       const vuela = o.thrown && !o.dead && !o.byEnemy && !o.held;
       if (!vuela && !o._estela) continue;
       let arr = o._estela;
@@ -26975,7 +27074,7 @@ function colsJefe(tipo, def){
 function drawBarrasJefe(){
   if (!running && !esVisorVs()) return;
   let n = 0;
-  for (const e of enemies){
+  for (let __i266 = 0, __a266 = enemies; __i266 < __a266.length; __i266++){ const e = __a266[__i266];
     if (e.dead || !JEFE_EST[e.type] || e.normal || n >= 2) continue;
     if (e._barLag === undefined || e._barLag < e.hp) e._barLag = e.hp;
     e._barLag += (e.hp - e._barLag)*Math.min(1, (Online.dtDib || 0.016)*3);   // el tramo blanco que se va comiendo
@@ -27364,7 +27463,7 @@ function updateNumeros(dt){
 function drawNumeros(){
   if (!numsDano.length) return;
   ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
-  for (const n of numsDano){
+  for (let __i267 = 0, __a267 = numsDano; __i267 < __a267.length; __i267++){ const n = __a267[__i267];
     const s = S(n.x, n.y);
     if (s.x < -40 || s.y < -40 || s.x > VW + 40 || s.y > VH + 40) continue;
     const ent = Math.min(1, n.t/0.08), sal = Math.min(1, (n.max - n.t)/0.25);
@@ -27530,10 +27629,10 @@ function drawCharcosAgua(){
 // resplandor sumado; de noche, además, abren claros en la oscuridad (ver
 // lucesJefes). Como mucho unas 28 luces por fotograma.
 function lucesDinamicas(luz){
-  for (const b of booms){ if (b.ring) continue; const k = clamp(b.life/b.maxlife, 0, 1); luz(b.x, b.y, Math.max(70, b.max*1.5), b.flash ? luzBlanca : luzFuego, 0.95*k); }
-  for (const r of relampagos) luz(r.x, r.y, 130, r.col === 2 ? luzBlanca : luzAzul, clamp(r.t/r.max, 0, 1));
-  for (const r of rayos){ const k = clamp(r.t/r.max, 0, 1); for (const f of [0.15, 0.5, 0.85]) luz(r.x + Math.cos(r.ang)*MBT_ALCANCE*f, r.y + Math.sin(r.ang)*MBT_ALCANCE*f, 90, r.frio ? luzAzul : luzAmarilla, 0.8*k); }
-  for (const e of enemies){
+  for (let __i52 = 0, __a52 = booms; __i52 < __a52.length; __i52++){ const b = __a52[__i52]; if (b.ring) continue; const k = clamp(b.life/b.maxlife, 0, 1); luz(b.x, b.y, Math.max(70, b.max*1.5), b.flash ? luzBlanca : luzFuego, 0.95*k); }
+  for (let __i53 = 0, __a53 = relampagos; __i53 < __a53.length; __i53++){ const r = __a53[__i53]; luz(r.x, r.y, 130, r.col === 2 ? luzBlanca : luzAzul, clamp(r.t/r.max, 0, 1)); }
+  for (let __i54 = 0, __a54 = rayos; __i54 < __a54.length; __i54++){ const r = __a54[__i54]; const k = clamp(r.t/r.max, 0, 1); for (const f of [0.15, 0.5, 0.85]) luz(r.x + Math.cos(r.ang)*MBT_ALCANCE*f, r.y + Math.sin(r.ang)*MBT_ALCANCE*f, 90, r.frio ? luzAzul : luzAmarilla, 0.8*k); }
+  for (let __i55 = 0, __a55 = enemies; __i55 < __a55.length; __i55++){ const e = __a55[__i55];
     if (e.dead || e.type !== 'tripode' || e.rayFase !== 'dispara' || e.rayX === undefined) continue;
     const c0 = triCupula(e); for (const f of [0.3, 0.7, 1]) luz(c0.x + (e.rayX - c0.x)*f, c0.y + (e.rayY - c0.y)*f, 100, luzAzul, 0.85);
   }
@@ -27555,7 +27654,7 @@ function drawLucesDia(){
     ctx.drawImage(sp, s.x - r, s.y - r, r*2, r*2);
   };
   lucesDinamicas(luz);
-  for (const f of fuegos) luz(f.x, f.y, f.r*1.6, luzFuego, clamp(f.t/f.max, 0, 1)*(0.55 + Math.random()*0.15));
+  for (let __i268 = 0, __a268 = fuegos; __i268 < __a268.length; __i268++){ const f = __a268[__i268]; luz(f.x, f.y, f.r*1.6, luzFuego, clamp(f.t/f.max, 0, 1)*(0.55 + Math.random()*0.15)); }
   ctx.restore(); ctx.globalAlpha = 1;
 }
 // ---- evolución de la cría: una luz verde que se expande con ella ----
@@ -27658,6 +27757,9 @@ function preparaMenuEsc(){
     const hFar = Math.round(H*0.5), hNear = Math.round(H*0.42);
     menuEsc.capas[m] = { lejos: capaMenu(m, W, hFar, false), cerca: capaMenu(m, W, hNear, true) };
   }
+  // terminado el fundido, solo se guardan las del mapa que se ve (unos 7 MB por
+  // mapa); si se vuelve a otro, se rehacen idénticas: llevan semilla fija
+  if (menuEsc.fade >= 1) for (const k in menuEsc.capas) if (k !== menuEsc.mapa) delete menuEsc.capas[k];
 }
 // El cielo (degradado, astro y resplandor del incendio) es fijo: se pinta una
 // vez por mapa y tamaño en un lienzo aparte y luego solo se copia.
@@ -28050,7 +28152,7 @@ const JEFE_NOMBRE = { flametank:'TANQUE DE FUEGO', omni:'OMNIDROIDE', artillero:
 function drawFlechasJefe(){
   if (!running || esVisorVs()) return;
   const M = 30, cx = CW/2, cy = CH/2;
-  for (const e of enemies){
+  for (let __i269 = 0, __a269 = enemies; __i269 < __a269.length; __i269++){ const e = __a269[__i269];
     if (e.dead || !JEFES[e.type] || e.normal) continue;
     const sx = (e.x - camX)*ZOOM, sy = (e.y - camY)*ZOOM;
     if (sx > -20 && sx < CW + 20 && sy > -20 && sy < CH + 20) continue;   // se ve: sin flecha
@@ -28481,9 +28583,23 @@ function loop(t){
       endGame();
     }
   }
-  if (menuEscenaVisible()) drawEscenaMenu(dtReal);   // en el menú, su escena (y no el mundo de detrás)
-  else draw();
+  if (menuEscenaVisible()){ drawEscenaMenu(dtReal); _congelado = false; }   // en el menú, su escena (y no el mundo de detrás)
+  else if (!mundoCongelado()) draw();
   requestAnimationFrame(loop);
+}
+// Con la partida parada (pausa, fin o los menús de encima) y sin presentación
+// de jefe en marcha, el mundo no se mueve: se pinta un momento (lo que tarden
+// en prepararse los edificios y figuras que aún no estén hechos, que se crean
+// unos pocos por fotograma) y luego el lienzo conserva la imagen. Se vuelve a
+// pintar si cambia el tamaño de la ventana (ver _congelado, junto a resize).
+const CONGELA_FOTOS = 90;
+function mundoCongelado(){
+  const quieto = !running && !Online.jugando && !jefePres && !jefeCaido && camLentaT <= 0 && congelaT <= 0;
+  if (!quieto){ _congelado = false; return false; }
+  if (_congelado === false) _congelado = 0;
+  if (_congelado >= CONGELA_FOTOS) return true;
+  _congelado++;
+  return false;                                   // estos fotogramas sí se pintan
 }
 // El HUD solo toca el DOM cuando un valor cambia de verdad. Escribir lo
 // mismo en cada fotograma obligaba al navegador a recalcular la maquetación
@@ -28562,6 +28678,7 @@ requestAnimationFrame(loop);
 // ================= FLOW =================
 function startGame(mode){
   ocultarGlobalAsk();
+  menuEsc.capas = {};                   // las capas del menú (unos 7 MB) se rehacen al volver, idénticas
   resumeAudio();
   musPreview = false; clearTimeout(musPreviewT); musPreviewT = null;
   stopBossPreview();                    // la muestra del registro no invade la partida
