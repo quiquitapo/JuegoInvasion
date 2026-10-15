@@ -4648,7 +4648,6 @@ function resetGame(){
   resetRunStats();
   finalAnnounced = false; bossAlive = false; bossRest = 0; bossRoll = 0; coinsBanco = 0;
   ultimoJefe = null; penultimoJefe = null;   // cada partida empieza con el bombo lleno
-  marcianaAvisoT = 0;
   comboReset(); comboBonus = 0; comboFlash = 0;
   venenoT = 0; venenoDosis = 0; venenoUlt = 0; paralizadoT = 0;
   quemaT = 0; hieloT = 0; lentoT = 0;
@@ -5225,8 +5224,6 @@ const TRI_RAYO_T     = 0.45;          // lo que dura la descarga
 const TRI_RAYO_R     = 96;            // radio del área
 const TRI_RAYO_DMG   = 72;
 const TRI_QUEMA      = 3.5;           // segundos de quemadura
-const TRI_AVISO      = 'AL PARECER NO ERES EL ÚNICO QUE QUIERE EL PLANETA';
-let marcianaAvisoT = 0;
 
 // ¿Hay trípodes que sigan frenando al ejército? (los que agotaron su plazo, no)
 function marcianosActivos(){
@@ -5238,17 +5235,10 @@ function lanzaInvasionMarciana(){
   for (let i = 0; i < n; i++) spawnEnemy('tripode');
   let lado = 1;
   for (const e of enemies) if (e.type === 'tripode' && !e.dead){ e.lado = lado; lado = -lado; }
-  toast('¡INVASIÓN MARCIANA!', 2.2);
-  marcianaAvisoT = 2.2;                  // después, el aviso largo
   const t0 = enemies.find(e=> e.type === 'tripode' && !e.dead && !e.normal);
   if (t0) presentaJefe(t0);
   sfx('ulla');
   shake(26, 0.9);
-}
-function updateAvisoMarciano(dt){
-  if (marcianaAvisoT <= 0) return;
-  marcianaAvisoT -= dt;
-  if (marcianaAvisoT <= 0) toast(TRI_AVISO, 4);
 }
 // Cúpula: de ahí salen los tentáculos y el rayo, por encima de las patas.
 function triCupula(e){ return { x: e.x, y: e.y - 44 }; }
@@ -8766,6 +8756,20 @@ function resumeAudio(){
   initAudio();
   if (audio.ctx && audio.ctx.state === 'suspended') audio.ctx.resume();
 }
+// El navegador no deja sonar nada hasta que se toca la página. Se intenta al
+// cargar (algunos lo permiten) y, si no, en cada clic, toque o tecla en
+// cualquier parte hasta que suene. En el móvil el primer touchstart no cuenta
+// como gesto (sí el touchend y el click), así que no basta con escuchar una vez.
+const GESTOS_AUDIO = ['pointerdown', 'mousedown', 'touchend', 'keydown', 'click'];
+function desbloqueaAudio(){
+  try {
+    resumeAudio();
+    revisaMenu();                                    // si hay un menú a la vista, su tema
+    if (audio.ctx && audio.ctx.state === 'running')
+      for (const g of GESTOS_AUDIO) window.removeEventListener(g, desbloqueaAudio, true);
+  } catch(e){}
+}
+for (const g of GESTOS_AUDIO) window.addEventListener(g, desbloqueaAudio, { capture:true, passive:true });
 
 // El rugido del dragón de tres cabezas (una grabación, en MP3 mono): se
 // descodifica una vez, al iniciar el audio, y suena en su entrada y cuando
@@ -11836,15 +11840,15 @@ function p2Place(){
     spawnEnemy(u.type, p2.x, p2.y);
     if (u.deforme && enemies.length > n0) hazDeforme(enemies[enemies.length - 1], JEFES[u.type] ? 1.5 : 1.7);
     if (JEFE_EST[u.type] && enemies.length > n0) presentaJefe(enemies[enemies.length - 1], true);   // en el VS, sin detener la partida
-    if (u.type === 'centurion'){ toast('¡EL CENTURIÓN!'); shake(18, 0.6); }
-    if (u.type === 'desgarrador'){ toast('¡EL DESGARRADOR!'); sfx('sierra'); shake(18, 0.6); }
-    if (u.type === 'aracnido'){ toast('¡LA TEJEDORA!'); sfx('alarma'); shake(18, 0.6); }
-    if (u.type === 'muerteVeloz'){ toast('¡MUERTE VELOZ!'); sfx('sonicboom'); shake(18, 0.6); }
-    if (u.type === 'desesperacion'){ toast('¡DESESPERACIÓN!'); shake(18, 0.6); }
+    if (u.type === 'centurion') shake(18, 0.6);                 // los jefes los anuncia su presentación
+    if (u.type === 'desgarrador'){ sfx('sierra'); shake(18, 0.6); }
+    if (u.type === 'aracnido'){ sfx('alarma'); shake(18, 0.6); }
+    if (u.type === 'muerteVeloz'){ sfx('sonicboom'); shake(18, 0.6); }
+    if (u.type === 'desesperacion') shake(18, 0.6);
   }
-  if (u.type === 'tripode' && !u.especial){ toast(TRI_AVISO, 3); sfx('ulla'); shake(14, 0.5); }
-  if (u.type === 'heroe'){ toast('¡EL HÉROE MÁGICO!'); sfx('conjuro'); }
-  if (u.type === 'kaiyin'){ toast('¡KAIYIN! EL CIELO SE OSCURECE'); sfx('trueno'); shake(18, 0.6); }
+  if (u.type === 'tripode' && !u.especial){ sfx('ulla'); shake(14, 0.5); }
+  if (u.type === 'heroe') sfx('conjuro');
+  if (u.type === 'kaiyin'){ sfx('trueno'); shake(18, 0.6); }
   p2.placeFlash = 0.35;
   addParticles(p2.x, p2.y, '#8fd7ff', 16, 150);
   sfx('grab');
@@ -15081,7 +15085,6 @@ function lanzaRefuerzos(enVs, x, y){
   let max = 0; for (const g of guion) max += g[2]*REFZ_HP[g[1]];
   refz = { t:0, i:0, guion, max, hp:max, plazo:0, ign:false, vs:!!enVs, x: x || 0, y: y || 0 };
   refzBar._barLag = undefined;
-  if (enVs) toast('¡LLEGAN REFUERZOS MARCIANOS!', 2.4);     // fuera del VS ya lo dice la presentación
   sfx('alarma'); shake(20, 0.7);
   presentaJefe({ type:'refuerzos' }, !!enVs);
 }
@@ -24751,7 +24754,6 @@ function updateSpawns(dt){
     updateMiniOleada(dt);
     return;
   }
-  updateAvisoMarciano(dt);
   if (finalWave() && !finalAnnounced){
     finalAnnounced = true;
     toast('OLEADA FINAL');
@@ -24809,10 +24811,7 @@ function updateSpawns(dt){
         if (cual === 'marciana') lanzaInvasionMarciana();
         else if (cual === 'refuerzos') lanzaRefuerzos();
         else {
-          spawnEnemy(cual);
-          toast(cual === 'omni' ? '¡OMNIDROIDE!' : cual === 'artillero' ? '¡EL ARTILLERO!'
-              : cual === 'superx' ? '¡SUPER X2!' : cual === 'heroe' ? '¡EL HÉROE MÁGICO!'
-              : cual === 'kaiyin' ? '¡KAIYIN! EL CIELO SE OSCURECE' : cual === 'centurion' ? '¡EL CENTURIÓN!' : cual === 'desgarrador' ? '¡EL DESGARRADOR!' : cual === 'aracnido' ? '¡LA TEJEDORA!' : cual === 'muerteVeloz' ? '¡MUERTE VELOZ!' : cual === 'desesperacion' ? '¡DESESPERACIÓN!' : '¡TANQUE DE FUEGO!');
+          spawnEnemy(cual);                                   // su llegada la anuncia la presentación
           if (cual === 'kaiyin') sfx('trueno');
           if (cual === 'desgarrador') sfx('sierra');
           const j = enemies[enemies.length - 1];
@@ -31376,7 +31375,7 @@ document.getElementById('btnMenu').addEventListener('click', async ()=>{
   const boot = document.getElementById('booting');
   if (boot) boot.classList.add('hidden');
   document.getElementById('menu').classList.remove('hidden');
-  revisaMenu();                   // primer menú de la sesión: que suene
+  desbloqueaAudio();              // primer menú de la sesión: que suene (si el navegador ya deja)
 })();
 applyUIArt();
 // al cambiar de pestaña se corta el audio para que no quede un tono colgado
@@ -31387,6 +31386,7 @@ document.addEventListener('visibilitychange', ()=>{
   } else {
     if (audio.ctx && audio.ctx.state === 'suspended') audio.ctx.resume();
     if (running && audio.musOn) startMusic();
+    else revisaMenu();                     // de vuelta en un menú: que vuelva su tema
   }
 });
 
@@ -31408,9 +31408,6 @@ function scrollTop(id){
   else if (el) el.scrollTop = 0;
 }
 
-// el navegador solo permite sonar tras un gesto del usuario
-['pointerdown','keydown','touchstart'].forEach(ev=>
-  window.addEventListener(ev, resumeAudio, {once:true}));
 renderScoreList();
 
 })();
