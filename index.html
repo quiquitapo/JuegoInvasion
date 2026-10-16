@@ -4952,13 +4952,13 @@ function spawnEnemy(type, atX, atY){
   if (type==='plane')     Object.assign(base, {hp:90,maxhp:90,speed:330, w:76,h:39,
                                                grabbable:true, alt:96, bob:rand(0,6),
                                                px2:undefined, py2:0, armed:1});
-  // Omnidroide: esfera negra con cuatro patas y un ojo rojo. Alterna entre
+  // Omnidroide: esfera negra con seis patas, un brazo con pinza y un sensor rojo. Alterna entre
   // rodar en línea recta hacia un punto calculado y caminar atacando.
-  if (type==='omni')      Object.assign(base, {hp:950,maxhp:950,speed:54, w:96,h:96,
+  if (type==='omni')      Object.assign(base, {hp:1600,maxhp:1600,speed:54, w:96,h:96,
                                                grabbable:false, mode:'roll',
                                                tx:0, ty:0, rollA:0, roll:0,
                                                walkT:0, throwCd:2.2, beamCd:5,
-                                               beamPh:'', beamT:0, beamA:0, legT:0});
+                                               beamPh:'', beamT:0, beamA:0, legT:0, brazoT:0, brazoA:0});
   // MBT-MB92: tanque ligero de cañón de inducción. Apunta, marca la línea y
   // dispara un rayo de largo alcance. La versión azulada congela.
   if (type==='mbt' || type==='mbtFrio')
@@ -5052,7 +5052,7 @@ function spawnEnemy(type, atX, atY){
 
 // ================= MINI JEFE: OMNIDROIDE =================
 // Rueda en línea recta hacia donde estabas, se detiene al llegar y pasa a
-// caminar: desde ahí te lanza mobiliario y carga un rayo desde su ojo.
+// caminar: desde ahí te lanza mobiliario y carga un rayo desde su sensor.
 const OMNI_ROLL_SPD  = 250;   // velocidad rodando
 const OMNI_WALK      = 62;    // velocidad caminando
 const OMNI_WALK_TIME = 6.5;   // cuánto camina antes de volver a rodar
@@ -5062,6 +5062,7 @@ const OMNI_BEAM_LEN  = 900;
 const OMNI_BEAM_W    = 16;    // grosor del rayo
 const OMNI_BEAM_DPS  = 52;
 const OMNI_BEAM_TURN = 0.55;  // rad/s: sigue al jugador MUY despacio
+const OMNI_BRAZO_T   = 0.45;  // lo que tarda el brazo en estirarse y volver al lanzar
 
 // ¿Está el punto dentro del haz? (segmento grueso desde el ojo)
 function inBeam(px_, py_, ox, oy, ang, len, w){
@@ -5076,7 +5077,7 @@ function inBeam(px_, py_, ox, oy, ang, len, w){
 // (el rayo, o tú), para que el rayo salga justo de él.
 function omniOjo(e){
   const R = e.w*0.42, a = e.beamPh ? e.beamA : Math.atan2(player.y - e.y, player.x - e.x);
-  return { x: e.x + Math.cos(a)*R*0.34, y: e.y + Math.sin(a)*R*0.24 };
+  return { x: e.x + Math.cos(a)*R*0.36, y: e.y - R*0.52 + Math.sin(a)*R*0.2 };
 }
 // El rayo no distingue bando.
 function beamHit(e, dmg){
@@ -5131,12 +5132,14 @@ function omniThrow(e){
   mejor.throwDmg = objThrowDmg(mejor);
   mejor.throwLife = 1.6;
   mejor.byEnemy = true;                 // lanzado por el droide: puede herirte
+  e.brazoT = OMNI_BRAZO_T; e.brazoA = a;   // la pinza se estira hacia ti
   sfx('throw');
   return true;
 }
 
 function updateOmni(e, dt, a, angP){
   e.legT += dt;
+  if (e.brazoT > 0) e.brazoT = Math.max(0, e.brazoT - dt);
   if (e.mode === 'roll'){
     // rueda en línea recta hacia el punto calculado al empezar
     if (!e.rolling){
@@ -5200,7 +5203,8 @@ function angLerp(a, b, t){
   return a + d * clamp(t, 0, 1);
 }
 
-// ---- dibujo: esfera negra, cuatro patas y ojo rojo ----
+// ---- dibujo: esfera negra mate, sensor rojo arriba, brazo con pinza y
+// seis patas segmentadas que se recogen al rodar ----
 // Miniatura del droide para la interfaz (no depende de ninguna imagen).
 let omniIcon = null;
 function omniIconURL(){
@@ -5210,60 +5214,132 @@ function omniIconURL(){
   catch(e){ omniIcon = ''; }        // si el lienzo no puede exportarse, sin icono
   return omniIcon;
 }
+const OMNI_ICO = { cx:30, cy:24, R:13 };    // dónde queda el sensor en la miniatura
 function omniIconCv(){
   const c = document.createElement('canvas');
-  c.width = c.height = 48;
-  const g = c.getContext('2d');
-  g.strokeStyle='#2b2f36'; g.lineWidth=4; g.lineCap='round';
-  for (let i=0;i<4;i++){
-    const a = -Math.PI*0.75 + i*(Math.PI/2.4);
-    g.beginPath();
-    g.moveTo(24+Math.cos(a)*13, 24+Math.sin(a)*9);
-    g.lineTo(24+Math.cos(a)*22, 24+Math.abs(Math.sin(a))*14+6);
-    g.stroke();
-  }
-  g.fillStyle='#0d0f12'; g.beginPath(); g.arc(24,24,15,0,Math.PI*2); g.fill();
-  g.strokeStyle='#33383f'; g.lineWidth=2; g.stroke();
-  g.fillStyle='#c81f1f'; g.beginPath(); g.arc(24,24,5,0,Math.PI*2); g.fill();
-  g.fillStyle='#7a0d0d'; g.beginPath(); g.arc(24,24,2,0,Math.PI*2); g.fill();
+  c.width = 64; c.height = 54;
+  const g = c.getContext('2d'), { cx, cy, R } = OMNI_ICO;
+  pintaOmni(g, cx, cy, R, { K:1, legT:0.4, roll:0, rodando:false, f:1, brazoA:-0.12, brazoExt:0.82 });
+  pintaSensorOmni(g, cx + R*0.1, cy - R*0.6, R*0.26, 0, 1);
   return c;
+}
+// Pata segmentada: cable grueso con anillos, de la panza al suelo.
+function pataOmni(g, x0, y0, x1, y1, x2, y2, x3, y3, w){
+  g.lineCap = 'round';
+  g.strokeStyle = '#08090b'; g.lineWidth = w;
+  g.beginPath(); g.moveTo(x0, y0); g.bezierCurveTo(x1, y1, x2, y2, x3, y3); g.stroke();
+  g.strokeStyle = '#2b3037'; g.lineWidth = Math.max(1, w*0.2);
+  const n = Math.max(6, Math.round(Math.hypot(x3 - x0, y3 - y0)/(w*0.62)));
+  g.beginPath();
+  for (let k = 1; k < n; k++){
+    const t = k/n, u = 1 - t;
+    const px = u*u*u*x0 + 3*u*u*t*x1 + 3*u*t*t*x2 + t*t*t*x3;
+    const py = u*u*u*y0 + 3*u*u*t*y1 + 3*u*t*t*y2 + t*t*t*y3;
+    const tx = 3*u*u*(x1 - x0) + 6*u*t*(x2 - x1) + 3*t*t*(x3 - x2);
+    const ty = 3*u*u*(y1 - y0) + 6*u*t*(y2 - y1) + 3*t*t*(y3 - y2);
+    const L = Math.hypot(tx, ty) || 1, nx = -ty/L*w*0.55, ny = tx/L*w*0.55;
+    g.moveTo(px - nx, py - ny); g.lineTo(px + nx, py + ny);
+  }
+  g.stroke();
+  g.strokeStyle = 'rgba(120,132,146,0.38)'; g.lineWidth = Math.max(0.8, w*0.14);   // filo de luz por arriba
+  g.beginPath(); g.moveTo(x0, y0 - w*0.3); g.bezierCurveTo(x1, y1 - w*0.32, x2, y2 - w*0.32, x3, y3 - w*0.3); g.stroke();
+  g.fillStyle = '#121418'; g.beginPath(); g.ellipse(x3, y3, w*0.75, w*0.42, 0, 0, Math.PI*2); g.fill();   // pie
+}
+// Sensor rojo: carcasa negra con la lente encendida y una antena en gancho.
+// est: 0 normal, 1 apuntando, 2 disparando.
+function pintaSensorOmni(g, x, y, er, est, f){
+  g.fillStyle = '#060708';
+  g.beginPath(); g.ellipse(x, y + er*0.25, er*1.55, er*0.95, 0, Math.PI, 0); g.lineTo(x + er*1.55, y + er*0.4); g.lineTo(x - er*1.55, y + er*0.4); g.closePath(); g.fill();
+  g.strokeStyle = 'rgba(110,120,132,0.5)'; g.lineWidth = Math.max(0.8, er*0.12);
+  g.beginPath(); g.ellipse(x, y + er*0.25, er*1.55, er*0.95, 0, Math.PI*1.1, Math.PI*1.55); g.stroke();
+  g.strokeStyle = '#1c1f24'; g.lineWidth = Math.max(0.8, er*0.13);           // antena
+  g.beginPath(); g.moveTo(x + f*er*1.2, y + er*0.1); g.lineTo(x + f*er*2.1, y + er*0.05);
+  g.quadraticCurveTo(x + f*er*2.5, y + er*0.05, x + f*er*2.35, y + er*0.45); g.stroke();
+  const lente = est === 2 ? '#fff0ec' : est === 1 ? '#ff6a58' : '#e8231c';
+  g.fillStyle = est === 2 ? '#ff4b3b' : '#7a0c0a';
+  g.beginPath(); g.ellipse(x, y, er*1.05, er*0.56, 0, 0, Math.PI*2); g.fill();
+  g.fillStyle = lente;
+  g.beginPath(); g.ellipse(x, y, er*0.82, er*0.38, 0, 0, Math.PI*2); g.fill();
+  g.fillStyle = 'rgba(255,225,215,0.75)';
+  g.beginPath(); g.ellipse(x - er*0.3, y - er*0.12, er*0.24, er*0.09, 0, 0, Math.PI*2); g.fill();
+}
+// El cuerpo entero (sin el sensor). o.K: cuánto asoman las patas (0 al rodar).
+function pintaOmni(g, cx, cy, R, o){
+  const f = o.f, w = R*0.17;
+  // patas: tres por lado; las de atrás y las del medio, detrás del cuerpo
+  const PATAS = [[-1, 1.42, 0.5], [0, 1.9, 0.92], [1, 1.36, 1.3]];   // [fondo, abre, baja]
+  const pata = (lado, idx)=>{
+    const [d, abre, baja] = PATAS[idx];
+    const ph = o.legT*6.5 + idx*2.1 + (lado > 0 ? Math.PI : 0);
+    const alza = o.rodando ? 0 : Math.max(0, Math.sin(ph))*R*0.22, avanza = o.rodando ? 0 : Math.cos(ph)*R*0.14;
+    const rx = cx + lado*R*(0.32 + 0.08*(1 - Math.abs(d))), ry = cy + R*(0.42 + d*0.1);
+    const fx = cx + lado*R*abre + avanza*f, fy = cy + R*baja - alza;
+    const k = o.K, X = rx + (fx - rx)*k, Y = ry + (fy - ry)*k;
+    pataOmni(g, rx, ry, rx + lado*R*0.75*k, ry - R*0.28*k, X + lado*R*0.06*k, Y - R*0.8*k, X, Y, w*(0.75 + 0.25*k));
+  };
+  if (o.K > 0.02){ for (const l of [-1, 1]){ pata(l, 0); pata(l, 1); } }
+  // esfera mate: la luz le entra por arriba a la izquierda
+  const gr = g.createRadialGradient(cx - R*0.38, cy - R*0.48, R*0.05, cx - R*0.1, cy - R*0.1, R*1.25);
+  gr.addColorStop(0, '#59616c'); gr.addColorStop(0.22, '#262a31'); gr.addColorStop(0.62, '#0d0f12'); gr.addColorStop(1, '#040405');
+  g.fillStyle = gr; g.beginPath(); g.arc(cx, cy, R, 0, Math.PI*2); g.fill();
+  if (o.rodando){                                    // juntas que giran al rodar
+    g.strokeStyle = 'rgba(78,88,100,0.5)'; g.lineWidth = Math.max(1, R*0.04);
+    for (let i = 0; i < 3; i++){
+      const ph = o.roll + i*(Math.PI/3);
+      g.beginPath(); g.ellipse(cx, cy, R*0.94, R*0.94*Math.abs(Math.cos(ph)), 0, 0, Math.PI*2); g.stroke();
+    }
+  }
+  g.strokeStyle = 'rgba(150,164,180,0.42)'; g.lineWidth = Math.max(1, R*0.05);   // filo de luz
+  g.beginPath(); g.arc(cx, cy, R*0.95, Math.PI*1.02, Math.PI*1.62); g.stroke();
+  g.strokeStyle = 'rgba(70,80,92,0.35)';                                          // reflejo del suelo
+  g.beginPath(); g.arc(cx, cy, R*0.94, Math.PI*0.2, Math.PI*0.75); g.stroke();
+  g.strokeStyle = '#020203'; g.lineWidth = Math.max(1, R*0.035);
+  g.beginPath(); g.arc(cx, cy, R, 0, Math.PI*2); g.stroke();
+  // hombro del otro lado: una bola pequeña pegada al casco
+  const hx = cx - f*R*0.9, hy = cy - R*0.12, hr = R*0.3;
+  const gh = g.createRadialGradient(hx - hr*0.35, hy - hr*0.4, hr*0.1, hx, hy, hr*1.1);
+  gh.addColorStop(0, '#4a525c'); gh.addColorStop(0.45, '#16191d'); gh.addColorStop(1, '#050506');
+  g.fillStyle = gh; g.beginPath(); g.arc(hx, hy, hr, 0, Math.PI*2); g.fill();
+  // brazo: sale de una tronera redonda, segmentado, con una pinza al final
+  const sx = cx + f*R*0.4, sy = cy - R*0.1;
+  if (o.brazoExt > 0.01){
+  g.save(); g.translate(sx, sy); g.scale(f, 1); g.rotate(o.brazoA);
+  const L = R*1.05*o.brazoExt, bw = R*0.3;
+  g.fillStyle = '#08090b'; g.fillRect(0, -bw/2, L, bw);
+  g.fillStyle = '#2a2f36';
+  for (let x = R*0.18; x < L - R*0.04; x += R*0.1) g.fillRect(x, -bw/2, Math.max(1, R*0.035), bw);
+  g.fillStyle = 'rgba(130,142,156,0.4)'; g.fillRect(0, -bw/2, L, Math.max(1, R*0.04));
+  g.fillStyle = '#111317'; g.fillRect(L - R*0.02, -bw*0.62, R*0.24, bw*1.24);          // muñeca
+  g.strokeStyle = '#0a0b0d'; g.lineWidth = R*0.11;                                    // pinza en D
+  g.beginPath(); g.ellipse(L + R*0.42, 0, R*0.22, R*0.24, 0, 0, Math.PI*2); g.stroke();
+  g.strokeStyle = 'rgba(120,132,146,0.45)'; g.lineWidth = Math.max(0.8, R*0.035);
+  g.beginPath(); g.ellipse(L + R*0.42, 0, R*0.27, R*0.29, 0, Math.PI*1.15, Math.PI*1.85); g.stroke();
+  g.restore();
+  }
+  g.fillStyle = '#050607'; g.beginPath(); g.arc(sx, sy, R*0.27, 0, Math.PI*2); g.fill();     // tronera
+  g.strokeStyle = '#3a4048'; g.lineWidth = Math.max(1, R*0.05); g.stroke();
+  g.fillStyle = '#14171b'; g.beginPath(); g.arc(sx, sy, R*0.17, 0, Math.PI*2); g.fill();
+  // las de delante, por encima de la panza
+  if (o.K > 0.02){ pata(-1, 2); pata(1, 2); }
 }
 
 function drawOmni(e){
   const s2 = S(e.x, e.y);
   const R = e.w*0.42;
-  sombra(s2.x, s2.y+R*0.72, R*2.0, R*0.62, 1);
-
-  // patas: se mueven al caminar, se recogen al rodar
   const rodando = e.mode === 'roll';
-  ctx.strokeStyle = '#2b2f36'; ctx.lineWidth = 5; ctx.lineCap = 'round';
-  for (let i=0;i<4;i++){
-    const base = -Math.PI*0.75 + i*(Math.PI/2.4);
-    const paso = rodando ? 0 : Math.sin(e.legT*7 + i*1.6) * 0.28;
-    const ax = s2.x + Math.cos(base)*R*0.75, ay = s2.y + Math.sin(base)*R*0.55;
-    const largo = rodando ? R*0.35 : R*0.78;
-    const bx = ax + Math.cos(base+paso)*largo, by = ay + Math.abs(Math.sin(base))*largo*0.7 + R*0.15;
-    ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
-    ctx.fillStyle='#1b1e23';
-    ctx.beginPath(); ctx.arc(bx, by, 4, 0, Math.PI*2); ctx.fill();
+  sombra(s2.x, s2.y+R*0.72, R*(rodando ? 2.0 : 3.2), R*(rodando ? 0.62 : 0.9), 1);
+  // las patas salen al empezar a caminar y se recogen justo antes de rodar
+  const sale = e.walkT > OMNI_WALK_TIME ? 1 : clamp((OMNI_WALK_TIME - e.walkT)/0.35, 0, 1);
+  const K = rodando ? 0 : Math.min(sale, e.beamPh ? 1 : clamp(e.walkT/0.3, 0, 1));
+  let bA = -0.08 + Math.sin(e.legT*2.2)*0.1, bE = K;        // al rodar, el brazo se guarda
+  if (e.brazoT > 0){                                 // lanza: el brazo se estira hacia ti
+    const p = 1 - e.brazoT/OMNI_BRAZO_T, a = e.brazoA;
+    bA = Math.atan2(Math.sin(a), Math.cos(a)*e.facing); bE = 1 + Math.sin(p*Math.PI)*0.6;
   }
-
-  // cuerpo esférico
-  ctx.fillStyle = '#0d0f12';
-  ctx.beginPath(); ctx.arc(s2.x, s2.y, R, 0, Math.PI*2); ctx.fill();
-  ctx.strokeStyle = '#33383f'; ctx.lineWidth = 3;
-  ctx.beginPath(); ctx.arc(s2.x, s2.y, R, 0, Math.PI*2); ctx.stroke();
-  // bandas que giran al rodar
-  ctx.strokeStyle = 'rgba(90,100,112,0.75)'; ctx.lineWidth = 2;
-  for (let i=0;i<3;i++){
-    const ph = e.roll + i*(Math.PI/3);
-    ctx.beginPath();
-    ctx.ellipse(s2.x, s2.y, R*0.92, R*0.92*Math.abs(Math.cos(ph)), 0, 0, Math.PI*2);
-    ctx.stroke();
-  }
-  // ojo: se mueve sobre la esfera hacia donde mira, y de él sale el rayo
+  pintaOmni(ctx, s2.x, s2.y, R, { K, legT:e.legT, roll:e.roll, rodando, f:e.facing || 1, brazoA:bA, brazoExt:bE });
+  // sensor: gira sobre la parte de arriba hacia donde mira, y de él sale el rayo
   const cargando = e.beamPh === 'aim', disparando = e.beamPh === 'fire';
-  const er = R*0.30 * (disparando ? 1.25 : cargando ? 1.1 : 1);
+  const er = R*0.26 * (disparando ? 1.2 : cargando ? 1.08 : 1);
   const oj = omniOjo(e), so = S(oj.x, oj.y);
   if (cargando || disparando){                                   // resplandor del ojo
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
@@ -5272,12 +5348,7 @@ function drawOmni(e){
     ctx.restore();
   }
   if (esInfierno()){ ojoHumanoOmni(e, so.x, so.y, er, cargando, disparando); return; }   // en el castigo, un ojo humano
-  ctx.fillStyle = disparando ? '#fff0f0' : cargando ? '#ff6a5a' : '#c81f1f';
-  ctx.beginPath(); ctx.arc(so.x, so.y, er, 0, Math.PI*2); ctx.fill();
-  ctx.fillStyle = disparando ? '#ff4b3b' : '#7a0d0d';
-  ctx.beginPath(); ctx.arc(so.x, so.y, er*0.45, 0, Math.PI*2); ctx.fill();
-  ctx.fillStyle = 'rgba(255,255,255,0.55)';                     // brillo del cristal
-  ctx.beginPath(); ctx.arc(so.x - er*0.35, so.y - er*0.35, er*0.18, 0, Math.PI*2); ctx.fill();
+  pintaSensorOmni(ctx, so.x, so.y, er, disparando ? 2 : cargando ? 1 : 0, e.facing || 1);
 }
 // Halo rojo del ojo y de la punta del rayo (se dibuja una vez y se reutiliza).
 let _omniBrillo = null;
@@ -10823,8 +10894,8 @@ const BESTIARY = [
     desc:'Mini jefe que puede presentarse en cualquier momento pasados los 6.850 puntos, y detiene la llegada de refuerzos mientras vive. Vale tanto como diez tanques. Tras derrotarlo la ciudad respira un rato antes de que vuelva a acecharte. Calcula tu posición durante 3 segundos con el cono siguiéndote, lo fija 1 segundo y suelta la llamarada. El fuego quema por igual a sus propias tropas. Si te pegas a él, la llamarada corta te alcanza siempre: esquiva de lejos y bombardéalo con objetos.' },
   { id:'plane', name:'CAZA', hp:90, dmg:'28 por misil (recto)', sprite:'plane',
     desc:'Vuela tan rápido como un taxi a toda marcha: se te viene encima, te sobrevuela y sigue de largo sin frenar. Al alejarse da media vuelta y suelta un misil recto, sin guiado, que puedes esquivar o bloquear. Es frágil y agarrable si aciertas el instante en que pasa.' },
-  { id:'omni', name:'OMNIDROIDE', hp:950, dmg:'52/s el rayo', sprite:null,
-    desc:'Esfera acorazada con cuatro patas y un único ojo rojo. Calcula dónde estás y rueda en línea recta hasta ese punto, arrollando lo que pille; al llegar se detiene y camina. Andando te arroja el mobiliario de la calle y carga un rayo desde su ojo: primero marca la línea, luego dispara y barre muy despacio, así que se esquiva moviéndose de lado. El rayo también achicharra a sus propias tropas.' },
+  { id:'omni', name:'OMNIDROIDE', hp:1600, dmg:'52/s el rayo', sprite:null,
+    desc:'Esfera acorazada negra con seis patas segmentadas, un brazo con pinza y un sensor rojo en lo alto. Calcula dónde estás y rueda en línea recta hasta ese punto, arrollando lo que pille; al llegar se detiene y camina. Andando te arroja con la pinza el mobiliario de la calle y carga un rayo desde su sensor: primero marca la línea, luego dispara y barre muy despacio, así que se esquiva moviéndose de lado. El rayo también achicharra a sus propias tropas.' },
   { id:'tripode', name:'TRÍPODE MARCIANO', hp:TRI_HP, dmg:'72 + quemadura (rayo)', sprite:null, verb:'DERRIBADOS',
     desc:'Al parecer no eres el único que quiere el planeta. Llegan de dos en dos (de tres en tres pasado el asedio) y, mientras quede uno en pie, el ejército humano no se atreve a salir. Caminan por encima de los edificios y con sus tentáculos atrapan autos, farolas y soldados para lanzártelos; si están heridos, se comen a los humanos para recuperar algo de vida. A ratos se cubren con un escudo pequeño que lo para todo hasta que se rompe a golpes (se le ven las grietas), y marcan en blanco un área del suelo donde descargan un rayo que arrasa y deja quemadura: sal de ella antes de que dispare.' },
   { id:'heroe', name:'HÉROE MÁGICO', hp:1350, dmg:'invoca, escuda y cura', sprite:'heroeF', verb:'DERROTADOS',
@@ -11084,11 +11155,13 @@ function regOjosTripode(g){
   for (const [x, y] of [[6, 44], [42, 44], [24, 46]]){ g.fillRect(x - 3, y - 2, 2.6, 3); g.fillRect(x + 0.4, y - 2, 2.6, 3); }
 }
 function regOjoOmni(g){
-  g.fillStyle = '#8a4a40'; g.beginPath(); g.ellipse(24, 24, 8, 6, 0, 0, Math.PI*2); g.fill();
-  g.fillStyle = '#efe6dc'; g.beginPath(); g.ellipse(24, 24, 6.6, 4.6, 0, 0, Math.PI*2); g.fill();
-  g.fillStyle = '#5a7a3a'; g.beginPath(); g.arc(25, 24, 2.8, 0, Math.PI*2); g.fill();
-  g.fillStyle = '#0a0606'; g.beginPath(); g.arc(25, 24, 1.4, 0, Math.PI*2); g.fill();
-  g.fillStyle = '#ffffff'; g.fillRect(24, 22.5, 1, 1);
+  // en el sitio del sensor de la miniatura
+  const { cx, cy, R } = OMNI_ICO, x = cx + R*0.1, y = cy - R*0.6;
+  g.fillStyle = '#8a4a40'; g.beginPath(); g.ellipse(x, y, 6.5, 4.8, 0, 0, Math.PI*2); g.fill();
+  g.fillStyle = '#efe6dc'; g.beginPath(); g.ellipse(x, y, 5.3, 3.7, 0, 0, Math.PI*2); g.fill();
+  g.fillStyle = '#5a7a3a'; g.beginPath(); g.arc(x + 0.8, y, 2.3, 0, Math.PI*2); g.fill();
+  g.fillStyle = '#0a0606'; g.beginPath(); g.arc(x + 0.8, y, 1.1, 0, Math.PI*2); g.fill();
+  g.fillStyle = '#ffffff'; g.fillRect(x, y - 1.3, 1, 1);
 }
 const AL = 'MUNDO ALIENÍGENA', INF = 'CASTIGO DIVINO', VD = 'VERSIÓN D · CASTIGO DIVINO';
 // Unidades que vuelven deformadas en el castigo: ficha de partida y escala.
