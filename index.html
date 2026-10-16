@@ -57,12 +57,6 @@
   .ajsec { display:flex; flex-direction:column; align-items:center; width:100%; }
   .ajsec.hidden { display:none; }
   .ajsub { margin:10px 0 4px; color:#8fd7ff; font-size:0.52rem; letter-spacing:2px; text-align:left; }
-  .ajficha { text-align:left; font-size:0.6rem; line-height:1.7; color:#b8d4c4; }
-  .ajficha .desc { margin-bottom:6px; }
-  .ajficha table { width:100%; border-collapse:collapse; font-size:0.58rem; }
-  .ajficha td { padding:4px 5px; border-top:1px solid rgba(47,122,74,0.4); vertical-align:top; line-height:1.5; }
-  .ajficha td.k { white-space:nowrap; color:#ffe27b; font-weight:900; width:1%; }
-  .ajficha td.k span { color:#ffe27b; }
   .tabbtn { padding:5px 16px; border-radius:6px; font-family:inherit; font-size:0.56rem;
             letter-spacing:2px; cursor:pointer; border:2px solid #1f5c37;
             background:rgba(10,22,14,0.8); color:#6fa382; }
@@ -1653,7 +1647,6 @@
 
     <div class="panel" style="min-width:min(340px,92vw)">
       <h3>Jugador 1 · <span id="ajHeroNom" style="color:#8fd7ff">CRÍA</span></h3>
-      <div id="ajHeroFicha" class="ajficha"></div>
       <div class="ajsub">TECLADO</div>
       <div id="keydiagram" class="keydiagram"></div>
       <div id="bindlist"></div>
@@ -10856,11 +10849,23 @@ function dirOfKey(k){
 const DEFAULT_BINDS = { up:'w', down:'s', left:'a', right:'d', grab:'e', throw:'q', pausa:'p',
                         draAle:'z', draRay:'', draCola:'c', magFue:'x', magTel:'r' };   // rayos: clic derecho (tecla opcional)
 const BIND_LABELS = { up:'Mover arriba', down:'Mover abajo', left:'Mover izquierda',
-                      right:'Mover derecha', grab:'Agarrar / Golpear', throw:'Lanzar',
-                      pausa:'Pausa (o Escape)', draAle:'Z · Aletazo (dragón) · Incinerar (máquina) · Congelar (mago)',
-                      draRay:'Rayos del dragón · Cambiar arma de la máquina (además del clic derecho)',
-                      draCola:'C · Coletazo (dragón) · Motosierras (máquina) · Escudo (mago) · Presa (viltrumita)',
-                      magFue:'Mago · Columna de fuego', magTel:'R · Teletransporte (mago) · Rugido (dragón)' };
+                      right:'Mover derecha', pausa:'Pausa (o Escape)' };
+// Lo que hace cada tecla con cada personaje. Las teclas que el personaje
+// elegido no usa no salen en Ajustes (antes cada fila listaba a todos).
+const BIND_HEROE = {
+  alien:   { grab:'Agarrar; con algo agarrado, golpear con ello', throw:'Lanzar lo que sostienes' },
+  viltrum: { grab:'Agarrar lo que tengas cerca', throw:'Lanzar lo que llevas', draCola:'Presa (mantén, apunta y suelta)' },
+  dragon:  { grab:'Mordisco', draAle:'Aletazo', draRay:'Rayos (además del clic derecho)',
+             draCola:'Coletazo (mantén, apunta y suelta)', magTel:'Rugido' },
+  maquina: { grab:'Usar el arma', throw:'Cambiar de arma', draAle:'Incinerar (mantén, apunta y suelta)',
+             draRay:'Cambiar de arma (tecla extra)', draCola:'Motosierras (mantén, apunta y suelta)' },
+  mago:    { grab:'Rayo', throw:'Lanzar lo que sostienes con la mente', draAle:'Congelar', draCola:'Escudo',
+             magFue:'Columna de fuego', magTel:'Teletransporte' } };
+function etiquetaBind(k){
+  if (BIND_LABELS[k]) return BIND_LABELS[k];
+  const h = BIND_HEROE[normHeroe(hero)] || BIND_HEROE.alien;
+  return h[k] || null;
+}
 let binds = Object.assign({}, DEFAULT_BINDS);
 
 async function loadBinds(){
@@ -10869,7 +10874,7 @@ async function loadBinds(){
 }
 function saveBinds(){ storeSet('invasion_binds', JSON.stringify(binds)); }
 
-const BIND_ORDER = ['up','left','down','right','grab','throw','pausa','draAle','draRay','draCola','magFue','magTel'];
+const BIND_ORDER = ['up','left','down','right','grab','throw','draAle','draRay','draCola','magFue','magTel','pausa'];
 
 // --- Jugador 2 (modo VS) ---
 const DEFAULT_BINDS_P2 = { p2Up:'arrowup', p2Down:'arrowdown', p2Left:'arrowleft',
@@ -10940,11 +10945,11 @@ function renderBinds(){
   sanitizeBinds();
   const el = document.getElementById('bindlist');
   if (!el) return;
-  el.innerHTML = BIND_ORDER.map(k=>{
+  el.innerHTML = BIND_ORDER.filter(k=> etiquetaBind(k)).map(k=>{
     const listening = listeningFor === k;
     const label = listening ? 'Pulsa…' : esc(prettyKey(binds[k]));
     return `<div class="bindrow">
-      <span class="bindname">${BIND_LABELS[k]}</span>
+      <span class="bindname">${esc(etiquetaBind(k))}</span>
       <button type="button" class="bindkey${listening?' listening':''}" data-bind="${k}">${label}</button>
     </div>`;
   }).join('');
@@ -10965,7 +10970,7 @@ function renderBinds(){
       </div>
       <div class="kd-lbl">Movimiento</div>`;
   }
-  try { pintaAjHeroe(); } catch(e){}                 // la ficha usa estas mismas teclas
+  try { pintaAjHeroe(); } catch(e){}                 // el nombre del personaje de las teclas
 }
 function prettyKey(k){
   if (k === ' ') return 'ESPACIO';
@@ -29693,8 +29698,8 @@ function uiEdRestablecer(){
   saveUICfg(); uiEdRender(); applyUIPositions(); sfx('ui');
 }
 
-// Ajustes: pestañas. Controles muestra la ficha del personaje elegido con las
-// teclas que tenga asignadas (se rehace al reasignarlas).
+// Ajustes: pestañas. Controles muestra solo las teclas que usa el personaje
+// elegido, con lo que hace cada una.
 function ajPestana(t){
   if (!['controles', 'pantalla', 'extras'].includes(t)) t = 'controles';
   ajPestana.actual = t;
@@ -29703,11 +29708,7 @@ function ajPestana(t){
   const ov = document.getElementById('controles'); if (ov) ov.scrollTop = 0;
 }
 function pintaAjHeroe(){
-  const box = document.getElementById('ajHeroFicha'); if (!box) return;
   const nm = document.getElementById('ajHeroNom'); if (nm) nm.textContent = heroName(hero);
-  const f = fichaHeroe(hero); if (!f) return;
-  box.innerHTML = '<div class="desc">' + f.desc + '</div><table>' + f.t.map(r => '<tr><td class="k">' + r[0] + '</td><td>' + r[1] + '</td></tr>').join('') + '</table>'
-                + '<div class="ajsub">EN MÓVIL</div><div class="desc">' + esc(f.m) + '</div>';
 }
 document.querySelectorAll('#controles .ajtab').forEach(b => b.addEventListener('click', ()=>{ ajPestana(b.dataset.ajtab); sfx('ui'); }));
 function refreshVilHelp(){
@@ -29919,7 +29920,7 @@ function abreAjustes(desdePausa){
   ajustesDesdePausa = !!desdePausa;
   listeningFor = null; renderBinds(); renderBindsP2(); refreshAudioUI(); refreshTouchUI(); refreshAnimUI(); refreshHpUI(); refreshNumUI();
   refreshVilHelp(); refreshUiSize(); refreshFullUI(); refreshSaveMode();
-  ajPestana(desdePausa ? 'pantalla' : 'controles'); pintaAjHeroe();
+  ajPestana(desdePausa ? 'pantalla' : 'controles'); pintaAjHeroe(); renderBinds();
   // en el móvil el botón va en la esquina, encima del título: ahí, corto
   const v = document.getElementById('btnCtrlBack');
   if (v) v.textContent = !desdePausa ? 'Volver' : document.body.classList.contains('movil') ? '◀ Pausa' : 'Volver a la pausa';
