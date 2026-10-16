@@ -705,7 +705,7 @@
   /* En táctil, el botón de volver sube a la esquina superior izquierda: abajo
      queda tapado por el borde del teléfono y cuesta alcanzarlo. */
   body.movil #btnShopBack,
-  body.movil #btnDexBack,
+  #btnDexBack,                         /* el registro es largo: también en PC, siempre a mano */
   body.movil #btnCtrlBack,
   body.movil #btnAchBack,
   body.movil #btnModeBack,
@@ -814,7 +814,7 @@
   #combo.hidden { display:none; }
   body.duelo #combo { top:84px; }
   /* el botón de volver nunca puede quedar fuera de la pantalla */
-  body.movil #btnShopBack, body.movil #btnDexBack,
+  body.movil #btnShopBack, #btnDexBack,
   body.movil #btnCtrlBack, body.movil #btnAchBack,
   body.movil #btnModeBack { display:block !important; }
   .combobox { display:flex; align-items:center; gap:11px; padding:7px 15px 7px 13px;
@@ -9516,18 +9516,14 @@ const BOSS_TRACKS = {
                bass:[41.20,43.65,41.20,36.71], tempo:185, name:'TRES CABEZAS', style:'kaiju',
                ost:[0,1,2,-1, 0,1,2,-1, 0,1,3,2, 1,-1,-1,-1, 0,1,2,-1, 0,1,2,-1, 4,3,2,1, 0,-1,-1,-1] },
   // El Centurión: una pieza de dollchan (bytebeat), ver bbGeneradores.
-  // El Desgarrador: monstruo gigante de película, con metales en ostinato y
-  // golpes de orquesta, más rápido y metálico que el del Kaiyin.
+  // El Desgarrador, el kaiju cíborg: stagas - mind swift (funcbeat), ver bbGeneradores.
   desgarrador: { scale:[73.42,77.78,87.31,98.00,103.83,116.54,130.81,146.83],
-               bass:[36.71,38.89,36.71,32.70], tempo:150, name:'SIERRA DE ACERO', style:'kaiju',
-               ost:[0,0,1,-1, 0,0,3,-1, 0,0,1,-1, 4,3,1,-1, 0,0,1,-1, 0,0,3,-1, 6,5,4,3, 1,-1,0,-1] },
+               tempo:250, name:'MENTE VELOZ', bb:'desgarrador', bbReinicia:true },
   centurion: { scale:[146.83,155.56,174.61,196.00,220.00,233.08,261.63,293.66],
                tempo:250, name:'ACERO ORBITAL', bb:'centurion', bbReinicia:true },
   // Refuerzos alienígenas: una pieza de dollchan (bytebeat), como el Centurión.
   refuerzos: { scale:[123.47,130.81,146.83,164.81,174.61,196.00,220.00,246.94],
                tempo:250, name:'LA FLOTA RESPONDE', bb:'refuerzos', bbReinicia:true },
-  // La Tejedora: órgano de villano sobre un bajo que baja, con un motivo que
-  // sube y baja por semitonos como patas que se acercan.
   // Desesperación: terror de persecución. Racimo de cuerdas disonante, un
   // ostinato grave en 7 que no deja respirar, latidos y chillidos.
   // Muerte Veloz: la máquina de guerra a toda prisa, con un riff que no para.
@@ -9537,9 +9533,9 @@ const BOSS_TRACKS = {
   desesperacion: { scale:[65.41,69.30,77.78,82.41,92.50,98.00,103.83,123.47],
                bass:[32.70,34.65,32.70,30.87], tempo:95, name:'NO HAY ESCAPATORIA', style:'pavor',
                ost:[0,-1,0,1, 0,-1,0, 4,-1,0,1, 0,-1,3] },
+  // La Tejedora: stagas - rooftop unvisited (funcbeat), ver bbGeneradores.
   aracnido:  { scale:[110.00,116.54,130.81,146.83,155.56,174.61,196.00,220.00],
-               bass:[55.00,51.91,49.00,46.25], tempo:165, name:'HILO DE ACERO', style:'villano',
-               mel:[0,-1,1,0, 4,-1,3,-1, 0,1,0,-1, 6,-1,-1,-1, 0,-1,1,0, 4,-1,5,-1, 7,6,5,4, 1,-1,-1,-1] }
+               tempo:250, name:'AZOTEA DESIERTA', bb:'aracnido', bbReinicia:true }
 };
 let bossTrack = null;              // el que suena ahora, si hay jefe en pie
 let previewTrack = null, previewT = 0;
@@ -9814,6 +9810,289 @@ function bbGeneradores(){
       })();
       return n => fn(n/sr, sr);
     } },
+    // La Tejedora (funcbeat): stagas - rooftop unvisited. Igual que el
+    // original; sampleRate es el del dispositivo, para que los osciladores de
+    // tabla y los filtros den el mismo tono que a 48 kHz. (Se dejan fuera las
+    // utilidades que la pieza declara pero no usa.)
+    aracnido: { sr: 0, crear(sr){
+      var sampleRate = sr;
+      var bpm = 129;
+      var tuning = 440;
+      var transpose = 11;
+      var tau = 2 * Math.PI;
+      var t, tt;
+      function sin(freq, phase){ return Math.sin((t * freq + (2 - (phase || 0) / 2)) * tau); }
+      function saw(freq){ return 1-2 * (t % (1 / freq)) * freq; }
+      function tri(freq){ return Math.abs(1 - (2 * t * freq) % 2) * 2 - 1; }
+      function Noise(){ return Math.random() * 2 - 1; }
+      function Oscillator(type, size, alias){
+        if (!(this instanceof Oscillator)) return new Oscillator(type, size, alias);
+        this.pos = 0;
+        this.size = size || sampleRate;
+        this.coeff = this.size / sampleRate;
+        this.table = new Float32Array(this.size);
+        this.alias = alias === false ? false : true;
+        this.build(type);
+      }
+      Oscillator.prototype.build = function(type){
+        switch (type) {
+          case 'sin':
+            var scale = 2 * Math.PI / this.size;
+            for (var i = 0; i < this.size; i++) this.table[i] = Math.sin(i * scale);
+            break;
+          case 'saw':
+            for (var i = 0; i < this.size; i++){ var x = (i / this.size); this.table[i] = +2.0 * (x - Math.round(x)); }
+            break;
+          case 'ramp':
+            for (var i = 0; i < this.size; i++){ var x = (i / this.size); this.table[i] = -2.0 * (x - Math.round(x)); }
+            break;
+          case 'tri':
+            for (var i = 0; i < this.size; i++){ var x = (i / this.size) - 0.25; this.table[i] = 1.0 - 4.0 * Math.abs(Math.round(x) - x); }
+            break;
+          case 'sqr':
+            var half = this.size / 2;
+            for (var i = 0; i < this.size; i++) this.table[i] = i < half ? +1 : -1;
+            break;
+        }
+      };
+      Oscillator.prototype.play = function(freq){
+        this.pos += freq * this.coeff;
+        if (this.pos >= this.size) this.pos -= this.size;
+        this.index = this.pos | 0;
+        if (!this.alias) return this.table[this.index];
+        this.alpha = this.pos - this.index;
+        this.next = this.table[this.index == this.size - 1 ? 0 : this.index + 1];
+        this.curr = this.table[this.index];
+        return this.curr + (this.next - this.curr) * this.alpha;
+      };
+      function clock(_t){ t = _t; t *= bpm / 120; tt = tau * t; }
+      function slide(measure, seq, speed){
+        var pos = (t / measure / 2) % seq.length;
+        var now = pos | 0;
+        var next = now + 1;
+        var alpha = pos - now;
+        if (next == seq.length) next = 0;
+        return seq[now] + ((seq[next] - seq[now]) * Math.pow(alpha, speed));
+      }
+      function sequence(measure, seq){ return seq[(t / measure / 2 | 0) % seq.length]; }
+      function arp(measure, x, y, z){ var ts = t / 2 % measure; return Math.sin(x * (Math.exp(-ts * y))) * Math.exp(-ts * z); }
+      function DiodeFilter(){
+        this.k = 0; this.A = 0; this.z = [0,0,0,0,0]; this.ah; this.bh; this.fc;
+        this.set_q(0); this.set_hpf(0.5); this.set_fc(.5);
+      }
+      DiodeFilter.prototype.set_hpf = function(fc){ var K = fc * Math.PI; this.ah = (K - 2) / (K + 2); this.bh = 2 / (K + 2); };
+      DiodeFilter.prototype.reset = function(){ if (this.k < 17) this.z = [0,0,0,0,0]; };
+      DiodeFilter.prototype.set_q = function(q){ this.k = 20 * q; this.A = 1 + 0.5 * this.k; };
+      DiodeFilter.prototype.set_fc = function(cutoff){ cutoff = (cutoff * cutoff); this.fc = cutoff <= 0 ? .02 : (cutoff >= 1.0 ? .999 : cutoff); };
+      DiodeFilter.prototype.run = function(x){
+        var a = Math.PI * this.fc;
+        a = 2 * Math.tan(0.5*a);
+        var ainv = 1 / a;
+        var a2 = a*a;
+        var b = 2*a + 1;
+        var b2 = b*b;
+        var c = 1 / (2*a2*a2 - 4*a2*b2 + b2*b2);
+        var g0 = 2*a2*a2*c;
+        var g = g0 * this.bh;
+        var s0 = (a2*a*this.z[0] + a2*b*this.z[1] + this.z[2]*(b2 - 2*a2)*a + this.z[3]*(b2 - 3*a2)*b) * c;
+        var s = this.bh*s0 - this.z[4];
+        var y5 = (g*x + s) / (1 + g*this.k);
+        var y0 = clip(x - this.k*y5);
+        y5 = g*y0 + s;
+        var y4 = g0*y0 + s0;
+        var y3 = (b*y4 - this.z[3]) * ainv;
+        var y2 = (b*y3 - a*y4 - this.z[2]) * ainv;
+        var y1 = (b*y2 - a*y3 - this.z[1]) * ainv;
+        this.z[0] += 4*a*(y0 - y1 + y2);
+        this.z[1] += 2*a*(y1 - 2*y2 + y3);
+        this.z[2] += 2*a*(y2 - 2*y3 + y4);
+        this.z[3] += 2*a*(y3 - 2*y4);
+        this.z[4] = this.bh*y4 + this.ah*y5;
+        return this.A*y4;
+      };
+      var sqr2 = 1.414213562;
+      function HighPass() {
+        var dlyOut2 = 0, dlyOut1 = 0;
+        var dlyIn2  = 0, dlyIn1  = 0;
+        return function (x, cutoff_freq) {
+          var c  = Math.tan((Math.PI / sampleRate) * cutoff_freq);
+          var c2 = c*c;
+          var csqr2 = sqr2 * c;
+          var d = c2 + csqr2 + 1;
+          var In0 = 1 / d;
+          var In1 = -(In0 + In0);
+          var In2 = In0;
+          var Out1 = (2 * (c2 - 1)) / d;
+          var Out2 = (1 - csqr2 + c2) / d;
+          var out = (In0 * x) + (In1 * dlyIn1) + (In2 * dlyIn2) - (Out1 * dlyOut1) - (Out2 * dlyOut2);
+          dlyOut2 = dlyOut1; dlyOut1 = out;
+          dlyIn2  = dlyIn1;  dlyIn1  = x;
+          return out;
+        };
+      }
+      function note(n, octave){ return Math.pow(2, (n + transpose - 33 + (12 * (octave || 0))) / 12) * tuning; }
+      function clip(x){ return x / (1 + Math.abs(x)); }
+      var hat_pattern = [0.1, 0.4, 0.8, 0.7];
+      var melody = [1, 1+12, 2, 2+12, 5, 4+12, 7+12, 4].map(function(n){ return note(n, 2); });
+      melody = melody.concat(melody.slice().reverse());
+      var hat_note = note(16, 6);
+      var bass_osc = Oscillator('saw', sampleRate);
+      var osc = Oscillator('sin', 14, false);
+      var hat_osc = Oscillator('ramp', 32, false);
+      var filter = new DiodeFilter();
+      filter.set_q(0.74);
+      filter.set_hpf(.0026);
+      var hp = new HighPass();
+      function dsp(t){
+        clock(t);
+        var noise = Noise();
+        var n = slide(1/4, melody, 52);
+        var synth_osc = osc.play(n / 3 + tri(34) * 8);
+        var synth = sequence(1/16, [0, 1, 1, 0,  0, 0, 1, 0]) * arp(1/16, synth_osc, 0, 0);
+        filter.set_fc(0.5 + (tri(1/4) * 0.49));
+        var b = slide(1/4, melody, 16);
+        var bass = bass_osc.play(b / 12);
+        bass = clip(bass * 7);
+        bass = filter.run(bass * 0.7);
+        bass = clip(bass * 39);
+        bass = bass * (0.8 - ((saw(2) * 0.5)));
+        var kick = arp(1/4, 46, 45, 0);
+        var hat = sequence(1/16, hat_pattern) * arp(1/16, hat_osc.play(hat_note) + noise * 1.1, 2, 200 + (saw(4) > 0 ? -120 : 0));
+        hat = hp(hat, 6500);
+        return 0.8 * (1.2 * synth + 1.5 * kick + 2.3 * hat + 0.85 * bass);
+      }
+      return n => dsp(n/sr);
+    } },
+    // El Desgarrador, el kaiju cíborg (funcbeat): stagas - mind swift. Igual
+    // que el original, con el sampleRate del dispositivo.
+    desgarrador: { sr: 0, crear(sr){
+      var sampleRate = sr;
+      var bpm = 125;
+      var tuning = 440;
+      var transpose = 11;
+      var tau = 2 * Math.PI;
+      var t, tt;
+      function Oscillator(type, size, alias){
+        if (!(this instanceof Oscillator)) return new Oscillator(type, size, alias);
+        this.pos = 0;
+        this.size = size || sampleRate;
+        this.coeff = this.size / sampleRate;
+        this.table = new Float32Array(this.size);
+        this.alias = alias === false ? false : true;
+        this.build(type);
+      }
+      Oscillator.prototype.build = function(type){
+        switch (type) {
+          case 'sin':
+            var scale = 2 * Math.PI / this.size;
+            for (var i = 0; i < this.size; i++) this.table[i] = Math.sin(i * scale);
+            break;
+          case 'saw':
+            for (var i = 0; i < this.size; i++){ var x = (i / this.size); this.table[i] = +2.0 * (x - Math.round(x)); }
+            break;
+          case 'ramp':
+            for (var i = 0; i < this.size; i++){ var x = (i / this.size); this.table[i] = -2.0 * (x - Math.round(x)); }
+            break;
+          case 'tri':
+            for (var i = 0; i < this.size; i++){ var x = (i / this.size) - 0.25; this.table[i] = 1.0 - 4.0 * Math.abs(Math.round(x) - x); }
+            break;
+          case 'sqr':
+            var half = this.size / 2;
+            for (var i = 0; i < this.size; i++) this.table[i] = i < half ? +1 : -1;
+            break;
+        }
+      };
+      Oscillator.prototype.play = function(freq){
+        this.pos += freq * this.coeff;
+        if (this.pos >= this.size) this.pos -= this.size;
+        this.index = this.pos | 0;
+        if (!this.alias) return this.table[this.index];
+        this.alpha = this.pos - this.index;
+        this.next = this.table[this.index == this.size - 1 ? 0 : this.index + 1];
+        this.curr = this.table[this.index];
+        return this.curr + (this.next - this.curr) * this.alpha;
+      };
+      function clock(_t){ t = _t; t *= bpm / 120; tt = tau * t; }
+      function slide(measure, seq, speed){
+        var pos = (t / measure / 2) % seq.length;
+        var now = pos | 0;
+        var next = now + 1;
+        var alpha = pos - now;
+        if (next == seq.length) next = 0;
+        return seq[now] + ((seq[next] - seq[now]) * Math.pow(alpha, speed));
+      }
+      function sequence(measure, seq){ return seq[(t / measure / 2 | 0) % seq.length]; }
+      function arp(measure, x, y, z){ var ts = t / 2 % measure; return Math.sin(x * (Math.exp(-ts * y))) * Math.exp(-ts * z); }
+      function saw(freq){ return 1-2 * (t % (1 / freq)) * freq; }
+      function tri(freq){ return Math.abs(1 - (2 * t * freq) % 2) * 2 - 1; }
+      function Noise(){ return Math.random() * 2 - 1; }
+      function note(n, octave){ return Math.pow(2, (n + transpose - 33 + (12 * (octave || 0))) / 12) * tuning; }
+      function clip(x){ return x / (1 + Math.abs(x)); }
+      function DiodeFilter(){
+        this.k = 0; this.A = 0; this.z = [0,0,0,0,0]; this.ah; this.bh; this.fc;
+        this.set_q(0); this.set_hpf(0.5); this.set_fc(.5);
+      }
+      DiodeFilter.prototype.set_hpf = function(fc){ var K = fc * Math.PI; this.ah = (K - 2) / (K + 2); this.bh = 2 / (K + 2); };
+      DiodeFilter.prototype.reset = function(){ if (this.k < 17) this.z = [0,0,0,0,0]; };
+      DiodeFilter.prototype.set_q = function(q){ this.k = 20 * q; this.A = 1 + 0.5 * this.k; };
+      DiodeFilter.prototype.set_fc = function(cutoff){ cutoff = (cutoff * cutoff); this.fc = cutoff <= 0 ? .02 : (cutoff >= 1.0 ? .999 : cutoff); };
+      DiodeFilter.prototype.run = function(x){
+        var a = Math.PI * this.fc;
+        a = 2 * Math.tan(0.5*a);
+        var ainv = 1 / a;
+        var a2 = a*a;
+        var b = 2*a + 1;
+        var b2 = b*b;
+        var c = 1 / (2*a2*a2 - 4*a2*b2 + b2*b2);
+        var g0 = 2*a2*a2*c;
+        var g = g0 * this.bh;
+        var s0 = (a2*a*this.z[0] + a2*b*this.z[1] + this.z[2]*(b2 - 2*a2)*a + this.z[3]*(b2 - 3*a2)*b) * c;
+        var s = this.bh*s0 - this.z[4];
+        var y5 = (g*x + s) / (1 + g*this.k);
+        var y0 = clip(x - this.k*y5);
+        y5 = g*y0 + s;
+        var y4 = g0*y0 + s0;
+        var y3 = (b*y4 - this.z[3]) * ainv;
+        var y2 = (b*y3 - a*y4 - this.z[2]) * ainv;
+        var y1 = (b*y2 - a*y3 - this.z[1]) * ainv;
+        this.z[0] += 4*a*(y0 - y1 + y2);
+        this.z[1] += 2*a*(y1 - 2*y2 + y3);
+        this.z[2] += 2*a*(y2 - 2*y3 + y4);
+        this.z[3] += 2*a*(y3 - 2*y4);
+        this.z[4] = this.bh*y4 + this.ah*y5;
+        return this.A*y4;
+      };
+      var hat_pattern = [
+        0.6, 0.3, 0.2, 0.1,  0.3, 0.1, 1.1, 0.4,
+        0.6, 0.4, 0.1, 0.1,  0.3, 0.2, 1.2, 0.4,
+      ];
+      var melody = [2, 9, 5, 8].map(function(n){ return note(n, 1); });
+      melody = melody.concat(melody.slice().reverse());
+      var hat_note = note(12, 5);
+      var bass_osc = Oscillator('saw', 512);
+      var osc = Oscillator('tri', 512);
+      var hat_osc = Oscillator('ramp', 512);
+      var filter = new DiodeFilter();
+      filter.set_q(0.78);
+      filter.set_hpf(.0011);
+      function dsp(t){
+        clock(t);
+        var noise = Noise();
+        var n = slide(1/8, melody, 12);
+        var synth_osc = osc.play(n + tri(20) * 19) + tri(n / 10000);
+        var synth = arp(1/16, synth_osc, 20, 10);
+        filter.set_fc(0.14 + (tri(1/8) * 0.08));
+        var b = slide(1/2, melody, 3);
+        var bass = bass_osc.play(b / 4);
+        bass = filter.run(bass * 0.4);
+        bass = clip(bass * 9);
+        bass = bass * (0.7 - ((saw(2) * 0.95)));
+        var kick = arp(1/4, 60, 80, 3);
+        var hat = sequence(1/16, hat_pattern) * arp(1/16, hat_osc.play(hat_note) + noise * 1.4, 18, 70);
+        return 0.8 * (0.67 * synth + kick + 0.12 * hat + 0.25 * bass);
+      }
+      return n => dsp(n/sr);
+    } },
     // Tienda y controles (funcbeat). Igual que el original, pero en vez de
     // recorrer todas las notas en cada muestra mira solo las que suenan en esa
     // octava parte de segundo (todas empiezan y acaban en múltiplos de 1/8).
@@ -9843,7 +10122,7 @@ function bbGeneradores(){
 }
 
 // Volumen de cada pieza, para que suenen como el resto de la música.
-const BB_GANANCIA = { alien:0.5, refuerzos:0.19, centurion:0.41, menu:0.31, tienda:0.18 };
+const BB_GANANCIA = { alien:0.5, refuerzos:0.19, centurion:0.41, menu:0.31, tienda:0.18, aracnido:0.1, desgarrador:0.27 };
 // Mezcla y cambio de pista. Corre en el hilo de audio (AudioWorklet); si el
 // navegador no lo tiene, en un ScriptProcessor. Las de bytebeat se calculan a
 // su frecuencia propia y se sostienen entre muestra y muestra; las de
@@ -10521,7 +10800,7 @@ const BESTIARY = [
     desc:'Una criatura de un mundo lejano que el imperio encontró y modificó genéticamente para aprovechar su velocidad innata. Cuerpo negro con rayas turquesa, casco con visor verde, cola anillada, ruedas por pies y dos sierras de plasma girando en las manos. Marca en el suelo un área y la recorre a velocidad extrema en tajos de lado a lado, rompiendo la barrera del sonido: corta todo lo que pilla, también a los suyos, y los árboles se mecen a su paso. También embiste en línea recta por la línea que marca y gira sobre sí misma hasta volverse un tornado de sierras que te persigue. Tras cada carga derrapa un momento: es cuando más fácil es alcanzarla. Por debajo de la mitad de vida acelera todavía más.' },
   { id:'aracnido', name:'LA TEJEDORA', hp:2700, dmg:'telaraña y mordiscos, salto, pisotón y láseres', sprite:'aracnidoF', verb:'DERROTADOS',
     hint:'Otro guardián del Mundo Alienígena. Aún no lo has derrotado.',
-    desc:'Araña robot gigante, guardiana del planeta marciano: ocho patas de acero, ocho ojos rojos, colmillos y un abdomen blindado con un núcleo cian. Marca en el suelo con una línea blanca por dónde lanzará su tela: si te alcanza, te atrae hacia sus colmillos y te muerde hasta que te liberes haciendo clic (o tocando la pantalla) varias veces. Un escudo, un edificio o lo que lleves agarrado paran la tela, y la que falla se queda pegada en el suelo un rato y frena a quien la pise. También salta sobre la zona que marca en rojo, pisotea todo a su alrededor si te pegas a ella y barre con los láseres de sus ojos. Por debajo de la mitad de vida enloquece y se vuelve más rápida.' },
+    desc:'Araña robot gigante, guardiana del planeta marciano: acero negro por placas con costuras y luces rojas encendidas, una cara con una columna de ojos rojos, quelíceros afilados, un abdomen en forma de domo blindado y ocho patas acorazadas con juntas rojas y garras. Marca en el suelo con una línea blanca por dónde lanzará su tela: si te alcanza, te atrae hacia sus colmillos y te muerde hasta que te liberes haciendo clic (o tocando la pantalla) varias veces. Un escudo, un edificio o lo que lleves agarrado paran la tela, y la que falla se queda pegada en el suelo un rato y frena a quien la pise. También salta sobre la zona que marca en rojo, pisotea todo a su alrededor si te pegas a ella y barre con los láseres de sus ojos. Por debajo de la mitad de vida enloquece y se vuelve más rápida.' },
   { id:'bicho', name:'BICHO GUERRERO', hp:240, dmg:'12 por mordisco', sprite:'bichoF', verb:'APLASTADOS',
     desc:'En su cruzada de la civilización por el espacio, los marcianos derrotaron a estas criaturas y las modificaron genéticamente para crear sus propios soldados, tomando como base a los bichos guerreros de élite. Caparazón negro azulado con aletas rojas, cabeza larga de fauces abiertas, dos garras alzadas acabadas en hoces rojas y cuatro patas de cuchillas dentadas. Es rápido, da buenos mordiscos y es resistente como un tanque. Llega en enjambre y a la carga; solo el COLOSO puede levantarlo.' },
   { id:'amalgama', name:'AMALGAMA DE ALMAS', hp:'420+', dmg:'autos lanzados, embestida y manotazos', sprite:'amalgamaF', verb:'DISPERSADAS',
@@ -15984,57 +16263,96 @@ function aracFrame(pose, f, roto){
   aracCache.set(k, c);
   return c;
 }
-// Mira a +x: cefalotórax delante con ocho ojos rojos, colmillos y el lanzarredes;
-// el abdomen blindado detrás con un núcleo cian; cuatro patas por lado.
+// Mira a +x: cefalotórax delante con la cara de luces rojas, quelíceros y el
+// lanzarredes; el abdomen en domo detrás; cuatro patas acorazadas por lado.
 function dibAracnido(g, pose, f, roto){
-  const ac = '#5a626e', acL = '#a0aab8', acO = '#2e343c', acD = '#181c22', roj = '#ff3a2a', rojL = '#ffc0b0', nuc = '#7ffcff';
+  // Araña de guerra: acero negro pulido por placas, costuras y luces rojas
+  // encendidas, patas acorazadas con juntas rojas y garras afiladas.
+  const K = '#0b0c10', D = '#1f2229', M = '#33363f', L = '#4d515c', HL = '#8a909c';
+  const R = '#ff2b22', R2 = '#8c120d', RW = '#ffd2c8', RG = '#ff6a55';
   const salta = pose === 'salta', pisa = pose === 'pisa', by = salta ? -98 : -86;
-  // patas de tres tramos: muslo blindado que sube, tibia que baja y garra
+  // tramo acorazado: un trapecio que se estrecha (borde negro, placa y filo claro)
+  const tramo = (x0, y0, x1, y1, w0, w1, c, filo)=>{
+    const dx = x1 - x0, dy = y1 - y0, l = Math.hypot(dx, dy) || 1, nx = -dy/l, ny = dx/l;
+    const q = (a, b, col)=>{ g.fillStyle = col; g.beginPath();
+      g.moveTo(x0 + nx*a, y0 + ny*a); g.lineTo(x1 + nx*b, y1 + ny*b); g.lineTo(x1 - nx*b, y1 - ny*b); g.lineTo(x0 - nx*a, y0 - ny*a); g.closePath(); g.fill(); };
+    q(w0/2 + 1.6, w1/2 + 1.6, K); q(w0/2, w1/2, c);
+    if (filo) jL(g, filo, 1.4, x0 + nx*w0*0.3, y0 + ny*w0*0.3, x1 + nx*w1*0.3, y1 + ny*w1*0.3);
+  };
+  const luz = (x0, y0, x1, y1, a, b)=>{                 // franja roja a lo largo de un tramo
+    const ax = x0 + (x1 - x0)*a, ay = y0 + (y1 - y0)*a, bx = x0 + (x1 - x0)*b, by2 = y0 + (y1 - y0)*b;
+    jL(g, R2, 3.2, ax, ay, bx, by2); jL(g, R, 1.8, ax, ay, bx, by2); jL(g, RW, 0.8, (ax + bx)/2, (ay + by2)/2, (ax + bx)/2 + 0.5, (ay + by2)/2);
+  };
+  const junta = (x, y, r)=>{ jO(g, K, x, y, r + 1.4, r + 1.4); jO(g, M, x, y, r, r); jO(g, R2, x + 0.5, y, r*0.55, r*0.55); jO(g, R, x + 0.5, y, r*0.35, r*0.35); };
+  // patas de tres tramos: muslo que sube, tibia que baja y garra
   const pata = (i, lejos)=>{
-    const hx = 22 - i*14 + (lejos ? -4 : 0), hy = by + 4, dir = i < 2 ? 1 : -1, R = [70, 58, 58, 72][i];
+    const hx = 22 - i*14 + (lejos ? -4 : 0), hy = by + 4, dir = i < 2 ? 1 : -1, Rr = [70, 58, 58, 72][i];
     const ph = f/4*Math.PI*2 + i*Math.PI/2 + (lejos ? Math.PI : 0);
     const lev = pose === 'anda' ? Math.max(0, Math.sin(ph))*10 : 0, av = pose === 'anda' ? Math.cos(ph)*10 : 0;
-    let kx = hx + dir*R*0.42 + av*0.4, ky = by - 40 - lev*0.5;
-    let tx2 = hx + dir*R*0.82 + av*0.8, ty2 = by - 6 - lev*0.7;
-    let fx = hx + dir*R + av + (lejos ? -6 : 0), fy = (lejos ? -5 : 0) - lev;
-    if (salta){ kx = hx + dir*R*0.4; ky = by - 22; tx2 = hx + dir*R*0.6; ty2 = by + 14; fx = hx + dir*R*0.5; fy = by + 40; }
+    let kx = hx + dir*Rr*0.42 + av*0.4, ky = by - 42 - lev*0.5;
+    let tx2 = hx + dir*Rr*0.82 + av*0.8, ty2 = by - 6 - lev*0.7;
+    let fx = hx + dir*Rr + av + (lejos ? -6 : 0), fy = (lejos ? -5 : 0) - lev;
+    if (salta){ kx = hx + dir*Rr*0.4; ky = by - 22; tx2 = hx + dir*Rr*0.6; ty2 = by + 14; fx = hx + dir*Rr*0.5; fy = by + 40; }
     if (pisa && i < 2 && !lejos){ kx = hx + 20; ky = by - 60; tx2 = hx + 48 + i*6; ty2 = by - 54 + i*6; fx = hx + 62 + i*6; fy = by - 26 + i*10; }
-    const c = lejos ? acO : ac, w = lejos ? 0.8 : 1;
-    jL(g, lejos ? acD : acO, 11*w, hx, hy, kx, ky); jL(g, c, 8.5*w, hx, hy, kx, ky);
-    jL(g, lejos ? acD : acO, 7.5*w, kx, ky, tx2, ty2); jL(g, c, 5.5*w, kx, ky, tx2, ty2);
-    jL(g, lejos ? acD : acO, 4*w, tx2, ty2, fx, fy);
-    if (!lejos){ jL(g, acL, 1.8, hx + 1, hy - 4, kx + 1, ky - 3); jL(g, acL, 1.3, kx + 1, ky + 1, tx2 + 1, ty2 - 2);
-      const mx = (hx + kx)/2, my = (hy + ky)/2; jR(g, acD, mx - 3, my - 1, 6, 2); }                 // junta del blindaje
-    jO(g, lejos ? acD : acO, kx, ky, 5.5*w, 5.5*w); jO(g, lejos ? '#7a1810' : roj, kx, ky, 2, 2);
-    jO(g, lejos ? acD : acO, tx2, ty2, 3.5*w, 3.5*w);
-    jL(g, acD, 3, fx, fy, fx + dir*3, fy + 5);
+    const w = lejos ? 0.78 : 1, c1 = lejos ? D : M, c2 = lejos ? '#17191e' : D;
+    tramo(hx, hy, kx, ky, 12*w, 9*w, c1, lejos ? null : HL);          // muslo
+    tramo(kx, ky, tx2, ty2, 10*w, 7*w, c2, lejos ? null : L);         // tibia
+    // garra: larga y afilada, un poco curvada hacia dentro
+    const gx = fx - dir*1.5, gy = fy;
+    tramo(tx2, ty2, gx, gy - 6, 5.5*w, 3*w, lejos ? '#14161a' : D, lejos ? null : M);
+    g.fillStyle = K; g.beginPath(); g.moveTo(gx - 3*w, gy - 7); g.lineTo(gx + 3*w, gy - 7); g.lineTo(gx + dir*2, gy + 2); g.closePath(); g.fill();
+    if (!lejos){ g.fillStyle = HL; g.beginPath(); g.moveTo(gx - 1, gy - 6); g.lineTo(gx + 0.6, gy - 6); g.lineTo(gx + dir*1.4, gy); g.closePath(); g.fill(); }
+    if (!lejos){ luz(hx, hy, kx, ky, 0.3, 0.72); luz(kx, ky, tx2, ty2, 0.35, 0.62); }
+    else { luz(hx, hy, kx, ky, 0.4, 0.6); }
+    junta(kx, ky, 5*w); junta(tx2, ty2, 3.6*w);
   };
   for (let i = 3; i >= 0; i--) pata(i, true);
-  // abdomen
-  jO(g, acD, -52, by - 10, 54, 35); jO(g, acO, -52, by - 12, 52, 33); jO(g, ac, -54, by - 16, 45, 26);
-  for (let k = 0; k < 4; k++){ g.strokeStyle = acO; g.lineWidth = 2; g.beginPath(); g.arc(-52 + (k - 1.5)*18, by - 14, 22, -2.2, -0.9); g.stroke(); }
-  jO(g, acL, -60, by - 27, 18, 5);
-  jO(g, acD, -54, by - 6, 13, 9); jO(g, nuc, -54, by - 6, 9, 6); jO(g, '#e8ffff', -56, by - 8, 3, 2);
-  jR(g, acD, -100, by - 10, 9, 9); jR(g, acO, -99, by - 9, 6, 3);                      // hileras traseras
+  // ---- abdomen: domo de placas con costuras rojas ----
+  const ax = -46, ay = by - 24;
+  jO(g, K, ax, ay, 59, 43); jO(g, D, ax, ay, 57, 41);
+  jO(g, M, ax - 2, ay - 5, 52, 34); jO(g, L, ax - 6, ay - 13, 40, 22); jO(g, '#5c6170', ax - 10, ay - 20, 26, 11);
+  jO(g, HL, ax - 16, ay - 28, 15, 3.6); jO(g, '#c4c9d2', ax - 20, ay - 29, 6, 1.4);
+  // las placas: anillos que siguen el domo, con su costura roja
+  for (const [k, gr] of [[0.82, 1.6], [0.6, 1.3], [0.38, 1.1]]){
+    g.strokeStyle = K; g.lineWidth = 2.6; g.beginPath(); g.ellipse(ax + 6, ay + 10, 57*k, 41*k, 0, Math.PI*1.08, Math.PI*1.95); g.stroke();
+    g.strokeStyle = R; g.lineWidth = gr; g.beginPath(); g.ellipse(ax + 6, ay + 11, 57*k, 41*k, 0, Math.PI*1.2, Math.PI*1.45); g.stroke();
+  }
+  // costuras transversales y luces a lo largo del lomo
+  for (const xx of [-28, 0, 26]){ jL(g, K, 2.2, ax + xx, ay - 38 + Math.abs(xx)*0.25, ax + xx*1.15, ay + 24); }
+  for (const [x, y] of [[-34, -14], [-6, -30], [22, -18], [-40, 10], [30, 8]]){ jR(g, R2, ax + x - 2, ay + y - 1.5, 5, 3.5); jR(g, R, ax + x - 1.5, ay + y - 1, 4, 2.5); jR(g, RW, ax + x - 0.5, ay + y - 0.5, 1.4, 1); }
+  // el vientre: oscuro, con el núcleo rojo
+  jO(g, K, ax + 8, ay + 30, 30, 11); jO(g, D, ax + 8, ay + 29, 27, 9);
+  jO(g, R2, ax + 8, ay + 30, 12, 5); jO(g, R, ax + 8, ay + 30, 8, 3.2); jO(g, RW, ax + 6, ay + 29.5, 3, 1.2);
+  jR(g, K, ax - 58, ay + 2, 10, 12); jR(g, M, ax - 57, ay + 3, 6, 4); jR(g, R, ax - 56, ay + 9, 3, 2);     // hileras traseras
   if (roto){
-    jO(g, '#0c0e12', -38, by - 20, 7, 5); jO(g, '#0c0e12', -68, by - 4, 6, 4);
-    jL(g, '#ff8a2a', 1.4, -40, by - 20, -32, by - 12); jL(g, '#7fe8ff', 1.2, -68, by - 4, -74, by + 4);
+    g.fillStyle = K; g.beginPath(); g.moveTo(ax - 30, ay - 22); g.lineTo(ax - 12, ay - 30); g.lineTo(ax - 6, ay - 12); g.lineTo(ax - 22, ay - 4); g.closePath(); g.fill();
+    jO(g, R2, ax - 18, ay - 17, 7, 5); jO(g, RG, ax - 18, ay - 17, 4, 2.6);
+    jL(g, K, 1.4, ax + 14, ay - 26, ax + 24, ay - 10); jL(g, K, 1.2, ax + 24, ay - 10, ax + 18, ay + 2);
+    jR(g, '#ffd27a', ax - 10, ay - 26, 1.6, 1.6); jR(g, '#ffd27a', ax + 22, ay - 12, 1.6, 1.6);
   }
-  jR(g, acO, -8, by - 9, 16, 13);                                                    // cintura
-  // cefalotórax
-  jO(g, acD, 26, by - 4, 34, 23); jO(g, acO, 26, by - 6, 32, 21); jO(g, ac, 24, by - 10, 27, 15); jO(g, acL, 20, by - 20, 15, 4);
-  jR(g, acO, 8, by - 22, 2, 14); jR(g, acO, 30, by - 24, 2, 10);                                     // placas
-  if (roto){ jO(g, '#0c0e12', 12, by - 8, 5, 4); jL(g, '#ff8a2a', 1.2, 12, by - 8, 6, by - 2); }
-  for (const [x, y, r] of [[44, -14, 4], [37, -18, 3.4], [49, -7, 3.2], [51, -16, 2.6], [33, -12, 2.4], [42, -5, 2.4], [46, -22, 2], [55, -10, 2]]){
-    jO(g, '#300808', x, by + y, r + 0.9, r + 0.9); jO(g, roj, x, by + y, r, r); jO(g, rojL, x - r*0.3, by + y - r*0.3, r*0.35, r*0.35);
-  }
-  const abre = pose === 'muerde' ? (f % 2 ? 7 : 2) : 2;
-  for (const s of [-1, 1]){                                                         // colmillos
-    g.fillStyle = s < 0 ? acO : acL;
-    g.beginPath(); g.moveTo(46, by + 4 + s*abre*0.3); g.quadraticCurveTo(62, by + 10 + s*abre, 54, by + 22 + s*abre*0.6); g.lineTo(52, by + 10); g.closePath(); g.fill();
-  }
-  jR(g, acD, 48, by + 1, 11, 6); jO(g, pose === 'teje' ? '#ffffff' : '#c8d4e0', 60, by + 4, 2.6, 2.6);   // lanzarredes
   for (let i = 3; i >= 0; i--) pata(i, false);
+  // la cabeza, por delante de las patas: que se le vea la cara
+  // cintura
+  tramo(-6, by - 10, 10, by - 8, 14, 12, D, L);
+  // ---- cefalotórax acorazado con la cara de luces rojas ----
+  jO(g, K, 25, by - 5, 33, 22); jO(g, D, 25, by - 6, 31, 20); jO(g, M, 22, by - 10, 26, 14); jO(g, L, 18, by - 17, 16, 6); jO(g, HL, 13, by - 20, 7, 1.6);
+  jL(g, K, 1.6, 4, by - 22, 9, by + 8); jL(g, K, 1.6, 30, by - 25, 34, by + 8);
+  jR(g, R2, 14, by - 3, 6, 3); jR(g, R, 14.5, by - 2.5, 4.5, 2);                                       // luz del costado
+  // la cara: placa angulosa al frente, con tres luces en columna y dos ojos a cada lado
+  g.fillStyle = K; g.beginPath(); g.moveTo(38, by - 21); g.lineTo(55, by - 14); g.lineTo(59, by + 2); g.lineTo(46, by + 11); g.lineTo(37, by - 3); g.closePath(); g.fill();
+  g.fillStyle = D; g.beginPath(); g.moveTo(40, by - 18); g.lineTo(53, by - 12); g.lineTo(56, by + 1); g.lineTo(46, by + 8); g.lineTo(39, by - 3); g.closePath(); g.fill();
+  jL(g, L, 1.2, 41, by - 17, 52, by - 12);
+  for (let j = 0; j < 3; j++){ jR(g, R2, 47, by - 13 + j*6, 5, 4.5); jR(g, R, 47.6, by - 12.4 + j*6, 3.8, 3.3); jR(g, RW, 48.2, by - 12 + j*6, 1.4, 1.2); }
+  for (const [x, y] of [[41, -9], [42, -1], [54, -6]]){ jR(g, R2, x - 1, y + by - 1, 3.4, 3); jR(g, R, x - 0.5, y + by - 0.5, 2.4, 2); }
+  if (roto){ jL(g, K, 1.4, 10, by - 18, 20, by - 4); jR(g, RG, 15, by - 12, 2, 2); }
+  // quelíceros: garfios negros con un filo rojo
+  const abre = pose === 'muerde' ? (f % 2 ? 7 : 2) : 2;
+  for (const sg of [-1, 1]){
+    g.fillStyle = sg < 0 ? K : D;
+    g.beginPath(); g.moveTo(46, by + 5 + sg*abre*0.3); g.quadraticCurveTo(63, by + 11 + sg*abre, 55, by + 24 + sg*abre*0.6); g.lineTo(52, by + 11); g.closePath(); g.fill();
+    if (sg > 0) jL(g, R, 1, 54, by + 12 + abre*0.5, 57, by + 18 + abre*0.6);
+  }
+  jR(g, K, 48, by + 1, 11, 6); jO(g, pose === 'teje' ? '#ffffff' : RG, 60, by + 4, 2.6, 2.6);         // lanzarredes
 }
 function aracBoca(e){ return { x: e.x + (e.facing || 1)*62, y: e.y - alturaVisible(e) - 82 }; }
 function aracOjos(e){ return { x: e.x + (e.facing || 1)*46, y: e.y - alturaVisible(e) - 98 }; }
