@@ -527,6 +527,58 @@
     .charcol { position:static; margin:16px auto 0; align-items:center; }
     .charbar { justify-content:center; }
   }
+  /* ---- El menú cabe entero en la pantalla, sin desplazarse ----
+     En vertical (móvil) el holograma sube junto al logo; en apaisado con
+     poco alto, todo se reparte en columnas. Si aun así no cabe, ajustaMenu()
+     lo encoge lo justo (desde arriba y al centro) y nunca hay scroll. */
+  #menu.overlay { overflow:hidden; }
+  #menu > .overlay-inner { transform-origin:0 0; }
+  @media (orientation: portrait) and (max-width: 640px){
+    #menu > .overlay-inner { display:grid; grid-template-columns:1fr auto; column-gap:8px; row-gap:4px;
+      grid-template-areas:"logo full" "logo holo" "sub holo" "panel panel" "inv inv" "row row" "coin coin";
+      align-items:center; justify-items:center; padding:14px 12px calc(14px + env(safe-area-inset-bottom,0px)); }
+    #menu #gamelogo { grid-area:logo; width:min(200px, 46vw); margin:0; }
+    #menu #menuLema { grid-area:sub; margin:4px 0 8px; font-size:0.56rem; letter-spacing:2px; line-height:1.5; }
+    #menu .panel { grid-area:panel; width:100%; margin:0 0 10px; padding:10px 12px; min-width:0; }
+    #menu #btnInvadir { grid-area:inv; }
+    #menu .menu-row { grid-area:row; flex-wrap:nowrap; gap:5px; margin-top:6px; }
+    #menu .menu-row .imgbtn { width:22vw; height:14vw; }
+    #menu .coinbar { grid-area:coin; margin-top:8px; }
+    #menu .charcol { grid-area:holo; margin:0; align-self:center; }
+    #menu .tutbtn { max-width:150px; white-space:normal; padding:6px 8px; letter-spacing:1px; }
+    #menu .holo { width:150px; }
+    #menu #holoCv { width:130px; height:121px; }
+    #menu .btnfull { justify-self:end; }
+  }
+  /* en las cuadrículas, pantalla completa ocupa su propio hueco: fija en la
+     esquina tapaba el botón del tutorial */
+  @media (orientation: portrait) and (max-width: 640px), (orientation: landscape) and (max-height: 640px){
+    #menu .btnfull { position:static; grid-area:full; margin:0 0 4px; }
+  }
+  @media (orientation: landscape) and (max-height: 640px){
+    #menu > .overlay-inner { display:grid; width:max-content; max-width:none; column-gap:16px; row-gap:4px;
+      grid-template-columns:auto auto auto auto; grid-template-rows:auto auto auto 1fr;
+      grid-template-areas:"full panel inv holo" "logo panel inv holo" "sub panel row holo" "sub panel coin holo";
+      align-items:center; justify-items:center; padding:10px 14px calc(10px + env(safe-area-inset-bottom,0px)); }
+    #menu #gamelogo { grid-area:logo; width:min(200px, 20vw, 42vh); margin:0; align-self:end; }
+    #menu #menuLema { grid-area:sub; margin:6px 0 0; font-size:0.5rem; letter-spacing:2px; line-height:1.5;
+                      max-width:min(210px, 22vw); align-self:start; }
+    #menu .panel { grid-area:panel; margin:0; padding:10px 14px; }
+    #menu #btnInvadir { grid-area:inv; width:min(240px, 26vw); height:min(97px, 10.5vw); align-self:end; }
+    #menu .menu-row { grid-area:row; display:grid; grid-template-columns:auto auto; gap:4px; margin-top:4px; }
+    #menu .menu-row .imgbtn { width:min(118px, 12.5vw); height:min(76px, 8vw); }
+    #menu .coinbar { grid-area:coin; margin-top:6px; align-self:start; }
+    #menu .charcol { grid-area:holo; margin:0; }
+    #menu .btnfull { justify-self:start; }
+  }
+  /* apaisado no tan alargado: el holograma baja bajo el logo (tres columnas) */
+  @media (orientation: landscape) and (max-height: 640px) and (max-aspect-ratio: 21/10){
+    #menu > .overlay-inner { grid-template-columns:auto auto auto;
+      grid-template-areas:"logo panel full" "logo panel inv" "sub panel row" "holo panel coin"; }
+    #menu .btnfull { justify-self:end; }
+    #menu #gamelogo { width:min(170px, 20vw, 30vh); }
+    #menu .charcol { margin-top:6px; align-self:start; }
+  }
   .tutbtn { cursor:pointer; border-radius:10px; padding:7px 11px; font-family:inherit; font-size:0.56rem; letter-spacing:2px;
             background:linear-gradient(180deg, rgba(40,90,40,0.92), rgba(12,40,18,0.92)); border:2px solid #7bffa0; color:#e8ffe8;
             box-shadow:0 0 12px rgba(123,255,160,0.25); }
@@ -816,6 +868,14 @@
   #bootfill { height:100%; width:0%; border-radius:5px;
               background:linear-gradient(90deg,#2f7d4f,#7bffa0); transition:width .2s ease; }
   #boottext { margin-top:10px; font-size:0.5rem; letter-spacing:1.5px; color:#9fb3a8; }
+  /* al terminar la carga: TOCA PARA INICIAR, parpadeando como en los recreativos */
+  #booting.toca { cursor:pointer; }
+  #booting.toca #bootbar { visibility:hidden; }
+  #booting.toca #boottext { margin-top:-4px; font-size:clamp(0.82rem, 3.8vw, 1.2rem); letter-spacing:3px; font-weight:900;
+                            color:#7bffa0; text-shadow:0 0 10px #23ff6b, 0 0 26px rgba(35,255,107,0.45), 2px 2px 0 #052b12;
+                            white-space:nowrap; animation:tocaParpadeo 1.15s ease-in-out infinite; }
+  @keyframes tocaParpadeo { 0%,100% { opacity:1; } 50% { opacity:0.28; } }
+  @media (prefers-reduced-motion: reduce){ #booting.toca #boottext { animation:none; } }
   /* En horizontal hay menos alto: los mandos suben y encogen un poco */
   /* En apaisado los mandos se pegan abajo; en vertical suben sobre el pulgar */
   @media (orientation: landscape){
@@ -958,6 +1018,36 @@
   /* Los botones táctiles dependen del tipo de entrada REAL, no del ancho de
      ventana: una ventana de escritorio pequeña (o un .exe) no es un móvil. */
   body.touch-ui #actionBtns.playing { display:flex; }
+  /* ---- Efecto CRT retro en los mandos táctiles ----
+     Cada botón parece una pantallita de tubo: líneas de barrido, cristal
+     curvo con reflejo, el texto con el halo rojo/cian de un fósforo mal
+     convergido, una franja de luz que baja sin parar y un parpadeo de vez en
+     cuando. Todo va en capas encima (sin recortar el botón, que las pistas
+     largas asoman del círculo como antes). */
+  body.touch-ui .actbtn, body.movil .actbtn, body.touch-ui .p2btn, body.movil .p2btn { position:relative; isolation:isolate; }
+  body.touch-ui .actbtn::before, body.movil .actbtn::before, body.touch-ui .p2btn::before, body.movil .p2btn::before {
+    content:''; position:absolute; inset:0; border-radius:inherit; pointer-events:none; z-index:2;
+    background:
+      radial-gradient(ellipse 120% 95% at 30% 20%, rgba(255,255,255,0.24), rgba(255,255,255,0) 42%),
+      radial-gradient(ellipse at 50% 50%, rgba(0,0,0,0) 56%, rgba(0,0,0,0.46) 100%),
+      repeating-linear-gradient(180deg, rgba(0,0,0,0.32) 0 1px, rgba(0,0,0,0) 1px 3px);
+    box-shadow:inset 0 0 0 1px rgba(0,0,0,0.35), inset 0 0 12px rgba(0,0,0,0.5);
+    animation:crtParpadeo 5.3s steps(1) infinite; }
+  body.touch-ui .actbtn::after, body.movil .actbtn::after, body.touch-ui .p2btn::after, body.movil .p2btn::after {
+    content:''; position:absolute; inset:0; border-radius:inherit; pointer-events:none; z-index:3;
+    background:linear-gradient(180deg, rgba(220,255,235,0), rgba(220,255,235,0.17) 50%, rgba(220,255,235,0)) no-repeat;
+    background-size:100% 38%; background-position:0 -70%; animation:crtBarrido 3.4s linear infinite; }
+  body.touch-ui .actbtn .actlabel, body.movil .actbtn .actlabel, body.touch-ui .actbtn .acthint, body.movil .actbtn .acthint,
+  body.touch-ui .p2btn, body.movil .p2btn {
+    text-shadow:-1px 0 rgba(255,40,90,0.7), 1px 0 rgba(40,220,255,0.7), 0 0 6px rgba(255,255,255,0.35); }
+  body.touch-ui .acticon svg, body.movil .acticon svg {
+    filter:drop-shadow(-1px 0 rgba(255,40,90,0.65)) drop-shadow(1px 0 rgba(40,220,255,0.65)) drop-shadow(0 1px 1px rgba(0,0,0,0.5)); }
+  @keyframes crtBarrido { 0% { background-position:0 -70%; } 100% { background-position:0 170%; } }
+  @keyframes crtParpadeo { 0%, 93%, 100% { opacity:1; } 94% { opacity:0.5; } 95% { opacity:1; } 96.5% { opacity:0.68; } 97.5% { opacity:1; } }
+  @media (prefers-reduced-motion: reduce){
+    body.touch-ui .actbtn::before, body.movil .actbtn::before, body.touch-ui .p2btn::before, body.movil .p2btn::before,
+    body.touch-ui .actbtn::after, body.movil .actbtn::after, body.touch-ui .p2btn::after, body.movil .p2btn::after { animation:none; }
+  }
   @media (max-width:820px) { .howto { font-size:0.66rem; } }
 </style>
 </head>
@@ -4655,7 +4745,7 @@ function resetGame(){
   refz = null; refzRed = null; tela = null; electroT = 0; gravT = 0;
   clima = 'sol'; nubeK = 0; lluviaK = 0; climaMostrado = null;
   auraTxts.length = 0;
-  buffT = 0; buffTipo = null; ovniCd = rand(50, 90); rayosOn = false;
+  buffT = 0; buffTipo = null; ovniCd = rand(50, 90); rayosOn = false; sueltaChoque();
   for (let __i78 = 0, __a78 = buildings; __i78 < __a78.length; __i78++){ const b = __a78[__i78]; b.stage=0; b.hp=b.maxhp; b.hitFlash=0; b.downAt=undefined; b._aguj = null; b._agCv = null; b._agBase = null; b._pisX = undefined; }
   vilPaso.edif = null; vilPasoCompa.edif = null; vilPasoCompa.ok = false;
   for (const k in regenSeen) regenSeen[k] = {};
@@ -4960,6 +5050,7 @@ function omniOjo(e){
 }
 // El rayo no distingue bando.
 function beamHit(e, dmg){
+  if (choque.on && choque.e === e) return;              // trabado en un choque: no pasa de ahí
   const o = omniOjo(e), ox = o.x, oy = o.y, ang = e.beamA, ca = Math.cos(ang), sa = Math.sin(ang);
   let dmin = 1e9;                                        // lo primero que toca el haz
   const toca = (x, y)=>{ const d = (x - ox)*ca + (y - oy)*sa; if (d > 0 && d < dmin) dmin = d; };
@@ -5170,7 +5261,7 @@ function omniBrillo(){
 function drawOmniBeam(e){
   if (!e.beamPh) return;
   const oj = omniOjo(e), s2 = S(oj.x, oj.y);
-  const a = e.beamA, L = OMNI_BEAM_LEN;
+  const a = e.beamA, L = choque.on && choque.e === e ? Math.hypot(choque.px - oj.x, choque.py - oj.y) : OMNI_BEAM_LEN;
   const ex = s2.x + Math.cos(a)*L, ey = s2.y + Math.sin(a)*L;
   if (e.beamPh === 'aim'){
     ctx.save();
@@ -6597,40 +6688,44 @@ function updateRayosOjos(dt){
   // ojos están encendidos y se apunta con el joystick derecho, el mismo que
   // ya coloca lo que llevas agarrado.
   if (tactil() && isVil() && buffActivo('rayos') && !heldObject) rayosOn = true;
-  if (!rayosOn || !isVil() || !buffActivo('rayos')){ rayosOn = false; ojosVil.on = false; ojosVil.d = 1e9; return; }
-  const o = vilCabeza(), ox = o.x, oy = o.y, a = vilRayoAng(o), ca = Math.cos(a), sa = Math.sin(a);
+  if (!rayosOn || !isVil() || !buffActivo('rayos')){ rayosOn = false; ojosVil.on = false; ojosVil.d = 1e9; choque.on = false; choque.e = null; choque.r = null; return; }
+  const o = vilCabeza(), ox = o.x, oy = o.y;
   if (!ojosVil.on){ ojosVil.on = true; sfxEn('laserOjos', ox, oy); }      // se encienden
+  // en un choque de rayos el haz va derecho al que dispara y acaba en el choque
+  const ch = updateChoqueRayos(dt, o);
+  const a = ch ? choque.a : vilRayoAng(o), ca = Math.cos(a), sa = Math.sin(a);
+  const largo = ch ? choque.dv : RAYO_LARGO;
   let dmin = 1e9;                                       // lo primero que alcanza el haz
   const toca = (x, y)=>{ const d = (x - ox)*ca + (y - oy)*sa; if (d > 0 && d < dmin) dmin = d; };
   for (const pool of [civilians, enemies]){
     for (let __i279 = 0, __a279 = pool; __i279 < __a279.length; __i279++){ const t = __a279[__i279];
-      if (t.dead || t.held) continue;
-      if (!rayoToca(t, ox, oy, a, RAYO_LARGO, RAYO_ANCHO)) continue;
+      if (t.dead || t.held || (ch && t === choque.e)) continue;
+      if (!rayoToca(t, ox, oy, a, largo, RAYO_ANCHO)) continue;
       porJugador(()=> damageEnemy(t, RAYO_DPS*dt, t.x, t.y - alturaVisible(t)));
       toca(t.x, t.y - alturaVisible(t));
     }
   }
   for (let __i104 = 0, __a104 = cars; __i104 < __a104.length; __i104++){ const c = __a104[__i104];
     if (c.dead || c.held) continue;
-    if (!enLinea(c.x, c.y, ox, oy, a, RAYO_LARGO, RAYO_ANCHO)) continue;
+    if (!enLinea(c.x, c.y, ox, oy, a, largo, RAYO_ANCHO)) continue;
     c.hp -= RAYO_DPS*dt; toca(c.x, c.y);
     if (c.hp <= 0) porJugador(()=> autoAbatido(c));
   }
   for (let __i105 = 0, __a105 = buildings; __i105 < __a105.length; __i105++){ const b = __a105[__i105];
     if (b.stage >= 2) continue;
-    const cx = clamp(ox + ca*RAYO_LARGO*0.5, b.x, b.x+b.w);
-    const cy = clamp(oy + sa*RAYO_LARGO*0.5, b.y, b.y+b.h);
-    if (enLinea(cx, cy, ox, oy, a, RAYO_LARGO, RAYO_ANCHO)){
+    const cx = clamp(ox + ca*largo*0.5, b.x, b.x+b.w);
+    const cy = clamp(oy + sa*largo*0.5, b.y, b.y+b.h);
+    if (enLinea(cx, cy, ox, oy, a, largo, RAYO_ANCHO)){
       porJugador(()=> damageBuilding(b, RAYO_DPS*0.7*dt));
       // por dónde entra el haz en el edificio (o donde nace, si está dentro)
       const tx = ca > 0 ? (b.x - ox)/ca : ca < 0 ? (b.x + b.w - ox)/ca : 0, ty = sa > 0 ? (b.y - oy)/sa : sa < 0 ? (b.y + b.h - oy)/sa : 0;
       toca(ox + ca*Math.max(4, tx, ty), oy + sa*Math.max(4, tx, ty));
     }
   }
-  ojosVil.d = dmin;
-  laserChoca(ojosVil, ox, oy, ca, sa, dmin, '#ff8a4a');
+  ojosVil.d = ch ? Math.min(dmin, largo) : dmin;
+  laserChoca(ojosVil, ox, oy, ca, sa, ojosVil.d, ch ? choque.col : '#ff8a4a');
   if (Math.random() < 0.6){
-    const d = rand(30, RAYO_LARGO*0.7);
+    const d = rand(30, largo*0.7);
     addParticles(ox + Math.cos(a)*d, oy + Math.sin(a)*d, '#ff4a3a', 1, 90);
   }
 }
@@ -6640,17 +6735,19 @@ function drawRayosOjos(){
   // Mandando al ejército, el viltrumita es el otro jugador: sus rayos se ven
   // o no según Ajustes. Los tuyos siempre, que hacen falta para apuntar.
   if (esVisorVs() && !verRayosOtro) return;
-  const o = vilCabeza(), a = vilRayoAng(o), ca = Math.cos(a), sa = Math.sin(a);
-  const s2 = S(o.x, o.y);
+  const ch = !_apCompa && choque.on;
+  const o = vilCabeza(), a = ch ? choque.a : vilRayoAng(o), ca = Math.cos(a), sa = Math.sin(a);
+  const s2 = S(o.x, o.y), largo = ch ? choque.dv : RAYO_LARGO;
   bucleLaser(_apCompa ? 'vilCompa' : 'vil', o.x, o.y, false);   // zumbido mientras están encendidos
   ctx.lineCap = 'round';
-  ctx.globalAlpha = 0.13; ctx.strokeStyle = '#ff5a3a'; ctx.lineWidth = 16;
-  ctx.beginPath(); ctx.moveTo(s2.x, s2.y); ctx.lineTo(s2.x + ca*RAYO_LARGO, s2.y + sa*RAYO_LARGO); ctx.stroke();
-  // un haz desde cada ojo, que se abre un poco a lo lejos
-  const ojos = vilOjos();
+  ctx.globalAlpha = ch ? 0.22 : 0.13; ctx.strokeStyle = '#ff5a3a'; ctx.lineWidth = ch ? 22 : 16;
+  ctx.beginPath(); ctx.moveTo(s2.x, s2.y); ctx.lineTo(s2.x + ca*largo, s2.y + sa*largo); ctx.stroke();
+  // un haz desde cada ojo, que se abre un poco a lo lejos (en un choque, los
+  // dos se juntan en el punto del choque)
+  const ojos = vilOjos(), pc = ch ? S(choque.px, choque.py) : null;
   for (let i = 0; i < 2; i++){
     const e = S(ojos[i].x, ojos[i].y), lado = i ? -1 : 1, ab = 6*lado;
-    const fx = e.x + ca*RAYO_LARGO - sa*ab, fy = e.y + sa*RAYO_LARGO + ca*ab;
+    const fx = ch ? pc.x : e.x + ca*RAYO_LARGO - sa*ab, fy = ch ? pc.y : e.y + sa*RAYO_LARGO + ca*ab;
     ctx.globalAlpha = 0.85; ctx.strokeStyle = '#ff2b1e'; ctx.lineWidth = 3.6;
     ctx.beginPath(); ctx.moveTo(e.x, e.y); ctx.lineTo(fx, fy); ctx.stroke();
     ctx.globalAlpha = 0.95; ctx.strokeStyle = '#ffd9c8'; ctx.lineWidth = 1.3;
@@ -6661,6 +6758,7 @@ function drawRayosOjos(){
     ctx.globalAlpha = 1; ctx.fillStyle = '#fff4ec'; ctx.beginPath(); ctx.arc(e.x, e.y, 1.6, 0, Math.PI*2); ctx.fill();
     ctx.globalCompositeOperation = 'source-over';
   }
+  if (ch){ drawChoqueRayos(); ctx.globalAlpha = 1; return; }
   // fogonazo donde el haz da con algo
   if (!_apCompa && ojosVil.d < RAYO_LARGO){
     const hx = s2.x + Math.cos(a)*ojosVil.d, hy = s2.y + Math.sin(a)*ojosVil.d, r = 9 + Math.random()*4;
@@ -6670,6 +6768,170 @@ function drawRayosOjos(){
     ctx.globalCompositeOperation = 'source-over';
   }
   ctx.globalAlpha = 1;
+}
+
+// ============ CHOQUE DE RAYOS ============
+// Si los rayos de los ojos van de frente contra el rayo de un enemigo (el ojo
+// del Omnidroide, las tres bocas del Kaiyin, el Desgarrador, el Centurión, el
+// Cabezón o un MBT-MB92), los dos haces chocan: se frenan en un punto que
+// tiembla entre ambos y el viltrumita gana terreno hasta llegar al que
+// dispara, que se lleva el golpe y pierde su rayo. Mientras dura, el rayo
+// enemigo no te alcanza y no se apaga (se le congela el reloj del ataque).
+const CHOQUE_VEL    = 125;       // px/s que gana el viltrumita, antes de la fuerza del rival
+const CHOQUE_APUNTA = 0.42;      // rad: hay que apuntar al que dispara para trabarlo
+const CHOQUE_SUELTA = 0.8;       // rad: apuntando más lejos, se suelta
+const CHOQUE_VIENE  = 0.6;       // rad: su rayo tiene que venir hacia ti
+const CHOQUE_DANO   = 130;       // golpe al llegar (más un 6% de su vida máxima)
+const choque = { on:false, e:null, r:null, s:0.5, t:0, px:0, py:0, a:0, dv:0, col:'#ff6a4a', f:1 };
+const choqueCd = new WeakMap();  // a quién se acaba de ganar un choque: un respiro
+// Fuerza y color de cada rayo (cuanto menos fuerza, más rápido gana el viltrumita).
+const CHOQUE_RIVAL = { omni:[0.9, '#ff4a3a'], kaiyin:[0.55, '#fff3a0'], desgarrador:[0.7, '#ff6a4a'],
+                       hielo:[0.8, '#b8ecff'], corte:[0.75, '#ff7a5a'], cabezon:[1.6, '#9aff7a'],
+                       mbt:[1.3, '#ffe9b8'], mbtFrio:[1.3, '#cdf3ff'] };
+function difAngAbs(a){ return Math.abs(Math.atan2(Math.sin(a), Math.cos(a))); }
+// El rayo que está disparando ese enemigo: de dónde sale, hacia dónde va y
+// cuánto alcanza ahora mismo (o null si no dispara uno que pueda chocar).
+function rayoEnemigo(e){
+  if (e.dead || e.held || e.thrown) return null;
+  const R = (o, ex, ey, largo, k)=>{
+    if (ex === undefined) return { x:o.x, y:o.y, a:largo, L:9e9, k };
+    return { x:o.x, y:o.y, a:Math.atan2(ey - o.y, ex - o.x), L:Math.hypot(ex - o.x, ey - o.y), k };
+  };
+  switch (e.type){
+    case 'omni':        if (e.beamPh === 'fire') return R(omniOjo(e), undefined, 0, e.beamA, 'omni'); break;
+    case 'kaiyin':      if (e.fase === 'rayos' && e.rayOn){ const o = kaiBoca(e, 1); return R(o, e.r1x, e.r1y, Math.atan2(e.rty - o.y, e.rtx - o.x), 'kaiyin'); } break;
+    case 'desgarrador': if (e.fase === 'rayo') return R(desOjo(e), e.rx, e.ry, e.rA, 'desgarrador'); break;
+    case 'centurion':   if (e.fase === 'hielo') return R(centCanon(e), e.hx2, e.hy2, e.hA, 'hielo');
+                        if (e.fase === 'corte') return R(centBoca(e), e.cx2, e.cy2, e.cA, 'corte'); break;
+    case 'cabezon':     if (e.fase === 'dispara' && choque.e === e) return R(bocaCabezon(e), undefined, 0, e.rA, 'cabezon'); break;
+    case 'mbt': case 'mbtFrio':
+      if (choque.e === e && choque.r && choque.r.t > 0) return R(choque.r, undefined, 0, choque.r.ang, e.type); break;
+  }
+  return null;
+}
+// ¿Van de frente el haz de los ojos y este? Se apunta al que dispara, su rayo
+// viene hacia ti y, entre los dos, cubren la distancia que os separa.
+function choqueFrente(o, r, lenV){
+  const dx = r.x - o.x, dy = r.y - o.y, D = Math.hypot(dx, dy);
+  if (D < 50 || D > RAYO_LARGO + 40) return 0;
+  const aE = Math.atan2(dy, dx);
+  if (difAngAbs(vilRayoAng(o) - aE) > CHOQUE_APUNTA) return 0;
+  if (difAngAbs(r.a - aE - Math.PI) > CHOQUE_VIENE) return 0;
+  if (Math.min(r.L, D) + lenV < D*0.9) return 0;           // algo en medio corta uno de los dos
+  return D;
+}
+function empiezaChoque(e, r){
+  const rv = CHOQUE_RIVAL[r.k] || [1, '#ff6a4a'];
+  choque.on = true; choque.e = e; choque.s = 0.5; choque.t = 0;
+  choque.f = rv[0]*(e.deforme ? 0.85 : 1); choque.col = rv[1];
+  shake(10, 0.3); sfxEn('boomD', r.x, r.y, 0.6);
+}
+// Para los rayos que hacen su daño de golpe al disparar (Cabezón, MBT): se
+// comprueba antes del disparo; si va contra los ojos, empieza el choque y el
+// disparo no llega a tocarte.
+function choqueAlDisparar(e, ox, oy, ang){
+  if (!ojosVil.on || choque.on || !puedeChocar() || (choqueCd.get(e) || 0) > gameTime) return false;
+  const o = vilCabeza();
+  if (!choqueFrente(o, { x:ox, y:oy, a:ang, L:9e9 }, Math.min(ojosVil.d, RAYO_LARGO))) return false;
+  empiezaChoque(e, { x:ox, y:oy, k:e.type });
+  colocaChoque(o, ox, oy);
+  return true;
+}
+// Solo donde se simula el mundo: el invitado lo recibe del anfitrión.
+function puedeChocar(){ return !dobleInv() && !esVisorVs(); }
+function colocaChoque(o, ex, ey){
+  // el punto tiembla un poco a lo largo del choque, como dos fuerzas empujando
+  const D = Math.hypot(ex - o.x, ey - o.y) || 1, tb = Math.sin(choque.t*31)*4 + Math.sin(choque.t*13)*3;
+  const k = clamp(choque.s + tb/D, 0.05, 1);
+  choque.px = o.x + (ex - o.x)*k; choque.py = o.y + (ey - o.y)*k;
+  choque.a = Math.atan2(ey - o.y, ex - o.x); choque.dv = D*k;
+}
+function sueltaChoque(){ choque.on = false; choque.e = null; choque.r = null; }
+function updateChoqueRayos(dt, o){
+  if (!puedeChocar()){ sueltaChoque(); return false; }
+  if (choque.on){
+    const e = choque.e, r = e && enemies.includes(e) ? rayoEnemigo(e) : null;
+    // se suelta si deja de disparar o si dejas de apuntarle
+    if (!r || difAngAbs(vilRayoAng(o) - Math.atan2(r.y - o.y, r.x - o.x)) > CHOQUE_SUELTA){ sueltaChoque(); return false; }
+    choque.t += dt;
+    // su ataque no se acaba mientras dura el choque
+    if (e.type === 'omni') e.beamT += dt;
+    else if (choque.r) choque.r.t = Math.min(choque.r.max, choque.r.t + dt);
+    else if (e.ft !== undefined) e.ft += dt;
+    // empuja a tirones: a ratos el rival recupera un poco de terreno
+    const D = Math.hypot(r.x - o.x, r.y - o.y) || 1;
+    const v = CHOQUE_VEL*choque.f*(Math.sin(choque.t*4.3) > -0.35 ? 1 : -0.55);
+    choque.s = clamp(choque.s + v*dt/D, 0.12, 1);
+    colocaChoque(o, r.x, r.y);
+    // su rayo también acaba en el choque, apuntando a tus ojos
+    const aE = Math.atan2(o.y - r.y, o.x - r.x);
+    if (e.type === 'omni') e.beamA = aE;
+    if (choque.r){ choque.r.ang = aE; choque.r.L = D*(1 - choque.s); }
+    if (e.type === 'cabezon'){ e.rx = choque.px; e.ry = choque.py; }
+    if (choque.s >= 1 - 14/D) ganaChoque(e, r);
+    return choque.on;
+  }
+  // ¿empieza uno? el rival más cercano que dispare de frente
+  let mejor = null, mr = null, md = 1e9;
+  const lenV = Math.min(ojosVil.d, RAYO_LARGO);
+  for (let i = 0; i < enemies.length; i++){
+    const e = enemies[i];
+    if (!CHOQUE_RIVAL[e.type] && e.type !== 'centurion') continue;
+    if ((choqueCd.get(e) || 0) > gameTime) continue;
+    const r = rayoEnemigo(e);
+    if (!r) continue;
+    const D = choqueFrente(o, r, lenV);
+    if (D && D < md){ md = D; mejor = e; mr = r; }
+  }
+  if (!mejor) return false;
+  empiezaChoque(mejor, mr);
+  colocaChoque(o, mr.x, mr.y);
+  return true;
+}
+// El viltrumita llega al que dispara: golpe fuerte, explosión y su rayo se apaga.
+function ganaChoque(e, r){
+  const dmg = Math.round(CHOQUE_DANO + (e.maxhp || 0)*0.06);
+  porJugador(()=> damageEnemy(e, dmg, r.x, r.y));
+  addParticles(r.x, r.y, '#ff4a3a', 22, 240); addParticles(r.x, r.y, choque.col, 14, 200); addParticles(r.x, r.y, '#fff4ec', 10, 160);
+  shake(16, 0.4); sfxEn('bigboom', r.x, r.y);
+  kaiOndas.push({ x:r.x, y:r.y, t:0, max:0.4, R:110, col:'#ffd0b8' });
+  switch (e.type){
+    case 'omni':        e.beamPh = ''; e.beamCd = rand(4.5, 6.5); break;
+    case 'kaiyin':      e.fase = 'anda'; e.rayOn = 0; e.cd = rand(2.2, 3.5); break;
+    case 'desgarrador': e.fase = ''; e.cd = rand(1.8, 2.6); e.rx = undefined; break;
+    case 'centurion':   e.fase = ''; e.cd = rand(1.8, 2.6); e.hx2 = undefined; e.cx2 = undefined; break;
+    case 'cabezon':     e.fase = ''; e.cd = rand(3, 4.2); break;
+  }
+  if (choque.r) choque.r.t = 0;
+  choqueCd.set(e, gameTime + 2.5);
+  sueltaChoque();
+}
+// Si un rayo enemigo está trabado en el choque, acaba ahí (y no da a nadie más).
+function choqueCorta(px, py){
+  return choque.on && choque.e && choque.e.x === px && choque.e.y === py ? { x:choque.px, y:choque.py, que:'choque' } : null;
+}
+// El punto del choque: una bola de energía con los dos colores y chispas.
+function drawChoqueRayos(){
+  const p = S(choque.px, choque.py), t = choque.t, pul = 1 + Math.sin(t*38)*0.18;
+  bucleLaser('choque', choque.px, choque.py, true);
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.globalAlpha = 0.85; ctx.drawImage(omniBrillo(), p.x - 46*pul, p.y - 46*pul, 92*pul, 92*pul);
+  ctx.globalAlpha = 0.5; ctx.fillStyle = choque.col; ctx.beginPath(); ctx.arc(p.x, p.y, 17*pul, 0, Math.PI*2); ctx.fill();
+  ctx.globalAlpha = 0.55; ctx.fillStyle = '#ff3a2a'; ctx.beginPath(); ctx.arc(p.x, p.y, 12*pul, 0, Math.PI*2); ctx.fill();
+  // chispas que salen a los lados del choque
+  ctx.lineCap = 'round'; ctx.lineWidth = 2;
+  for (let i = 0; i < 7; i++){
+    const an = choque.a + Math.PI/2*(i % 2 ? 1 : -1) + (Math.random() - 0.5)*1.9, L = 14 + Math.random()*30;
+    ctx.globalAlpha = 0.6 + Math.random()*0.4; ctx.strokeStyle = i % 3 ? '#fff0c0' : choque.col;
+    ctx.beginPath(); ctx.moveTo(p.x + Math.cos(an)*8, p.y + Math.sin(an)*8); ctx.lineTo(p.x + Math.cos(an)*L, p.y + Math.sin(an)*L); ctx.stroke();
+  }
+  // onda que late en el choque
+  const k = (t*2.6) % 1;
+  ctx.globalAlpha = 0.5*(1 - k); ctx.strokeStyle = '#ffd0b8'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.arc(p.x, p.y, 10 + k*34, 0, Math.PI*2); ctx.stroke();
+  ctx.globalAlpha = 1; ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(p.x, p.y, 6*pul, 0, Math.PI*2); ctx.fill();
+  ctx.restore();
 }
 
 // ================= EL OVNI =================
@@ -6932,7 +7194,10 @@ function mbtAnguloA(e, x, y){ const b = mbtBoca(e); return Math.atan2(y - b.y, x
 
 function mbtDispara(e){
   const bo = mbtBoca(e);
-  rayos.push({ x:bo.x, y:bo.y, ang:e.rayoAng, t:MBT_RAYO_T, max:MBT_RAYO_T, frio:!!e.frio });
+  const ray = { x:bo.x, y:bo.y, ang:e.rayoAng, t:MBT_RAYO_T, max:MBT_RAYO_T, frio:!!e.frio };
+  rayos.push(ray);
+  const trabado = choqueAlDisparar(e, bo.x, bo.y, e.rayoAng);   // de frente contra los ojos
+  if (trabado){ choque.r = ray; ray.L = Math.hypot(choque.px - bo.x, choque.py - bo.y); }
   sfx(e.frio ? 'sonicboom' : 'bigboom');
   shake(8, 0.2);
   addParticles(bo.x, bo.y, e.frio ? '#cdf3ff' : '#ffe9b8', 10, 160);   // fogonazo en la boca
@@ -6949,7 +7214,7 @@ function mbtDispara(e){
     if (c.dead || c.held) continue;
     if (enLinea(c.x, c.y, ox, oy, ang, MBT_ALCANCE, MBT_ANCHO)){ c.hp -= MBT_DMG*1.6; if (c.hp<=0) autoAbatido(c); }
   }
-  if (enLinea(player.x, player.y, ox, oy, ang, MBT_ALCANCE, MBT_ANCHO + F().r*0.4)){
+  if (!trabado && enLinea(player.x, player.y, ox, oy, ang, MBT_ALCANCE, MBT_ANCHO + F().r*0.4)){
     hp = clamp(hp - recibe(MBT_DMG), 0, maxHp());
     p2Gain(MBT_DMG);
     if (e.frio) congelar(); else quemar();
@@ -7055,9 +7320,9 @@ function drawMbtRayos(){
   }
   for (let __i109 = 0, __a109 = rayos; __i109 < __a109.length; __i109++){ const r = __a109[__i109];
     const a = clamp(r.t / r.max, 0, 1);
-    const s2 = S(r.x, r.y);
-    const fx = s2.x + Math.cos(r.ang)*MBT_ALCANCE;
-    const fy = s2.y + Math.sin(r.ang)*MBT_ALCANCE;
+    const s2 = S(r.x, r.y), L = r.L || MBT_ALCANCE;   // trabado en un choque, acaba en él
+    const fx = s2.x + Math.cos(r.ang)*L;
+    const fy = s2.y + Math.sin(r.ang)*L;
     ctx.globalAlpha = a*0.85;
     ctx.strokeStyle = r.frio ? '#cdf3ff' : '#ffe9b8';
     ctx.lineWidth = MBT_ANCHO*a;
@@ -14010,6 +14275,8 @@ function kaiEligeAtaque(e, a, ang){
 // Tres rayos: los para lo primero que se cruce (edificio, lo que lleves
 // agarrado, lo que el mago levite o su burbuja). Si no, te alcanzan.
 function kaiImpacto(ox, oy, tx, ty, px, py, largo){
+  const cc = choqueCorta(px, py);                     // trabado con los ojos del viltrumita
+  if (cc) return cc;
   const dx = tx - ox, dy = ty - oy, L = Math.min(largo || KAI_RAYO_LARGO, Math.hypot(dx, dy) + 40) || 1;
   const ux = dx/(Math.hypot(dx, dy) || 1), uy = dy/(Math.hypot(dx, dy) || 1);
   const ex = ox + ux*L, ey = oy + uy*L;
@@ -14685,6 +14952,7 @@ function bocaCabezon(e){ return { x: e.x + Math.cos(e.rA || 0)*16, y: e.y - 22 +
 // lleves, lo que levite el mago o su burbuja) y desintegra a quien atraviesa.
 function cabezonDispara(e){
   const m = bocaCabezon(e);
+  choqueAlDisparar(e, m.x, m.y, e.rA);                // de frente contra los ojos: choque
   const imp = kaiImpacto(m.x, m.y, m.x + Math.cos(e.rA)*520, m.y + Math.sin(e.rA)*520, e.x, e.y);
   e.rx = imp.x; e.ry = imp.y;
   const L = dist(m.x, m.y, imp.x, imp.y);
@@ -27635,7 +27903,11 @@ function lucesDinamicas(luz){
     if (e.dead || e.type !== 'tripode' || e.rayFase !== 'dispara' || e.rayX === undefined) continue;
     const c0 = triCupula(e); for (const f of [0.3, 0.7, 1]) luz(c0.x + (e.rayX - c0.x)*f, c0.y + (e.rayY - c0.y)*f, 100, luzAzul, 0.85);
   }
-  if (rayosOn && isVil()){ const o = vilCabeza(), a = vilRayoAng(o); for (const f of [0.3, 0.7]) luz(o.x + Math.cos(a)*RAYO_LARGO*f, o.y + Math.sin(a)*RAYO_LARGO*f, 80, luzRoja, 0.7); }
+  if (rayosOn && isVil()){
+    const o = vilCabeza(), a = choque.on ? choque.a : vilRayoAng(o), L = choque.on ? choque.dv : RAYO_LARGO;
+    for (const f of [0.3, 0.7]) luz(o.x + Math.cos(a)*L*f, o.y + Math.sin(a)*L*f, 80, luzRoja, 0.7);
+    if (choque.on) luz(choque.px, choque.py, 150, luzRoja, 1);      // el choque alumbra alrededor
+  }
 }
 const lucesMax = 28;              // luces dinámicas a la vez
 function drawLucesDia(){
@@ -31373,9 +31645,33 @@ document.getElementById('btnMenu').addEventListener('click', async ()=>{
   if (txt) txt.textContent = 'LISTO';
   await new Promise(r => setTimeout(r, 140));
   const boot = document.getElementById('booting');
-  if (boot) boot.classList.add('hidden');
-  document.getElementById('menu').classList.remove('hidden');
-  desbloqueaAudio();              // primer menú de la sesión: que suene (si el navegador ya deja)
+  const abreMenu = ()=>{
+    if (boot) boot.classList.add('hidden');
+    document.getElementById('menu').classList.remove('hidden');
+    desbloqueaAudio();            // primer menú de la sesión: que suene ya
+  };
+  if (!boot){ abreMenu(); return; }
+  // TOCA PARA INICIAR: ese toque es un gesto de verdad, así que el audio
+  // arranca en él y el tema del menú suena desde el primer instante. Todo se
+  // hace dentro del propio gesto (Safari no deja arrancar el audio después).
+  if (txt) txt.textContent = 'TOCA PARA INICIAR';
+  boot.classList.add('toca');
+  await new Promise(listo => {
+    // en el móvil vale el touchend (se anula el clic que vendría detrás, que
+    // si no caería sobre el menú recién abierto); con ratón, el clic entero
+    const EVS = ['touchend', 'click', 'keydown'];
+    const fin = (e)=>{
+      if (e.type === 'keydown' && (e.repeat || /^(Shift|Control|Alt|Meta|Tab|CapsLock)$/.test(e.key))) return;
+      if (e.cancelable) e.preventDefault();
+      e.stopPropagation();
+      for (const g of EVS) window.removeEventListener(g, fin, true);
+      boot.classList.remove('toca');
+      resumeAudio();
+      abreMenu();
+      listo();
+    };
+    for (const g of EVS) window.addEventListener(g, fin, { capture:true, passive:false });
+  });
 })();
 applyUIArt();
 // al cambiar de pestaña se corta el audio para que no quede un tono colgado
@@ -31400,6 +31696,35 @@ document.addEventListener('visibilitychange', ()=>{
     while (ov.firstChild) inner.appendChild(ov.firstChild);
     ov.appendChild(inner);
   }
+})();
+// El menú principal nunca se desplaza: si su contenido no cabe en la
+// ventana, se encoge lo justo para que se vea entero. Se recalcula solo
+// cuando cambia el tamaño de la ventana o del contenido (la tabla de puntaje,
+// el nombre del personaje, al volver a mostrarse...); la escala no cambia el
+// tamaño medido, así que no se realimenta.
+function ajustaMenu(){
+  const m = document.getElementById('menu'), i = m && m.firstElementChild;
+  if (!i || m.classList.contains('hidden')) return;
+  const H = m.clientHeight, W = m.clientWidth;
+  if (!H || !W) return;
+  const h = i.offsetHeight, w = Math.max(i.offsetWidth, i.scrollWidth);
+  const k = Math.min(1, H / h, W / w);
+  // encogido desde su esquina y llevado al centro de la pantalla
+  const dx = (W - k*w)/2 - i.offsetLeft, dy = (H - k*h)/2 - i.offsetTop;
+  const tf = k < 0.995 ? 'translate(' + dx.toFixed(1) + 'px,' + dy.toFixed(1) + 'px) scale(' + k.toFixed(4) + ')' : '';
+  if (i.style.transform !== tf) i.style.transform = tf;
+}
+(function vigilaMenu(){
+  const m = document.getElementById('menu'), i = m && m.firstElementChild;
+  if (!i) return;
+  if (typeof ResizeObserver === 'function'){
+    const ro = new ResizeObserver(()=> ajustaMenu());
+    ro.observe(m); ro.observe(i);
+  }
+  window.addEventListener('resize', ajustaMenu);
+  window.addEventListener('orientationchange', ()=> setTimeout(ajustaMenu, 250));
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(ajustaMenu);
+  ajustaMenu();
 })();
 // al abrir una pantalla, empezar siempre desde arriba
 function scrollTop(id){
