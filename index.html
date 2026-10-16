@@ -4952,13 +4952,13 @@ function spawnEnemy(type, atX, atY){
   if (type==='plane')     Object.assign(base, {hp:90,maxhp:90,speed:330, w:76,h:39,
                                                grabbable:true, alt:96, bob:rand(0,6),
                                                px2:undefined, py2:0, armed:1});
-  // Omnidroide: esfera negra con seis patas, un brazo con pinza y un sensor rojo. Alterna entre
+  // Omnidroide: esfera negra con seis patas y un sensor rojo. Alterna entre
   // rodar en línea recta hacia un punto calculado y caminar atacando.
   if (type==='omni')      Object.assign(base, {hp:1600,maxhp:1600,speed:54, w:96,h:96,
                                                grabbable:false, mode:'roll',
                                                tx:0, ty:0, rollA:0, roll:0,
                                                walkT:0, throwCd:2.2, beamCd:5,
-                                               beamPh:'', beamT:0, beamA:0, legT:0, brazoT:0, brazoA:0});
+                                               beamPh:'', beamT:0, beamA:0, legT:0, ag:null, lanzaT:0, lanzaA:0});
   // MBT-MB92: tanque ligero de cañón de inducción. Apunta, marca la línea y
   // dispara un rayo de largo alcance. La versión azulada congela.
   if (type==='mbt' || type==='mbtFrio')
@@ -4995,7 +4995,7 @@ function spawnEnemy(type, atX, atY){
                             lleva:0, golpeCd:0, lanzaCd:1, comeCd:3, espCd:4, empujeCd:0, ovniCd:1, sx:0, sy:0, eA:0, sA:0, alt:0, mancos:0, escupio:0});
   if (type==='muerteVeloz') Object.assign(base, {hp:MV_HP, maxhp:MV_HP, speed:320, w:60, h:100, grabbable:false, fase:'', ft:0, cd:2.5, paso:0,
                             zx:0, zy:0, eA:0, d0x:0, d0y:0, dtx:0, dty:0, tajo:0, tajos:0, cortaCd:0, rn:0});
-  if (type==='aracnido')  Object.assign(base, {hp:ARAC_HP, maxhp:ARAC_HP, speed:120, w:200, h:140, grabbable:false, fase:'', ft:0, cd:2.2, paso:0,
+  if (type==='aracnido')  Object.assign(base, {hp:ARAC_HP, maxhp:ARAC_HP, speed:150, w:200, h:140, grabbable:false, fase:'', ft:0, cd:2.2, paso:0,
                             tx:0, ty:0, tw:0, sx:0, sy:0, s0x:0, s0y:0, ax:0, ay:0, atrapa:0, muerde:0, lasN:0, lasT:0, pn:0, p0t:0, p1t:0, p2t:0});
   if (type==='heroe')     Object.assign(base, {hp:HEROE_HP, maxhp:HEROE_HP, speed:58, w:44, h:58, grabbable:false,
                             fase:'', ft:0, invCd:1.2, escCd:5, curaCd:4, deriva: Math.random() < 0.5 ? 1 : -1});
@@ -5062,7 +5062,7 @@ const OMNI_BEAM_LEN  = 900;
 const OMNI_BEAM_W    = 16;    // grosor del rayo
 const OMNI_BEAM_DPS  = 52;
 const OMNI_BEAM_TURN = 0.55;  // rad/s: sigue al jugador MUY despacio
-const OMNI_BRAZO_T   = 0.45;  // lo que tarda el brazo en estirarse y volver al lanzar
+const OMNI_AG_ALCANZA = 0.32, OMNI_AG_ALZA = 0.45, OMNI_AG_LANZA = 0.35;   // la pata: alcanza, levanta y lanza
 
 // ¿Está el punto dentro del haz? (segmento grueso desde el ojo)
 function inBeam(px_, py_, ox, oy, ang, len, w){
@@ -5114,32 +5114,53 @@ function laserChoca(st, ox, oy, ca, sa, d, col){
 }
 
 // Coge mobiliario cercano y lo lanza hacia el jugador.
+// Con una de las patas de delante alcanza un objeto cercano, lo levanta
+// junto al casco y te lo lanza.
 function omniThrow(e){
   let mejor = null, mejorD = 210*210;   // tiene que acercarse para poder cogerlo
   for (const pool of [trees, lamps, trash, benches]){
     for (let __i271 = 0, __a271 = pool; __i271 < __a271.length; __i271++){ const o = __a271[__i271];
-      if (o.dead || o.held || o.thrown) continue;
+      if (o.dead || o.held || o.thrown || o.omniAg) continue;
       const dx = o.x-e.x, dy = o.y-e.y, d2 = dx*dx+dy*dy;
       if (d2 < mejorD){ mejorD = d2; mejor = o; }
     }
   }
   if (!mejor) return false;
-  const a = Math.atan2(player.y-e.y, player.x-e.x);
-  mejor.thrown = true; mejor.held = false;
-  mejor.x = e.x + Math.cos(a)*60; mejor.y = e.y + Math.sin(a)*60;
-  mejor.vx = Math.cos(a)*430; mejor.vy = Math.sin(a)*430;
-  mejor.spin = rand(-9,9);
-  mejor.throwDmg = objThrowDmg(mejor);
-  mejor.throwLife = 1.6;
-  mejor.byEnemy = true;                 // lanzado por el droide: puede herirte
-  e.brazoT = OMNI_BRAZO_T; e.brazoA = a;   // la pinza se estira hacia ti
-  sfx('throw');
+  e.ag = { o: mejor, f:'alcanza', t:0, x0: mejor.x, y0: mejor.y, lado: mejor.x >= e.x ? 1 : -1 };   // la pata de ese lado
+  mejor.omniAg = true;
   return true;
+}
+function omniSuelta(e){ if (e.ag){ e.ag.o.omniAg = false; e.ag = null; } }
+// dónde sostiene la pata lo que ha cogido: a su lado del casco
+function omniSostiene(e){ return { x: e.x + e.ag.lado*e.w*0.5, y: e.y - 2 }; }
+function omniAgarre(e, dt){
+  const g = e.ag; if (!g) return;
+  const o = g.o;
+  if (o.dead || o.held || o.thrown || e.mode === 'roll'){ omniSuelta(e); return; }
+  g.t += dt;
+  if (g.f === 'alcanza'){
+    if (g.t >= OMNI_AG_ALCANZA){ g.f = 'alza'; g.t = 0; sfx('grab'); addParticles(o.x, o.y, '#9aa6ad', 6, 90); }
+  } else {
+    const h = omniSostiene(e), k = Math.min(1, g.t/OMNI_AG_ALZA), q = k*k*(3 - 2*k);
+    o.x = g.x0 + (h.x - g.x0)*q; o.y = g.y0 + (h.y - g.y0)*q;
+    if (k >= 1){
+      const a = Math.atan2(player.y - o.y, player.x - o.x);
+      o.thrown = true; o.held = false; o.omniAg = false;
+      o.vx = Math.cos(a)*430; o.vy = Math.sin(a)*430;
+      o.spin = rand(-9,9);
+      o.throwDmg = objThrowDmg(o);
+      o.throwLife = 1.6;
+      o.byEnemy = true;                 // lanzado por el droide: puede herirte
+      e.ag = null; e.lanzaT = OMNI_AG_LANZA; e.lanzaA = a;
+      sfx('throw');
+    }
+  }
 }
 
 function updateOmni(e, dt, a, angP){
   e.legT += dt;
-  if (e.brazoT > 0) e.brazoT = Math.max(0, e.brazoT - dt);
+  if (e.lanzaT > 0) e.lanzaT = Math.max(0, e.lanzaT - dt);
+  omniAgarre(e, dt);
   if (e.mode === 'roll'){
     // rueda en línea recta hacia el punto calculado al empezar
     if (!e.rolling){
@@ -5177,9 +5198,9 @@ function updateOmni(e, dt, a, angP){
       e.y += Math.sin(angP) * OMNI_WALK * dt;
       collideBuildings(e, 40, dt, 95);
       e.throwCd -= dt;
-      if (e.throwCd <= 0){ if (omniThrow(e)) e.throwCd = rand(2.0,3.2); else e.throwCd = 1.0; }
+      if (e.throwCd <= 0 && !e.ag){ if (omniThrow(e)) e.throwCd = rand(2.6,3.8); else e.throwCd = 1.0; }
       e.beamCd -= dt;
-      if (e.beamCd <= 0){ e.beamPh = 'aim'; e.beamT = OMNI_BEAM_AIM; e.beamA = angP; }
+      if (e.beamCd <= 0 && !e.ag){ e.beamPh = 'aim'; e.beamT = OMNI_BEAM_AIM; e.beamA = angP; }
     } else if (e.beamPh === 'aim'){
       e.beamT -= dt;
       e.beamA = angLerp(e.beamA, angP, OMNI_BEAM_TURN*dt*2);   // apunta despacio
@@ -5203,8 +5224,8 @@ function angLerp(a, b, t){
   return a + d * clamp(t, 0, 1);
 }
 
-// ---- dibujo: esfera negra mate, sensor rojo arriba, brazo con pinza y
-// seis patas segmentadas que se recogen al rodar ----
+// ---- dibujo: esfera negra mate, sensor rojo arriba y seis patas
+// segmentadas que se recogen al rodar (con las de delante agarra cosas) ----
 // Miniatura del droide para la interfaz (no depende de ninguna imagen).
 let omniIcon = null;
 function omniIconURL(){
@@ -5219,7 +5240,7 @@ function omniIconCv(){
   const c = document.createElement('canvas');
   c.width = 64; c.height = 54;
   const g = c.getContext('2d'), { cx, cy, R } = OMNI_ICO;
-  pintaOmni(g, cx, cy, R, { K:1, legT:0.4, roll:0, rodando:false, f:1, brazoA:-0.12, brazoExt:0.82 });
+  pintaOmni(g, cx, cy, R, { K:1, legT:0.4, roll:0, rodando:false, f:1 });
   pintaSensorOmni(g, cx + R*0.1, cy - R*0.6, R*0.26, 0, 1);
   return c;
 }
@@ -5274,7 +5295,13 @@ function pintaOmni(g, cx, cy, R, o){
     const alza = o.rodando ? 0 : Math.max(0, Math.sin(ph))*R*0.22, avanza = o.rodando ? 0 : Math.cos(ph)*R*0.14;
     const rx = cx + lado*R*(0.32 + 0.08*(1 - Math.abs(d))), ry = cy + R*(0.42 + d*0.1);
     const fx = cx + lado*R*abre + avanza*f, fy = cy + R*baja - alza;
-    const k = o.K, X = rx + (fx - rx)*k, Y = ry + (fy - ry)*k;
+    const k = o.K;
+    if (o.ag && o.ag.lado === lado && idx === 2){       // la pata que agarra: va a por el objeto
+      const X = o.ag.x, Y = o.ag.y, sube = Y < ry;
+      pataOmni(g, rx, ry, rx + lado*R*0.55, ry - R*(sube ? 0.9 : 0.35), X - lado*R*(sube ? 0.1 : 0.35), Y - R*(sube ? 0.5 : 0.85), X, Y, w);
+      return;
+    }
+    const X = rx + (fx - rx)*k, Y = ry + (fy - ry)*k;
     pataOmni(g, rx, ry, rx + lado*R*0.75*k, ry - R*0.28*k, X + lado*R*0.06*k, Y - R*0.8*k, X, Y, w*(0.75 + 0.25*k));
   };
   if (o.K > 0.02){ for (const l of [-1, 1]){ pata(l, 0); pata(l, 1); } }
@@ -5295,30 +5322,11 @@ function pintaOmni(g, cx, cy, R, o){
   g.beginPath(); g.arc(cx, cy, R*0.94, Math.PI*0.2, Math.PI*0.75); g.stroke();
   g.strokeStyle = '#020203'; g.lineWidth = Math.max(1, R*0.035);
   g.beginPath(); g.arc(cx, cy, R, 0, Math.PI*2); g.stroke();
-  // hombro del otro lado: una bola pequeña pegada al casco
+  // una bola pequeña pegada al casco, del lado de atrás
   const hx = cx - f*R*0.9, hy = cy - R*0.12, hr = R*0.3;
   const gh = g.createRadialGradient(hx - hr*0.35, hy - hr*0.4, hr*0.1, hx, hy, hr*1.1);
   gh.addColorStop(0, '#4a525c'); gh.addColorStop(0.45, '#16191d'); gh.addColorStop(1, '#050506');
   g.fillStyle = gh; g.beginPath(); g.arc(hx, hy, hr, 0, Math.PI*2); g.fill();
-  // brazo: sale de una tronera redonda, segmentado, con una pinza al final
-  const sx = cx + f*R*0.4, sy = cy - R*0.1;
-  if (o.brazoExt > 0.01){
-  g.save(); g.translate(sx, sy); g.scale(f, 1); g.rotate(o.brazoA);
-  const L = R*1.05*o.brazoExt, bw = R*0.3;
-  g.fillStyle = '#08090b'; g.fillRect(0, -bw/2, L, bw);
-  g.fillStyle = '#2a2f36';
-  for (let x = R*0.18; x < L - R*0.04; x += R*0.1) g.fillRect(x, -bw/2, Math.max(1, R*0.035), bw);
-  g.fillStyle = 'rgba(130,142,156,0.4)'; g.fillRect(0, -bw/2, L, Math.max(1, R*0.04));
-  g.fillStyle = '#111317'; g.fillRect(L - R*0.02, -bw*0.62, R*0.24, bw*1.24);          // muñeca
-  g.strokeStyle = '#0a0b0d'; g.lineWidth = R*0.11;                                    // pinza en D
-  g.beginPath(); g.ellipse(L + R*0.42, 0, R*0.22, R*0.24, 0, 0, Math.PI*2); g.stroke();
-  g.strokeStyle = 'rgba(120,132,146,0.45)'; g.lineWidth = Math.max(0.8, R*0.035);
-  g.beginPath(); g.ellipse(L + R*0.42, 0, R*0.27, R*0.29, 0, Math.PI*1.15, Math.PI*1.85); g.stroke();
-  g.restore();
-  }
-  g.fillStyle = '#050607'; g.beginPath(); g.arc(sx, sy, R*0.27, 0, Math.PI*2); g.fill();     // tronera
-  g.strokeStyle = '#3a4048'; g.lineWidth = Math.max(1, R*0.05); g.stroke();
-  g.fillStyle = '#14171b'; g.beginPath(); g.arc(sx, sy, R*0.17, 0, Math.PI*2); g.fill();
   // las de delante, por encima de la panza
   if (o.K > 0.02){ pata(-1, 2); pata(1, 2); }
 }
@@ -5331,12 +5339,20 @@ function drawOmni(e){
   // las patas salen al empezar a caminar y se recogen justo antes de rodar
   const sale = e.walkT > OMNI_WALK_TIME ? 1 : clamp((OMNI_WALK_TIME - e.walkT)/0.35, 0, 1);
   const K = rodando ? 0 : Math.min(sale, e.beamPh ? 1 : clamp(e.walkT/0.3, 0, 1));
-  let bA = -0.08 + Math.sin(e.legT*2.2)*0.1, bE = K;        // al rodar, el brazo se guarda
-  if (e.brazoT > 0){                                 // lanza: el brazo se estira hacia ti
-    const p = 1 - e.brazoT/OMNI_BRAZO_T, a = e.brazoA;
-    bA = Math.atan2(Math.sin(a), Math.cos(a)*e.facing); bE = 1 + Math.sin(p*Math.PI)*0.6;
+  // la pata de delante que agarra: alcanza el objeto, lo sube junto al casco y lo lanza
+  const f = e.facing || 1;
+  let ag = null;
+  if (e.ag){
+    const so = S(e.ag.o.x, e.ag.o.y - 6);
+    if (e.ag.f === 'alcanza'){
+      const l = e.ag.lado, k = Math.min(1, e.ag.t/OMNI_AG_ALCANZA), q = k*k*(3 - 2*k), bx = s2.x + l*R*1.36, by = s2.y + R*1.3;
+      ag = { lado:l, x: bx + (so.x - bx)*q, y: by + (so.y - by)*q - Math.sin(k*Math.PI)*R*0.5 };
+    } else ag = { lado:e.ag.lado, x: so.x, y: so.y };
+  } else if (e.lanzaT > 0){
+    const p = 1 - e.lanzaT/OMNI_AG_LANZA, a = e.lanzaA, ext = 1.3 + Math.sin(p*Math.PI)*0.9;
+    ag = { lado: Math.cos(a) >= 0 ? 1 : -1, x: s2.x + Math.cos(a)*R*ext, y: s2.y + Math.sin(a)*R*ext*0.7 - Math.sin(p*Math.PI)*R*0.4 };
   }
-  pintaOmni(ctx, s2.x, s2.y, R, { K, legT:e.legT, roll:e.roll, rodando, f:e.facing || 1, brazoA:bA, brazoExt:bE });
+  pintaOmni(ctx, s2.x, s2.y, R, { K, legT:e.legT, roll:e.roll, rodando, f, ag });
   // sensor: gira sobre la parte de arriba hacia donde mira, y de él sale el rayo
   const cargando = e.beamPh === 'aim', disparando = e.beamPh === 'fire';
   const er = R*0.26 * (disparando ? 1.2 : cargando ? 1.08 : 1);
@@ -9101,6 +9117,9 @@ function initAudio(){
     musFlt.connect(delay); delay.connect(dfl); dfl.connect(fb); fb.connect(delay);
     dfl.connect(wet); wet.connect(comp);
     audio.musFlt = musFlt;
+    // oído de la música (no suena por él): lo usan las luces que laten con ella
+    try { audio.musAn = audio.ctx.createAnalyser(); audio.musAn.fftSize = 1024; audio.musAn.smoothingTimeConstant = 0.35; audio.musGain.connect(audio.musAn); }
+    catch(e){ audio.musAn = null; }
     audio.sfxGain.connect(comp);
     // Reverberación para los golpes grandes (explosiones, derrumbes, truenos):
     // una cola de ruido que decae, generada una sola vez. Solo le llega lo que
@@ -9604,14 +9623,18 @@ const BOSS_TRACKS = {
                bass:[41.20,43.65,41.20,36.71], tempo:185, name:'TRES CABEZAS', style:'kaiju',
                ost:[0,1,2,-1, 0,1,2,-1, 0,1,3,2, 1,-1,-1,-1, 0,1,2,-1, 0,1,2,-1, 4,3,2,1, 0,-1,-1,-1] },
   // El Centurión: una pieza de dollchan (bytebeat), ver bbGeneradores.
-  // El Desgarrador, el kaiju cíborg: stagas - mind swift (funcbeat), ver bbGeneradores.
-  desgarrador: { scale:[73.42,77.78,87.31,98.00,103.83,116.54,130.81,146.83],
-               tempo:250, name:'MENTE VELOZ', bb:'desgarrador', bbReinicia:true },
+  // El Desgarrador, el kaiju cíborg: Tres Cabezas pasada por una fábrica.
+  // El mismo ostinato frigio del dragón, ahora como bajo ácido, con bombo a
+  // negras, palmadas, golpes de metales, un arpegio de chip y un break con rugido.
+  desgarrador: { scale:[82.41,87.31,98.00,110.00,123.47,130.81,146.83,164.81],
+               tempo:118, name:'KAIJU MECÁNICO', style:'tecnokaiju',
+               ost:[0,1,2,-1, 0,1,2,-1, 0,1,3,2, 1,-1,-1,-1, 0,1,2,-1, 0,1,2,-1, 4,3,2,1, 0,-1,-1,-1],
+               arp:[7,4,2,4, 7,5,4,2, 6,4,1,4, 6,5,4,1] },
   centurion: { scale:[146.83,155.56,174.61,196.00,220.00,233.08,261.63,293.66],
                tempo:250, name:'ACERO ORBITAL', bb:'centurion', bbReinicia:true },
-  // Refuerzos alienígenas: una pieza de dollchan (bytebeat), como el Centurión.
-  refuerzos: { scale:[123.47,130.81,146.83,164.81,174.61,196.00,220.00,246.94],
-               tempo:250, name:'LA FLOTA RESPONDE', bb:'refuerzos', bbReinicia:true },
+  // Refuerzos alienígenas: stagas - mind swift (funcbeat), ver bbGeneradores.
+  refuerzos: { scale:[73.42,77.78,87.31,98.00,103.83,116.54,130.81,146.83],
+               tempo:250, name:'MENTE VELOZ', bb:'desgarrador', bbReinicia:true },
   // Desesperación: terror de persecución. Racimo de cuerdas disonante, un
   // ostinato grave en 7 que no deja respirar, latidos y chillidos.
   // Muerte Veloz: la máquina de guerra a toda prisa, con un riff que no para.
@@ -9777,22 +9800,6 @@ function bbGeneradores(){
       L=(m,q=1)=>K*(j+i*R(h))*z(m,1+k+k*fc,q,1+e);
       f=(f,n)=>(fc=f,min(1.2*(w=4*B/(t%(64*q)%(2+t/2%(32*q)/(2*q))),P=N(t+f),Y=N(T+f),l=7==p?1:(5^Q%7)%2+1,64*(m>2)*abs(sin(2e3/(t%(X*q)%((7-5*(m>15&&K))*q)%(4*q)/8+48)))+.22*(m>6)*(Y+P)*E(h>>((K&&m>12)^Q+m-(6==p))%3+1-(K&&m>12),0,Z+H%5,.1)*S+(m>7)*(.5*P*E(h,q,4)*S+.54*Y*E(2*h,h,4)+i*(Y+P)*E(32*q,0,1.3)+.14*(3-2*S)*P*R(h))+.3*(m>13)*Y*E(q/2,0,8-p,1)*S+(m>15)*(11==B||B>12&&J?((7^m)%3+1)%2:1)*((B%4!=2+(m<24||m>96))*(.16-j*!J)*z(9+4*K-(e?Q%4-3+p:Q%4==3)+H%2,1.025-2*j*(f||S)+32*K*n,1+.5*(B%14>10),1,H%5*.3)*E(q/2*(1+(t%(X*q)%(7*q)>>12)%4),0,.5*(14==B)+1.4-.2*K,k)+.14*K*z(X,1+k+X*n*K,Z,1+e)*E(q,0,2,k)+Z*L(2,Z)+Z*!!M*L(6-(m>>1)%4,3))+9*(m%X<14)*j*z(9+(p>5),1+j+n*(m>7),Z,1,1,1)*E(q/l,0,1.27+(7==p),k)+12*(m>2)*j*z(2-H%2,1+j+(m>6),Z,0)*((Q+18)%X<3)+1.3*(m>96)*i*J*(B%4!=2)*z(H%8+4*B%8+(1<<p%2)*((2+(p>5))*t>>11)%6,1+j*f,1,1,.4)*E(q/2<<(B^Q)%2,0,1.4-(3-m%3)/4,j)),255));
       return tt => (t=tt*.22,Q=t>>11,H=t>>12,m=t>>13,e=m%2,p=m%8,B=m>>3,S=m%32<31,M=B<24?m>>7:m>>6,J=(m>>4)%2,K=!J,T=0|t,F=80/(T%q/64),[f(0,0),f(1,1e-4)]);
-    } },
-    // Refuerzos alienígenas (44,1 kHz).
-    refuerzos: { sr: 44100, crear(){
-      // Lo mismo que el original, pero las funciones se crean una sola vez y
-      // las tablas de notas (que solo cambian con u) se preparan de antemano.
-      let T, U, b, u, v, w, G, R, C, S, L, D, i, j, x, y, r, e;
-      w='797479';
-      const tablas = u => { let x, y; const F = [[(y='5 5  5')+`T ${y}T ${y}T 5`+(u?'T  1T55':'SS4SSSS')],[y+`5D5 5  1DD${y}T 5SOCSSSS`],[`4${x='SSSSSSS'}4${x}4S`+x+x],[(x='4CSSS0444CSSS444')+x],[(x='4C   0444C   444')+x]]; const Nn = [['9 9  9997 7  7775 5  77 99'+(u?'  99AC':x='CEC9CE'),'9 9  999A A  AAAC A  AA 99'+(u?'  AA77':x)],[(x='4 4  444')+'0 2  2220 0  22 44'+(u?'  4457':w),x+y+`557 5  55 44`+(u?'  5522':w)],[`C4${w}E4${w}C4${w}24`+w],[`CC${w}EE${w}CC${w}77`+w],['77242024992420247724202422242024']]; return [F, Nn]; };
-      const TB = [tablas(false), tablas(true)];
-      G=(c,o)=>33E5*T*2**(o+parseInt(c,36)/12);
-      R=x=>((x^-(x>>8&1))&240)*(i=32*T%32,j=32*T%1,i<1||i>=16&&i<17?j:i>31||i>15&&i<16?1-j:1);
-      C=(a,T)=>a[T>>5&a.length-1][T&31];
-      S=(n,f,o=1,d)=>(f=parseInt(C(TB[+u][0][f],T-d),36),n=C(TB[+u][1][n],T-d),isNaN(f)||n==' '?0:(r=G(n,o-2)*(4*T&3||f/4&1?1:2**(-1/12))>>8,e=f>>3&3,d=f&3,128*(((e==1?r+64*sin(PI*U):e==2&&!(U&1)||e==3&&U&1?0:r)&255)>(!d?224:d==1?192:d==2?128:(8*T&3)<2?64:128))));
-      L=(n,f,o)=>S(n,f,o,0)+S(n,f,o,1.5)/2+S(n,f,o,3)/3;
-      D=(i,p,s)=>(1E5*sin(i*T|0)&64)*(1-U%2/3)*(p>>(U>>s)&1);
-      return t => (T=t/7500,U=2*T,b=T/8%88,u=b<16,v=b<80,min(255,(b<32?L(0,0,0):b<48?L(0,1):b<56?L(2,2):L(3,v?3:4))/3+(b<32?L(1,0,0):b<48?L(1,1):b>64&&L(4,4,b<72||!v?1:2))/3+.6*R(G('9 9 9 9 9 9 9 997 7 7 7 7 7 7 775 5 5 5 5 5 5 5 4 4 4 445 5 5 55'[U&63],-3)/64)+(v&&D(290,b<15.5?0x31111111:0xE4444444,1)+(b<15.5?D(1E6,0xC4A4A4A4,1):D(1E6,0xD4445444,0))/3+(!u&&50*(sin(150*(T%4)**.4)+1)*(1-T/4%1)))));
     } },
     // El Centurión (32 kHz).
     centurion: { sr: 32000, crear(){
@@ -10268,7 +10275,7 @@ function bbGeneradores(){
 }
 
 // Volumen de cada pieza, para que suenen como el resto de la música.
-const BB_GANANCIA = { alien:0.5, refuerzos:0.19, centurion:0.41, menu:0.31, tienda:0.18, aracnido:0.1, desgarrador:0.27 };
+const BB_GANANCIA = { alien:0.5, centurion:0.41, menu:0.31, tienda:0.18, aracnido:0.1, desgarrador:0.27 };
 // Mezcla y cambio de pista. Corre en el hilo de audio (AudioWorklet); si el
 // navegador no lo tiene, en un ScriptProcessor. Las de bytebeat se calculan a
 // su frecuencia propia y se sostienen entre muestra y muestra; las de
@@ -10622,6 +10629,54 @@ function musicStep(){
     if (s % 32 === 30) mk(sc[7]*4, 0.4, 'sawtooth', 0.04);
     return;
   }
+  if (bt && bt.style === 'tecnokaiju'){
+    // KAIJU MECÁNICO: secciones de 4 compases. Entra el bombo con el bajo
+    // ácido, luego charles y palmadas, los metales del kaiju, el arpegio, un
+    // break sin bombo con un rugido que cae y el subidón de vuelta.
+    const ac = audio.ctx, paso = s % 16, comp = (s/16 | 0) % 4, sec = (s/64 | 0) % 8, corte = sec === 4;
+    const cae = (f0, f1, dur, type, vol)=>{
+      const o = ac.createOscillator(), g = ac.createGain();
+      o.type = type; o.frequency.setValueAtTime(f0, t0); o.frequency.exponentialRampToValueAtTime(f1, t0 + dur);
+      g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(vol, t0 + 0.006); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      o.connect(g); g.connect(audio.musGain); o.start(t0); o.stop(t0 + dur + 0.05);
+      o.onended = ()=>{ try { o.disconnect(); g.disconnect(); } catch(e){} };
+    };
+    const acido = (f, dur, vol, corteF)=>{                      // sierra por un paso bajo resonante
+      const o = ac.createOscillator(), fl = ac.createBiquadFilter(), g = ac.createGain();
+      o.type = 'sawtooth'; o.frequency.value = f;
+      fl.type = 'lowpass'; fl.Q.value = 10; fl.frequency.setValueAtTime(corteF, t0); fl.frequency.exponentialRampToValueAtTime(Math.max(90, corteF*0.22), t0 + dur);
+      g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(vol, t0 + 0.006); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      o.connect(fl); fl.connect(g); g.connect(audio.musGain); o.start(t0); o.stop(t0 + dur + 0.03);
+      o.onended = ()=>{ try { o.disconnect(); fl.disconnect(); g.disconnect(); } catch(e){} };
+    };
+    if (s % 64 === 0 && sec !== 4) noiseMus(1.1, 0.08, 6500);                         // platillo al entrar
+    if (!corte && paso % 4 === 0){ cae(160, 42, 0.24, 'sine', 0.52); noiseMus(0.02, 0.06, 3500); }   // bombo a negras
+    if (sec >= 1 && !corte){
+      if (paso % 4 === 2) noiseMus(0.08, 0.06, 9500);                                  // charles abierto a contratiempo
+      else if (paso % 2 === 1) noiseMus(0.02, 0.025, 11000);
+      if (paso === 4 || paso === 12){ noiseMus(0.13, 0.11, 2100); noiseMus(0.04, 0.07, 1300); }   // palmadas
+    }
+    // el ostinato de Tres Cabezas como bajo ácido; el filtro abre y cierra cada 4 compases
+    const fase = (s % 64)/64, abre = corte ? 260 + fase*2400 : 420 + 1700*(0.5 - 0.5*Math.cos(fase*Math.PI*2));
+    const n = bt.ost[s % bt.ost.length];
+    if (n >= 0) acido(sc[n]/2, 0.15, corte ? 0.08 : 0.135, abre);
+    else if (!corte && paso % 2 === 1) acido(sc[0]/2, 0.08, 0.06, abre*0.55);
+    if (!corte && paso % 8 === 0) mk(sc[0]/4, 0.42, 'sine', 0.14);                   // sub
+    if ((sec === 2 || sec === 3 || sec >= 5) && (paso === 0 || paso === 10) && comp % 2 === 0){
+      const ac3 = comp === 2 ? [1, 3, 5] : [0, 2, 4];                                    // golpes de metales: I y bII frigios
+      for (const k of ac3){ mk(sc[k]*2, 0.32, 'sawtooth', 0.055); mk(sc[k]*2*1.006, 0.32, 'square', 0.026); }
+    }
+    if ((sec === 3 || sec >= 6) && s % 2 === 0){                                        // arpegio de chip
+      const a = bt.arp[(s/2 | 0) % bt.arp.length];
+      mk(sc[a]*4, 0.1, 'square', 0.03);
+    }
+    if (corte){
+      if (paso === 0 && comp % 2 === 0){ mk(sc[0], 1.8, 'sawtooth', 0.06); mk(sc[2], 1.8, 'sawtooth', 0.045); mk(sc[4], 1.8, 'triangle', 0.05); }
+      if (comp === 0 && paso === 0) cae(520, 70, 1.7, 'sawtooth', 0.07);              // el rugido que cae
+      if (comp === 3) noiseMus(0.06, 0.012 + paso*0.006, 2500 + paso*500);            // subidón de vuelta
+    }
+    return;
+  }
   if (bt && bt.style === 'kaiju'){
     // TRES CABEZAS: ostinato grave de metales, timbales y golpes de orquesta.
     const o = bt.ost[s % bt.ost.length];
@@ -10895,7 +10950,7 @@ const BESTIARY = [
   { id:'plane', name:'CAZA', hp:90, dmg:'28 por misil (recto)', sprite:'plane',
     desc:'Vuela tan rápido como un taxi a toda marcha: se te viene encima, te sobrevuela y sigue de largo sin frenar. Al alejarse da media vuelta y suelta un misil recto, sin guiado, que puedes esquivar o bloquear. Es frágil y agarrable si aciertas el instante en que pasa.' },
   { id:'omni', name:'OMNIDROIDE', hp:1600, dmg:'52/s el rayo', sprite:null,
-    desc:'Esfera acorazada negra con seis patas segmentadas, un brazo con pinza y un sensor rojo en lo alto. Calcula dónde estás y rueda en línea recta hasta ese punto, arrollando lo que pille; al llegar se detiene y camina. Andando te arroja con la pinza el mobiliario de la calle y carga un rayo desde su sensor: primero marca la línea, luego dispara y barre muy despacio, así que se esquiva moviéndose de lado. El rayo también achicharra a sus propias tropas.' },
+    desc:'Esfera acorazada negra con seis patas segmentadas y un sensor rojo en lo alto. Calcula dónde estás y rueda en línea recta hasta ese punto, arrollando lo que pille; al llegar se detiene y camina. Andando agarra con una pata el mobiliario de la calle, te lo arroja y carga un rayo desde su sensor: primero marca la línea, luego dispara y barre muy despacio, así que se esquiva moviéndose de lado. El rayo también achicharra a sus propias tropas.' },
   { id:'tripode', name:'TRÍPODE MARCIANO', hp:TRI_HP, dmg:'72 + quemadura (rayo)', sprite:null, verb:'DERRIBADOS',
     desc:'Al parecer no eres el único que quiere el planeta. Llegan de dos en dos (de tres en tres pasado el asedio) y, mientras quede uno en pie, el ejército humano no se atreve a salir. Caminan por encima de los edificios y con sus tentáculos atrapan autos, farolas y soldados para lanzártelos; si están heridos, se comen a los humanos para recuperar algo de vida. A ratos se cubren con un escudo pequeño que lo para todo hasta que se rompe a golpes (se le ven las grietas), y marcan en blanco un área del suelo donde descargan un rayo que arrasa y deja quemadura: sal de ella antes de que dispare.' },
   { id:'heroe', name:'HÉROE MÁGICO', hp:1350, dmg:'invoca, escuda y cura', sprite:'heroeF', verb:'DERROTADOS',
@@ -10945,9 +11000,9 @@ const BESTIARY = [
   { id:'muerteVeloz', name:'MUERTE VELOZ', hp:2400, dmg:'tajos supersónicos, embestidas, giro de sierras y tornado', sprite:'muerteVelozF', verb:'DERROTADAS',
     hint:'Algo en el Mundo Alienígena se mueve más rápido que el sonido.',
     desc:'Una criatura de un mundo lejano que el imperio encontró y modificó genéticamente para aprovechar su velocidad innata. Cuerpo negro con rayas turquesa, casco con visor verde, cola anillada, ruedas por pies y dos sierras de plasma girando en las manos. Marca en el suelo un área y la recorre a velocidad extrema en tajos de lado a lado, rompiendo la barrera del sonido: corta todo lo que pilla, también a los suyos, y los árboles se mecen a su paso. También embiste en línea recta por la línea que marca y gira sobre sí misma hasta volverse un tornado de sierras que te persigue. Tras cada carga derrapa un momento: es cuando más fácil es alcanzarla. Por debajo de la mitad de vida acelera todavía más.' },
-  { id:'aracnido', name:'LA TEJEDORA', hp:2700, dmg:'telaraña y mordiscos, salto, pisotón y láseres', sprite:'aracnidoF', verb:'DERROTADOS',
+  { id:'aracnido', name:'LA TEJEDORA', hp:2700, dmg:'telaraña y mordiscos, lluvia de telas, salto, pisotón y láseres', sprite:'aracnidoF', verb:'DERROTADOS',
     hint:'Otro guardián del Mundo Alienígena. Aún no lo has derrotado.',
-    desc:'Araña robot gigante, guardiana del planeta marciano: acero negro por placas con costuras y luces rojas encendidas, una cara con una columna de ojos rojos, quelíceros afilados, un abdomen en forma de domo blindado y ocho patas acorazadas con juntas rojas y garras. Marca en el suelo con una línea blanca por dónde lanzará su tela: si te alcanza, te atrae hacia sus colmillos y te muerde hasta que te liberes haciendo clic (o tocando la pantalla) varias veces. Un escudo, un edificio o lo que lleves agarrado paran la tela, y la que falla se queda pegada en el suelo un rato y frena a quien la pise. También salta sobre la zona que marca en rojo, pisotea todo a su alrededor si te pegas a ella y barre con los láseres de sus ojos. Por debajo de la mitad de vida enloquece y se vuelve más rápida.' },
+    desc:'Araña robot gigante, guardiana del planeta marciano: acero negro por placas con costuras y luces rojas que laten al ritmo de la música, una cara con una columna de ojos rojos, quelíceros afilados, un abdomen en forma de domo blindado y ocho patas acorazadas con juntas rojas y garras. Marca en el suelo con una línea blanca por dónde lanzará su tela: si te alcanza, te atrae hacia sus colmillos y te muerde hasta que te liberes haciendo clic (o tocando la pantalla) varias veces. Un escudo, un edificio o lo que lleves agarrado paran la tela, y la que falla se queda pegada en el suelo un rato y frena a quien la pise. Te rodea deprisa y lanza una lluvia de telas: marca varios círculos blancos (uno donde estás) y en cada uno cae una red que te frena mientras la pises. También salta sobre la zona que marca en rojo, pisotea todo a su alrededor si te pegas a ella y barre con los láseres de sus ojos. Por debajo de la mitad de vida enloquece y se vuelve más rápida.' },
   { id:'bicho', name:'BICHO GUERRERO', hp:240, dmg:'12 por mordisco', sprite:'bichoF', verb:'APLASTADOS',
     desc:'En su cruzada de la civilización por el espacio, los marcianos derrotaron a estas criaturas y las modificaron genéticamente para crear sus propios soldados, tomando como base a los bichos guerreros de élite. Caparazón negro azulado con aletas rojas, cabeza larga de fauces abiertas, dos garras alzadas acabadas en hoces rojas y cuatro patas de cuchillas dentadas. Es rápido, da buenos mordiscos y es resistente como un tanque. Llega en enjambre y a la carga; solo el COLOSO puede levantarlo.' },
   { id:'amalgama', name:'AMALGAMA DE ALMAS', hp:'420+', dmg:'autos lanzados, embestida y manotazos', sprite:'amalgamaF', verb:'DISPERSADAS',
@@ -11040,9 +11095,9 @@ const OST_TEMAS = [
     desc:'La música del Registro: suena mientras repasas todo lo que has derrotado.' },
   { id:'ajustes', icon:'\u{2699}\u{FE0F}', name:'A PUÑETAZOS', pista: ()=> AJUSTES_TRACK, grupo:'MENÚS',
     desc:'La música de Ajustes: para reasignar teclas y cuadrar el volumen sin aburrirte.' },
-  // Eventos: la música de los Refuerzos alienígenas (dollchan), que no tiene ficha propia.
-  { id:'refuerzos', icon:'\u{1F6F8}', name:'LA FLOTA RESPONDE', pista: ()=> BOSS_TRACKS.refuerzos, grupo:'EVENTOS',
-    desc:'La música de los Refuerzos alienígenas: cuando la flota del planeta rojo baja a por ti. Una pieza de bytebeat de dollchan, con sirenas, bajos que empujan y arpegios de chip a toda velocidad.' }
+  // Eventos: la música de los Refuerzos alienígenas (stagas), que no tiene ficha propia.
+  { id:'refuerzos', icon:'\u{1F6F8}', name:'MENTE VELOZ', pista: ()=> BOSS_TRACKS.refuerzos, grupo:'EVENTOS',
+    desc:'La música de los Refuerzos alienígenas: cuando la flota del planeta rojo baja a por ti. Mind swift, de stagas (funcbeat): rápida, nerviosa y sin respiro.' }
 ];
 let ostSel = 0;
 
@@ -16398,11 +16453,14 @@ function drawRefuerzosEfectos(){
 // colmillos y te muerde. Solo escapas forcejeando: clic o toques en la
 // pantalla. Además salta sobre una zona marcada, pisotea alrededor si te
 // pegas a ella y barre con los láseres de sus ojos. La tela que falla se queda
-// en el suelo un rato y frena a quien la pise.
+// en el suelo un rato y frena a quien la pise; con la lluvia de telas siembra
+// varias redes de golpe. Sus luces rojas laten con la música.
 const ARAC_HP = 2700, ARAC_TAM = [270, 190, 135, 168];
 const ARAC_TELA_AVISO = 1.15, ARAC_TELA_VEL = 1100, ARAC_TELA_L = 760, ARAC_TELA_R = 48;
 const ARAC_TIRA = 240, ARAC_CERCA = 40, ARAC_MORD = 15, ARAC_MORD_T = 1.0, ARAC_RES = 8, TELA_MAX = 12;
 const ARAC_SALTO_R = 125, ARAC_SALTO_DMG = 30, ARAC_SALTO_T = 0.6, ARAC_PISA_R = 150, ARAC_PISA_DMG = 22, ARAC_RED_R = 52;
+// redes en el suelo (las de la tela que falla y las de la lluvia de telas)
+const ARAC_REDES = 8, ARAC_LLUVIA_AVISO = 0.85, ARAC_LLUVIA_VUELO = 0.55, ARAC_LLUVIA_CADA = 0.13, ARAC_LLUVIA_DMG = 6, ARAC_LLUVIA_RED_T = 9;
 const aracCache = new Map();
 function aracFrame(pose, f, roto){
   const k = pose + f + (roto ? 'r' : '');
@@ -16508,6 +16566,57 @@ function dibAracnido(g, pose, f, roto){
   }
   jR(g, K, 48, by + 1, 11, 6); jO(g, pose === 'teje' ? '#ffffff' : RG, 60, by + 4, 2.6, 2.6);         // lanzarredes
 }
+// Cuánto empuja ahora la música (0..1), mirando los graves: sube de golpe con
+// cada bombo y baja más despacio. Sin música, un latido tranquilo.
+const _nivMus = { t:0, v:0, pico:0.4, buf:null };
+function nivelMusica(){
+  const now = performance.now(), m = _nivMus;
+  if (now - m.t < 6) return m.v;
+  const dt = Math.min(0.1, m.t ? (now - m.t)/1000 : 0.016); m.t = now;
+  const an = audio.musAn;
+  let x = -1;
+  if (an && audio.ctx && audio.ctx.state === 'running' && audio.musOn){
+    if (!m.buf) m.buf = new Uint8Array(an.frequencyBinCount);
+    an.getByteFrequencyData(m.buf);
+    const hz = audio.ctx.sampleRate/an.fftSize; let sum = 0, n = 0;
+    for (let i = 1; i*hz < 260; i++){ sum += m.buf[i]; n++; }
+    x = n ? sum/(n*255) : 0;
+  }
+  let k;
+  if (x < 0.08) k = 0.3 + 0.35*Math.pow(Math.max(0, Math.sin(now/1000*Math.PI*2*1.5)), 3);
+  else {
+    m.pico = Math.max(x, m.pico - dt*0.05);
+    k = clamp((x - m.pico*0.8)/(m.pico*0.2), 0, 1);
+  }
+  m.v += (k - m.v)*Math.min(1, dt*(k > m.v ? 40 : 8));
+  return m.v;
+}
+// Las luces rojas de un fotograma, aparte: una capa oscura para apagarlas y
+// otra con resplandor para encenderlas al ritmo de la música.
+function aracLuces(pose, f, roto){
+  const k = pose + f + (roto ? 'r' : '') + 'L';
+  let L = aracCache.get(k);
+  if (L) return L;
+  const c = aracFrame(pose, f, roto), W = c.width, H = c.height;
+  const src = c.getContext('2d').getImageData(0, 0, W, H).data;
+  const mk = ()=>{ const o = document.createElement('canvas'); o.width = W; o.height = H; return o; };
+  const apag = mk(), luz = mk(), ga = apag.getContext('2d'), gl = luz.getContext('2d');
+  const ia = ga.createImageData(W, H), il = gl.createImageData(W, H), A = ia.data, B = il.data;
+  for (let i = 0; i < src.length; i += 4){
+    const r = src[i], g = src[i + 1], b = src[i + 2];
+    if (src[i + 3] > 0 && r >= 110 && r > g*1.8 && r > b*1.8){
+      A[i] = 34; A[i + 1] = 4; A[i + 2] = 4; A[i + 3] = 255;
+      B[i] = 255; B[i + 1] = Math.min(255, 24 + g*0.55); B[i + 2] = Math.min(255, 20 + b*0.5); B[i + 3] = 255;
+    }
+  }
+  ga.putImageData(ia, 0, 0); gl.putImageData(il, 0, 0);
+  const brillo = mk(), gb = brillo.getContext('2d');      // halo difuminado + la luz nítida
+  try { gb.filter = 'blur(4px)'; gb.drawImage(luz, 0, 0); gb.filter = 'none'; } catch(e){}
+  gb.globalCompositeOperation = 'lighter'; gb.drawImage(luz, 0, 0);
+  L = { apag, brillo };
+  aracCache.set(k, L);
+  return L;
+}
 function aracBoca(e){ return { x: e.x + (e.facing || 1)*62, y: e.y - alturaVisible(e) - 82 }; }
 function aracOjos(e){ return { x: e.x + (e.facing || 1)*46, y: e.y - alturaVisible(e) - 98 }; }
 var tela = null;                     // { e, res, max, t, mordT } si te tiene atrapado
@@ -16518,7 +16627,7 @@ function updateAracnido(e, dt, a, ang){
   if (f2 && !e.roto){ e.roto = true; toast('¡LA TEJEDORA ENLOQUECE!'); addParticles(e.x, e.y - 80, '#a0aab8', 26, 240); shake(12, 0.3); sfx('bigboom'); }
   const vel = f2 ? 1.3 : 1;
   // la tela que se quedó en el suelo: frena a quien la pisa
-  for (let k = 0; k < 3; k++){
+  for (let k = 0; k < ARAC_REDES; k++){
     if (!(e['p' + k + 't'] > 0)) continue;
     e['p' + k + 't'] -= dt;
     if (dist(player.x, player.y, e['p' + k + 'x'], e['p' + k + 'y']) < ARAC_RED_R + F().r*0.5) ralentizar(0.35);
@@ -16566,6 +16675,12 @@ function updateAracnido(e, dt, a, ang){
     case 'aterriza':
       if (e.ft <= 0){ e.fase = ''; e.cd = rand(1.2, 2)/vel; }
       break;
+    case 'lluviaAviso':
+      if (e.ft <= 0){ e.fase = 'lluvia'; }
+      break;
+    case 'lluvia':
+      if (aracLluvia(e, dt)){ e.fase = ''; e.cd = rand(1.2, 1.9)/vel; e.lluviaP = null; }
+      break;
     case 'laser':
       e.lasT -= dt;
       if (e.lasT <= 0 && e.lasN > 0){
@@ -16587,8 +16702,8 @@ function updateAracnido(e, dt, a, ang){
       let mx = 0, my = 0;
       if (a > 380){ mx = Math.cos(ang); my = Math.sin(ang); }
       else if (a < 220){ mx = -Math.cos(ang)*0.7; my = -Math.sin(ang)*0.7; }
-      else { const l = (e.lado || 1); mx = -Math.sin(ang)*0.6*l; my = Math.cos(ang)*0.6*l; }
-      e.ladoT = (e.ladoT || 3) - dt; if (e.ladoT <= 0){ e.ladoT = rand(2.5, 4); e.lado = -(e.lado || 1); }
+      else { const l = (e.lado || 1); mx = -Math.sin(ang)*1.25*l; my = Math.cos(ang)*1.25*l; }   // te rodea deprisa
+      e.ladoT = (e.ladoT || 3) - dt; if (e.ladoT <= 0){ e.ladoT = rand(2.2, 3.6); e.lado = -(e.lado || 1); }
       const sp = e.speed*vel, m = Math.hypot(mx, my);
       if (m > 0.01){ e.x = clamp(e.x + mx*sp*dt, 80, WORLD_W - 80); e.y = clamp(e.y + my*sp*dt, 80, WORLD_H - 80); e.paso += dt*6*m*vel; }
       e.cd -= dt;
@@ -16597,10 +16712,14 @@ function updateAracnido(e, dt, a, ang){
         e.ataque = (e.ataque || 0) + 1;
         if (e.ataque % 2 === 1 && !tela && a < ARAC_TELA_L - 40){
           e.fase = 'telaAviso'; e.ft = ARAC_TELA_AVISO/Math.sqrt(vel); e.tx = player.x; e.ty = player.y; sfx('cargaM');
-        } else if (Math.random() < 0.5){
-          e.fase = 'saltoAviso'; e.ft = 0.95/vel;
-          e.sx = Math.round(clamp(player.x, 90, WORLD_W - 90)); e.sy = Math.round(clamp(player.y, 90, WORLD_H - 90));
-        } else { e.fase = 'laser'; e.lasN = f2 ? 4 : 3; e.lasT = 0.35; }
+        } else {
+          const r = Math.random();
+          if (r < 0.34){
+            e.fase = 'saltoAviso'; e.ft = 0.95/vel;
+            e.sx = Math.round(clamp(player.x, 90, WORLD_W - 90)); e.sy = Math.round(clamp(player.y, 90, WORLD_H - 90));
+          } else if (r < 0.67){ e.fase = 'lluviaAviso'; e.ft = ARAC_LLUVIA_AVISO/Math.sqrt(vel); aracLluviaPrepara(e); sfx('cargaM'); }
+          else { e.fase = 'laser'; e.lasN = f2 ? 4 : 3; e.lasT = 0.35; }
+        }
       }
     }
   }
@@ -16626,9 +16745,40 @@ function aracTelaLlega(e){
   }
   if (imp.que === 'escudo'){ damageHeld(2); addParticles(imp.x, imp.y, '#e8f0f8', 12, 120); return; }
   if (imp.que === 'mago' || imp.que === 'tk'){ addParticles(imp.x, imp.y, '#e8f0f8', 12, 120); return; }
-  const k = (e.pn || 0) % 3;
-  e['p' + k + 'x'] = e.tx; e['p' + k + 'y'] = e.ty; e['p' + k + 't'] = 7; e.pn = k + 1;
+  aracRedSuelo(e, e.tx, e.ty, 7);
   addParticles(e.tx, e.ty, '#e8f0f8', 10, 100);
+}
+// Deja una red en el suelo (en el hueco más viejo).
+function aracRedSuelo(e, x, y, t){
+  const k = (e.pn || 0) % ARAC_REDES;
+  e['p' + k + 'x'] = Math.round(x); e['p' + k + 'y'] = Math.round(y); e['p' + k + 't'] = t; e.pn = k + 1;
+}
+// Lluvia de telas: marca varios puntos (uno donde estás) y les lanza una bola
+// de tela a cada uno; al caer se abren en una red que frena a quien la pise.
+function aracLluviaPrepara(e){
+  const n = e.roto ? 7 : 5, pts = [[player.x, player.y]];
+  for (let i = 1; i < n; i++){
+    const an = (i/(n - 1))*Math.PI*2 + rand(-0.4, 0.4), r = rand(95, 230);
+    pts.push([clamp(player.x + Math.cos(an)*r, 70, WORLD_W - 70), clamp(player.y + Math.sin(an)*r*0.8, 70, WORLD_H - 70)]);
+  }
+  e.lluviaP = pts.map(p=> [Math.round(p[0]), Math.round(p[1])]); e.bolas = []; e.lluviaN = 0; e.lluviaT = 0;
+}
+function aracLluvia(e, dt){
+  e.lluviaT -= dt;
+  if (e.lluviaN < e.lluviaP.length && e.lluviaT <= 0){
+    const o = aracBoca(e), p = e.lluviaP[e.lluviaN++];
+    e.bolas.push({ x0:o.x, y0:o.y, x:p[0], y:p[1], t:0 });
+    e.lluviaT = ARAC_LLUVIA_CADA; e.facing = p[0] >= e.x ? 1 : -1; sfx('dash');
+  }
+  for (let i = e.bolas.length - 1; i >= 0; i--){
+    const b = e.bolas[i]; b.t += dt/ARAC_LLUVIA_VUELO;
+    if (b.t < 1) continue;
+    e.bolas.splice(i, 1);
+    aracRedSuelo(e, b.x, b.y, ARAC_LLUVIA_RED_T);
+    addParticles(b.x, b.y, '#e8f0f8', 12, 120);
+    if (dist(player.x, player.y, b.x, b.y) < ARAC_RED_R + F().r*0.5 && !vil.intro){ golpeDesSuave(ARAC_LLUVIA_DMG); ralentizar(1.2); }
+  }
+  return e.lluviaN >= e.lluviaP.length && !e.bolas.length;
 }
 // Salto y pisotón: todo lo que haya debajo, al suelo.
 function aracGolpeSuelo(e, x, y, R, dmg){
@@ -16705,13 +16855,17 @@ function drawAracnido(e){
   const s = S(e.x, e.y), alt = alturaVisible(e);
   sombra(s.x, s.y + 4, 170*(1 - alt/400), 34*(1 - alt/400), 0.9);
   const pose = e.muerde > 0 ? 'muerde' : e.fase === 'salto' ? 'salta' : e.fase === 'pisaAviso' ? 'pisa'
-             : (e.fase === 'telaAviso' || e.fase === 'tela' || e.fase === 'arrastra') ? 'teje' : 'anda';
+             : (e.fase === 'telaAviso' || e.fase === 'tela' || e.fase === 'arrastra' || e.fase === 'lluviaAviso' || e.fase === 'lluvia') ? 'teje' : 'anda';
   const f = pose === 'anda' ? Math.floor(e.paso || 0) % 4 : pose === 'muerde' ? (e.muerde > 0.15 ? 1 : 0) : 0;
   const c = aracFrame(pose, f, !!e.roto), [W, H, cx, py] = ARAC_TAM;
   ctx.save(); ctx.translate(s.x, s.y - alt);
   if ((e.facing || 1) < 0) ctx.scale(-1, 1);
   const suave = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = false;
   ctx.drawImage(c, -cx, -py);
+  // las luces rojas laten con la música: se apagan en lo flojo y arden con cada golpe
+  const L = aracLuces(pose, f, !!e.roto), n = nivelMusica();
+  ctx.globalAlpha = (1 - n)*0.8; ctx.drawImage(L.apag, -cx, -py);
+  ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.1 + n*0.8; ctx.drawImage(L.brillo, -cx, -py);
   ctx.imageSmoothingEnabled = suave;
   ctx.restore();
   if (e.fase === 'telaAviso'){ const m = S(aracBoca(e).x, aracBoca(e).y); ctx.fillStyle = 'rgba(255,255,255,' + (0.5 + Math.sin(gameTime*20)*0.4) + ')'; ctx.beginPath(); ctx.arc(m.x, m.y, 5, 0, Math.PI*2); ctx.fill(); }
@@ -16729,7 +16883,7 @@ function dibRed(x, y, R, a){
 function drawAracnidoSuelo(){
   for (let __i160 = 0, __a160 = enemies; __i160 < __a160.length; __i160++){ const e = __a160[__i160];
     if (e.dead || e.type !== 'aracnido') continue;
-    for (let k = 0; k < 3; k++){ const t = e['p' + k + 't']; if (t > 0){ const s = S(e['p' + k + 'x'], e['p' + k + 'y']); dibRed(s.x, s.y, ARAC_RED_R, 0.7*clamp(t/1.5, 0, 1)); } }
+    for (let k = 0; k < ARAC_REDES; k++){ const t = e['p' + k + 't']; if (t > 0){ const s = S(e['p' + k + 'x'], e['p' + k + 'y']); dibRed(s.x, s.y, ARAC_RED_R, 0.7*clamp(t/1.5, 0, 1)); } }
     ctx.save();
     if (e.fase === 'telaAviso'){
       const o = S(aracBoca(e).x, aracBoca(e).y + 82), t = S(e.tx, e.ty), pul = 0.55 + Math.sin(gameTime*16)*0.35;
@@ -16742,6 +16896,14 @@ function drawAracnidoSuelo(){
       const t = S(e.sx, e.sy), k = e.fase === 'salto' ? 1 : 0.6 + Math.sin(gameTime*16)*0.3;
       ctx.fillStyle = 'rgba(255,60,40,0.16)'; ctx.beginPath(); ctx.ellipse(t.x, t.y, ARAC_SALTO_R, ARAC_SALTO_R*0.7, 0, 0, Math.PI*2); ctx.fill();
       ctx.strokeStyle = 'rgba(255,70,50,' + k + ')'; ctx.lineWidth = 3; ctx.stroke();
+    } else if ((e.fase === 'lluviaAviso' || e.fase === 'lluvia') && e.lluviaP){
+      const pul = 0.55 + Math.sin(gameTime*16)*0.35;
+      for (let i = (e.fase === 'lluvia' ? e.lluviaN - e.bolas.length : 0); i < e.lluviaP.length; i++){
+        const t = S(e.lluviaP[i][0], e.lluviaP[i][1]);
+        ctx.strokeStyle = 'rgba(255,255,255,' + pul + ')'; ctx.lineWidth = 2.5; ctx.setLineDash([8, 7]);
+        ctx.beginPath(); ctx.ellipse(t.x, t.y, ARAC_RED_R, ARAC_RED_R*0.7, 0, 0, Math.PI*2); ctx.stroke(); ctx.setLineDash([]);
+        dibRed(t.x, t.y, ARAC_RED_R*0.8, 0.25);
+      }
     } else if (e.fase === 'pisaAviso'){
       const t = S(e.x, e.y), k = 0.6 + Math.sin(gameTime*18)*0.3;
       ctx.fillStyle = 'rgba(255,60,40,0.14)'; ctx.beginPath(); ctx.ellipse(t.x, t.y, ARAC_PISA_R, ARAC_PISA_R*0.7, 0, 0, Math.PI*2); ctx.fill();
@@ -16760,6 +16922,15 @@ function drawAracnidoEfectos(){
       ctx.strokeStyle = 'rgba(240,246,252,0.9)'; ctx.lineWidth = 1.6;
       ctx.beginPath(); ctx.moveTo(so.x, so.y); ctx.lineTo(sb.x, sb.y); ctx.stroke();
       dibRed(sb.x, sb.y, 16 + e.tw*16, 0.95);
+    }
+    if (e.bolas && e.bolas.length){                     // bolas de tela en vuelo, en arco
+      for (const b of e.bolas){
+        const x = b.x0 + (b.x - b.x0)*b.t, y = b.y0 + (b.y - b.y0)*b.t - Math.sin(b.t*Math.PI)*120, sb = S(x, y);
+        ctx.strokeStyle = 'rgba(240,246,252,0.55)'; ctx.lineWidth = 1.2;
+        ctx.beginPath(); ctx.moveTo(so.x, so.y); ctx.lineTo(sb.x, sb.y); ctx.stroke();
+        ctx.fillStyle = '#eef4fa'; ctx.beginPath(); ctx.arc(sb.x, sb.y, 7, 0, Math.PI*2); ctx.fill();
+        dibRed(sb.x, sb.y, 13, 0.9);
+      }
     }
     if (e.atrapa){
       const sp = S(e.ax, e.ay - 12), tir = tela && tela.tir > 0 ? rand(-3, 3) : 0;
@@ -26457,7 +26628,7 @@ function lucesJefes(L, k, mx, Mx, my, My, tinta){
     if (e.dead) continue;
     if (e.type === 'muerteVeloz'){ for (const m of mvManos(e)) luz(m.x, m.y, 40, luzAzul, 0.6); if (e.fase === 'tornado') luz(e.x, e.y - 40, 110, luzAzul, 0.6); }
     else if (e.type === 'desesperacion') luz(e.x + (e.facing || 1)*24, e.y - alturaVisible(e) - ((e.etapa || 0) < 2 ? 70 : 150), 34, luzRoja, 0.55);
-    else if (e.type === 'aracnido'){ const o = aracOjos(e); luz(o.x, o.y, 54, luzRoja, 0.7); if (e.fase === 'tela' || e.atrapa) luz(e.tx, e.ty, 50, luzBlanca, 0.4); }
+    else if (e.type === 'aracnido'){ const o = aracOjos(e); luz(o.x, o.y, 54 + nivelMusica()*26, luzRoja, 0.35 + nivelMusica()*0.55); if (e.fase === 'tela' || e.atrapa) luz(e.tx, e.ty, 50, luzBlanca, 0.4); }
     else if (e.type === 'gravitron'){ luz(e.x - (e.facing || 1)*30, e.y - alturaVisible(e), 60, luzAzul, 0.6); if (e.gF === 'activo') luz(e.gx, e.gy, e.gR, luzAzul, 0.45); }
     else if (e.type === 'medico' && e.cura) luz(e.cx, e.cy, 40, luzRoja, 0.5);
   }
