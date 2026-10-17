@@ -199,11 +199,11 @@
   /* Registro: luces de fondo casi imperceptibles que laten con la música */
   #registro .regluces { position:fixed; inset:0; pointer-events:none; z-index:0; overflow:hidden; }
   #registro .regluces i { position:absolute; width:48vmax; height:48vmax; border-radius:50%; transform:translate(-50%,-50%); opacity:0;
-                          background:radial-gradient(circle, rgba(90,255,150,0.55) 0%, rgba(90,255,150,0) 62%); will-change:opacity; }
+                          background:radial-gradient(circle, rgba(90,255,150,0.8) 0%, rgba(90,255,150,0) 64%); will-change:opacity; }
   #registro .regluces i:nth-child(1){ left:10%; top:16%; }
-  #registro .regluces i:nth-child(2){ left:90%; top:24%; background:radial-gradient(circle, rgba(110,210,255,0.55) 0%, rgba(110,210,255,0) 62%); }
-  #registro .regluces i:nth-child(3){ left:52%; top:58%; background:radial-gradient(circle, rgba(170,120,255,0.45) 0%, rgba(170,120,255,0) 62%); }
-  #registro .regluces i:nth-child(4){ left:14%; top:88%; background:radial-gradient(circle, rgba(110,210,255,0.5) 0%, rgba(110,210,255,0) 62%); }
+  #registro .regluces i:nth-child(2){ left:90%; top:24%; background:radial-gradient(circle, rgba(110,210,255,0.8) 0%, rgba(110,210,255,0) 64%); }
+  #registro .regluces i:nth-child(3){ left:52%; top:58%; background:radial-gradient(circle, rgba(170,120,255,0.7) 0%, rgba(170,120,255,0) 64%); }
+  #registro .regluces i:nth-child(4){ left:14%; top:88%; background:radial-gradient(circle, rgba(110,210,255,0.75) 0%, rgba(110,210,255,0) 64%); }
   #registro .regluces i:nth-child(5){ left:86%; top:86%; }
   #registro > .overlay-inner { position:relative; z-index:1; }
   /* en pantallas estrechas, una fila con varios botones baja a la línea siguiente en vez de salirse */
@@ -11029,7 +11029,7 @@ const BESTIARY = [
   { id:'ave', name:'AVE DE PRESA', hp:120, dmg:'7 por láser (ráfagas)', sprite:'aveF', verb:'DERRIBADAS',
     desc:'Caza marciano de casco gris con forma de ave: cabina morada, púas en el lomo y dos grandes pinzas segmentadas hacia delante. Vuela en pasadas, cruzándose contigo, y cuando te tiene delante suelta ráfagas de láser desde la punta de sus pinzas. Es ligero y se agarra al vuelo. Llega con los REFUERZOS marcianos.' },
   { id:'gravitron', name:'NAVE GRAVITATORIA', hp:650, dmg:'bombardeos (22 en área) y pozos de gravedad', sprite:'gravitronF', verb:'DERRIBADAS',
-    desc:'La nave insignia de los refuerzos: un casco morado lleno de púas con dos largas puntas hacia delante. Orbita despacio a media distancia y alterna dos ataques: un bombardeo de obuses que caen donde marca el suelo, y un pozo de gravedad, un círculo morado donde todo pesa: dentro te mueves mucho más lento, no puedes volar y te vas aplastando poco a poco. Es la última en llegar. Solo el COLOSO puede levantarla.' },
+    desc:'La nave insignia de los refuerzos: un casco morado lleno de púas con dos largas puntas hacia delante. Orbita despacio a media distancia y alterna dos ataques: un bombardeo de obuses que caen donde marca el suelo, y un pozo de gravedad, un círculo morado donde todo pesa: dentro te mueves mucho más lento, no puedes volar y te vas aplastando poco a poco. Es la última en llegar. Es demasiado grande para agarrarla: solo con el regalo del OVNI se puede levantar; si no, hay que derribarla a golpes.' },
   { id:'helicaza', name:'HELICÓPTERO CAZADOR', hp:260, dmg:'4 por bala (ráfagas largas)', sprite:'helicazaF', verb:'DERRIBADOS',
     desc:'Helicóptero de caza de los refuerzos: casco anguloso de blindaje azul oscuro, cabina de cristal negro, una ala corta con su tren de aterrizaje, la cola acabada en un ventilador entubado y un cañón largo bajo la barbilla. Ronda a media distancia cabeceando y, cuando te tiene a tiro, el cañón se ilumina un momento antes de soltar una ráfaga larga de balas rápidas que se abren un poco: apártate de lado o ponte a cubierto. Vuela por encima de los edificios.' },
   { id:'acorazado', name:'ACORAZADO DE ASALTO', hp:420, dmg:'22 por disparo (dos seguidos) y lluvia de misiles (12 cada uno)', sprite:'acorazadoF', verb:'DESTRUIDOS',
@@ -23795,9 +23795,10 @@ function grabbablesNear(tip, range){
     // la infantería se agarra siempre; los blindados solo siendo COLOSO; el
     // caza y el OVNI son livianos y se agarran igual, sin hacer falta serlo
     if (!e.person && !e.ligero && e.type !== 'plane' && e.type !== 'ovni' && !F().heavyGrab) continue;
-    // El cañón de asedio está anclado al suelo: solo el regalo del OVNI
-    // da fuerza para arrancarlo.
-    if (e.type === 'siege' && !buffActivo('gigante')) continue;
+    // El cañón de asedio está anclado al suelo y la nave gravitatoria es
+    // demasiado grande: solo el regalo del OVNI da fuerza para agarrarlos.
+    // Sin él, la nave se derriba a golpes (varios clics).
+    if ((e.type === 'siege' || e.type === 'gravitron') && !buffActivo('gigante')) continue;
     // Lo que vuela se dibuja por encima de su sombra: se mide hasta el
     // aparato, que es lo que ves y a donde apuntas, no hasta el suelo.
     const d = dist(tip.x, tip.y, e.x, e.y - alturaVisible(e));
@@ -31335,7 +31336,7 @@ function lucesRegistro(){
   const L = lucesRegistro.els || (lucesRegistro.els = [...ov.querySelectorAll('.regluces i')]);
   for (let i = 0; i < L.length; i++){
     const vaiven = 0.55 + 0.45*Math.sin(t*0.6 + i*1.9);
-    L[i].style.opacity = (0.02 + n*0.085*vaiven).toFixed(3);
+    L[i].style.opacity = (0.08 + n*0.32*vaiven).toFixed(3);
   }
   requestAnimationFrame(lucesRegistro);
 }
