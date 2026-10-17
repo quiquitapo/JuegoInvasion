@@ -4945,7 +4945,7 @@ function edgeSpawnPos(dmin, dmax, vuela){
 const ENEMY_TYPES = { police:1, military:1, minigun:1, tank:1, heli:1, gunship:1, siege:1, flametank:1, plane:1, omni:1, artillero:1, superx:1, mbt:1, mbtFrio:1, ovni:1, tripode:1,
                       heroe:1, arquero:1, caballero:1, golem:1, kaiyin:1,
                       centinela:1, centElite:1, droide:1, escaner:1, cabezon:1, arana:1, murcielago:1, caza40k:1, centurion:1, vengativo:1, bicho:1, amalgama:1, desgarrador:1,
-                      medico:1, voltio:1, machacador:1, ave:1, gravitron:1, aracnido:1, desesperacion:1, muerteVeloz:1 };
+                      medico:1, voltio:1, machacador:1, ave:1, gravitron:1, helicaza:1, acorazado:1, aracnido:1, desesperacion:1, muerteVeloz:1 };
 function spawnEnemy(type, atX, atY){
   if (!ENEMY_TYPES[type]) return;      // ignora tipos retirados o mal escritos
   // Lo que vuela puede aparecer sobre un tejado; el resto, no.
@@ -5007,6 +5007,10 @@ function spawnEnemy(type, atX, atY){
                             rumbo:rand(0, 6.28), wx:0, wy:0, wT:0, rafaga:0, tiroT:0, dispT:0, cd:rand(1.5, 2.5)});
   if (type==='gravitron') Object.assign(base, {hp:GRAV_HP, maxhp:GRAV_HP, speed:60, w:130, h:70, grabbable:true, alt:96, bob:rand(0,6),
                             fase:'', ft:0, cd:2.5, gF:'', gT:0, gx:0, gy:0, gR:GRAV_R, bombas:0, tiroT:0});
+  if (type==='helicaza')  Object.assign(base, {hp:CAZH_HP, maxhp:CAZH_HP, speed:200, w:84, h:44, grabbable:true, alt:92, bob:rand(0,6),
+                            vx:0, vy:0, wx:0, wy:0, wT:0, fase:'', ft:0, cd:rand(1.5, 2.5), n:0, tiroT:0, dispT:0});
+  if (type==='acorazado') Object.assign(base, {hp:ACOR_HP, maxhp:ACOR_HP, speed:52, w:50, h:84, grabbable:true, fase:'', ft:0, cd:1.8,
+                            n:0, tiroT:0, zx:0, zy:0, ataque:0, dispT:0});
   if (type==='desesperacion') Object.assign(base, {hp:DESES_HP, maxhp:DESES_HP, speed:230, w:50, h:150, grabbable:false, fase:'', ft:0, paso:0, etapa:0,
                             lleva:0, golpeCd:0, lanzaCd:1, comeCd:3, espCd:4, empujeCd:0, ovniCd:1, sx:0, sy:0, eA:0, sA:0, alt:0, mancos:0, escupio:0});
   if (type==='muerteVeloz') Object.assign(base, {hp:MV_HP, maxhp:MV_HP, speed:320, w:60, h:100, grabbable:false, fase:'', ft:0, cd:2.5, paso:0,
@@ -7705,6 +7709,8 @@ const REWARD = {
   machacador:{ pts:260, heal:28 },
   ave:      { pts:200,  heal:22 },
   gravitron:{ pts:900,  heal:55 },
+  helicaza: { pts:240,  heal:26 },
+  acorazado:{ pts:420,  heal:40 },
   aracnido: { pts:3200, heal:90 },
   muerteVeloz:{ pts:3300, heal:90 },
   desesperacion:{ pts:3400, heal:95 }
@@ -7866,6 +7872,8 @@ function damageEnemy(e, dmg, fx, fy){
   else if (k === 'gravitron'){ e.gF = ''; explode(e.x, e.y, 170, 50, true); humoNegro(e.x, e.y); addParticles(e.x, e.y - 40, '#d07aff', 26, 240); }
   else if (k === 'medico'){ addParticles(e.x, e.y - 22, '#d8202a', 20, 160); addParticles(e.x, e.y - 22, '#a8c4cc', 8, 120); }
   else if (k === 'machacador') addParticles(e.x, e.y - 30, '#c8382a', 12, 140);
+  else if (k === 'helicaza'){ explode(e.x, e.y, 120, 40, true); humoNegro(e.x, e.y); addParticles(e.x, e.y - 60, '#ffca4d', 18, 220); addParticles(e.x, e.y - 60, '#45536b', 14, 180); }
+  else if (k === 'acorazado'){ explode(e.x, e.y, 110, 35, true); humoNegro(e.x, e.y); addParticles(e.x, e.y - 50, '#e8b820', 10, 160); addParticles(e.x, e.y - 50, '#454a52', 16, 180); }
   else if (k === 'tripode'){ explode(e.x, e.y - 30, 150, 55, true); addParticles(e.x, e.y - 44, '#dff6ff', 20, 220); humoNegro(e.x, e.y); }
   else if ((k === 'heli' || k === 'gunship' || k === 'plane') && !e.thrown && !e.held) aeronaveCae(e);
   else if (k === 'tank' || k === 'heli') explode(e.x, e.y, 100, 40, true);
@@ -11008,6 +11016,10 @@ const BESTIARY = [
     desc:'Caza marciano de casco gris con forma de ave: cabina morada, púas en el lomo y dos grandes pinzas segmentadas hacia delante. Vuela en pasadas, cruzándose contigo, y cuando te tiene delante suelta ráfagas de láser desde la punta de sus pinzas. Es ligero y se agarra al vuelo. Llega con los REFUERZOS marcianos.' },
   { id:'gravitron', name:'NAVE GRAVITATORIA', hp:650, dmg:'bombardeos (22 en área) y pozos de gravedad', sprite:'gravitronF', verb:'DERRIBADAS',
     desc:'La nave insignia de los refuerzos: un casco morado lleno de púas con dos largas puntas hacia delante. Orbita despacio a media distancia y alterna dos ataques: un bombardeo de obuses que caen donde marca el suelo, y un pozo de gravedad, un círculo morado donde todo pesa: dentro te mueves mucho más lento, no puedes volar y te vas aplastando poco a poco. Es la última en llegar. Solo el COLOSO puede levantarla.' },
+  { id:'helicaza', name:'HELICÓPTERO CAZADOR', hp:260, dmg:'4 por bala (ráfagas largas)', sprite:'helicazaF', verb:'DERRIBADOS',
+    desc:'Helicóptero de caza de los refuerzos: casco anguloso de blindaje azul oscuro, cabina de cristal negro, una ala corta con su tren de aterrizaje, la cola acabada en un ventilador entubado y un cañón largo bajo la barbilla. Ronda a media distancia cabeceando y, cuando te tiene a tiro, el cañón se ilumina un momento antes de soltar una ráfaga larga de balas rápidas que se abren un poco: apártate de lado o ponte a cubierto. Vuela por encima de los edificios.' },
+  { id:'acorazado', name:'ACORAZADO DE ASALTO', hp:420, dmg:'22 por disparo (dos seguidos) y lluvia de misiles (12 cada uno)', sprite:'acorazadoF', verb:'DESTRUIDOS',
+    desc:'Un guerrero metido en una armadura de exterminio de placas negras remachadas, con franjas amarillas de peligro, un casco con forma de calavera y ojos rojos, un puño de combate y un cañón doble en el brazo. Sobre los hombros carga dos lanzadores de misiles. Camina despacio balanceando los brazos y alterna: apunta (verás la línea) y suelta dos disparos pesados, o marca una zona naranja en el suelo y la cubre con una lluvia de misiles pequeños. Aguanta mucho: solo el COLOSO puede levantarlo.' },
   { id:'desgarrador', name:'EL DESGARRADOR', hp:2600, dmg:'embestidas, motosierras, rayo y coletazo', sprite:'desgarradorF', verb:'DERROTADOS',
     hint:'El otro guardián del Mundo Alienígena. Aún no lo has derrotado.',
     desc:'Kaiju cíborg del planeta marciano: garfios y motosierras por brazos, una sierra circular en el pecho, aletas rojas, cola de púas y un visor rojo. Embiste volando a gran velocidad cortando con sus dos cuchillas, dispara desde el visor un rayo que te persigue (escóndete tras un edificio o un escudo), lanza tajos con las motosierras si te tiene cerca, embiste por el suelo con las motosierras por delante y barre todo alrededor con la cola. Además se regenera poco a poco. En Castigo Divino vuelve deformado y despellejado: se le ven las costillas, la quijada y los huesos.' },
@@ -12494,6 +12506,8 @@ const P2_ALIEN = [
   { type:'machacador',name:'MACHACADOR', cost:280, cool:6.0, sprite:'machacadorF' },
   { type:'ave',       name:'AVE DE PRESA',cost:260, cool:5.0, sprite:'aveF' },
   { type:'gravitron', name:'N. GRAVITAT.',cost:750, cool:18.0,sprite:'gravitronF' },
+  { type:'helicaza',  name:'H. CAZADOR', cost:330, cool:7.0, sprite:'helicazaF' },
+  { type:'acorazado', name:'ACORAZADO',  cost:420, cool:9.0, sprite:'acorazadoF' },
   { type:'refuerzos', name:'REFUERZOS',  cost:1400,cool:40.0,sprite:'gravitronF', especial:'refuerzos' },
   { type:'aracnido',  name:'TEJEDORA',   cost:1400,cool:30.0,sprite:'aracnidoF' },
   { type:'muerteVeloz',name:'MUERTE VELOZ',cost:1400,cool:30.0,sprite:'muerteVelozF' },
@@ -14950,7 +14964,7 @@ const MAGO_CONVIERTE = {
   voltio:'zombi', arquero:'zombi', caballero:'zombi', vengativo:'zombi',
   tank:'ogro', arana:'ogro', siege:'ogro', machacador:'ogro', golem:'ogro', amalgama:'ogro',
   heli:'dragoncito', gunship:'dragoncito', caza40k:'dragoncito', plane:'dragoncito', ovni:'dragoncito', ave:'dragoncito',
-  murcielago:'dragoncito', escaner:'dragoncito', gravitron:'dragoncito',
+  murcielago:'dragoncito', escaner:'dragoncito', gravitron:'dragoncito', helicaza:'dragoncito', acorazado:'ogro',
   mbt:'pollo', mbtFrio:'pollo', cabezon:'pollo', bicho:'pollo'
 };
 const ALIADO_AVISO = { ogro:['#8dff6a', '¡UN OGRO SE UNE AL MAGO!'], dragoncito:['#ff9a4a', '¡UN DRAGÓN SE UNE AL MAGO!'],
@@ -15176,7 +15190,7 @@ function alienFrame(tipo, pose, f){
   const g = c.getContext('2d'); g.lineCap = 'round'; g.lineJoin = 'round';
   g.translate(cx, py);
   ({ droide:dibDroide, cabezon:dibCabezon, escaner:dibEscaner, arana:dibArana, murcielago:dibMurcielago, caza40k:dibCaza, bicho:dibBicho,
-     medico:dibMedico, voltio:dibVoltio, machacador:dibMachacador, ave:dibAve, gravitron:dibGravitron })[tipo](g, pose, f);
+     medico:dibMedico, voltio:dibVoltio, machacador:dibMachacador, ave:dibAve, gravitron:dibGravitron, helicaza:dibHelicaza, acorazado:dibAcorazado })[tipo](g, pose, f);
   pixelArte(c, '#0c0a16');
   alCache.set(k, c);
   return c;
@@ -15717,10 +15731,18 @@ function drawUnidadAlien(e){
       break;
     }
     case 'gravitron': f = Math.floor(t*10) % 2; dy = s.y - alt; break;
+    case 'helicaza':                                   // cabecea un poco hacia donde avanza
+      pose = e.dispT > 0 ? 'ataca' : 'anda'; dy = s.y - alt;
+      if (!e.held && !e.thrown) rot = clamp((e.vx || 0)/900, -0.2, 0.2);
+      break;
+    case 'acorazado':
+      pose = e.fase === 'apunta' || e.fase === 'dispara' ? 'dispara' : e.fase === 'misMarca' || e.fase === 'misLanza' ? 'misiles' : 'anda';
+      f = anda ? Math.floor(t*6) % 4 : 0; break;
   }
   if (e.held) rot = Math.sin(gameTime*12)*0.3;
   if (tumbado){ rot = facing*Math.PI/2; dy = s.y + 2; }
   pintaAl(alienFrame(e.type, pose, f), e.type, s.x, dy, facing, rot);
+  if (e.type === 'helicaza') rotorHelicaza(s.x, dy, facing, rot, t);
   if (e.type === 'escaner' && !e.held && !e.thrown){
     if (e.flashT > 0){                                   // barrido del escáner
       const p = S(player.x, player.y);
@@ -15868,9 +15890,12 @@ const VOL_HP = 55, VOL_CARGA = 0.55, VOL_DMG = 12, VOL_VEL = 520, ELECTRO_DUR = 
 const MACH_HP = 200, MACH_ESC = 110, MACH_ESC_CD = 9, MACH_R = 82, MACH_AVISO = 0.95, MACH_DMG = 34, MACH_ALC = 230;
 const AVE_HP = 120;
 const GRAV_HP = 650, GRAV_R = 150, GRAV_AVISO = 0.9, GRAV_DUR = 5, GRAV_K = 0.42, GRAV_DPS = 7;
-Object.assign(AL_TAM, { medico:[50,60,24,57], voltio:[72,64,32,61], machacador:[112,112,42,106], ave:[104,72,52,36], gravitron:[172,100,86,50] });
-Object.assign(AL_VUELA, { ave:1, gravitron:1 });
-const REFZ_HP = { centElite:80, medico:MED_HP, voltio:VOL_HP, machacador:MACH_HP, ave:AVE_HP, gravitron:GRAV_HP };
+const CAZH_HP = 260, CAZH_BALAS = 10, CAZH_DMG = 4, CAZH_CARGA = 0.6;
+const ACOR_HP = 420, ACOR_DMG = 22, ACOR_APUNTA = 0.7, ACOR_MIS_R = 125, ACOR_MIS_AVISO = 1.15, ACOR_MIS_N = 8, ACOR_MIS_DMG = 12;
+Object.assign(AL_TAM, { medico:[50,60,24,57], voltio:[72,64,32,61], machacador:[112,112,42,106], ave:[104,72,52,36], gravitron:[172,100,86,50],
+                        helicaza:[134,72,67,40], acorazado:[118,112,52,108] });
+Object.assign(AL_VUELA, { ave:1, gravitron:1, helicaza:1 });
+const REFZ_HP = { centElite:80, medico:MED_HP, voltio:VOL_HP, machacador:MACH_HP, ave:AVE_HP, gravitron:GRAV_HP, helicaza:CAZH_HP, acorazado:ACOR_HP };
 // [segundo, tipo, cuántos, raro]
 const REFZ_GUION = [
   [0,    'centElite', 2],
@@ -15878,7 +15903,9 @@ const REFZ_GUION = [
   [2.5,  'voltio', 2],
   [6,    'machacador', 1],
   [9,    'centElite', 2],
+  [10.5, 'acorazado', 1],
   [12,   'ave', 2],
+  [14,   'helicaza', 1],
   [15.5, 'voltio', 2],
   [19,   'gravitron', 1]
 ];
@@ -15890,7 +15917,7 @@ function refuerzosActivos(){ return !!(refz && !refz.ign); }
 function lanzaRefuerzos(enVs, x, y){
   if (refz) return;
   const guion = REFZ_GUION.filter(g => !g[3] || Math.random() < REFZ_MEDICO_P).map(g => g.slice());
-  if (enAsedio()){ guion.push([17, 'machacador', 1]); guion.push([21, 'ave', 1]); guion.sort((a, b) => a[0] - b[0]); }
+  if (enAsedio()){ guion.push([17, 'machacador', 1]); guion.push([21, 'ave', 1]); guion.push([23, 'helicaza', 1]); guion.sort((a, b) => a[0] - b[0]); }
   let max = 0; for (const g of guion) max += g[2]*REFZ_HP[g[1]];
   refz = { t:0, i:0, guion, max, hp:max, plazo:0, ign:false, vs:!!enVs, x: x || 0, y: y || 0 };
   refzBar._barLag = undefined;
@@ -15914,6 +15941,8 @@ function refuerzoLlega(tipo, n){
   }
   if (tipo === 'gravitron'){ toast('¡LA NAVE GRAVITATORIA!', 2); sfx('ulla'); shake(14, 0.5); }
   else if (tipo === 'machacador') toast('¡UN MACHACADOR!', 1.6);
+  else if (tipo === 'acorazado'){ toast('¡UN ACORAZADO DE ASALTO!', 1.8); shake(10, 0.3); }
+  else if (tipo === 'helicaza'){ toast('¡HELICÓPTERO CAZADOR!', 1.8); sfx('whoosh'); }
   else if (tipo === 'medico') toast('¡UN MÉDICO MARCIANO! CURA A LOS SUYOS', 2.2);
 }
 function updateRefuerzos(dt){
@@ -16102,6 +16131,161 @@ function dibVoltio(g, pose, f){
   for (const x of [13, 16.2]){ jR(g, K, x - 0.6, -17.6 + gy, 3.4, 6.2); jR(g, GR, x, -17.2 + gy, 2.4, 5); jR(g, GRL, x, -17.2 + gy, 2.4, 1); jR(g, M, x, -13.2 + gy, 2.4, 1.6); }
   g.restore();
   pierna(1, s1*4, Math.max(0, c1)*2.5, false);
+}
+// Helicóptero cazador (mira a +x): casco anguloso azul acero, cabina de
+// cristal negro, motor encima con el mástil del rotor, una ala corta con su
+// tren, la cola acabada en un ventilador entubado y un cañón bajo la barbilla.
+// Las aspas grandes, translúcidas, se pintan aparte (rotorHelicaza).
+function dibHelicaza(g, pose, f){
+  const K = '#0d1016', H0 = '#1f2532', H1 = '#2f394b', H2 = '#45536b', H3 = '#6a7c98', H4 = '#9aaac2';
+  const GL = '#0a0d14', GLR = '#3a4c6a', GM = '#575d68', GML = '#9097a2', AM = '#e8b830';
+  const poli = (c, pts)=>{ g.fillStyle = c; g.beginPath(); g.moveTo(pts[0], pts[1]); for (let k = 2; k < pts.length; k += 2) g.lineTo(pts[k], pts[k + 1]); g.closePath(); g.fill(); };
+  // cola: un brazo que se afina hasta el ventilador entubado
+  poli(K, [-20, -9, -54, -6, -54, 1, -20, 6]); poli(H1, [-20, -8, -53, -5, -53, 0, -20, 4.5]); jR(g, H2, -52, -5, 32, 1.5);
+  jO(g, K, -57, -5, 9.6, 13.6); jO(g, H1, -57, -5, 8.4, 12.4); jO(g, H0, -57, -5, 5.6, 9.6);
+  for (let i = 0; i < 5; i++){ const a = i*1.257 + 0.3; jL(g, H3, 1.2, -57, -5, -57 + Math.cos(a)*5.2, -5 + Math.sin(a)*9); }
+  jO(g, GM, -57, -5, 1.8, 2.2); jL(g, H3, 1.2, -62, -16, -55, -17.5);
+  // tren trasero: ala corta inclinada hacia atrás con soportes y una rueda
+  poli(K, [-4, 3, -34, 13, -36, 17, -2, 8]); poli(H2, [-4, 4, -33, 13.4, -34.6, 15.6, -3, 7]); jR(g, H3, -30, 12.4, 22, 1);
+  for (const x of [-12, -20, -27]) jR(g, GM, x, 11 - (x + 12)*-0.28, 3, 4);
+  jL(g, GM, 1.8, -28, 16, -29, 24); jO(g, K, -29, 25, 3.4, 3.4); jO(g, GML, -29, 25, 1.6, 1.6);
+  // casco principal: facetas de blindaje
+  poli(K, [47, 2, 41, -11, 22, -20, -14, -22, -26, -13, -24, 9, -8, 17, 12, 19, 36, 13]);
+  poli(H1, [45.5, 2, 40, -10, 21.5, -18.6, -13.4, -20.6, -24.6, -12.6, -22.8, 8.4, -7.6, 15.8, 12, 17.6, 35, 12]);
+  poli(H2, [39.5, -9.6, 21.4, -18, -13, -20, -22, -13, 10, -10]);                  // lomo, iluminado
+  poli(H3, [20, -17, -12, -19, -18, -15.4, 8, -12.6]);
+  poli(H0, [-22.6, 8, -7.6, 15.4, 12, 17, 34, 11.6, 30, 6, -4, 6]);                    // panza en sombra
+  jL(g, K, 1, -6, -12, -2, 14); jL(g, K, 1, 14, -11, 16, 16); jL(g, K, 0.8, -16, -4, 26, -6);   // juntas
+  jL(g, H4, 0.8, -12, -19.6, 18, -17.4);
+  // cabina de cristal negro, angulosa, al frente
+  poli(K, [24, -15.4, 41.6, -9.6, 46.4, 1.4, 31, 3, 18.4, -6]);
+  poli(GL, [25, -14, 40.6, -8.8, 44.6, 0.6, 31.4, 1.8, 20, -6]);
+  jL(g, GLR, 1.2, 27, -12, 39, -7.4); jL(g, GLR, 0.8, 31, -1, 43, -1);
+  // motor y mástil del rotor (las aspas van aparte)
+  poli(K, [-16, -20, -12, -27, 10, -27, 16, -20]); poli(H2, [-14.6, -20.4, -11, -25.8, 9, -25.8, 14.4, -20.4]); jR(g, H3, -10, -25, 18, 1.4);
+  jR(g, K, 0.4, -33, 3.2, 8); jR(g, GM, 1, -32, 2, 7);
+  // el emblema amarillo y la matrícula
+  g.strokeStyle = AM; g.lineWidth = 1.4; g.beginPath(); g.arc(4, -4, 3, 0.3, Math.PI*1.8); g.stroke();
+  for (let i = 0; i < 4; i++) jR(g, '#c8d0dc', 12 + i*2.4, -1, 1.4, 2.6);
+  // antenas del morro
+  jL(g, GM, 0.9, 42, -6, 58, -12); jL(g, GM, 0.9, 40, 5, 56, 9); jL(g, GM, 0.9, -24, -6, -40, -14);
+  // cañón bajo la barbilla: torreta y caño largo
+  jO(g, K, 33, 15, 5.4, 5); jO(g, GM, 33, 14.6, 4.4, 4); jO(g, GML, 32, 13.4, 1.8, 1.4);
+  jL(g, K, 3.8, 34, 16, 58, 20); jL(g, GM, 2.2, 34, 15.6, 58, 19.6); jL(g, GML, 0.8, 38, 15, 56, 18.6);
+  jR(g, K, 49, 17, 6, 4.4); jR(g, GML, 50, 17.6, 4, 1.4);
+  if (pose === 'ataca'){ jO(g, '#fff4c0', 61, 20.4, 4, 3); jO(g, '#ffe27a', 64, 20.6, 3, 2); }
+}
+// Acorazado de asalto (mira a +x): armadura de exterminio de placas negras
+// remachadas con franjas amarillas de peligro, casco calavera con ojos rojos
+// metido en un cuello alto, dos lanzadores de misiles sobre los hombros, un
+// puño de combate atrás y un cañón doble en el brazo de delante. Al andar
+// las piernas avanzan y los brazos se balancean.
+function dibAcorazado(g, pose, f){
+  const K = '#0e0f12', M1 = '#25282e', M2 = '#3a3e45', M3 = '#565b64', M4 = '#868c96', M5 = '#b4bac4';
+  const AM = '#e8b820', AMO = '#9c7a10', RJ = '#ff4a2a', RJO = '#7a1408', HU = '#c4c8ce';
+  const poli = (c, pts)=>{ g.fillStyle = c; g.beginPath(); g.moveTo(pts[0], pts[1]); for (let k = 2; k < pts.length; k += 2) g.lineTo(pts[k], pts[k + 1]); g.closePath(); g.fill(); };
+  // franjas de peligro dentro de una forma (diagonales amarillas sobre la placa)
+  const franjas = (pts, x0, x1, y0, y1, paso, hueco)=>{
+    g.save(); g.beginPath(); g.moveTo(pts[0], pts[1]); for (let k = 2; k < pts.length; k += 2) g.lineTo(pts[k], pts[k + 1]); g.closePath(); g.clip();
+    g.fillStyle = AM;
+    for (let x = x0 - (y1 - y0); x < x1; x += paso + (hueco || paso*2.6)){ g.beginPath(); g.moveTo(x, y1); g.lineTo(x + paso, y1); g.lineTo(x + paso + (y1 - y0), y0); g.lineTo(x + (y1 - y0), y0); g.closePath(); g.fill(); }
+    g.restore();
+  };
+  const remache = (x, y)=>{ jR(g, K, x - 1, y - 1, 2.4, 2.4); jR(g, M5, x - 0.6, y - 0.6, 1.2, 1.2); };
+  const anda = pose === 'anda', ph = anda ? f/4*Math.PI*2 : 0, s1 = Math.sin(ph), c1 = Math.cos(ph);
+  const bote = anda ? Math.abs(c1)*1.5 : 0;
+  // ---- pierna de atrás ----
+  const pierna = (x, dx, lift, lejos)=>{
+    const m = lejos ? M1 : M2, ml = lejos ? M2 : M3;
+    poli(K, [x - 10, -40, x + 10, -40, x + 9 + dx*0.4, -20, x - 9 + dx*0.4, -20]);
+    poli(m, [x - 9, -39, x + 9, -39, x + 8 + dx*0.4, -21, x - 8 + dx*0.4, -21]);
+    const fx = x + dx, fy = -lift;
+    poli(K, [fx - 11, fy - 22, fx + 11, fy - 22, fx + 13, fy - 6, fx + 16, fy + 0.5, fx - 12, fy + 0.5, fx - 12, fy - 6]);   // greba + bota
+    poli(ml, [fx - 10, fy - 21, fx + 10, fy - 21, fx + 11.6, fy - 6.5, fx - 10.6, fy - 6.5]);
+    poli(m, [fx - 11, fy - 5.6, fx + 14.4, fy - 5.6, fx + 15, fy - 0.6, fx - 11, fy - 0.6]);
+    if (!lejos){
+      franjas([fx - 10, fy - 21, fx + 10, fy - 21, fx + 11.6, fy - 6.5, fx - 10.6, fy - 6.5], fx - 12, fx + 14, fy - 22, fy - 6, 4, 11);
+      for (const [px, py] of [[-6, -11], [0, -9], [6, -11], [-3, -16], [4, -16]]) poli(M5, [fx + px - 1.4, fy + py + 1.2, fx + px, fy + py - 1.4, fx + px + 1.4, fy + py + 1.2]);   // púas
+      jR(g, M4, fx - 9, fy - 20.4, 18, 1.2);
+    }
+  };
+  pierna(-8, -s1*7, Math.max(0, -c1)*4, true);
+  g.save(); g.translate(0, -bote);
+  // ---- brazo de atrás: puño de combate que se balancea ----
+  const aAtras = anda ? -s1*0.32 : pose === 'misiles' ? -0.2 : 0.1;
+  g.save(); g.translate(-18, -62); g.rotate(aAtras);
+  poli(K, [-8, -2, 8, -2, 7, 22, -7, 22]); poli(M1, [-7, -1, 7, -1, 6, 21, -6, 21]);
+  poli(K, [-10, 20, 9, 20, 10, 38, -10, 38]); poli(M2, [-9, 21, 8, 21, 9, 37, -9, 37]); jR(g, M3, -8.4, 21.6, 16, 2);
+  for (let i = 0; i < 3; i++) jR(g, K, -8 + i*5.6, 33, 1.2, 4.4);
+  jO(g, M4, -2, 37.4, 2.4, 1.6);
+  g.restore();
+  // ---- lanzadores de misiles sobre los hombros ----
+  const caja = (x, y, w, h, lejos)=>{
+    poli(K, [x - 1.4, y - 1.4, x + w + 1.4, y - 1.4, x + w + 1.4, y + h + 1.4, x - 1.4, y + h + 1.4]);
+    poli(lejos ? M1 : M2, [x, y, x + w, y, x + w, y + h, x, y + h]);
+    jR(g, lejos ? M2 : M4, x, y, w, 1.6); jR(g, M1, x, y + h - 2, w, 2);
+    const abre = pose === 'misiles';
+    for (let fila = 0; fila < 2; fila++) for (let i = 0; i < 3; i++){
+      const cx = x + 4.4 + i*((w - 8.8)/2), cy = y + 4.4 + fila*(h - 8.8);
+      jO(g, K, cx, cy, 2.6, 2.6); jO(g, abre ? '#ff9a5a' : '#a8442a', cx, cy, 1.8, 1.8); jO(g, abre ? '#ffe0b0' : RJ, cx - 0.4, cy - 0.4, 0.8, 0.8);
+    }
+  };
+  caja(-38, -98, 26, 15, true);
+  jR(g, K, -14, -90, 12, 8); jR(g, M3, -13, -89, 10, 6); jO(g, RJ, -8, -86, 1.6, 1.6);
+  caja(-4, -99, 28, 16, false);
+  if (pose === 'misiles') for (const [x, y] of [[0, -103], [12, -104], [24, -103]]){ jO(g, '#ffb24d', x, y, 2.4, 3.4); jO(g, '#fff0c0', x, y + 1, 1.2, 1.6); }
+  // ---- torso: pechera abombada con cuello alto ----
+  poli(K, [-26, -72, 20, -72, 24, -50, 18, -36, -20, -36, -27, -50]);
+  poli(M2, [-25, -71, 19, -71, 23, -50, 17, -37, -19, -37, -26, -50]);
+  poli(M3, [-22, -69, 14, -69, 17, -56, -21, -56]);
+  franjas([-25, -60, -12, -60, -16, -44, -26, -48], -26, -10, -60, -44, 3.6, 30);    // una sola franja en el pecho
+  poli(M2, [-12, -56, 12, -56, 14, -44, -14, -44]);                                   // placa central sin franjas
+  for (const x of [-10, -2, 6]) jL(g, K, 1, x, -54, x, -46);
+  jR(g, K, -21, -37, 40, 4); jR(g, M3, -20, -36.4, 38, 2);                           // cinturón
+  for (const [x, y] of [[-20, -66], [16, -66], [-22, -46], [19, -46]]) remache(x, y);
+  // cuello alto en arco y el casco calavera dentro
+  poli(K, [-12, -66, -12, -80, -6, -86, 8, -86, 14, -80, 14, -66]);
+  poli(M3, [-11, -67, -11, -79.4, -5.6, -85, 7.6, -85, 13, -79.4, 13, -67]);
+  poli(M1, [-8, -68, -8, -78, -4, -82, 6, -82, 10, -78, 10, -68]);
+  poli(K, [-4, -68, -4, -77, 0, -80.6, 5, -80.6, 8, -77, 8, -68]);
+  poli(HU, [-3, -69, -3, -76.4, 0.4, -79.6, 4.6, -79.6, 7, -76.4, 7, -69]);           // calavera
+  jR(g, RJO, -2, -75, 3.4, 2.4); jR(g, RJ, -1.6, -74.6, 2.6, 1.6); jR(g, RJO, 3, -75, 3.4, 2.4); jR(g, RJ, 3.4, -74.6, 2.6, 1.6);
+  jR(g, K, 0.6, -72, 3.2, 1); for (let i = 0; i < 3; i++) jR(g, K, -1 + i*2.6, -70.4, 1, 1.6);
+  // hombrera de atrás (se ve un poco)
+  poli(K, [-34, -76, -16, -78, -14, -60, -32, -56]); poli(M2, [-33, -75, -17, -77, -15, -61, -31, -57]);
+  franjas([-33, -75, -17, -77, -15, -61, -31, -57], -34, -14, -78, -56, 3.4, 9);
+  // ---- pierna de delante ----
+  g.restore();
+  pierna(8, s1*7, Math.max(0, c1)*4, false);
+  g.save(); g.translate(0, -bote);
+  // ---- brazo de delante con el cañón doble ----
+  const apunta = pose === 'dispara';
+  const aDel = apunta ? -1.35 : anda ? 0.95 + s1*0.28 : 1.05;          // ángulo del antebrazo (0 = hacia abajo)
+  g.save(); g.translate(16, -62);
+  // hombrera grande con franjas
+  poli(K, [-6, -16, 16, -14, 20, 4, 4, 10, -8, 2]); poli(M3, [-5, -15, 15, -13, 18.6, 3.4, 3.6, 8.8, -7, 1.6]);
+  franjas([-5, -15, 15, -13, 18.6, 3.4, 3.6, 8.8, -7, 1.6], -8, 20, -16, 10, 3.6, 9);
+  remache(10, -6); jR(g, M5, -3, -14.4, 16, 1.2);
+  g.rotate(apunta ? 0 : aDel - 1.0);
+  // brazo y el cañón doble
+  poli(K, [0, 2, 12, 2, 13, 20, -1, 20]); poli(M2, [1, 3, 11, 3, 12, 19, 0, 19]);
+  if (apunta){
+    poli(K, [2, 10, 34, 10, 34, 30, 2, 30]); poli(M2, [3, 11, 33, 11, 33, 29, 3, 29]); jR(g, M4, 3, 11, 30, 2);
+    jR(g, K, 32, 12, 10, 7); jR(g, K, 32, 21, 10, 7); jR(g, M3, 33, 13, 9, 5); jR(g, M3, 33, 22, 9, 5);
+    jR(g, K, 40, 14, 1.4, 3); jR(g, K, 40, 23, 1.4, 3);
+    for (let i = 0; i < 3; i++) jR(g, M1, 8 + i*7, 13, 2, 14);
+    remache(6, 26);
+  } else {
+    g.save(); g.translate(6, 18); g.rotate(0.2);
+    poli(K, [-8, 0, 10, 0, 10, 30, -8, 30]); poli(M2, [-7, 1, 9, 1, 9, 29, -7, 29]); jR(g, M4, -7, 1, 16, 2);
+    jR(g, K, -6, 28, 7, 10); jR(g, K, 2, 28, 7, 10); jR(g, M3, -5, 29, 5, 8); jR(g, M3, 3, 29, 5, 8);
+    jR(g, K, -4, 36.4, 2, 1.4); jR(g, K, 4, 36.4, 2, 1.4);
+    for (let i = 0; i < 3; i++) jR(g, M1, -5, 6 + i*7, 14, 2);
+    g.restore();
+  }
+  g.restore();
+  if (apunta && f === 1){ jO(g, '#fff0b0', 62, -42, 5, 3); jO(g, '#ffb84a', 66, -42, 4, 2.4); }
+  g.restore();
 }
 // Machacador: bruto de piel roja, cresta negra y pantalón gris, con un
 // emisor de escudo en una muñeca y una espada de energía de doble hoja.
@@ -16390,6 +16574,113 @@ function gravBomba(e){
   b.x = ox; b.y = oy; b.artillery = true; b.tx = tx; b.ty = ty; b.blast = 64; b.blastDmg = 22; b.life = 3;
   bullets.push(b);
 }
+// El helicóptero cazador ronda a media distancia, cabeceando, y cuando te
+// tiene a tiro calienta el cañón de la barbilla (se ilumina) y suelta una
+// ráfaga larga de balas rápidas y algo abiertas.
+function updateHelicaza(e, dt, a, ang){
+  e.anim = (e.anim || 0) + dt; e.bob += dt;
+  if (e.dispT > 0) e.dispT -= dt;
+  e.wT -= dt;
+  if (e.wT <= 0 || dist(e.x, e.y, e.wx, e.wy) < 60){
+    const an = Math.atan2(e.y - player.y, e.x - player.x) + rand(-1.2, 1.2), r = rand(230, 330);
+    e.wx = clamp(player.x + Math.cos(an)*r, 70, WORLD_W - 70); e.wy = clamp(player.y + Math.sin(an)*r*0.8, 70, WORLD_H - 70);
+    e.wT = rand(2.5, 4);
+  }
+  const dx = e.wx - e.x, dy = e.wy - e.y, d = Math.hypot(dx, dy) || 1, v = e.fase === 'rafaga' ? e.speed*0.35 : e.speed;
+  const k = Math.min(1, 1.8*dt);
+  e.vx += (dx/d*v*Math.min(1, d/120) - e.vx)*k; e.vy += (dy/d*v*Math.min(1, d/120) - e.vy)*k;
+  e.x = clamp(e.x + e.vx*dt, 30, WORLD_W - 30); e.y = clamp(e.y + e.vy*dt, 30, WORLD_H - 30);
+  e.facing = e.fase ? (player.x >= e.x ? 1 : -1) : (Math.abs(e.vx) > 20 ? (e.vx > 0 ? 1 : -1) : (player.x >= e.x ? 1 : -1));
+  if (e.fase === 'carga'){ e.ft -= dt; if (e.ft <= 0){ e.fase = 'rafaga'; e.n = CAZH_BALAS; e.tiroT = 0; } return; }
+  if (e.fase === 'rafaga'){
+    e.tiroT -= dt;
+    while (e.tiroT <= 0 && e.n > 0){
+      e.tiroT += 0.07; e.n--; e.dispT = 0.06;
+      const o = canonHelicaza(e), an = Math.atan2(player.y - o.y, player.x - o.x) + rand(-0.15, 0.15);
+      const b = mkBullet(e, an, 640, CAZH_DMG, '#ffe27a', 3); b.x = o.x; b.y = o.y;
+      bullets.push(b);
+      if (e.n % 3 === 0) sfxEn('rafaga', o.x, o.y, 0.6);
+    }
+    if (e.n <= 0){ e.fase = ''; e.cd = rand(2.2, 3.2); }
+    return;
+  }
+  e.cd -= dt;
+  if (e.cd <= 0 && a < 600){ e.fase = 'carga'; e.ft = CAZH_CARGA; sfxEn('cargaM', e.x, e.y, 0.6); }
+}
+// la boca del cañón de la barbilla
+function canonHelicaza(e){ return { x: e.x + (e.facing || 1)*60, y: e.y - alturaVisible(e) + 20 }; }
+// El acorazado de asalto camina despacio (balanceando los brazos) hasta media
+// distancia y alterna dos ataques: apunta el cañón doble y suelta dos
+// disparos pesados, o marca una zona en el suelo y la cubre con una lluvia
+// de misiles pequeños desde los lanzadores de los hombros.
+function updateAcorazado(e, dt, a, ang){
+  e.anim = (e.anim || 0) + dt;
+  if (e.dispT > 0) e.dispT -= dt;
+  const B = blancoAlien(e, a, ang);
+  if (e.fase === 'apunta'){
+    e.facing = Math.cos(B.an) >= 0 ? 1 : -1; e.ft -= dt;
+    if (e.ft <= 0){ e.fase = 'dispara'; e.n = 2; e.tiroT = 0; }
+    return;
+  }
+  if (e.fase === 'dispara'){
+    e.tiroT -= dt;
+    if (e.tiroT <= 0 && e.n > 0){
+      e.tiroT = 0.22; e.n--; e.dispT = 0.12;
+      const o = canonAcorazado(e), an = Math.atan2(player.y - o.y, player.x - o.x);
+      const b = mkBullet(e, an, 600, ACOR_DMG, '#ffb84a', 7); b.x = o.x; b.y = o.y + (e.n ? -4 : 4);
+      bullets.push(b);
+      sfxEn('escopeta', o.x, o.y); shake(4, 0.1); addParticles(o.x, o.y, '#ffd27a', 6, 120);
+    }
+    if (e.n <= 0 && e.tiroT <= 0){ e.fase = ''; e.cd = rand(1.8, 2.6); }
+    return;
+  }
+  if (e.fase === 'misMarca'){ e.ft -= dt; if (e.ft <= 0){ e.fase = 'misLanza'; e.n = ACOR_MIS_N; e.tiroT = 0; } return; }
+  if (e.fase === 'misLanza'){
+    e.tiroT -= dt;
+    while (e.tiroT <= 0 && e.n > 0){
+      e.tiroT += 0.09; e.n--;
+      const r = Math.sqrt(Math.random())*ACOR_MIS_R*0.85, an = rand(0, Math.PI*2);
+      const tx = clamp(e.zx + Math.cos(an)*r, 30, WORLD_W - 30), ty = clamp(e.zy + Math.sin(an)*r*0.72, 30, WORLD_H - 30);
+      const f = e.facing || 1, ox = e.x + f*(e.n % 2 ? 14 : -18), oy = e.y - 98, D = Math.max(80, dist(ox, oy, tx, ty));
+      const b = mkBullet(e, Math.atan2(ty - oy, tx - ox), D/0.8, 0, '#ff8a3a', 4, true);
+      b.x = ox; b.y = oy; b.artillery = true; b.tx = tx; b.ty = ty; b.blast = 46; b.blastDmg = ACOR_MIS_DMG; b.life = 3; b.estela = true;
+      bullets.push(b);
+      addParticles(ox, oy, '#ffb24d', 4, 90);
+      if (e.n % 2 === 0) sfxEn('cohete', ox, oy, 0.7);
+    }
+    if (e.n <= 0){ e.fase = ''; e.cd = rand(2.2, 3.0); }
+    return;
+  }
+  e.facing = Math.cos(B.an) >= 0 ? 1 : -1;
+  let mv = 0;
+  if (B.d > 300) mv = 1; else if (B.d < 170) mv = -0.6;
+  if (mv){ e.x += Math.cos(B.an)*e.speed*mv*dt; e.y += Math.sin(B.an)*e.speed*mv*dt; }
+  collideBuildings(e, 18, dt, 0);
+  e.cd -= dt;
+  if (e.cd <= 0 && B.d < 560){
+    e.ataque++;
+    if (e.ataque % 2 === 0){
+      e.fase = 'misMarca'; e.ft = ACOR_MIS_AVISO; e.zx = Math.round(player.x); e.zy = Math.round(player.y);
+      sfxEn('alarma', e.x, e.y, 0.5); toast('¡LLUVIA DE MISILES! SAL DE LA ZONA', 1.4);
+    } else { e.fase = 'apunta'; e.ft = ACOR_APUNTA; sfxEn('cargaM', e.x, e.y, 0.7); }
+  }
+}
+function canonAcorazado(e){ return { x: e.x + (e.facing || 1)*54, y: e.y - 40 }; }
+// Las aspas del cazador: un disco borroso y dos palas que giran (no van en el
+// dibujo fijo porque son translúcidas).
+function rotorHelicaza(x, y, f, rot, t){
+  ctx.save(); ctx.translate(x, y); if (rot) ctx.rotate(rot); if (f < 0) ctx.scale(-1, 1);
+  const cy = -27, R = 74;
+  ctx.globalAlpha = 0.22; ctx.fillStyle = '#c8ccd4';
+  ctx.beginPath(); ctx.ellipse(2, cy, R, 7, 0, 0, Math.PI*2); ctx.fill();
+  ctx.globalAlpha = 0.5; ctx.strokeStyle = '#2a2f38'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+  for (let i = 0; i < 2; i++){
+    const a = t*26 + i*Math.PI, c = Math.cos(a), sn = Math.sin(a);
+    ctx.beginPath(); ctx.moveTo(2, cy); ctx.lineTo(2 + c*R, cy + sn*7); ctx.stroke();
+  }
+  ctx.globalAlpha = 1; ctx.fillStyle = '#1a1e26'; ctx.beginPath(); ctx.ellipse(2, cy, 5, 2.4, 0, 0, Math.PI*2); ctx.fill();
+  ctx.restore();
+}
 // Efectos sobre el invasor, fuera del bucle de enemigos (con el jugador de verdad).
 var gravT = 0;
 function updateGravedad(dt){
@@ -16462,6 +16753,21 @@ function drawRefuerzosSuelo(){
       ctx.beginPath(); ctx.ellipse(s.x, s.y, MACH_R, MACH_R*0.7, 0, 0, Math.PI*2); ctx.stroke();
       ctx.beginPath(); ctx.ellipse(s.x, s.y, MACH_R*k, MACH_R*0.7*k, 0, 0, Math.PI*2); ctx.stroke();
       ctx.restore();
+    } else if (e.type === 'acorazado' && (e.fase === 'misMarca' || e.fase === 'misLanza')){
+      const s = S(e.zx, e.zy), k = e.fase === 'misLanza' ? 1 : clamp(1 - e.ft/ACOR_MIS_AVISO, 0, 1), pul = 0.55 + Math.sin(t*16)*0.3;
+      ctx.save();
+      ctx.fillStyle = 'rgba(255,90,30,' + (0.08 + k*0.16) + ')'; ctx.beginPath(); ctx.ellipse(s.x, s.y, ACOR_MIS_R, ACOR_MIS_R*0.72, 0, 0, Math.PI*2); ctx.fill();
+      ctx.strokeStyle = 'rgba(255,120,40,' + pul + ')'; ctx.lineWidth = 3; ctx.setLineDash([12, 8]); ctx.lineDashOffset = -t*60;
+      ctx.beginPath(); ctx.ellipse(s.x, s.y, ACOR_MIS_R, ACOR_MIS_R*0.72, 0, 0, Math.PI*2); ctx.stroke(); ctx.setLineDash([]);
+      ctx.beginPath(); ctx.ellipse(s.x, s.y, ACOR_MIS_R*k, ACOR_MIS_R*0.72*k, 0, 0, Math.PI*2); ctx.stroke();
+      ctx.restore();
+    } else if (e.type === 'acorazado' && e.fase === 'apunta'){
+      const o = canonAcorazado(e), so = S(o.x, o.y), p = S(player.x, player.y), k = 1 - e.ft/ACOR_APUNTA;
+      ctx.save(); ctx.strokeStyle = 'rgba(255,180,70,' + (0.35 + k*0.5) + ')'; ctx.lineWidth = 2; ctx.setLineDash([10, 8]);
+      ctx.beginPath(); ctx.moveTo(so.x, so.y); ctx.lineTo(p.x, p.y); ctx.stroke(); ctx.setLineDash([]); ctx.restore();
+    } else if (e.type === 'helicaza' && e.fase === 'carga'){
+      const o = canonHelicaza(e), so = S(o.x, o.y), k = 1 - e.ft/CAZH_CARGA;
+      ctx.save(); ctx.globalAlpha = 0.4 + k*0.5; ctx.fillStyle = '#ffe27a'; ctx.beginPath(); ctx.arc(so.x, so.y, 3 + k*5, 0, Math.PI*2); ctx.fill(); ctx.restore();
     } else if (e.type === 'gravitron' && e.gF){
       const s = S(e.gx, e.gy), R = e.gR || GRAV_R;
       ctx.save();
@@ -20011,6 +20317,7 @@ function drawMisilCayendo(m){
   ficha('medicoF', alienFrame('medico', 'ataca', 0), 2); ficha('voltioF', alienFrame('voltio', 'ataca', 0), 2);
   ficha('machacadorF', alienFrame('machacador', 'alza', 0), 1.5); ficha('aveF', alienFrame('ave', 'anda', 0), 1.2);
   ficha('gravitronF', alienFrame('gravitron', 'anda', 0), 0.9); ficha('aracnidoF', aracFrame('anda', 0, false), 0.8);
+  ficha('helicazaF', alienFrame('helicaza', 'anda', 0), 0.95); ficha('acorazadoF', alienFrame('acorazado', 'dispara', 0), 1.1);
   { const m = document.createElement('canvas'); m.width = 40; m.height = 40; const g = m.getContext('2d');
     g.fillStyle = '#ff8a2a'; g.beginPath(); g.moveTo(36, 4); g.lineTo(22, 16); g.lineTo(28, 22); g.closePath(); g.fill();
     g.fillStyle = '#ffd27a'; g.beginPath(); g.moveTo(32, 8); g.lineTo(22, 18); g.lineTo(26, 20); g.closePath(); g.fill();
@@ -23618,7 +23925,8 @@ function meleeDmg(e){
   if (e.type === 'heroe')     return 58;    // ~23 golpes
   if (e.type === 'golem')     return 110;   // la roca aguanta tres
   if (e.type === 'siege')   return 65;    // ~10 golpes
-  if (e.type === 'gunship') return 130;
+  if (e.type === 'gunship' || e.type === 'helicaza') return 130;
+  if (e.type === 'acorazado') return 140;
   if (e.type === 'tank' || e.type === 'arana' || e.type === 'bicho') return 160;
   if (e.type === 'amalgama') return 120;
   return 9999;                            // el resto revienta de un tentacazo
@@ -23799,7 +24107,7 @@ const SCENERY = { tree:1, lamp:1, bench:1, trash:1 };
 function isScenery(o){ return !!SCENERY[o.kind]; }
 
 // Unidades que no se revientan de una pasada: hay que insistir.
-const BLINDADOS = { muerteVeloz:1, desesperacion:1, machacador:1, gravitron:1, aracnido:1, desgarrador:1, bicho:1, amalgama:1, arana:1, tank:1, siege:1, gunship:1, heli:1, flametank:1, omni:1, artillero:1, superx:1, mbt:1, mbtFrio:1, tripode:1 };
+const BLINDADOS = { helicaza:1, acorazado:1, muerteVeloz:1, desesperacion:1, machacador:1, gravitron:1, aracnido:1, desgarrador:1, bicho:1, amalgama:1, arana:1, tank:1, siege:1, gunship:1, heli:1, flametank:1, omni:1, artillero:1, superx:1, mbt:1, mbtFrio:1, tripode:1 };
 // Mini jefes: el viltrumita les hace más daño con lo que les arroja.
 const JEFES = { flametank:1, omni:1, artillero:1, superx:1, tripode:1, heroe:1, kaiyin:1, centurion:1, desgarrador:1, aracnido:1, desesperacion:1, muerteVeloz:1 };
 const VIL_BOSS_MULT = 1.40;
@@ -23855,7 +24163,7 @@ function objLabel(o){
   if (o.type === 'bicho') return 'BICHO GUERRERO';
   if (o.type === 'amalgama') return 'AMALGAMA';
   const AL_NOM = { centinela:'CENTINELA', centElite:'CENTINELA ÉLITE', droide:'DROIDE', escaner:'ESCÁNER', cabezon:'CABEZÓN', arana:'ARAÑA', murcielago:'MURCIÉLAGO', caza40k:'DRON',
-                   medico:'MÉDICO', voltio:'DUENDE', machacador:'MACHACADOR', ave:'AVE DE PRESA', gravitron:'NAVE' };
+                   medico:'MÉDICO', voltio:'DUENDE', machacador:'MACHACADOR', ave:'AVE DE PRESA', gravitron:'NAVE', helicaza:'HELICÓPTERO CAZADOR', acorazado:'ACORAZADO' };
   if (AL_NOM[o.type]) return AL_NOM[o.type];
   return 'OBJETO';
 }
@@ -25766,6 +26074,8 @@ function updateEnemies(dt){
     if (e.type === 'machacador'){ updateMachacador(e, dt, a, ang); continue; }
     if (e.type === 'ave'){ updateAve(e, dt, a, ang); continue; }
     if (e.type === 'gravitron'){ updateGravitron(e, dt, a, ang); continue; }
+    if (e.type === 'helicaza'){ updateHelicaza(e, dt, a, ang); continue; }
+    if (e.type === 'acorazado'){ updateAcorazado(e, dt, a, ang); continue; }
     if (e.type === 'aracnido'){ updateAracnido(e, dt, a, ang); vozJefe(e, dt); continue; }
     if (e.type === 'desesperacion'){ updateDesesperacion(e, dt, a, ang); vozJefe(e, dt); continue; }
     if (e.type === 'muerteVeloz'){ updateMuerteVeloz(e, dt, a, ang); vozJefe(e, dt); continue; }
@@ -25944,6 +26254,7 @@ function updateBalas(dt){
     }
 
     // --- obús: vuela al punto memorizado y detona ahí, te muevas o no ---
+    if (b.estela && Math.random() < 0.7) addParticles(b.x, b.y, Math.random() < 0.5 ? '#ffb24d' : '#9aa0aa', 1, 22);
     if (b.artillery){
       const dgo = dist(b.x, b.y, b.tx, b.ty);
       if (dgo < 18 || b.life <= 0.05){
@@ -28836,7 +29147,7 @@ function vozJefe(e, dt){
 const numsDano = [];
 const NUM_MAX = 48;
 let critSig = false, verNumeros = true;
-const PESADOS = { gravitron:1, machacador:1, tank:1, siege:1, gunship:1, heli:1, flametank:1, mbt:1, mbtFrio:1, truck:1, arana:1, bicho:1, superx:1, artillero:1, omni:1, plane:1 };
+const PESADOS = { helicaza:1, acorazado:1, gravitron:1, machacador:1, tank:1, siege:1, gunship:1, heli:1, flametank:1, mbt:1, mbtFrio:1, truck:1, arana:1, bicho:1, superx:1, artillero:1, omni:1, plane:1 };
 function lanzamientoCritico(o){ return !!o && (o.kind === 'edificio' || PESADOS[o.type] || (o.throwDmg || 0) >= 150); }
 function altoNumero(e){
   const c = cajaCuerpo(e);
