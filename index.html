@@ -196,6 +196,12 @@
   .bindrow { display:flex; justify-content:space-between; align-items:center; gap:16px; padding:6px 0;
              border-bottom:1px dashed #1f4a2c; }
   .bindrow:last-of-type { border-bottom:none; }
+  /* en pantallas estrechas, una fila con varios botones baja a la línea siguiente en vez de salirse */
+  @media (max-width: 560px){
+    .bindrow { flex-wrap:wrap; row-gap:6px; }
+    .bindrow > span:last-child { display:flex; flex-wrap:wrap; justify-content:flex-end; margin-left:auto; }
+    .bindrow .togglebtn { min-width:44px; padding:6px 9px; }
+  }
   .bindname { color:#bfe9cd; font-size:0.76rem; letter-spacing:1px; }
   .bindkey { min-width:74px; padding:6px 12px; background:#0f2418; border:1px solid #2fe86e; color:#7bffa0;
              border-radius:4px; font-family:inherit; font-size:0.74rem; font-weight:900; cursor:pointer;
@@ -1660,8 +1666,17 @@
     </div>
 
     <div class="ajsec" data-ajsec="controles">
-    <div class="subtitle">Toca una tecla para reasignarla</div>
+    <div class="subtitle" id="ajCtrlSub">Toca una tecla para reasignarla</div>
 
+    <!-- En el teléfono: los botones táctiles en vez de las teclas -->
+    <div class="panel hidden" id="ajMovil" style="min-width:min(340px,92vw)">
+      <h3>Botones táctiles · <span id="ajHeroNomM" style="color:#8fd7ff">CRÍA</span></h3>
+      <div id="ajMovilFilas"></div>
+      <div class="ajsub">LO QUE HACE CADA BOTÓN</div>
+      <div id="ajMovilAcc"></div>
+    </div>
+
+    <div id="ajTeclado">
     <div class="panel" style="min-width:min(340px,92vw)">
       <h3>Jugador 1 · <span id="ajHeroNom" style="color:#8fd7ff">CRÍA</span></h3>
       <div class="ajsub">TECLADO</div>
@@ -1675,6 +1690,7 @@
       <div class="p2note">Solo se usan en <b>Contra otro jugador</b>. El alien mantiene sus teclas de arriba.</div>
       <div id="bindlistP2"></div>
       <button class="small" id="btnResetBindsP2" style="margin-top:12px">Restaurar por defecto</button>
+    </div>
     </div>
 
     </div>
@@ -5158,7 +5174,7 @@ function omniAgarre(e, dt){
 }
 
 function updateOmni(e, dt, a, angP){
-  e.legT += dt;
+  if (!e.beamPh) e.legT += dt;                       // con el rayo, quieto del todo
   if (e.lanzaT > 0) e.lanzaT = Math.max(0, e.lanzaT - dt);
   omniAgarre(e, dt);
   if (e.mode === 'roll'){
@@ -5292,7 +5308,8 @@ function pintaOmni(g, cx, cy, R, o){
   const pata = (lado, idx)=>{
     const [d, abre, baja] = PATAS[idx];
     const ph = o.legT*6.5 + idx*2.1 + (lado > 0 ? Math.PI : 0);
-    const alza = o.rodando ? 0 : Math.max(0, Math.sin(ph))*R*0.22, avanza = o.rodando ? 0 : Math.cos(ph)*R*0.14;
+    const anda = !o.rodando && !o.quieto;            // apuntando o disparando, las patas se plantan
+    const alza = anda ? Math.max(0, Math.sin(ph))*R*0.22 : 0, avanza = anda ? Math.cos(ph)*R*0.14 : 0;
     const rx = cx + lado*R*(0.32 + 0.08*(1 - Math.abs(d))), ry = cy + R*(0.42 + d*0.1);
     const fx = cx + lado*R*abre + avanza*f, fy = cy + R*baja - alza;
     const k = o.K;
@@ -5352,7 +5369,7 @@ function drawOmni(e){
     const p = 1 - e.lanzaT/OMNI_AG_LANZA, a = e.lanzaA, ext = 1.3 + Math.sin(p*Math.PI)*0.9;
     ag = { lado: Math.cos(a) >= 0 ? 1 : -1, x: s2.x + Math.cos(a)*R*ext, y: s2.y + Math.sin(a)*R*ext*0.7 - Math.sin(p*Math.PI)*R*0.4 };
   }
-  pintaOmni(ctx, s2.x, s2.y, R, { K, legT:e.legT, roll:e.roll, rodando, f, ag });
+  pintaOmni(ctx, s2.x, s2.y, R, { K, legT:e.legT, roll:e.roll, rodando, f, ag, quieto: !!e.beamPh });
   // sensor: gira sobre la parte de arriba hacia donde mira, y de él sale el rayo
   const cargando = e.beamPh === 'aim', disparando = e.beamPh === 'fire';
   const er = R*0.26 * (disparando ? 1.2 : cargando ? 1.08 : 1);
@@ -11000,9 +11017,9 @@ const BESTIARY = [
   { id:'muerteVeloz', name:'MUERTE VELOZ', hp:2400, dmg:'tajos supersónicos, embestidas, giro de sierras y tornado', sprite:'muerteVelozF', verb:'DERROTADAS',
     hint:'Algo en el Mundo Alienígena se mueve más rápido que el sonido.',
     desc:'Una criatura de un mundo lejano que el imperio encontró y modificó genéticamente para aprovechar su velocidad innata. Cuerpo negro con rayas turquesa, casco con visor verde, cola anillada, ruedas por pies y dos sierras de plasma girando en las manos. Marca en el suelo un área y la recorre a velocidad extrema en tajos de lado a lado, rompiendo la barrera del sonido: corta todo lo que pilla, también a los suyos, y los árboles se mecen a su paso. También embiste en línea recta por la línea que marca y gira sobre sí misma hasta volverse un tornado de sierras que te persigue. Tras cada carga derrapa un momento: es cuando más fácil es alcanzarla. Por debajo de la mitad de vida acelera todavía más.' },
-  { id:'aracnido', name:'LA TEJEDORA', hp:2700, dmg:'telaraña y mordiscos, lluvia de telas, salto, pisotón y láseres', sprite:'aracnidoF', verb:'DERROTADOS',
+  { id:'aracnido', name:'LA TEJEDORA', hp:2700, dmg:'telaraña y mordiscos, lluvia de telas, embestida, salto, pisotón y láseres', sprite:'aracnidoF', verb:'DERROTADOS',
     hint:'Otro guardián del Mundo Alienígena. Aún no lo has derrotado.',
-    desc:'Araña robot gigante, guardiana del planeta marciano: acero negro por placas con costuras y luces rojas que laten al ritmo de la música, una cara con una columna de ojos rojos, quelíceros afilados, un abdomen en forma de domo blindado y ocho patas acorazadas con juntas rojas y garras. Marca en el suelo con una línea blanca por dónde lanzará su tela: si te alcanza, te atrae hacia sus colmillos y te muerde hasta que te liberes haciendo clic (o tocando la pantalla) varias veces. Un escudo, un edificio o lo que lleves agarrado paran la tela, y la que falla se queda pegada en el suelo un rato y frena a quien la pise. Te rodea deprisa y lanza una lluvia de telas: marca varios círculos blancos (uno donde estás) y en cada uno cae una red que te frena mientras la pises. También salta sobre la zona que marca en rojo, pisotea todo a su alrededor si te pegas a ella y barre con los láseres de sus ojos. Por debajo de la mitad de vida enloquece y se vuelve más rápida.' },
+    desc:'Araña robot gigante, guardiana del planeta marciano: acero negro por placas con costuras y luces rojas que laten al ritmo de la música, una cara con una columna de ojos rojos, quelíceros afilados, un abdomen en forma de domo blindado y ocho patas acorazadas con juntas rojas y garras. Marca en el suelo con una línea blanca por dónde lanzará su tela: si te alcanza, te atrae hacia sus colmillos y te muerde hasta que te liberes haciendo clic (o tocando la pantalla) varias veces. Un escudo, un edificio o lo que lleves agarrado paran la tela, y la que falla se queda pegada en el suelo un rato y frena a quien la pise. Te rodea deprisa, embiste a toda velocidad por una franja roja que marca hacia ti (si choca contra un edificio se queda aturdida) y lanza una lluvia de telas: marca varios círculos blancos (uno donde estás) y en cada uno cae una red que te frena mientras la pises. También salta sobre la zona que marca en rojo, pisotea todo a su alrededor si te pegas a ella y barre con los láseres de sus ojos. Por debajo de la mitad de vida enloquece y se vuelve más rápida.' },
   { id:'bicho', name:'BICHO GUERRERO', hp:240, dmg:'12 por mordisco', sprite:'bichoF', verb:'APLASTADOS',
     desc:'En su cruzada de la civilización por el espacio, los marcianos derrotaron a estas criaturas y las modificaron genéticamente para crear sus propios soldados, tomando como base a los bichos guerreros de élite. Caparazón negro azulado con aletas rojas, cabeza larga de fauces abiertas, dos garras alzadas acabadas en hoces rojas y cuatro patas de cuchillas dentadas. Es rápido, da buenos mordiscos y es resistente como un tanque. Llega en enjambre y a la carga; solo el COLOSO puede levantarlo.' },
   { id:'amalgama', name:'AMALGAMA DE ALMAS', hp:'420+', dmg:'autos lanzados, embestida y manotazos', sprite:'amalgamaF', verb:'DISPERSADAS',
@@ -15851,7 +15868,7 @@ const VOL_HP = 55, VOL_CARGA = 0.55, VOL_DMG = 12, VOL_VEL = 520, ELECTRO_DUR = 
 const MACH_HP = 200, MACH_ESC = 110, MACH_ESC_CD = 9, MACH_R = 82, MACH_AVISO = 0.95, MACH_DMG = 34, MACH_ALC = 230;
 const AVE_HP = 120;
 const GRAV_HP = 650, GRAV_R = 150, GRAV_AVISO = 0.9, GRAV_DUR = 5, GRAV_K = 0.42, GRAV_DPS = 7;
-Object.assign(AL_TAM, { medico:[50,60,24,57], voltio:[58,56,26,53], machacador:[112,112,42,106], ave:[104,72,52,36], gravitron:[172,100,86,50] });
+Object.assign(AL_TAM, { medico:[50,60,24,57], voltio:[72,64,32,61], machacador:[112,112,42,106], ave:[104,72,52,36], gravitron:[172,100,86,50] });
 Object.assign(AL_VUELA, { ave:1, gravitron:1 });
 const REFZ_HP = { centElite:80, medico:MED_HP, voltio:VOL_HP, machacador:MACH_HP, ave:AVE_HP, gravitron:GRAV_HP };
 // [segundo, tipo, cuántos, raro]
@@ -15974,30 +15991,117 @@ function dibMedico(g, pose, f){
   jR(g, blaO, ax - 4, ay - 2, 9, 4); jR(g, bla, ax - 3, ay - 2, 7, 1.5);
   jO(g, cura ? '#ffe0e6' : rojoL, ax + 6, ay, 2, 2);
 }
-// Duende voltaico: bichito morado de cabeza verde, cresta y lomo de púas
-// amarillas, peto azul y un bláster verde enorme con bobinas.
+// Duende voltaico: un duendecillo de cabeza verde metido en una armadura
+// morada redonda, con un macizo de cristales dorados en el lomo, la cabeza
+// asomando por un ojo de buey dorado (pelo de púas, antenas con copas
+// naranjas, cara pálida con colmillos), una hombrera puntiaguda con luces
+// verdes, un guantelete enorme y un bláster azul con núcleo verde hexagonal.
 function dibVoltio(g, pose, f){
-  const mor = '#7a3ab0', morL = '#a868e0', morO = '#43206a', ver = '#5ab84a', verL = '#9ae878', verO = '#2e6a26';
-  const ama = '#ffd23a', amaO = '#c88a12', azu = '#2a5a8a', azuL = '#4a90c0';
-  const pua = (x, y, a, L, c)=>{ const nx = Math.cos(a + 1.57)*2.6, ny = Math.sin(a + 1.57)*2.6;
-    g.fillStyle = c || ama; g.beginPath(); g.moveTo(x + nx, y + ny); g.lineTo(x + Math.cos(a)*L, y + Math.sin(a)*L); g.lineTo(x - nx, y - ny); g.closePath(); g.fill(); };
-  piernasAnda(g, pose === 'anda' ? f : 0, -12, mor, morO, 12, 4.5, '#1a1426');
-  for (const [x, y, a, L] of [[-5, -31, -2.3, 11], [-7, -25, -2.7, 10], [-6, -18, -3.0, 8]]){ pua(x, y, a, L, amaO); pua(x, y - 1, a, L - 2); }
-  g.fillStyle = mor; g.beginPath(); g.moveTo(-6, -31); g.lineTo(7, -31); g.lineTo(6, -12); g.lineTo(-5, -12); g.closePath(); g.fill();
-  jR(g, azu, -4, -29, 10, 10); jR(g, azuL, -4, -29, 10, 2); jR(g, ama, -1, -24, 4, 2); jR(g, morO, -5, -14, 11, 2);
-  for (const [x, y, a, L] of [[-3, -43, -2.3, 11], [1, -46, -1.9, 12], [5, -46, -1.4, 12], [9, -43, -0.9, 9], [-5, -39, -2.8, 9]]){ pua(x, y, a, L, amaO); pua(x, y - 1, a, L - 2); }
-  jO(g, verO, 4, -38, 9, 8); jO(g, ver, 4, -39, 8.2, 7.2); jO(g, verL, 2, -42, 4, 2.4);
-  jR(g, '#fff27a', 6, -41, 4, 2.4); jR(g, '#1a1426', 8, -41, 1.5, 2.4);
-  jR(g, '#fff27a', 0.5, -41, 3, 2.2); jR(g, '#1a1426', 2, -41, 1.2, 2.2);
-  jR(g, '#2a0a1a', 3, -35.5, 8, 2.5); for (let k = 0; k < 4; k++) jR(g, '#ffffff', 3.5 + k*2, -35.5, 1, 1.2);
-  const carga = pose === 'ataca', bx = 4, by = -22;
-  jL(g, morO, 3.2, -3, -28, bx + 2, by + 2);
-  jR(g, verO, bx - 2, by - 5, 22, 9); jR(g, ver, bx - 1, by - 5, 20, 6); jR(g, verL, bx, by - 5, 18, 1.5);
-  jR(g, amaO, bx + 4, by - 6, 3, 10); jR(g, ama, bx + 4.5, by - 6, 2, 10); jR(g, amaO, bx + 10, by - 6, 3, 10); jR(g, ama, bx + 10.5, by - 6, 2, 10);
-  jR(g, '#1a2a1a', bx + 18, by - 4, 4, 6);
-  jO(g, carga ? '#f0ffff' : '#7fe8ff', bx + 22, by - 1, carga ? 3.2 : 2, carga ? 3.2 : 2);
-  jR(g, verO, bx + 2, by + 3, 4, 5);
-  jL(g, morL, 3.2, 3, -28, bx + 4, by + 3);
+  const M = '#8a3ec8', ML = '#b86ef0', MO = '#4e1f80', MD = '#2c0f4c';
+  const O = '#f2c230', OL = '#ffe684', OO = '#a86e0c';
+  const V = '#5cff62', VL = '#d6ffc4', VO = '#1c8a2a';
+  const N = '#26437e', NL = '#4271b8', NO = '#13244a';
+  const C = '#e2dbb2', CO = '#a8a07a', H = '#3ec83a', HL = '#8af06e', HO = '#1d6e1e';
+  const NA = '#ff9a1a', NAL = '#ffd66e', NAO = '#b8520a', GR = '#a9aeb7', GRL = '#dde1e7', K = '#160c22';
+  const anda = pose === 'anda', ataca = pose === 'ataca';
+  const ph = anda ? f/4*Math.PI*2 : 0, s1 = Math.sin(ph), c1 = Math.cos(ph), bote = anda ? Math.abs(s1)*1 : 0;
+  const poli = (c, pts)=>{ g.fillStyle = c; g.beginPath(); g.moveTo(pts[0], pts[1]); for (let k = 2; k < pts.length; k += 2) g.lineTo(pts[k], pts[k + 1]); g.closePath(); g.fill(); };
+  // pierna corta y blindada: muslo, bota con franja verde, garra dorada y uña gris
+  const pierna = (x, dx, lift, lejos)=>{
+    const m = lejos ? MO : M, ml = lejos ? M : ML, o = lejos ? OO : O;
+    jR(g, K, x - 6 + dx*0.4, -17, 12, 10); jR(g, m, x - 5 + dx*0.4, -16, 10, 8); jR(g, ml, x - 5 + dx*0.4, -16, 10, 2);
+    const fx = x + dx, fy = -lift;
+    poli(K, [fx - 7, fy - 9, fx + 6, fy - 9, fx + 8, fy + 0.5, fx - 8, fy + 0.5]);
+    poli(m, [fx - 6, fy - 8, fx + 5, fy - 8, fx + 6.5, fy - 1, fx - 6.5, fy - 1]);
+    jR(g, lejos ? '#3a1a5c' : ml, fx - 6, fy - 8, 11, 1.5);
+    jR(g, lejos ? VO : V, fx - 1, fy - 7, 2, 4);
+    poli(K, [fx + 2, fy - 7.5, fx + 12, fy + 0.5, fx + 2, fy + 0.5]);
+    poli(o, [fx + 3, fy - 6, fx + 10.5, fy, fx + 3, fy]);
+    poli(lejos ? '#5e626c' : GR, [fx + 7, fy - 2.5, fx + 12.5, fy + 0.5, fx + 6, fy + 0.5]);
+    poli(o, [fx - 6, fy - 6, fx - 11, fy + 0.5, fx - 4.5, fy + 0.5]);                      // espolón de atrás
+  };
+  // cristales dorados del lomo (por detrás de todo)
+  const cristal = (x, y, w, h, a)=>{
+    g.save(); g.translate(x, y); g.rotate(a);
+    poli(K, [-w/2 - 1, 0.5, -w/2 - 1, -h*0.7, 0, -h - 1.4, w/2 + 1, -h*0.7, w/2 + 1, 0.5]);
+    poli(OO, [-w/2, 0, -w/2, -h*0.7, 0, -h, w/2, -h*0.7, w/2, 0]);
+    poli(O, [-w/2 + 0.8, 0, -w/2 + 0.8, -h*0.68, 0, -h + 0.8, w/2 - 1.6, -h*0.68, w/2 - 1.6, 0]);
+    poli(OL, [-w/2 + 0.8, -1, -w/2 + 0.8, -h*0.66, -0.4, -h*0.92, -0.4, -1]);
+    g.restore();
+  };
+  for (const [x, y, w, h, a] of [[-23, -33, 5, 9, -0.85], [-19, -38, 6, 13, -0.5], [-12, -42, 7, 18, -0.15], [-5, -42, 6, 14, 0.18],
+                                 [1, -40, 5, 10, 0.45], [-16, -40, 5, 9, -0.3], [-8, -43, 5, 11, 0.02]]) cristal(x, y - bote, w, h, a);
+  pierna(-9, -s1*4, Math.max(0, -c1)*2.5, true);
+  g.save(); g.translate(0, -bote);
+  // el casco: una bola blindada morada con su luz y su sombra
+  jO(g, K, -6, -27, 17.5, 16.5); jO(g, MO, -6, -27, 16.5, 15.5); jO(g, M, -7.5, -29.5, 14.5, 12.5);
+  jO(g, ML, -11, -36, 7.5, 3.6); jO(g, '#e2c4ff', -13, -37.5, 2.6, 1);
+  jR(g, MD, -21, -18, 30, 3); jR(g, V, -16, -17.4, 3, 1.4); jR(g, V, -9, -17.4, 3, 1.4);   // cinturón con luces
+  // ojo de buey dorado y, dentro, el duende (asoma por encima del arma)
+  g.save(); g.translate(0, -5);
+  jO(g, K, 5, -30, 10.6, 10.6); jO(g, OO, 5, -30, 9.7, 9.7); jO(g, O, 4.6, -30.6, 8.8, 8.8); jO(g, OL, 1.5, -36, 3.4, 1.4);
+  jO(g, MD, 5.3, -29.6, 7.4, 7.4);
+  // antenas verdes con copas naranjas (por detrás del pelo)
+  const copa = (x, y)=>{
+    g.fillStyle = K; g.beginPath(); g.ellipse(x, y, 4.4, 3.2, 0, 0, Math.PI); g.lineTo(x - 4.4, y - 0.8); g.lineTo(x + 4.4, y - 0.8); g.fill();
+    g.fillStyle = NAO; g.beginPath(); g.ellipse(x, y, 3.6, 2.5, 0, 0, Math.PI); g.fill();
+    g.fillStyle = NA; g.beginPath(); g.ellipse(x - 0.4, y + 0.2, 3, 1.8, 0, 0, Math.PI); g.fill();
+    jR(g, NAL, x - 3.4, y - 0.6, 6.8, 1.3);
+  };
+  for (const [x0, y0, x1, y1] of [[1, -36, -4, -49], [4, -37, 3, -54], [7, -37, 11, -50], [9, -34, 16, -42]]){
+    jL(g, K, 3.2, x0, y0, x1, y1 + 2); jL(g, HO, 2.2, x0, y0, x1, y1 + 2); jL(g, H, 1, x0 - 0.4, y0, x1 - 0.4, y1 + 2); copa(x1, y1);
+  }
+  // pelo de púas verde
+  // cabeza verde con tres púas grandes
+  poli(K, [-1.6, -27, -1.4, -33, 0.4, -43, 3.6, -35.5, 6.2, -47, 8.8, -35.5, 13, -40, 11.8, -31, 11, -27]);
+  poli(HO, [-0.6, -27.5, -0.4, -33, 0.8, -40.5, 3.8, -34, 6.2, -44.5, 8.6, -34, 12, -38, 10.8, -31, 10, -27.5]);
+  poli(H, [0.4, -28, 0.6, -33, 1.4, -38, 4, -33, 6.2, -42, 8.2, -33, 11, -36, 10, -31, 9.2, -28]);
+  jL(g, HL, 1.1, 1.4, -36.5, 2.6, -33.5); jL(g, HL, 1.1, 5.6, -40, 6.2, -35);
+  poli('#f4f2ea', [-0.5, -31, -3.5, -33, 0.5, -29]); poli('#f4f2ea', [10.5, -31.5, 13.8, -33.5, 10.8, -28.8]);   // cuernitos
+  // cara pálida, mandíbula ancha, ojos entornados y colmillos
+  jO(g, CO, 5.4, -26, 7, 5); jO(g, C, 5.2, -26.6, 6.4, 4.4); jO(g, '#f3eccc', 3.4, -28.2, 3, 1.5);
+  jR(g, K, 2.6, -30.4, 3.6, 1); jR(g, K, 7.8, -30.4, 3.2, 1);
+  jL(g, CO, 0.9, 3.4, -23.8, 9.6, -24.4);
+  for (const [x, y] of [[1.6, -26.2], [10, -27.2], [5.4, -22.6]]) poli('#f8f6ee', [x - 1.1, y, x + 1.1, y, x, y - 2.6]);
+  g.restore();
+  // hombrera puntiaguda con canto dorado y luces verdes
+  g.save(); g.translate(-15, -27); g.scale(0.84, 0.84); g.translate(15, 27);
+  poli(K, [-29, -31, -14, -43, -3, -34, -6, -16, -21, -13]);
+  poli(OO, [-27.5, -31, -14.5, -41.5, -4.5, -33.5, -7.2, -17, -20.5, -14.5]);
+  poli(O, [-26.5, -31, -14.6, -40.6, -5.5, -33.2, -8, -17.6, -20, -15.4]);
+  poli(MO, [-24.5, -30.5, -14.8, -38.4, -7.8, -32.4, -9.8, -19.2, -19.6, -17.4]);
+  poli(M, [-23, -30.4, -15.2, -36.6, -9.4, -31.8, -11.2, -20.6, -18.6, -19]);
+  poli(ML, [-21.5, -30.6, -15.4, -35.2, -12.4, -33, -17.2, -29]);
+  for (let k = 0; k < 4; k++) jR(g, V, -25.6 + k*1.8, -28.2 + k*3.1, 2.2, 1.8);
+  jR(g, VL, -24.9, -27.8, 0.8, 0.8);
+  g.restore();
+  // guantelete enorme que sujeta el bláster por detrás
+  jO(g, K, -12, -13, 8, 7); jO(g, MO, -12, -13.5, 7, 6); jO(g, M, -12.5, -14.5, 6, 4.6); jO(g, ML, -14.5, -16.5, 2.8, 1.4);
+  jO(g, O, -18.6, -13.5, 2.2, 2.2); jO(g, V, -18.6, -13.5, 1.3, 1.3);
+  for (const x of [-9, -5]){ jO(g, K, x, -19.5, 3, 3); jO(g, M, x, -20, 2.3, 2.3); }                   // nudillos sobre la culata
+  // el bláster: cuerpo azul con bandas doradas, núcleo hexagonal verde y boca de anillo
+  const gy = ataca ? 1 : 2;
+  poli(K, [-12, -27 + gy, 23, -28.5 + gy, 26, -24 + gy, 25, -16.5 + gy, -9, -16 + gy, -13, -20 + gy]);
+  poli(NO, [-11, -26 + gy, 22.5, -27.5 + gy, 25, -24 + gy, 24, -17.5 + gy, -8.5, -17 + gy, -12, -20 + gy]);
+  poli(N, [-10, -25.5 + gy, 22, -26.8 + gy, 24, -23.6 + gy, 23, -19.6 + gy, -9, -19.4 + gy]);
+  jR(g, NL, -9, -25 + gy, 30, 1.4);
+  jL(g, V, 1, -7, -21.6 + gy, 21, -22.2 + gy);                                                          // línea de luz
+  jR(g, OO, -2, -27.4 + gy, 4, 11); jR(g, O, -1.6, -27 + gy, 3, 10);                                    // banda dorada
+  jR(g, OO, 19, -28.8 + gy, 3.4, 12.4); jR(g, O, 19.4, -28.4 + gy, 2.4, 11.6);
+  poli(OO, [3, -18 + gy, 12, -18 + gy, 10.5, -14 + gy, 4.5, -14 + gy]); poli(O, [3.8, -17.6 + gy, 11.2, -17.6 + gy, 10, -14.8 + gy, 5, -14.8 + gy]);
+  // núcleo: tres rombos verdes
+  for (const [x, y] of [[9.5, -22.4], [13.6, -22.4], [11.6, -24.6]]){
+    poli(VO, [x - 2.4, y + gy, x, y - 2.2 + gy, x + 2.4, y + gy, x, y + 2.2 + gy]);
+    poli(ataca ? VL : V, [x - 1.6, y + gy, x, y - 1.5 + gy, x + 1.6, y + gy, x, y + 1.5 + gy]);
+  }
+  for (let k = 0; k < 3; k++) jR(g, V, 13 + k*2, -27 + gy, 1.2, 2);                                     // rejilla
+  // boca: anillo dorado con el brillo verde
+  jO(g, K, 27.4, -22.3 + gy, 3.6, 7.6); jO(g, OO, 27.2, -22.3 + gy, 3, 7); jO(g, O, 26.8, -22.6 + gy, 2.4, 6.4);
+  jO(g, ataca ? VL : V, 27.8, -22.3 + gy, 1.6, 4.6); if (ataca) jO(g, '#ffffff', 28.2, -22.3 + gy, 0.8, 2.4);
+  // mano de delante: dedos grises con uñas moradas bajo el arma
+  for (const x of [13, 16.2]){ jR(g, K, x - 0.6, -17.6 + gy, 3.4, 6.2); jR(g, GR, x, -17.2 + gy, 2.4, 5); jR(g, GRL, x, -17.2 + gy, 2.4, 1); jR(g, M, x, -13.2 + gy, 2.4, 1.6); }
+  g.restore();
+  pierna(1, s1*4, Math.max(0, c1)*2.5, false);
 }
 // Machacador: bruto de piel roja, cresta negra y pantalón gris, con un
 // emisor de escudo en una muñeca y una espada de energía de doble hoja.
@@ -16148,7 +16252,7 @@ function updateMedico(e, dt, a, ang){
 function boquillaMedico(e){ const f = e.facing || 1; return { x: e.x + f*22, y: e.y - 30 }; }
 // El duende voltaico corretea en círculos a tu alrededor, cambia de sentido a
 // ratos y, cuando carga el bláster, dispara una bola eléctrica que te deja clavado.
-function canonVoltio(e){ const a = e.vA || 0; return { x: e.x + Math.cos(a)*22, y: e.y - 23 + Math.sin(a)*8 }; }
+function canonVoltio(e){ const a = e.vA || 0; return { x: e.x + Math.cos(a)*28, y: e.y - 22 + Math.sin(a)*8 }; }
 function updateVoltio(e, dt, a, ang){
   e.anim = (e.anim || 0) + dt;
   const B = blancoAlien(e, a, ang);
@@ -16460,6 +16564,8 @@ const ARAC_TELA_AVISO = 1.15, ARAC_TELA_VEL = 1100, ARAC_TELA_L = 760, ARAC_TELA
 const ARAC_TIRA = 240, ARAC_CERCA = 40, ARAC_MORD = 15, ARAC_MORD_T = 1.0, ARAC_RES = 8, TELA_MAX = 12;
 const ARAC_SALTO_R = 125, ARAC_SALTO_DMG = 30, ARAC_SALTO_T = 0.6, ARAC_PISA_R = 150, ARAC_PISA_DMG = 22, ARAC_RED_R = 52;
 // redes en el suelo (las de la tela que falla y las de la lluvia de telas)
+// embestida: marca una franja hacia ti y la recorre a toda velocidad arrollando lo que pille
+const ARAC_EMB_AVISO = 0.95, ARAC_EMB_L = 600, ARAC_EMB_VEL = 880, ARAC_EMB_W = 62, ARAC_EMB_DMG = 28;
 const ARAC_REDES = 8, ARAC_LLUVIA_AVISO = 0.85, ARAC_LLUVIA_VUELO = 0.55, ARAC_LLUVIA_CADA = 0.13, ARAC_LLUVIA_DMG = 6, ARAC_LLUVIA_RED_T = 9;
 const aracCache = new Map();
 function aracFrame(pose, f, roto){
@@ -16678,6 +16784,35 @@ function updateAracnido(e, dt, a, ang){
     case 'lluviaAviso':
       if (e.ft <= 0){ e.fase = 'lluvia'; }
       break;
+    case 'embAviso':
+      e.facing = Math.cos(e.eA) >= 0 ? 1 : -1;
+      if (e.ft <= 0){ e.fase = 'embiste'; e.eRec = 0; e.eGolpe = 0; sfx('dash'); sfx('caidaGolpe'); shake(6, 0.2); }
+      break;
+    case 'embiste': {
+      const v = ARAC_EMB_VEL*Math.min(vel, 1.15)*dt, ca = Math.cos(e.eA), sa = Math.sin(e.eA);
+      e.paso += dt*22; e.eRec += v;
+      const nx = e.x + ca*v, ny = e.y + sa*v;
+      const b = edifEn(nx + ca*40, ny + sa*40);
+      const fuera = nx < 80 || nx > WORLD_W - 80 || ny < 80 || ny > WORLD_H - 80;
+      if (!fuera){ e.x = nx; e.y = ny; }
+      if (!e.eGolpe && !vil.intro && dist(player.x, player.y, e.x, e.y) < ARAC_EMB_W + F().r*0.5){   // te arrolla y te aparta
+        e.eGolpe = 1; golpeDesSuave(ARAC_EMB_DMG*(e.roto ? 1.2 : 1)); shake(14, 0.3); sfx('hurt');
+        const lado = (player.x - e.x)*-sa + (player.y - e.y)*ca >= 0 ? 1 : -1;
+        player.x = clamp(player.x + (-sa*lado*0.8 + ca*0.6)*110, 20, WORLD_W - 20); player.y = clamp(player.y + (ca*lado*0.8 + sa*0.6)*110, 20, WORLD_H - 20);
+        addParticles(player.x, player.y - 10, '#ff5b5b', 12, 160);
+      }
+      for (const pool of [civilians, enemies]) for (let i = 0; i < pool.length; i++){ const t = pool[i];
+        if (t === e || t.dead || t.held || JEFES[t.type] || alturaVisible(t) > 0 || dist(t.x, t.y, e.x, e.y) > ARAC_EMB_W) continue;
+        damageEnemy(t, t.kind === 'civ' ? 999 : 80, t.x, t.y);
+      }
+      for (const c of cars) if (!c.dead && !c.held && dist(c.x, c.y, e.x, e.y) < ARAC_EMB_W){ c.hp -= 60; if (c.hp <= 0) autoAbatido(c); }
+      if (Math.random() < 0.5) addParticles(e.x + rand(-40, 40), e.y + rand(-6, 6), '#b8b0a0', 3, 120);
+      if (b || fuera || e.eRec >= ARAC_EMB_L){
+        if (b){ damageBuilding(b, 200); shake(16, 0.35); sfx('bigboom'); addParticles(e.x + ca*50, e.y + sa*50, '#b8b0a0', 22, 220); }
+        e.fase = 'aterriza'; e.ft = b ? 0.9 : 0.55;           // contra un edificio se queda aturdida un poco más
+      }
+      break;
+    }
     case 'lluvia':
       if (aracLluvia(e, dt)){ e.fase = ''; e.cd = rand(1.2, 1.9)/vel; e.lluviaP = null; }
       break;
@@ -16714,10 +16849,11 @@ function updateAracnido(e, dt, a, ang){
           e.fase = 'telaAviso'; e.ft = ARAC_TELA_AVISO/Math.sqrt(vel); e.tx = player.x; e.ty = player.y; sfx('cargaM');
         } else {
           const r = Math.random();
-          if (r < 0.34){
+          if (r < 0.25){
             e.fase = 'saltoAviso'; e.ft = 0.95/vel;
             e.sx = Math.round(clamp(player.x, 90, WORLD_W - 90)); e.sy = Math.round(clamp(player.y, 90, WORLD_H - 90));
-          } else if (r < 0.67){ e.fase = 'lluviaAviso'; e.ft = ARAC_LLUVIA_AVISO/Math.sqrt(vel); aracLluviaPrepara(e); sfx('cargaM'); }
+          } else if (r < 0.5){ e.fase = 'lluviaAviso'; e.ft = ARAC_LLUVIA_AVISO/Math.sqrt(vel); aracLluviaPrepara(e); sfx('cargaM'); }
+          else if (r < 0.75){ e.fase = 'embAviso'; e.ft = ARAC_EMB_AVISO/Math.sqrt(vel); e.eA = ang; sfx('cargaM'); }
           else { e.fase = 'laser'; e.lasN = f2 ? 4 : 3; e.lasT = 0.35; }
         }
       }
@@ -16896,6 +17032,13 @@ function drawAracnidoSuelo(){
       const t = S(e.sx, e.sy), k = e.fase === 'salto' ? 1 : 0.6 + Math.sin(gameTime*16)*0.3;
       ctx.fillStyle = 'rgba(255,60,40,0.16)'; ctx.beginPath(); ctx.ellipse(t.x, t.y, ARAC_SALTO_R, ARAC_SALTO_R*0.7, 0, 0, Math.PI*2); ctx.fill();
       ctx.strokeStyle = 'rgba(255,70,50,' + k + ')'; ctx.lineWidth = 3; ctx.stroke();
+    } else if (e.fase === 'embAviso'){
+      const s0 = S(e.x, e.y), s1 = S(e.x + Math.cos(e.eA)*ARAC_EMB_L, e.y + Math.sin(e.eA)*ARAC_EMB_L), k = 0.6 + Math.sin(gameTime*16)*0.3;
+      ctx.lineCap = 'round';
+      ctx.strokeStyle = 'rgba(255,60,40,0.16)'; ctx.lineWidth = ARAC_EMB_W*2;
+      ctx.beginPath(); ctx.moveTo(s0.x, s0.y); ctx.lineTo(s1.x, s1.y); ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,70,50,' + k + ')'; ctx.lineWidth = 4; ctx.setLineDash([16, 10]); ctx.lineDashOffset = -gameTime*90;
+      ctx.beginPath(); ctx.moveTo(s0.x, s0.y); ctx.lineTo(s1.x, s1.y); ctx.stroke(); ctx.setLineDash([]);
     } else if ((e.fase === 'lluviaAviso' || e.fase === 'lluvia') && e.lluviaP){
       const pul = 0.55 + Math.sin(gameTime*16)*0.35;
       for (let i = (e.fase === 'lluvia' ? e.lluviaN - e.bolas.length : 0); i < e.lluviaP.length; i++){
@@ -17310,13 +17453,16 @@ function drawMuerteVelozEfectos(){
 const CENT_HP = 2200, CENT_ESC = 1.5, CENT_CORTE_L = 900;
 // Rayo congelante: apunta un momento (te sigue despacio), se fija y dispara
 // un haz larguísimo que te deja helado. Lo para un edificio o un escudo.
-const CENT_HIELO_L = 1300, CENT_HIELO_CARGA = 1.1, CENT_HIELO_DUR = 2.4;
+const CENT_HIELO_L = 1300, CENT_HIELO_CARGA = 1.45, CENT_HIELO_FIJO = 0.6, CENT_HIELO_DUR = 2.4;
 const CENT_TAM = [106, 102, 50, 88];
 // Doble láser: marca una franja, dispara; marca otra donde estés y vuelve a
 // disparar (tres en furia). Ráfaga giratoria: gira sobre sí mismo soltando
 // balas que se van abriendo con la distancia; se esquivan por los huecos o
 // cubriéndose tras edificios, árboles y autos.
 const CENT_DOBLE_L = 1150, CENT_DOBLE_W = 22, CENT_FURIA = 0.3;
+// Avisos de los rayos: lo bastante largos para salir de la franja o del abanico.
+const CENT_DOBLE_AVISO = 1.3, CENT_DOBLE_AVISO_F = 0.95, CENT_DOBLE_SIGUE = 1.15, CENT_DOBLE_SIGUE_F = 0.85;
+const CENT_CORTE_CARGA = 1.9, CENT_CORTE_T = 1.4;
 // Lo que dice en combate: arrogante, frío y orgulloso del Imperio. Una parte
 // es para todos y otra depende del personaje que llevas.
 const CENT_FRASES = {
@@ -17394,8 +17540,8 @@ function centFrame(pose, f, roto){
 function dibCenturion(g, pose, f, roto){
   // Coloso de cromo: torso enorme y pulido, hombreras gigantes con discos
   // rojos incandescentes, cabeza pequeña hundida entre los hombros con ojos
-  // rojos, reactor central con un anillo de runas y cables que salen de la
-  // espalda por encima de los hombros. En la fase 2 (roto) pierde placas.
+  // rojos y reactor central con un anillo de runas. En la fase 2 (roto)
+  // pierde placas.
   const C0 = '#f7f9fb', C1 = '#d3d8df', C2 = '#a4abb4', C3 = '#6f7681', C4 = '#3f444d', K = '#16151b';
   const R0 = '#ff8a64', R1 = '#e4271b', R2 = '#8e1610', R3 = '#3e0c0b', BL = '#fff3ea';
   g.rotate(pose === 'embiste' ? 0.35 : 0);
@@ -17403,14 +17549,6 @@ function dibCenturion(g, pose, f, roto){
   const destello = (x, y, r)=>{ jR(g, C0, x - r, y, 2*r + 1, 1); jR(g, C0, x, y - r, 1, 2*r + 1); };   // brillo de cómic
   const cromo = (x0, y0, x1, y1)=>{ const gr = g.createLinearGradient(x0, y0, x1, y1);
     gr.addColorStop(0, C0); gr.addColorStop(0.3, C1); gr.addColorStop(0.65, C2); gr.addColorStop(1, C3); return gr; };
-  // ---- cables de la espalda (detrás de todo) ----
-  const cable = (x0, y0, cx, cy, x1, y1)=>{
-    g.strokeStyle = K; g.lineWidth = 3.4; g.beginPath(); g.moveTo(x0, y0); g.quadraticCurveTo(cx, cy, x1, y1); g.stroke();
-    g.strokeStyle = C3; g.lineWidth = 1.3; g.beginPath(); g.moveTo(x0, y0 - 0.7); g.quadraticCurveTo(cx, cy - 0.9, x1, y1 - 0.7); g.stroke();
-  };
-  cable(-12, -62, -24, -96, 4, -78);
-  cable(-8, -64, 8, -98, 24, -72);
-  cable(-20, -56, -44, -76, -34, -42);
   // ---- brazo trasero: puño enorme colgando ----
   jL(g, K, 10, -19, -54, -25, -36); jL(g, C4, 6.5, -19, -54, -25, -36);
   jO(g, K, -25, -31, 7.5, 7); jO(g, C3, -25.5, -32, 6, 5.6); jO(g, C2, -26.5, -33.5, 3.5, 3); jR(g, K, -30, -29, 9, 1);
@@ -17550,7 +17688,7 @@ function updateCenturion(e, dt, a, ang){
         e.dx2 = undefined;
         if (--e.dN > 0){                                 // la siguiente franja, hacia donde estás ahora
           const m2 = centSuelo(e);
-          e.fase = 'dobleAviso'; e.ft = e.dTot = furia ? 0.55 : 0.8; e.dA = Math.atan2(player.y - m2.y, player.x - m2.x); sfx('cargaM');
+          e.fase = 'dobleAviso'; e.ft = e.dTot = furia ? CENT_DOBLE_SIGUE_F : CENT_DOBLE_SIGUE; e.dA = Math.atan2(player.y - m2.y, player.x - m2.x); sfx('cargaM');
         } else { e.fase = ''; e.cd = rand(1.6, 2.4)/vel; }
       }
       break;
@@ -17647,7 +17785,7 @@ function updateCenturion(e, dt, a, ang){
       break;
     case 'hieloCarga': {
       const m = centCanon(e);
-      if (e.ft > 0.35) e.hA = giraHacia(e.hA, Math.atan2(player.y - m.y, player.x - m.x), 1.8*dt);   // al final queda fijo
+      if (e.ft > CENT_HIELO_FIJO) e.hA = giraHacia(e.hA, Math.atan2(player.y - m.y, player.x - m.x), 1.8*dt);   // al final queda fijo (tiempo para apartarte)
       e.facing = Math.cos(e.hA) >= 0 ? 1 : -1;
       if (e.ft <= 0){ e.fase = 'hielo'; e.ft = 0.55; e.helado = 0; sfx('rayoM'); shake(6, 0.2); }
       break;
@@ -17670,10 +17808,10 @@ function updateCenturion(e, dt, a, ang){
     }
     case 'corteCarga':
       e.facing = Math.cos(e.c0) >= 0 ? 1 : -1;
-      if (e.ft <= 0){ e.fase = 'corte'; e.ft = 0.95; e.cA = e.c0; e.cortado = 0; e.corteTick = 0; sfx('rayoM'); shake(8, 0.3); }
+      if (e.ft <= 0){ e.fase = 'corte'; e.ft = CENT_CORTE_T; e.cA = e.c0; e.cortado = 0; e.corteTick = 0; sfx('rayoM'); shake(8, 0.3); }
       break;
     case 'corte': {
-      const k = 1 - e.ft/0.95;
+      const k = 1 - e.ft/CENT_CORTE_T;
       e.cA = e.c0 + (e.c1 - e.c0)*k;
       e.facing = Math.cos(e.cA) >= 0 ? 1 : -1;
       e.corteTick -= dt;
@@ -17725,7 +17863,7 @@ function centEligeAtaque(e, a, ang){
   e.lanzo = 0;
   if (op === 'doble'){
     const m = centSuelo(e);
-    e.dN = furia ? 3 : 2; e.fase = 'dobleAviso'; e.ft = e.dTot = furia ? 0.6 : 0.9;
+    e.dN = furia ? 3 : 2; e.fase = 'dobleAviso'; e.ft = e.dTot = furia ? CENT_DOBLE_AVISO_F : CENT_DOBLE_AVISO;
     e.dA = Math.atan2(player.y - m.y, player.x - m.x);
     toast(furia ? '¡TRIPLE LÁSER! SAL DE LAS FRANJAS' : '¡DOBLE LÁSER! SAL DE LAS FRANJAS'); sfx('cargaM'); centDice(e, 'doble');
     return;
@@ -17747,7 +17885,7 @@ function centEligeAtaque(e, a, ang){
   else {
     // el corte barre un arco de 1,6 rad que pasa por el invasor
     const lado = Math.random() < 0.5 ? 1 : -1;
-    e.fase = 'corteCarga'; e.ft = 1.4; e.c0 = ang - lado*0.8; e.c1 = ang + lado*0.8;
+    e.fase = 'corteCarga'; e.ft = CENT_CORTE_CARGA; e.c0 = ang - lado*0.8; e.c1 = ang + lado*0.8;
     toast('¡CORTE LÁSER! PONTE A CUBIERTO'); sfx('cargaM');
   }
 }
@@ -17855,7 +17993,7 @@ function drawCenturion(e){
   ctx.imageSmoothingEnabled = suave; ctx.restore();
   if (e.fase === 'corteCarga' || e.fase === 'corte'){
     // el reactor se carga antes del corte
-    const k = e.fase === 'corte' ? 1 : 1 - e.ft/1.4, ry = dy - 46*CENT_ESC, rx = s.x + (e.facing < 0 ? -1 : 1)*2;
+    const k = e.fase === 'corte' ? 1 : 1 - e.ft/CENT_CORTE_CARGA, ry = dy - 46*CENT_ESC, rx = s.x + (e.facing < 0 ? -1 : 1)*2;
     ctx.globalAlpha = 0.35 + k*0.4; ctx.fillStyle = '#ff3a2a'; ctx.beginPath(); ctx.arc(rx, ry, 6 + k*10 + Math.random()*3, 0, Math.PI*2); ctx.fill();
     ctx.globalAlpha = 0.9; ctx.fillStyle = '#ffe8e0'; ctx.beginPath(); ctx.arc(rx, ry, 3 + k*4, 0, Math.PI*2); ctx.fill();
     ctx.globalAlpha = 1;
@@ -17901,7 +18039,7 @@ function drawCenturionAvisos(){
     }
     if (e.fase === 'hieloCarga'){
       // la línea por donde va a pasar el rayo congelante (fija al final)
-      const m = centCanon(e), o = S(m.x, m.y), d = S(m.x + Math.cos(e.hA)*CENT_HIELO_L, m.y + Math.sin(e.hA)*CENT_HIELO_L), fijo = e.ft <= 0.35;
+      const m = centCanon(e), o = S(m.x, m.y), d = S(m.x + Math.cos(e.hA)*CENT_HIELO_L, m.y + Math.sin(e.hA)*CENT_HIELO_L), fijo = e.ft <= CENT_HIELO_FIJO;
       ctx.save(); ctx.globalAlpha = fijo ? 0.9 : 0.5; ctx.strokeStyle = fijo ? '#e8f8ff' : '#7ad8ff'; ctx.lineWidth = fijo ? 3 : 2;
       ctx.setLineDash([12, 8]); ctx.lineDashOffset = -gameTime*80;
       ctx.beginPath(); ctx.moveTo(o.x, o.y); ctx.lineTo(d.x, d.y); ctx.stroke(); ctx.setLineDash([]);
@@ -17910,7 +18048,7 @@ function drawCenturionAvisos(){
     }
     if (e.fase === 'corteCarga'){
       // abanico que va a barrer el corte
-      const m = centBoca(e), o = S(m.x, m.y), p = 1 - e.ft/1.4;
+      const m = centBoca(e), o = S(m.x, m.y), p = 1 - e.ft/CENT_CORTE_CARGA;
       ctx.save();
       ctx.globalAlpha = 0.1 + p*0.15; ctx.fillStyle = '#ff3a2a';
       ctx.beginPath(); ctx.moveTo(o.x, o.y); ctx.arc(o.x, o.y, CENT_CORTE_L, Math.min(e.c0, e.c1), Math.max(e.c0, e.c1)); ctx.closePath(); ctx.fill();
@@ -30620,6 +30758,35 @@ function ajPestana(t){
 }
 function pintaAjHeroe(){
   const nm = document.getElementById('ajHeroNom'); if (nm) nm.textContent = heroName(hero);
+  const nm2 = document.getElementById('ajHeroNomM'); if (nm2) nm2.textContent = heroName(hero);
+}
+// En el teléfono, la pestaña CONTROLES enseña los botones táctiles (mostrarlos,
+// su tamaño y su colocación, y qué hace cada uno) en vez de las teclas. Las
+// filas se mueven desde "Pantalla y sonido" y vuelven allí en el ordenador.
+function ajEsTactil(){
+  if (document.body.classList.contains('touch-ui')) return true;
+  try { return (navigator.maxTouchPoints || 0) > 0 && window.matchMedia('(pointer: coarse)').matches; } catch(e){ return false; }
+}
+function ajModoTactil(){
+  const panel = document.getElementById('ajMovil'), filas = document.getElementById('ajMovilFilas'), tec = document.getElementById('ajTeclado');
+  if (!panel || !filas || !tec) return;
+  const ids = ['tgTouch', 'uiMenos', 'btnUiEditor'];
+  const rows = ids.map(id=>{ const b = document.getElementById(id); return b && b.closest('.bindrow'); }).filter(Boolean);
+  if (!ajModoTactil.sitio) ajModoTactil.sitio = rows.map(r=>{ const m = document.createComment('fila táctil'); r.parentNode.insertBefore(m, r); return m; });
+  const tactil = ajEsTactil();
+  panel.classList.toggle('hidden', !tactil); tec.classList.toggle('hidden', tactil);
+  const sub = document.getElementById('ajCtrlSub');
+  if (sub) sub.textContent = tactil ? 'Ajusta los botones de la pantalla' : 'Toca una tecla para reasignarla';
+  rows.forEach((r, i)=>{
+    if (tactil){ if (r.parentNode !== filas) filas.appendChild(r); }
+    else { const m = ajModoTactil.sitio[i]; if (m.parentNode && r.previousSibling !== m) m.parentNode.insertBefore(r, m.nextSibling); }
+  });
+  const acc = document.getElementById('ajMovilAcc');
+  if (acc && tactil){
+    const lista = BIND_ORDER.filter(k=> !['up', 'left', 'down', 'right', 'pausa'].includes(k) && etiquetaBind(k));
+    acc.innerHTML = '<div class="bindrow"><span class="bindname">Mover</span><span class="bindkey" style="cursor:default">JOYSTICK</span></div>'
+      + lista.map(k=> `<div class="bindrow"><span class="bindname">${esc(etiquetaBind(k))}</span></div>`).join('');
+  }
 }
 document.querySelectorAll('#controles .ajtab').forEach(b => b.addEventListener('click', ()=>{ ajPestana(b.dataset.ajtab); sfx('ui'); }));
 function refreshVilHelp(){
@@ -30831,7 +30998,7 @@ function abreAjustes(desdePausa){
   ajustesDesdePausa = !!desdePausa;
   listeningFor = null; renderBinds(); renderBindsP2(); refreshAudioUI(); refreshTouchUI(); refreshAnimUI(); refreshHpUI(); refreshNumUI();
   refreshVilHelp(); refreshUiSize(); refreshFullUI(); refreshSaveMode();
-  ajPestana(desdePausa ? 'pantalla' : 'controles'); pintaAjHeroe(); renderBinds();
+  ajPestana(desdePausa ? 'pantalla' : 'controles'); pintaAjHeroe(); renderBinds(); ajModoTactil();
   // en el móvil el botón va en la esquina, encima del título: ahí, corto
   const v = document.getElementById('btnCtrlBack');
   if (v) v.textContent = !desdePausa ? 'Volver' : document.body.classList.contains('movil') ? '◀ Pausa' : 'Volver a la pausa';
@@ -32758,10 +32925,12 @@ function abreTabla(si){
   if (!pn || !bt) return;
   bt.addEventListener('click', ()=>{ try { sfx('ui'); } catch(e){} abreTabla(!pn.classList.contains('abierta')); });
   if (x) x.addEventListener('click', ()=> abreTabla(false));
-  // se cierra tocando fuera de ella (lo tocado sigue haciendo lo suyo) o con Escape
+  // se cierra tocando fuera de ella (lo tocado sigue haciendo lo suyo) o con
+  // Escape; cambiar de personaje no la cierra: así se ven sus puntajes
+  const holo = document.getElementById('holoHero');
   document.addEventListener('click', ev=>{
     if (!pn.classList.contains('abierta')) return;
-    if (pn.contains(ev.target) || bt.contains(ev.target)) return;
+    if (pn.contains(ev.target) || bt.contains(ev.target) || (holo && holo.contains(ev.target))) return;
     abreTabla(false);
   });
   window.addEventListener('keydown', ev=>{ if (ev.key === 'Escape' && pn.classList.contains('abierta')) abreTabla(false); });
