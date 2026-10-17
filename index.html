@@ -196,6 +196,12 @@
   .bindrow { display:flex; justify-content:space-between; align-items:center; gap:16px; padding:6px 0;
              border-bottom:1px dashed #1f4a2c; }
   .bindrow:last-of-type { border-bottom:none; }
+  /* en pantallas estrechas, una fila con varios botones baja a la línea siguiente en vez de salirse */
+  @media (max-width: 560px){
+    .bindrow { flex-wrap:wrap; row-gap:6px; }
+    .bindrow > span:last-child { display:flex; flex-wrap:wrap; justify-content:flex-end; margin-left:auto; }
+    .bindrow .togglebtn { min-width:44px; padding:6px 9px; }
+  }
   .bindname { color:#bfe9cd; font-size:0.76rem; letter-spacing:1px; }
   .bindkey { min-width:74px; padding:6px 12px; background:#0f2418; border:1px solid #2fe86e; color:#7bffa0;
              border-radius:4px; font-family:inherit; font-size:0.74rem; font-weight:900; cursor:pointer;
@@ -1660,8 +1666,17 @@
     </div>
 
     <div class="ajsec" data-ajsec="controles">
-    <div class="subtitle">Toca una tecla para reasignarla</div>
+    <div class="subtitle" id="ajCtrlSub">Toca una tecla para reasignarla</div>
 
+    <!-- En el teléfono: los botones táctiles en vez de las teclas -->
+    <div class="panel hidden" id="ajMovil" style="min-width:min(340px,92vw)">
+      <h3>Botones táctiles · <span id="ajHeroNomM" style="color:#8fd7ff">CRÍA</span></h3>
+      <div id="ajMovilFilas"></div>
+      <div class="ajsub">LO QUE HACE CADA BOTÓN</div>
+      <div id="ajMovilAcc"></div>
+    </div>
+
+    <div id="ajTeclado">
     <div class="panel" style="min-width:min(340px,92vw)">
       <h3>Jugador 1 · <span id="ajHeroNom" style="color:#8fd7ff">CRÍA</span></h3>
       <div class="ajsub">TECLADO</div>
@@ -1675,6 +1690,7 @@
       <div class="p2note">Solo se usan en <b>Contra otro jugador</b>. El alien mantiene sus teclas de arriba.</div>
       <div id="bindlistP2"></div>
       <button class="small" id="btnResetBindsP2" style="margin-top:12px">Restaurar por defecto</button>
+    </div>
     </div>
 
     </div>
@@ -30742,6 +30758,35 @@ function ajPestana(t){
 }
 function pintaAjHeroe(){
   const nm = document.getElementById('ajHeroNom'); if (nm) nm.textContent = heroName(hero);
+  const nm2 = document.getElementById('ajHeroNomM'); if (nm2) nm2.textContent = heroName(hero);
+}
+// En el teléfono, la pestaña CONTROLES enseña los botones táctiles (mostrarlos,
+// su tamaño y su colocación, y qué hace cada uno) en vez de las teclas. Las
+// filas se mueven desde "Pantalla y sonido" y vuelven allí en el ordenador.
+function ajEsTactil(){
+  if (document.body.classList.contains('touch-ui')) return true;
+  try { return (navigator.maxTouchPoints || 0) > 0 && window.matchMedia('(pointer: coarse)').matches; } catch(e){ return false; }
+}
+function ajModoTactil(){
+  const panel = document.getElementById('ajMovil'), filas = document.getElementById('ajMovilFilas'), tec = document.getElementById('ajTeclado');
+  if (!panel || !filas || !tec) return;
+  const ids = ['tgTouch', 'uiMenos', 'btnUiEditor'];
+  const rows = ids.map(id=>{ const b = document.getElementById(id); return b && b.closest('.bindrow'); }).filter(Boolean);
+  if (!ajModoTactil.sitio) ajModoTactil.sitio = rows.map(r=>{ const m = document.createComment('fila táctil'); r.parentNode.insertBefore(m, r); return m; });
+  const tactil = ajEsTactil();
+  panel.classList.toggle('hidden', !tactil); tec.classList.toggle('hidden', tactil);
+  const sub = document.getElementById('ajCtrlSub');
+  if (sub) sub.textContent = tactil ? 'Ajusta los botones de la pantalla' : 'Toca una tecla para reasignarla';
+  rows.forEach((r, i)=>{
+    if (tactil){ if (r.parentNode !== filas) filas.appendChild(r); }
+    else { const m = ajModoTactil.sitio[i]; if (m.parentNode && r.previousSibling !== m) m.parentNode.insertBefore(r, m.nextSibling); }
+  });
+  const acc = document.getElementById('ajMovilAcc');
+  if (acc && tactil){
+    const lista = BIND_ORDER.filter(k=> !['up', 'left', 'down', 'right', 'pausa'].includes(k) && etiquetaBind(k));
+    acc.innerHTML = '<div class="bindrow"><span class="bindname">Mover</span><span class="bindkey" style="cursor:default">JOYSTICK</span></div>'
+      + lista.map(k=> `<div class="bindrow"><span class="bindname">${esc(etiquetaBind(k))}</span></div>`).join('');
+  }
 }
 document.querySelectorAll('#controles .ajtab').forEach(b => b.addEventListener('click', ()=>{ ajPestana(b.dataset.ajtab); sfx('ui'); }));
 function refreshVilHelp(){
@@ -30953,7 +30998,7 @@ function abreAjustes(desdePausa){
   ajustesDesdePausa = !!desdePausa;
   listeningFor = null; renderBinds(); renderBindsP2(); refreshAudioUI(); refreshTouchUI(); refreshAnimUI(); refreshHpUI(); refreshNumUI();
   refreshVilHelp(); refreshUiSize(); refreshFullUI(); refreshSaveMode();
-  ajPestana(desdePausa ? 'pantalla' : 'controles'); pintaAjHeroe(); renderBinds();
+  ajPestana(desdePausa ? 'pantalla' : 'controles'); pintaAjHeroe(); renderBinds(); ajModoTactil();
   // en el móvil el botón va en la esquina, encima del título: ahí, corto
   const v = document.getElementById('btnCtrlBack');
   if (v) v.textContent = !desdePausa ? 'Volver' : document.body.classList.contains('movil') ? '◀ Pausa' : 'Volver a la pausa';
@@ -32880,10 +32925,12 @@ function abreTabla(si){
   if (!pn || !bt) return;
   bt.addEventListener('click', ()=>{ try { sfx('ui'); } catch(e){} abreTabla(!pn.classList.contains('abierta')); });
   if (x) x.addEventListener('click', ()=> abreTabla(false));
-  // se cierra tocando fuera de ella (lo tocado sigue haciendo lo suyo) o con Escape
+  // se cierra tocando fuera de ella (lo tocado sigue haciendo lo suyo) o con
+  // Escape; cambiar de personaje no la cierra: así se ven sus puntajes
+  const holo = document.getElementById('holoHero');
   document.addEventListener('click', ev=>{
     if (!pn.classList.contains('abierta')) return;
-    if (pn.contains(ev.target) || bt.contains(ev.target)) return;
+    if (pn.contains(ev.target) || bt.contains(ev.target) || (holo && holo.contains(ev.target))) return;
     abreTabla(false);
   });
   window.addEventListener('keydown', ev=>{ if (ev.key === 'Escape' && pn.classList.contains('abierta')) abreTabla(false); });
