@@ -196,6 +196,16 @@
   .bindrow { display:flex; justify-content:space-between; align-items:center; gap:16px; padding:6px 0;
              border-bottom:1px dashed #1f4a2c; }
   .bindrow:last-of-type { border-bottom:none; }
+  /* Registro: luces de fondo casi imperceptibles que laten con la música */
+  #registro .regluces { position:fixed; inset:0; pointer-events:none; z-index:0; overflow:hidden; }
+  #registro .regluces i { position:absolute; width:48vmax; height:48vmax; border-radius:50%; transform:translate(-50%,-50%); opacity:0;
+                          background:radial-gradient(circle, rgba(90,255,150,0.55) 0%, rgba(90,255,150,0) 62%); will-change:opacity; }
+  #registro .regluces i:nth-child(1){ left:10%; top:16%; }
+  #registro .regluces i:nth-child(2){ left:90%; top:24%; background:radial-gradient(circle, rgba(110,210,255,0.55) 0%, rgba(110,210,255,0) 62%); }
+  #registro .regluces i:nth-child(3){ left:52%; top:58%; background:radial-gradient(circle, rgba(170,120,255,0.45) 0%, rgba(170,120,255,0) 62%); }
+  #registro .regluces i:nth-child(4){ left:14%; top:88%; background:radial-gradient(circle, rgba(110,210,255,0.5) 0%, rgba(110,210,255,0) 62%); }
+  #registro .regluces i:nth-child(5){ left:86%; top:86%; }
+  #registro > .overlay-inner { position:relative; z-index:1; }
   /* en pantallas estrechas, una fila con varios botones baja a la línea siguiente en vez de salirse */
   @media (max-width: 560px){
     .bindrow { flex-wrap:wrap; row-gap:6px; }
@@ -1644,6 +1654,7 @@
 
   <!-- ============ REGISTRO ============ -->
   <div id="registro" class="overlay hidden">
+    <div class="regluces" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
     <h1 class="title" style="font-size:clamp(1.5rem,5vw,2.8rem)">REGISTRO</h1>
     <div class="subtitle">Solo se revela lo que has derrotado</div>
     <div id="ostwrap" class="ostwrap">
@@ -7739,6 +7750,9 @@ function propAbatido(pr){
 
 // ¿Esto cuenta para el combo? Solo civiles, infantería, blindados, aeronaves,
 // jefes y vehículos. El mobiliario y los edificios quedan fuera.
+// Lo que sobrevive a que lo lances: pierde esa parte de su vida máxima al
+// estrellarse (si le queda más) y se levanta para seguir luchando.
+const AGUANTA_LANZADO = { acorazado: 0.4 };
 function esUnidadCombo(o){
   if (!o) return false;
   // 'car' cubre auto, taxi y camión cisterna: los tres son vehículos.
@@ -13473,10 +13487,10 @@ const VIL_RAFAGA_DMG = 110;
 // contra ellos, el golpe cargado vale la mitad. El toque simple no cambia.
 const VIL_JEFE_CARGA = 0.5;
 const VIL_JEFE_EMBISTE = 38, VIL_JEFE_PAUSA = 0.5;   // el vuelo contra un jefe: golpe y pausa
-const VIL_CHARGE_DMG = 210;     // daño del golpe cargado normal
+const VIL_CHARGE_DMG = 180;     // daño del golpe cargado normal
 // Al completar la carga, el golpe pasa a otra categoría: pega mucho más
 // lejos y suelta una onda de viento a su alrededor.
-const VIL_SUPER_DMG   = 420;
+const VIL_SUPER_DMG   = 360;
 const VIL_SUPER_REACH = 168;
 const VIL_ONDA_R      = 210;    // alcance de la onda de viento
 const VIL_ONDA_DMG    = 95;
@@ -23926,7 +23940,8 @@ function meleeDmg(e){
   if (e.type === 'golem')     return 110;   // la roca aguanta tres
   if (e.type === 'siege')   return 65;    // ~10 golpes
   if (e.type === 'gunship' || e.type === 'helicaza') return 130;
-  if (e.type === 'acorazado') return 140;
+  if (e.type === 'acorazado') return 42;  // ~10 golpes, como el asedio
+  if (e.type === 'gravitron') return 65;  // ~10 golpes
   if (e.type === 'tank' || e.type === 'arana' || e.type === 'bicho') return 160;
   if (e.type === 'amalgama') return 120;
   return 9999;                            // el resto revienta de un tentacazo
@@ -25883,6 +25898,9 @@ function updateThrown(dt){
         if (o.kind === 'car'){
           porJugador(()=> bajasDeAuto(o));
           discoverObj(o);
+        } else if (AGUANTA_LANZADO[o.type] && o.hp > o.maxhp*AGUANTA_LANZADO[o.type] + 1){
+          porJugador(()=> damageEnemy(o, o.maxhp*AGUANTA_LANZADO[o.type], impact.x, impact.y));
+          if (!o.dead) o.aguanta = 1;
         } else {
           porJugador(()=> damageEnemy(o, 99999, impact.x, impact.y));
         }
@@ -25899,6 +25917,12 @@ function updateThrown(dt){
         (o.golpeados || (o.golpeados = [])).push(contra);
         addParticles(impact.x, impact.y, '#dcdcdc', 8, 130);
         shake(4, 0.08);
+        continue;
+      }
+      if (o.aguanta){                                    // se estrella, queda aturdido y se levanta
+        o.aguanta = 0; o.thrown = false; o.held = false; o.spin = 0; o.rot = 0; o.byEnemy = false; o._home = null;
+        o.vx = 0; o.vy = 0; o.stunT = 1.6; o.stunVx = 0; o.stunVy = 0; o.fase = ''; o.cd = Math.max(o.cd || 0, 1.2);
+        addParticles(impact.x, impact.y, '#9aa0aa', 18, 160); shake(10, 0.25); sfxEn('metal', impact.x, impact.y);
         continue;
       }
       o.thrown = false; o.dead = true;
@@ -25927,6 +25951,12 @@ function updateThrown(dt){
         if (!o.byEnemy) hitstop(0.04);
       }
       else if (isExplosive(o)){ o.dead = true; discoverObj(o); const bl = blastOf(o); explode(o.x,o.y,bl.r,bl.dmg,bl.big); }
+      else if (AGUANTA_LANZADO[o.type]){                  // cae al suelo sin chocar: se lleva un golpe menor
+        const lanzo = !o.byEnemy;
+        if (lanzo) porJugador(()=> damageEnemy(o, o.maxhp*AGUANTA_LANZADO[o.type]*0.6, o.x, o.y));
+        if (!o.dead){ o.stunT = 1.3; o.stunVx = 0; o.stunVy = 0; o.fase = ''; }
+        shake(6, 0.15); sfxEn('metal', o.x, o.y);
+      }
       else if (o.person){
         // Cayó al suelo sin estrellarse contra nada: queda tumbado y se levanta.
         o.stunT = 1.4;
@@ -31294,8 +31324,22 @@ document.getElementById('btnAchBack').addEventListener('click', ()=>{
 });
 
 document.getElementById('btnRegistro').addEventListener('click', ()=>{
-  renderDex(); hide('menu'); show('registro');
+  renderDex(); hide('menu'); show('registro'); lucesRegistro.arranca();
 });
+// Las luces del fondo del Registro: muy tenues, cada una con su propio vaivén,
+// y suben un poco con cada golpe de la música que suene (sin música, un latido).
+function lucesRegistro(){
+  const ov = document.getElementById('registro');
+  if (!ov || ov.classList.contains('hidden')){ lucesRegistro.on = false; return; }
+  const n = nivelMusica(), t = performance.now()/1000;
+  const L = lucesRegistro.els || (lucesRegistro.els = [...ov.querySelectorAll('.regluces i')]);
+  for (let i = 0; i < L.length; i++){
+    const vaiven = 0.55 + 0.45*Math.sin(t*0.6 + i*1.9);
+    L[i].style.opacity = (0.02 + n*0.085*vaiven).toFixed(3);
+  }
+  requestAnimationFrame(lucesRegistro);
+}
+lucesRegistro.arranca = ()=>{ if (!lucesRegistro.on){ lucesRegistro.on = true; requestAnimationFrame(lucesRegistro); } };
 document.getElementById('btnDexBack').addEventListener('click', ()=>{
   stopBossPreview();                    // que no siga sonando en el menú (jefes o ambiente)
   hide('registro'); show('menu');
