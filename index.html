@@ -16878,7 +16878,7 @@ function drawRefuerzosEfectos(){
 // pegas a ella y barre con los láseres de sus ojos. La tela que falla se queda
 // en el suelo un rato y frena a quien la pise; con la lluvia de telas siembra
 // varias redes de golpe. Sus luces rojas laten con la música.
-const ARAC_HP = 2700, ARAC_TAM = [270, 190, 135, 168];
+const ARAC_HP = 2700, ARAC_TAM = [300, 206, 150, 184], ARAC_BOCA_Y = 50;
 const ARAC_TELA_AVISO = 1.15, ARAC_TELA_VEL = 1100, ARAC_TELA_L = 760, ARAC_TELA_R = 48;
 const ARAC_TIRA = 240, ARAC_CERCA = 40, ARAC_MORD = 15, ARAC_MORD_T = 1.0, ARAC_RES = 8, TELA_MAX = 12;
 const ARAC_SALTO_R = 125, ARAC_SALTO_DMG = 30, ARAC_SALTO_T = 0.6, ARAC_PISA_R = 150, ARAC_PISA_DMG = 22, ARAC_RED_R = 52;
@@ -16900,96 +16900,152 @@ function aracFrame(pose, f, roto){
   aracCache.set(k, c);
   return c;
 }
-// Mira a +x: cefalotórax delante con la cara de luces rojas, quelíceros y el
-// lanzarredes; el abdomen en domo detrás; cuatro patas acorazadas por lado.
+// Vista de tres cuartos, mirando a +x (como la imagen de referencia): el
+// abdomen grande y segmentado detrás, el cefalotórax delante con la cara (una
+// pantalla donde los ojos son barras de LED rojos que siguen la música, ver
+// aracEq) y las ocho patas acorazadas abiertas alrededor, las del lado lejano
+// por detrás del cuerpo y las del cercano por delante.
+// Poses: anda (4), agacha, salta (patas recogidas), pisa, muerde (2), teje,
+// lluvia (2) y embiste (2).
+function aracCuerpoY(pose){ return pose === 'salta' ? -98 : pose === 'agacha' ? -66 : pose === 'embiste' ? -70 : pose === 'pisa' ? -86 : -80; }
+// La pantalla de la cara, en coordenadas del dibujo (para las barras de LED).
+function aracCara(pose){ const by = aracCuerpoY(pose); return { x: 40, y: by + 1, w: 28, h: 17 }; }
 function dibAracnido(g, pose, f, roto){
-  // Araña de guerra: acero negro pulido por placas, costuras y luces rojas
-  // encendidas, patas acorazadas con juntas rojas y garras afiladas.
-  const K = '#0b0c10', D = '#1f2229', M = '#33363f', L = '#4d515c', HL = '#8a909c';
-  const R = '#ff2b22', R2 = '#8c120d', RW = '#ffd2c8', RG = '#ff6a55';
-  const salta = pose === 'salta', pisa = pose === 'pisa', by = salta ? -98 : -86;
-  // tramo acorazado: un trapecio que se estrecha (borde negro, placa y filo claro)
+  const K = '#0a0a0f', D = '#20212b', M = '#353747', L = '#525568', HL = '#8f94aa', HL2 = '#c3c7d6';
+  const R = '#ff2b22', R2 = '#8c120d', RW = '#ffd2c8';
+  const by = aracCuerpoY(pose);
+  const anda = pose === 'anda', embiste = pose === 'embiste', salta = pose === 'salta', agacha = pose === 'agacha', pisa = pose === 'pisa';
+  const ph = (anda || embiste) ? (embiste ? f/2 : f/4)*Math.PI*2 : 0;
+  const poli = (c, pts)=>{ g.fillStyle = c; g.beginPath(); g.moveTo(pts[0], pts[1]); for (let k = 2; k < pts.length; k += 2) g.lineTo(pts[k], pts[k + 1]); g.closePath(); g.fill(); };
+  // tramo acorazado: trapecio que se estrecha (borde negro, placa y filo claro)
   const tramo = (x0, y0, x1, y1, w0, w1, c, filo)=>{
     const dx = x1 - x0, dy = y1 - y0, l = Math.hypot(dx, dy) || 1, nx = -dy/l, ny = dx/l;
-    const q = (a, b, col)=>{ g.fillStyle = col; g.beginPath();
-      g.moveTo(x0 + nx*a, y0 + ny*a); g.lineTo(x1 + nx*b, y1 + ny*b); g.lineTo(x1 - nx*b, y1 - ny*b); g.lineTo(x0 - nx*a, y0 - ny*a); g.closePath(); g.fill(); };
+    const q = (a, b, col)=> poli(col, [x0 + nx*a, y0 + ny*a, x1 + nx*b, y1 + ny*b, x1 - nx*b, y1 - ny*b, x0 - nx*a, y0 - ny*a]);
     q(w0/2 + 1.6, w1/2 + 1.6, K); q(w0/2, w1/2, c);
-    if (filo) jL(g, filo, 1.4, x0 + nx*w0*0.3, y0 + ny*w0*0.3, x1 + nx*w1*0.3, y1 + ny*w1*0.3);
+    if (filo) jL(g, filo, 1.3, x0 + nx*w0*0.28, y0 + ny*w0*0.28, x1 + nx*w1*0.28, y1 + ny*w1*0.28);
   };
-  const luz = (x0, y0, x1, y1, a, b)=>{                 // franja roja a lo largo de un tramo
+  const luz = (x0, y0, x1, y1, a, b, w)=>{               // franja roja a lo largo de un tramo
     const ax = x0 + (x1 - x0)*a, ay = y0 + (y1 - y0)*a, bx = x0 + (x1 - x0)*b, by2 = y0 + (y1 - y0)*b;
-    jL(g, R2, 3.2, ax, ay, bx, by2); jL(g, R, 1.8, ax, ay, bx, by2); jL(g, RW, 0.8, (ax + bx)/2, (ay + by2)/2, (ax + bx)/2 + 0.5, (ay + by2)/2);
+    jL(g, R2, (w || 1)*3, ax, ay, bx, by2); jL(g, R, (w || 1)*1.7, ax, ay, bx, by2);
   };
-  const junta = (x, y, r)=>{ jO(g, K, x, y, r + 1.4, r + 1.4); jO(g, M, x, y, r, r); jO(g, R2, x + 0.5, y, r*0.55, r*0.55); jO(g, R, x + 0.5, y, r*0.35, r*0.35); };
-  // patas de tres tramos: muslo que sube, tibia que baja y garra
-  const pata = (i, lejos)=>{
-    const hx = 22 - i*14 + (lejos ? -4 : 0), hy = by + 4, dir = i < 2 ? 1 : -1, Rr = [70, 58, 58, 72][i];
-    const ph = f/4*Math.PI*2 + i*Math.PI/2 + (lejos ? Math.PI : 0);
-    const lev = pose === 'anda' ? Math.max(0, Math.sin(ph))*10 : 0, av = pose === 'anda' ? Math.cos(ph)*10 : 0;
-    let kx = hx + dir*Rr*0.42 + av*0.4, ky = by - 42 - lev*0.5;
-    let tx2 = hx + dir*Rr*0.82 + av*0.8, ty2 = by - 6 - lev*0.7;
-    let fx = hx + dir*Rr + av + (lejos ? -6 : 0), fy = (lejos ? -5 : 0) - lev;
-    if (salta){ kx = hx + dir*Rr*0.4; ky = by - 22; tx2 = hx + dir*Rr*0.6; ty2 = by + 14; fx = hx + dir*Rr*0.5; fy = by + 40; }
-    if (pisa && i < 2 && !lejos){ kx = hx + 20; ky = by - 60; tx2 = hx + 48 + i*6; ty2 = by - 54 + i*6; fx = hx + 62 + i*6; fy = by - 26 + i*10; }
-    const w = lejos ? 0.78 : 1, c1 = lejos ? D : M, c2 = lejos ? '#17191e' : D;
-    tramo(hx, hy, kx, ky, 12*w, 9*w, c1, lejos ? null : HL);          // muslo
-    tramo(kx, ky, tx2, ty2, 10*w, 7*w, c2, lejos ? null : L);         // tibia
-    // garra: larga y afilada, un poco curvada hacia dentro
-    const gx = fx - dir*1.5, gy = fy;
-    tramo(tx2, ty2, gx, gy - 6, 5.5*w, 3*w, lejos ? '#14161a' : D, lejos ? null : M);
-    g.fillStyle = K; g.beginPath(); g.moveTo(gx - 3*w, gy - 7); g.lineTo(gx + 3*w, gy - 7); g.lineTo(gx + dir*2, gy + 2); g.closePath(); g.fill();
-    if (!lejos){ g.fillStyle = HL; g.beginPath(); g.moveTo(gx - 1, gy - 6); g.lineTo(gx + 0.6, gy - 6); g.lineTo(gx + dir*1.4, gy); g.closePath(); g.fill(); }
-    if (!lejos){ luz(hx, hy, kx, ky, 0.3, 0.72); luz(kx, ky, tx2, ty2, 0.35, 0.62); }
-    else { luz(hx, hy, kx, ky, 0.4, 0.6); }
-    junta(kx, ky, 5*w); junta(tx2, ty2, 3.6*w);
+  const junta = (x, y, r, lejos)=>{ jO(g, K, x, y, r + 1.4, r + 1.4); jO(g, lejos ? D : M, x, y, r, r); jO(g, R2, x + 0.4, y, r*0.55, r*0.55); jO(g, R, x + 0.4, y, r*0.32, r*0.32); };
+  // ---- patas: el pie va sobre una elipse en el suelo alrededor del cuerpo ----
+  const hx = 22, hy = by + 10;                            // centro del cefalotórax
+  const ANG = [0.32, 1.02, 1.82, 2.55];                   // de delante hacia atrás
+  const pata = (i, lado)=>{
+    const lejos = lado < 0, fi = lado*ANG[i];
+    const rx = hx - 4 + Math.cos(fi)*24, ry = hy + 6 + Math.sin(fi)*10;
+    let fx = 4 + Math.cos(fi)*112, fy = Math.sin(fi)*24;
+    // marcha en dos grupos de cuatro patas alternos
+    const grupo = (i + (lejos ? 1 : 0)) % 2 ? 1 : -1;
+    if (anda || embiste){ const s = Math.sin(ph)*grupo; fy -= Math.max(0, s)*(embiste ? 12 : 9); fx += Math.cos(ph)*grupo*(embiste ? 12 : 8); }
+    if (embiste) fx -= 22;                                // estirada hacia atrás, el cuerpo adelantado
+    let kx = rx + (fx - rx)*0.42, ky = Math.min(ry, fy) - (lejos ? 52 : 44) + i*3;
+    if (agacha){ ky += 14; fx = rx + (fx - rx)*1.06; }
+    if (salta){ fx = rx + (fx - rx)*0.3; fy = ry + 22; kx = rx + (fx - rx)*0.9 + Math.cos(fi)*14; ky = ry - 20; }   // patas recogidas
+    if (pisa && i === 0){ fx = rx + Math.cos(fi)*40 + 22; fy = ry - 54; kx = rx + Math.cos(fi)*30; ky = ry - 62; }
+    // tibia: del codo hasta el tobillo y una garra afilada hasta el suelo
+    const tx = fx + (kx - fx)*0.18, ty = fy - 18;
+    const w = lejos ? 0.82 : 1, c1 = lejos ? D : M, c2 = lejos ? '#191a22' : D;
+    tramo(rx, ry, kx, ky, 13*w, 9.5*w, c1, lejos ? null : HL);        // muslo
+    tramo(kx, ky, tx, ty, 10*w, 6.5*w, c2, lejos ? null : L);         // tibia
+    tramo(tx, ty, fx, fy, 6*w, 1.6*w, lejos ? '#15161d' : D, lejos ? null : M);   // garra
+    if (!lejos){ luz(rx, ry, kx, ky, 0.3, 0.7); luz(kx, ky, tx, ty, 0.3, 0.6, 0.9); }
+    else luz(rx, ry, kx, ky, 0.4, 0.6, 0.8);
+    junta(kx, ky, 4.6*w, lejos); junta(tx, ty, 3.2*w, lejos);
   };
-  for (let i = 3; i >= 0; i--) pata(i, true);
-  // ---- abdomen: domo de placas con costuras rojas ----
-  const ax = -46, ay = by - 24;
-  jO(g, K, ax, ay, 59, 43); jO(g, D, ax, ay, 57, 41);
-  jO(g, M, ax - 2, ay - 5, 52, 34); jO(g, L, ax - 6, ay - 13, 40, 22); jO(g, '#5c6170', ax - 10, ay - 20, 26, 11);
-  jO(g, HL, ax - 16, ay - 28, 15, 3.6); jO(g, '#c4c9d2', ax - 20, ay - 29, 6, 1.4);
-  // las placas: anillos que siguen el domo, con su costura roja
-  for (const [k, gr] of [[0.82, 1.6], [0.6, 1.3], [0.38, 1.1]]){
-    g.strokeStyle = K; g.lineWidth = 2.6; g.beginPath(); g.ellipse(ax + 6, ay + 10, 57*k, 41*k, 0, Math.PI*1.08, Math.PI*1.95); g.stroke();
-    g.strokeStyle = R; g.lineWidth = gr; g.beginPath(); g.ellipse(ax + 6, ay + 11, 57*k, 41*k, 0, Math.PI*1.2, Math.PI*1.45); g.stroke();
+  for (let i = 3; i >= 0; i--) pata(i, -1);
+  // ---- abdomen: domo grande de placas con costuras rojas ----
+  const ax = -24 + (embiste ? 6 : 0), ay = by - 24 + (pose === 'lluvia' ? (f ? -7 : -2) : 0) + (salta ? 4 : 0);
+  jO(g, K, ax, ay, 66, 48); jO(g, D, ax, ay, 64, 46);
+  jO(g, M, ax - 2, ay - 6, 58, 38); jO(g, L, ax - 6, ay - 15, 44, 24); jO(g, '#62667a', ax - 10, ay - 23, 28, 12);
+  jO(g, HL, ax - 16, ay - 31, 15, 4); jO(g, HL2, ax - 20, ay - 33, 6, 1.5);
+  // segmentos: costuras que siguen el domo, cada una con su ranura roja
+  for (const [k, gr] of [[0.84, 1.8], [0.62, 1.5], [0.4, 1.2]]){
+    g.strokeStyle = K; g.lineWidth = 2.6; g.beginPath(); g.ellipse(ax + 8, ay + 10, 64*k, 46*k, 0, Math.PI*1.05, Math.PI*1.95); g.stroke();
+    g.strokeStyle = R; g.lineWidth = gr; g.beginPath(); g.ellipse(ax + 8, ay + 11, 64*k, 46*k, 0, Math.PI*1.18, Math.PI*1.42); g.stroke();
+    g.beginPath(); g.ellipse(ax + 8, ay + 11, 64*k, 46*k, 0, Math.PI*1.62, Math.PI*1.8); g.stroke();
   }
-  // costuras transversales y luces a lo largo del lomo
-  for (const xx of [-28, 0, 26]){ jL(g, K, 2.2, ax + xx, ay - 38 + Math.abs(xx)*0.25, ax + xx*1.15, ay + 24); }
-  for (const [x, y] of [[-34, -14], [-6, -30], [22, -18], [-40, 10], [30, 8]]){ jR(g, R2, ax + x - 2, ay + y - 1.5, 5, 3.5); jR(g, R, ax + x - 1.5, ay + y - 1, 4, 2.5); jR(g, RW, ax + x - 0.5, ay + y - 0.5, 1.4, 1); }
-  // el vientre: oscuro, con el núcleo rojo
-  jO(g, K, ax + 8, ay + 30, 30, 11); jO(g, D, ax + 8, ay + 29, 27, 9);
-  jO(g, R2, ax + 8, ay + 30, 12, 5); jO(g, R, ax + 8, ay + 30, 8, 3.2); jO(g, RW, ax + 6, ay + 29.5, 3, 1.2);
-  jR(g, K, ax - 58, ay + 2, 10, 12); jR(g, M, ax - 57, ay + 3, 6, 4); jR(g, R, ax - 56, ay + 9, 3, 2);     // hileras traseras
+  for (const xx of [-34, -8, 18]) jL(g, K, 2, ax + xx, ay - 42 + Math.abs(xx)*0.3, ax + xx*1.12, ay + 28);
+  for (const [x, y] of [[-46, -6], [-30, -26], [26, -16], [-50, 14], [36, 6]]){ jR(g, R2, ax + x - 2, ay + y - 1.5, 6, 4); jR(g, R, ax + x - 1.5, ay + y - 1, 5, 2.6); jR(g, RW, ax + x, ay + y - 0.5, 1.4, 1); }
+  jO(g, K, ax + 6, ay + 34, 30, 10); jO(g, D, ax + 6, ay + 33, 27, 8);              // vientre con el núcleo
+  jO(g, R2, ax + 6, ay + 34, 12, 4.6); jO(g, R, ax + 6, ay + 34, 8, 3); jO(g, RW, ax + 4, ay + 33.5, 3, 1.1);
+  // hileras: brillan blancas al tejer y al lanzar la lluvia de telas
+  const hilando = pose === 'teje' || pose === 'lluvia';
+  jR(g, K, ax - 68, ay + 2, 12, 12); jR(g, M, ax - 67, ay + 3, 8, 5);
+  jO(g, hilando ? '#ffffff' : R, ax - 66, ay + 10, hilando ? 3 : 2, hilando ? 3 : 1.6);
   if (roto){
-    g.fillStyle = K; g.beginPath(); g.moveTo(ax - 30, ay - 22); g.lineTo(ax - 12, ay - 30); g.lineTo(ax - 6, ay - 12); g.lineTo(ax - 22, ay - 4); g.closePath(); g.fill();
-    jO(g, R2, ax - 18, ay - 17, 7, 5); jO(g, RG, ax - 18, ay - 17, 4, 2.6);
-    jL(g, K, 1.4, ax + 14, ay - 26, ax + 24, ay - 10); jL(g, K, 1.2, ax + 24, ay - 10, ax + 18, ay + 2);
-    jR(g, '#ffd27a', ax - 10, ay - 26, 1.6, 1.6); jR(g, '#ffd27a', ax + 22, ay - 12, 1.6, 1.6);
+    poli(K, [ax - 34, ay - 24, ax - 14, ay - 34, ax - 6, ay - 14, ax - 24, ay - 4]);
+    jO(g, R2, ax - 20, ay - 19, 7, 5); jO(g, '#ff6a55', ax - 20, ay - 19, 4, 2.6);
+    jL(g, K, 1.4, ax + 16, ay - 28, ax + 28, ay - 10); jL(g, K, 1.2, ax + 28, ay - 10, ax + 20, ay + 4);
+    jR(g, '#ffd27a', ax - 12, ay - 28, 1.6, 1.6); jR(g, '#ffd27a', ax + 26, ay - 14, 1.6, 1.6);
   }
-  for (let i = 3; i >= 0; i--) pata(i, false);
-  // la cabeza, por delante de las patas: que se le vea la cara
-  // cintura
-  tramo(-6, by - 10, 10, by - 8, 14, 12, D, L);
-  // ---- cefalotórax acorazado con la cara de luces rojas ----
-  jO(g, K, 25, by - 5, 33, 22); jO(g, D, 25, by - 6, 31, 20); jO(g, M, 22, by - 10, 26, 14); jO(g, L, 18, by - 17, 16, 6); jO(g, HL, 13, by - 20, 7, 1.6);
-  jL(g, K, 1.6, 4, by - 22, 9, by + 8); jL(g, K, 1.6, 30, by - 25, 34, by + 8);
-  jR(g, R2, 14, by - 3, 6, 3); jR(g, R, 14.5, by - 2.5, 4.5, 2);                                       // luz del costado
-  // la cara: placa angulosa al frente, con tres luces en columna y dos ojos a cada lado
-  g.fillStyle = K; g.beginPath(); g.moveTo(38, by - 21); g.lineTo(55, by - 14); g.lineTo(59, by + 2); g.lineTo(46, by + 11); g.lineTo(37, by - 3); g.closePath(); g.fill();
-  g.fillStyle = D; g.beginPath(); g.moveTo(40, by - 18); g.lineTo(53, by - 12); g.lineTo(56, by + 1); g.lineTo(46, by + 8); g.lineTo(39, by - 3); g.closePath(); g.fill();
-  jL(g, L, 1.2, 41, by - 17, 52, by - 12);
-  for (let j = 0; j < 3; j++){ jR(g, R2, 47, by - 13 + j*6, 5, 4.5); jR(g, R, 47.6, by - 12.4 + j*6, 3.8, 3.3); jR(g, RW, 48.2, by - 12 + j*6, 1.4, 1.2); }
-  for (const [x, y] of [[41, -9], [42, -1], [54, -6]]){ jR(g, R2, x - 1, y + by - 1, 3.4, 3); jR(g, R, x - 0.5, y + by - 0.5, 2.4, 2); }
-  if (roto){ jL(g, K, 1.4, 10, by - 18, 20, by - 4); jR(g, RG, 15, by - 12, 2, 2); }
-  // quelíceros: garfios negros con un filo rojo
-  const abre = pose === 'muerde' ? (f % 2 ? 7 : 2) : 2;
+  // las patas cercanas nacen bajo la cabeza: van antes para que la cara quede a la vista
+  for (let i = 3; i >= 0; i--) pata(i, 1);
+  // ---- cefalotórax: cúpula de placas con una cresta y luces a los lados ----
+  jO(g, K, hx, hy, 36, 26); jO(g, D, hx, hy, 34, 24); jO(g, M, hx - 2, hy - 5, 29, 17); jO(g, L, hx - 5, hy - 12, 19, 7); jO(g, HL, hx - 9, hy - 15, 8, 2);
+  jL(g, K, 2, hx - 2, hy - 23, hx + 2, hy + 18);                                         // cresta
+  jR(g, R2, hx - 26, hy - 2, 7, 3.6); jR(g, R, hx - 25.5, hy - 1.5, 5.5, 2.2);
+  jR(g, R2, hx + 16, hy + 8, 7, 3.6); jR(g, R, hx + 16.5, hy + 8.5, 5.5, 2.2);
+  if (roto){ jL(g, K, 1.4, hx - 12, hy - 18, hx - 2, hy - 2); jR(g, '#ff6a55', hx - 7, hy - 11, 2, 2); }
+  // ---- la cara: un morro blindado con la pantalla de los ojos ----
+  const C = aracCara(pose);
+  poli(K, [C.x - 6, C.y - 6, C.x + C.w + 4, C.y - 4, C.x + C.w + 8, C.y + C.h + 4, C.x + C.w - 2, C.y + C.h + 10, C.x - 4, C.y + C.h + 8, C.x - 9, C.y + C.h/2]);
+  poli(M, [C.x - 4.6, C.y - 4.6, C.x + C.w + 3, C.y - 2.8, C.x + C.w + 6.4, C.y + C.h + 3.4, C.x + C.w - 2.6, C.y + C.h + 8.6, C.x - 3.4, C.y + C.h + 6.6, C.x - 7.4, C.y + C.h/2]);
+  jL(g, HL, 1.2, C.x - 3, C.y - 3.4, C.x + C.w + 1, C.y - 1.8);
+  jR(g, K, C.x - 1, C.y - 1, C.w + 2, C.h + 2); jR(g, '#140406', C.x, C.y, C.w, C.h);       // la pantalla (los LED se pintan aparte)
+  // quelíceros: dos garfios negros con filo rojo; al morder se abren
+  const abre = pose === 'muerde' ? (f % 2 ? 7 : 2) : pose === 'teje' ? 4 : 1.5;
   for (const sg of [-1, 1]){
-    g.fillStyle = sg < 0 ? K : D;
-    g.beginPath(); g.moveTo(46, by + 5 + sg*abre*0.3); g.quadraticCurveTo(63, by + 11 + sg*abre, 55, by + 24 + sg*abre*0.6); g.lineTo(52, by + 11); g.closePath(); g.fill();
-    if (sg > 0) jL(g, R, 1, 54, by + 12 + abre*0.5, 57, by + 18 + abre*0.6);
+    const bx = C.x + C.w/2 + sg*5, byq = C.y + C.h + 6;
+    poli(sg < 0 ? K : D, [bx - 3, byq, bx + 3, byq, bx + sg*abre*0.6 + 2, byq + 12, bx + sg*abre, byq + 18, bx + sg*abre*0.4 - 2, byq + 11]);
+    jL(g, R, 0.9, bx + sg*abre*0.2, byq + 4, bx + sg*abre*0.8, byq + 14);
   }
-  jR(g, K, 48, by + 1, 11, 6); jO(g, pose === 'teje' ? '#ffffff' : RG, 60, by + 4, 2.6, 2.6);         // lanzarredes
+  // lanzarredes bajo la cara: blanco al tejer
+  jO(g, K, C.x + C.w/2, C.y + C.h + 8, 3.4, 2.6); jO(g, pose === 'teje' ? '#ffffff' : '#ff6a55', C.x + C.w/2, C.y + C.h + 8, 2, 1.5);
+}
+// Los ojos: barras de LED rojos (como un ecualizador) que siguen la música
+// que suena. Sin música, se mueven solas despacio.
+const _aracEq = { t:0, n:7, v:new Float32Array(7), pico:new Float32Array(7).fill(0.3), buf:null };
+function aracEq(){
+  const E = _aracEq, now = performance.now();
+  if (now - E.t < 14) return E.v;
+  const dt = Math.min(0.1, E.t ? (now - E.t)/1000 : 0.016); E.t = now;
+  const an = audio.musAn;
+  let hay = false;
+  if (an && audio.ctx && audio.ctx.state === 'running' && audio.musOn){
+    if (!E.buf) E.buf = new Uint8Array(an.frequencyBinCount);
+    an.getByteFrequencyData(E.buf);
+    const hz = audio.ctx.sampleRate/an.fftSize;
+    for (let b = 0; b < E.n; b++){
+      const f0 = 50*Math.pow(2, b*1.15), f1 = 50*Math.pow(2, (b + 1)*1.15);
+      let s = 0, c = 0;
+      for (let i = Math.max(1, Math.floor(f0/hz)); i <= Math.min(E.buf.length - 1, Math.ceil(f1/hz)); i++){ s += E.buf[i]; c++; }
+      const x = c ? s/(c*255) : 0;
+      if (x > 0.06) hay = true;
+      E.pico[b] = Math.max(x, E.pico[b] - dt*0.08, 0.15);
+      const k = clamp((x - E.pico[b]*0.55)/(E.pico[b]*0.45), 0, 1);
+      E.v[b] += (k - E.v[b])*Math.min(1, dt*(k > E.v[b] ? 30 : 9));
+    }
+  }
+  if (!hay){
+    const t = now/1000;
+    for (let b = 0; b < E.n; b++){ const k = 0.25 + 0.2*Math.sin(t*2.1 + b*1.3) + 0.12*Math.sin(t*5.3 + b*2.7); E.v[b] += (k - E.v[b])*Math.min(1, dt*6); }
+  }
+  return E.v;
+}
+// Pinta las barras en la pantalla de la cara (en coordenadas del dibujo).
+function pintaAracEq(C, todo){
+  const v = aracEq(), filas = 5, n = v.length, cw = C.w/n, ch = C.h/filas;
+  ctx.fillStyle = '#3a0705';
+  for (let b = 0; b < n; b++) for (let r = 0; r < filas; r++) ctx.fillRect(C.x + b*cw + 0.4, C.y + C.h - (r + 1)*ch + 0.4, cw - 0.9, ch - 0.9);
+  ctx.fillStyle = todo ? '#ffd6c8' : '#ff3a24';
+  for (let b = 0; b < n; b++){
+    const alto = todo ? filas : Math.max(1, Math.round(v[b]*filas));
+    for (let r = 0; r < alto; r++) ctx.fillRect(C.x + b*cw + 0.4, C.y + C.h - (r + 1)*ch + 0.4, cw - 0.9, ch - 0.9);
+  }
+  ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = todo ? 0.5 : 0.12 + nivelMusica()*0.3;
+  ctx.fillStyle = '#ff3a24'; ctx.fillRect(C.x - 2, C.y - 2, C.w + 4, C.h + 4); ctx.restore();
 }
 // Cuánto empuja ahora la música (0..1), mirando los graves: sube de golpe con
 // cada bombo y baja más despacio. Sin música, un latido tranquilo.
@@ -17042,8 +17098,8 @@ function aracLuces(pose, f, roto){
   aracCache.set(k, L);
   return L;
 }
-function aracBoca(e){ return { x: e.x + (e.facing || 1)*62, y: e.y - alturaVisible(e) - 82 }; }
-function aracOjos(e){ return { x: e.x + (e.facing || 1)*46, y: e.y - alturaVisible(e) - 98 }; }
+function aracBoca(e){ return { x: e.x + (e.facing || 1)*54, y: e.y - alturaVisible(e) - ARAC_BOCA_Y }; }
+function aracOjos(e){ return { x: e.x + (e.facing || 1)*54, y: e.y - alturaVisible(e) - 71 }; }
 var tela = null;                     // { e, res, max, t, mordT } si te tiene atrapado
 function updateAracnido(e, dt, a, ang){
   e.anim = (e.anim || 0) + dt;
@@ -17309,18 +17365,31 @@ window.addEventListener('touchstart', ev=>{
 function drawAracnido(e){
   const s = S(e.x, e.y), alt = alturaVisible(e);
   sombra(s.x, s.y + 4, 170*(1 - alt/400), 34*(1 - alt/400), 0.9);
-  const pose = e.muerde > 0 ? 'muerde' : e.fase === 'salto' ? 'salta' : e.fase === 'pisaAviso' ? 'pisa'
-             : (e.fase === 'telaAviso' || e.fase === 'tela' || e.fase === 'arrastra' || e.fase === 'lluviaAviso' || e.fase === 'lluvia') ? 'teje' : 'anda';
-  const f = pose === 'anda' ? Math.floor(e.paso || 0) % 4 : pose === 'muerde' ? (e.muerde > 0.15 ? 1 : 0) : 0;
+  // cada ataque con su pose: se agacha antes de saltar o embestir, recoge las
+  // patas en el aire, alza las de delante para pisar, abre los colmillos, etc.
+  const fa = e.fase, t = e.anim || 0;
+  const pose = e.muerde > 0 ? 'muerde' : fa === 'salto' ? 'salta' : fa === 'pisaAviso' ? 'pisa'
+             : (fa === 'saltoAviso' || fa === 'embAviso' || fa === 'aterriza') ? 'agacha'
+             : fa === 'embiste' ? 'embiste'
+             : (fa === 'lluviaAviso' || fa === 'lluvia') ? 'lluvia'
+             : (fa === 'telaAviso' || fa === 'tela' || fa === 'arrastra') ? 'teje' : 'anda';
+  const f = pose === 'anda' ? Math.floor(e.paso || 0) % 4 : pose === 'embiste' ? Math.floor(e.paso || 0) % 2
+          : pose === 'lluvia' ? Math.floor(t*8) % 2 : pose === 'muerde' ? (e.muerde > 0.15 ? 1 : 0) : 0;
   const c = aracFrame(pose, f, !!e.roto), [W, H, cx, py] = ARAC_TAM;
   ctx.save(); ctx.translate(s.x, s.y - alt);
   if ((e.facing || 1) < 0) ctx.scale(-1, 1);
+  if (pose === 'embiste') ctx.rotate(0.07);                         // se lanza inclinada hacia delante
+  if (fa === 'aterriza') ctx.scale(1 + 0.05*clamp(e.ft/0.5, 0, 1), 1 - 0.07*clamp(e.ft/0.5, 0, 1));   // el golpe al caer
+  if (fa === 'saltoAviso' || fa === 'embAviso') ctx.translate(Math.sin(t*60)*0.8, 0);                    // tiembla cargando
   const suave = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = false;
   ctx.drawImage(c, -cx, -py);
   // las luces rojas laten con la música: se apagan en lo flojo y arden con cada golpe
   const L = aracLuces(pose, f, !!e.roto), n = nivelMusica();
   ctx.globalAlpha = (1 - n)*0.8; ctx.drawImage(L.apag, -cx, -py);
   ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.1 + n*0.8; ctx.drawImage(L.brillo, -cx, -py);
+  ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+  // los ojos: barras de LED al ritmo de la música; encendidos del todo al disparar los láseres
+  pintaAracEq(aracCara(pose), fa === 'laser' && Math.floor(t*14) % 2 === 0);
   ctx.imageSmoothingEnabled = suave;
   ctx.restore();
   if (e.fase === 'telaAviso'){ const m = S(aracBoca(e).x, aracBoca(e).y); ctx.fillStyle = 'rgba(255,255,255,' + (0.5 + Math.sin(gameTime*20)*0.4) + ')'; ctx.beginPath(); ctx.arc(m.x, m.y, 5, 0, Math.PI*2); ctx.fill(); }
@@ -17341,7 +17410,7 @@ function drawAracnidoSuelo(){
     for (let k = 0; k < ARAC_REDES; k++){ const t = e['p' + k + 't']; if (t > 0){ const s = S(e['p' + k + 'x'], e['p' + k + 'y']); dibRed(s.x, s.y, ARAC_RED_R, 0.7*clamp(t/1.5, 0, 1)); } }
     ctx.save();
     if (e.fase === 'telaAviso'){
-      const o = S(aracBoca(e).x, aracBoca(e).y + 82), t = S(e.tx, e.ty), pul = 0.55 + Math.sin(gameTime*16)*0.35;
+      const o = S(aracBoca(e).x, aracBoca(e).y + ARAC_BOCA_Y), t = S(e.tx, e.ty), pul = 0.55 + Math.sin(gameTime*16)*0.35;
       ctx.strokeStyle = 'rgba(255,255,255,' + pul + ')'; ctx.lineWidth = 3; ctx.setLineDash([12, 9]);
       ctx.beginPath(); ctx.moveTo(o.x, o.y); ctx.lineTo(t.x, t.y); ctx.stroke(); ctx.setLineDash([]);
       ctx.strokeStyle = 'rgba(255,80,60,' + pul + ')'; ctx.lineWidth = 2.5;
