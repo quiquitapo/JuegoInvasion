@@ -5025,6 +5025,7 @@ function spawnEnemy(type, atX, atY){
   if (type==='kaiyin')    Object.assign(base, {hp:KAI_HP, maxhp:KAI_HP, speed:62, w:170, h:140, grabbable:false,
                             fase:'entra', ft:2.4, cd:3, vuela:1, lift:80, mirA:0, tormT:8, tormCd:24, strikeCd:0.8,
                             rayTick:0, rayOn:0, colaA:0, mordT:0, aleT:0, rtx:0, rty:0, paso:0});
+  if (type==='kaiyin' && gameMode !== 'vs') kaiEntraSombra(base);
   if (type==='ovni')      Object.assign(base, {hp:60,maxhp:60,speed:150, w:96,h:56,
                             alt:150, bob:rand(0,6), rumbo:0, pacifico:true,
                             fase:'llegada', grabbable:true});
@@ -7776,6 +7777,7 @@ function damageEnemy(e, dmg, fx, fy){
     return;
   }
   if (e.dead) return;
+  if (e.cielo) return;                                  // el Kaiyin, aún en lo alto del cielo
   // Escudo del trípode: pequeño y breve, pero no deja pasar nada.
   // Escudo del trípode: lo para todo... hasta que se rompe a golpes. Lo que
   // sobra del golpe que lo rompe sí entra.
@@ -10975,7 +10977,7 @@ const BESTIARY = [
   { id:'golem', name:'GÓLEM FANTASMA', hp:320, dmg:'28 en área', sprite:'golemF', verb:'DISIPADOS',
     desc:'Mole de roca animada por runas. Lento y duro; al tenerte cerca alza los puños y golpea el suelo alrededor. Solo el COLOSO puede levantarlo.' },
   { id:'kaiyin', name:'KAIYIN', hp:2700, dmg:'rayos, aletazo, embestida y mordisco', sprite:'kaiyinF', verb:'DERROTADOS',
-    desc:'El dragón de tres cabezas en tamaño colosal. Llega volando y desata una tormenta: los rayos caen donde se marca el suelo. Camina aplastando edificios y alterna ataques: aletazo que lo barre todo alrededor, embestida marcada que arrasa lo que hay en la línea, vuelo en picado con mordisco antes de aterrizar y, sobre todo, sus tres rayos. De esos rayos solo te salva un escudo: ponte detrás de un edificio, interpón un auto o lo que lleves agarrado, o usa la burbuja o los objetos del mago.' },
+    desc:'El dragón de tres cabezas en tamaño colosal. Primero solo se ve su sombra gigantesca, que da vueltas sobre ti mientras ruge; luego baja en picado, aterriza a tu lado alzando las tres cabezas al cielo y desata una tormenta: los rayos caen donde se marca el suelo. Camina aplastando edificios y alterna ataques: aletazo que lo barre todo alrededor, embestida marcada que arrasa lo que hay en la línea, vuelo en picado con mordisco antes de aterrizar y, sobre todo, sus tres rayos. De esos rayos solo te salva un escudo: ponte detrás de un edificio, interpón un auto o lo que lleves agarrado, o usa la burbuja o los objetos del mago.' },
   { id:'centinela', name:'CENTINELA', hp:60, dmg:'8 por disparo', sprite:'centinelaF',
     desc:'Soldado de la guardia marciana, con máscara de visores y una mochila de energía a la espalda. Guarda la distancia y dispara ráfagas de su rifle de pulsos. Los ojos escáner los llaman de tres en tres. Se pueden agarrar como cualquier soldado.' },
   { id:'centElite', name:'CENTINELA DE ÉLITE', hp:80, dmg:'9 por disparo', sprite:'centEliteF',
@@ -13589,7 +13591,9 @@ function draCabeza(i, lift, rumbo){
   const V = draVista(rumbo === undefined ? dra.rumbo : rumbo);
   // rugiendo, cada cabeza mira al cielo y se sacude a su ritmo
   const ruge = dra.rugeT > 0 || dra.rugidoT > 0, cp = vil.capa || 0;
-  const c = DRA_CUELLOS[i], a = ruge ? -Math.PI/2 + Math.sin(cp*4.2 + i*2.1)*0.45 + (i - 1)*0.35 : dra.mirA;
+  // sin rugir, cada cabeza se desvía un poco a su aire: vigilan, no van en bloque
+  const c = DRA_CUELLOS[i], a = ruge ? -Math.PI/2 + Math.sin(cp*4.2 + i*2.1)*0.45 + (i - 1)*0.35
+                                     : dra.mirA + Math.sin(cp*1.3 + i*2.3)*0.13 + (i - 1)*0.06;
   const ca = Math.cos(a), sa = Math.sin(a);
   // vistas de lado: las cabezas se abren algo más para no taparse entre sí
   const abre = 1 + 0.8*Math.abs(V.qy);
@@ -13597,6 +13601,7 @@ function draCabeza(i, lift, rumbo){
   let hx = x0 + ca*9, hy = y0 + sa*6 - lift;
   if (ruge){ hx += Math.sin(cp*3.4 + i*1.9)*5; hy -= 4 + Math.abs(Math.sin(cp*5 + i))*5; }
   hy += Math.sin((vil.capa||0)*2.2 + i*1.9)*2;           // respiran
+  hx += Math.sin(cp*1.7 + i*2.6)*1.8;                    // y serpentean
   if (dra.mordT > 0 && dra.mordCab === i){               // la que muerde se estira
     const k = Math.sin((dra.mordT / DRA_MORD_T) * Math.PI);
     const L = 16 + (dra.mordL || 0);                     // se estira hasta la presa
@@ -14086,6 +14091,7 @@ function dibujaDragon(g, x, y, esc, st){
   g.translate(0, -st.lift);
   if (st.incl) g.rotate(st.incl);                           // volando se inclina hacia su rumbo
   if (st.anda) g.translate(0, -Math.abs(Math.sin(st.paso))*1.6);   // el cuerpo sube y baja al andar
+  else if (!st.vol){ const br = Math.sin(t*2.2)*0.014; g.translate(0, 28); g.scale(1 + br, 1 - br); g.translate(0, -28); }   // respira
   // alas: baten rápido volando, con fuerza al aletear y respiran en reposo
   const flap = st.ruge ? 0.35 + Math.sin(t*9)*0.07          // alzadas, temblando de rabia
              : st.vol ? Math.sin(t*11)
@@ -14137,10 +14143,24 @@ function draAla(g, lado, flap, P, V, esp){
   const [qx, qy] = pt(32, 30), [ex, ey] = pt(8, 6);
   g.quadraticCurveTo(qx, qy, ex, ey);
   g.closePath(); g.fill();
-  g.strokeStyle = P.co; g.lineWidth = 3.4;                  // hueso del brazo
+  g.strokeStyle = P.co; g.lineWidth = 0.8; g.globalAlpha = 0.35;            // nervios de la membrana
+  for (let k = 1; k < tips.length; k++){
+    const mx = (tips[k-1][0] + tips[k][0])/2, my = (tips[k-1][1] + tips[k][1])/2;
+    g.beginPath(); g.moveTo(wx + (rx - wx)*0.3, wy + (ry - wy)*0.3); g.quadraticCurveTo(wx + (mx - wx)*0.5, wy + (my - wy)*0.5 + 3, wx + (mx - wx)*0.82, wy + (my - wy)*0.82); g.stroke();
+  }
+  g.globalAlpha = 1;
+  g.strokeStyle = P.co; g.lineWidth = 4;                    // hueso del brazo
   g.beginPath(); g.moveTo(rx, ry); g.lineTo(wx, wy); g.stroke();
-  g.strokeStyle = P.cm; g.lineWidth = 1.8;                  // dedos
+  g.strokeStyle = P.cl; g.lineWidth = 1.2;                  // su filo de luz
+  g.beginPath(); g.moveTo(rx, ry - 1); g.lineTo(wx, wy - 1); g.stroke();
+  g.strokeStyle = P.co; g.lineWidth = 2.6;                  // dedos
   for (const [tx, ty] of tips){ g.beginPath(); g.moveTo(wx, wy); g.lineTo(tx, ty); g.stroke(); }
+  g.strokeStyle = P.cm; g.lineWidth = 1.4;
+  for (const [tx, ty] of tips){ g.beginPath(); g.moveTo(wx, wy); g.lineTo(tx, ty); g.stroke(); }
+  g.fillStyle = P.cuerno;                                   // garritas en la punta de cada dedo
+  for (const [tx, ty] of tips){ const da = Math.atan2(ty - wy, tx - wx); g.beginPath(); g.moveTo(tx + Math.cos(da)*3.5, ty + Math.sin(da)*3.5); g.lineTo(tx + Math.cos(da + 1.7)*1.4, ty + Math.sin(da + 1.7)*1.4); g.lineTo(tx + Math.cos(da - 1.7)*1.4, ty + Math.sin(da - 1.7)*1.4); g.closePath(); g.fill(); }
+  g.fillStyle = P.co; g.beginPath(); g.arc(wx, wy, 3.2, 0, Math.PI*2); g.fill();      // nudillo de la muñeca
+  g.fillStyle = P.cm; g.beginPath(); g.arc(wx - 0.4, wy - 0.4, 2.1, 0, Math.PI*2); g.fill();
   g.fillStyle = P.cuerno;                                   // garra de la muñeca
   const [c1x, c1y] = pt(49, -55), [c2x, c2y] = pt(52, -45);
   g.beginPath(); g.moveTo(wx - lado*V.qx*2, wy); g.lineTo(c1x, c1y - flap*18); g.lineTo(c2x, c2y - flap*18); g.closePath(); g.fill();
@@ -14236,8 +14256,14 @@ function draCuerpo(g, P, V){
       g.beginPath(); g.arc(ex, -14 + k*5.5, 2.6, 0.2, Math.PI - 0.2); g.stroke();
     }
   }
+  g.globalAlpha = 0.3; g.fillStyle = P.cuerno;              // brillo arriba
+  g.beginPath(); g.ellipse(-rx*0.3 + V.fx*3, -15, rx*0.45, 6, -0.3, 0, Math.PI*2); g.fill();
+  g.globalAlpha = 0.35; g.fillStyle = P.co;                 // sombra abajo
+  g.beginPath(); g.ellipse(0, cy + 19, rx*1.05, 9, 0, 0, Math.PI*2); g.fill();
   g.globalAlpha = 1;
   g.restore();
+  g.strokeStyle = P.co; g.lineWidth = 1.6;                  // el contorno
+  g.beginPath(); g.ellipse(0, cy, rx, 23, -V.fx*0.12, 0, Math.PI*2); g.stroke();
   if (V.fy < 0.6){                                          // el lomo: placas en cresta, por detrás
     const lx = -V.fx*rx*0.7;
     g.fillStyle = P.cuerno;
@@ -14249,19 +14275,28 @@ function draCuerpo(g, P, V){
 }
 function draCuello(g, h, P){
   const cx = h.bx + (h.x - h.bx)*0.25, cy = h.by + (h.y - h.by)*0.75;
-  g.strokeStyle = P.co; g.lineWidth = 10;
-  g.beginPath(); g.moveTo(h.bx, h.by); g.quadraticCurveTo(cx, cy, h.x, h.y); g.stroke();
-  g.strokeStyle = P.cm; g.lineWidth = 7.5;
-  g.beginPath(); g.moveTo(h.bx, h.by); g.quadraticCurveTo(cx, cy, h.x, h.y); g.stroke();
-  g.strokeStyle = P.cl; g.lineWidth = 2.2; g.globalAlpha = 0.8;
-  g.beginPath(); g.moveTo(h.bx - 1.5, h.by); g.quadraticCurveTo(cx - 2, cy, h.x - 1.5, h.y); g.stroke();
-  g.globalAlpha = 0.5; g.fillStyle = P.co;                 // anillos de escamas del cuello
-  for (let k = 1; k < 5; k++){
-    const f = k/5, u = 1 - f;
-    const px = u*u*h.bx + 2*u*f*cx + f*f*h.x, py = u*u*h.by + 2*u*f*cy + f*f*h.y;
-    g.beginPath(); g.ellipse(px, py, 3.4, 1.1, 0, 0, Math.PI*2); g.fill();
-  }
+  const curva = (w, col)=>{ g.strokeStyle = col; g.lineWidth = w; g.beginPath(); g.moveTo(h.bx, h.by); g.quadraticCurveTo(cx, cy, h.x, h.y); g.stroke(); };
+  curva(11, P.co); curva(8, P.cm);
+  g.strokeStyle = P.vientre; g.lineWidth = 3; g.globalAlpha = 0.75;          // placas de la garganta
+  g.beginPath(); g.moveTo(h.bx + 2, h.by + 2); g.quadraticCurveTo(cx + 2.5, cy + 2.5, h.x + 1.5, h.y + 2.5); g.stroke();
+  g.strokeStyle = P.cl; g.lineWidth = 2; g.globalAlpha = 0.85;              // brillo del lomo
+  g.beginPath(); g.moveTo(h.bx - 2, h.by - 1.5); g.quadraticCurveTo(cx - 2.5, cy - 2, h.x - 2, h.y - 2); g.stroke();
   g.globalAlpha = 1;
+  for (let k = 1; k < 6; k++){
+    const f = k/6, u = 1 - f;
+    const px = u*u*h.bx + 2*u*f*cx + f*f*h.x, py = u*u*h.by + 2*u*f*cy + f*f*h.y;
+    // la tangente para orientar las escamas y las púas de la nuca
+    const tx = 2*u*(cx - h.bx) + 2*f*(h.x - cx), ty = 2*u*(cy - h.by) + 2*f*(h.y - cy), tl = Math.hypot(tx, ty) || 1;
+    let nx = ty/tl, ny = -tx/tl; if (ny > 0){ nx = -nx; ny = -ny; }            // la normal que mira arriba
+    g.fillStyle = P.co; g.globalAlpha = 0.55;
+    g.beginPath(); g.ellipse(px, py, 4, 1.2, Math.atan2(ty, tx) + Math.PI/2, 0, Math.PI*2); g.fill();
+    g.globalAlpha = 1;
+    if (k % 2){
+      const bx2 = px + nx*4.5, by2 = py + ny*4.5, L = 4.5 - f*1.5;
+      g.fillStyle = P.co; g.beginPath(); g.moveTo(bx2 - tx/tl*2.6, by2 - ty/tl*2.6); g.lineTo(bx2 + nx*(L + 1) - tx/tl*2, by2 + ny*(L + 1) - ty/tl*2); g.lineTo(bx2 + tx/tl*2.6, by2 + ty/tl*2.6); g.closePath(); g.fill();
+      g.fillStyle = P.cuerno; g.beginPath(); g.moveTo(bx2 - tx/tl*1.6, by2 - ty/tl*1.6); g.lineTo(bx2 + nx*L - tx/tl*1.6, by2 + ny*L - ty/tl*1.6); g.lineTo(bx2 + tx/tl*1.6, by2 + ty/tl*1.6); g.closePath(); g.fill();
+    }
+  }
 }
 function draCabezaDibujo(g, h, st, i, P){
   const a = h.a;
@@ -14269,40 +14304,51 @@ function draCabezaDibujo(g, h, st, i, P){
   g.translate(h.x, h.y);
   g.rotate(a);
   if (Math.cos(a) < 0) g.scale(1, -1);                      // nunca boca abajo
-  const e = i === 1 ? 1.38 : 1.22;                          // la central, algo mayor
+  const e = i === 1 ? 1.4 : 1.24;                           // la central, algo mayor
   g.scale(e, e);
   const muerde = st.mordT > 0 && st.mordCab === i ? Math.sin((st.mordT/DRA_MORD_T)*Math.PI) : 0;
   const sigue = !st.ruge && st.boca > 0 ? Math.min(1, st.boca/0.6) : 0;   // el final del rugido de la entrada
   const abre = Math.max(muerde*0.6 + (st.rayos ? 0.32 : 0), (st.ruge ? 1 : sigue)*(0.55 + Math.sin(st.t*24 + i)*0.06));
-  // corona de cuernos hacia atrás
-  g.fillStyle = P.cuerno;
-  for (const k of [-1.2, -0.4, 0.4, 1.2]){
-    g.beginPath(); g.moveTo(-2, k*2.4 - 1.6); g.lineTo(-17 + Math.abs(k)*2, k*6.2 - 3); g.lineTo(-3, k*2.4 + 1.4);
-    g.closePath(); g.fill();
+  const tri = (c, x0, y0, x1, y1, x2, y2)=>{ g.fillStyle = c; g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.lineTo(x2, y2); g.closePath(); g.fill(); };
+  // corona: dos cuernos largos curvados hacia atrás y púas más cortas entre ellos
+  for (const k of [-1, 1]){
+    g.fillStyle = P.co; g.beginPath(); g.moveTo(-1, k*3 - 2.4); g.quadraticCurveTo(-12, k*7 - 4, -24, k*9 - 7); g.lineTo(-3, k*3 + 2.2); g.closePath(); g.fill();
+    g.fillStyle = P.cuerno; g.beginPath(); g.moveTo(-1.5, k*3 - 1.4); g.quadraticCurveTo(-12, k*6.6 - 3.6, -22, k*8.6 - 6.4); g.lineTo(-3, k*3 + 1.2); g.closePath(); g.fill();
   }
-  // mandíbula inferior (se abre)
-  g.save(); g.rotate(abre);
-  g.fillStyle = P.co;
-  g.beginPath(); g.moveTo(0, 1); g.lineTo(15, 2.5); g.lineTo(14, 5); g.lineTo(0, 5); g.closePath(); g.fill();
-  if (abre > 0.15){ g.fillStyle = '#fff6d8'; for (let k = 4; k < 14; k += 3){ g.fillRect(k, 1.4, 1.2, 1.6); } }
+  for (const k of [-0.5, 0.5]) tri(P.cuerno, -3, k*2 - 1.2, -14, k*4.5 - 5, -4, k*2 + 1.2);
+  // mandíbula inferior (se abre): con colmillos y barbas de púas
+  g.save(); g.rotate(abre*0.95);
+  g.fillStyle = P.co; g.beginPath(); g.moveTo(-1, 0.5); g.lineTo(16, 2.2); g.lineTo(14.5, 5.6); g.lineTo(2, 6.2); g.closePath(); g.fill();
+  g.fillStyle = P.cm; g.beginPath(); g.moveTo(0, 1.3); g.lineTo(15, 2.8); g.lineTo(13.5, 4.8); g.lineTo(2, 5.2); g.closePath(); g.fill();
+  tri(P.cuerno, 1, 5, -3, 9.5, 4, 5.6); tri(P.cuerno, 5, 5.4, 3.5, 9, 8, 5.4);           // barbas
+  if (abre > 0.12){ g.fillStyle = '#fff6d8'; for (let k = 4; k < 15; k += 2.6) tri('#fff6d8', k, 1.6, k + 0.7, -0.6, k + 1.4, 1.8); }
   g.restore();
-  // cráneo y hocico
+  // garganta al rojo, entre las mandíbulas abiertas
+  if (abre > 0.12){ g.fillStyle = st.rayos ? '#fff3a0' : '#7a1a10'; g.beginPath(); g.moveTo(1, 0); g.lineTo(14, 0.6); g.lineTo(13, 1 + abre*9); g.closePath(); g.fill(); }
+  // cráneo: contorno, frente y hocico con brillo
+  g.fillStyle = P.co;
+  g.beginPath(); g.ellipse(0, -0.5, 9.6, 7.2, 0, 0, Math.PI*2); g.fill();
+  g.beginPath(); g.moveTo(0, -6.4); g.lineTo(17.5, -2.8); g.lineTo(18.4, 1.4); g.lineTo(1, 3.2); g.closePath(); g.fill();
   g.fillStyle = P.cm;
-  g.beginPath(); g.ellipse(0, -0.5, 8.5, 6.2, 0, 0, Math.PI*2); g.fill();
+  g.beginPath(); g.ellipse(0, -0.5, 8.4, 6.1, 0, 0, Math.PI*2); g.fill();
   g.fillStyle = P.cl;
-  g.beginPath(); g.moveTo(1, -5); g.lineTo(16, -2.2); g.lineTo(17, 0.6); g.lineTo(2, 2.2); g.closePath(); g.fill();
-  g.strokeStyle = P.co; g.lineWidth = 0.9;
-  g.beginPath(); g.moveTo(3, -3.4); g.lineTo(15, -1.4); g.stroke();
-  g.fillStyle = P.co;                                       // fosa nasal
-  g.beginPath(); g.arc(14.5, -1.2, 0.8, 0, Math.PI*2); g.fill();
-  g.fillStyle = P.ojo;                                      // ojo encendido
-  g.beginPath(); g.ellipse(2.5, -3.2, 2, 1.3, -0.2, 0, Math.PI*2); g.fill();
-  g.fillStyle = '#fff2c0';
-  g.beginPath(); g.arc(3, -3.5, 0.55, 0, Math.PI*2); g.fill();
-  if (st.rayos){                                            // brillo en la garganta
+  g.beginPath(); g.moveTo(1, -5.2); g.lineTo(16.4, -2.2); g.lineTo(17.2, 0.6); g.lineTo(2, 2.2); g.closePath(); g.fill();
+  g.fillStyle = P.cuerno; g.globalAlpha = 0.6;
+  g.beginPath(); g.moveTo(3, -4.4); g.lineTo(14, -2.4); g.lineTo(3, -3.2); g.closePath(); g.fill();   // brillo
+  g.globalAlpha = 1;
+  if (abre > 0.12) for (let k = 5; k < 16; k += 2.6) tri('#fff6d8', k, 1.4, k + 0.7, 3.4, k + 1.4, 1.4);   // dientes de arriba
+  g.fillStyle = P.co; g.beginPath(); g.arc(15.2, -1.3, 0.85, 0, Math.PI*2); g.fill();          // fosa nasal
+  // ceja de escamas sobre un ojo encendido, con su pupila de reptil
+  tri(P.co, -2, -5.6, 7, -4.8, 1, -2.2);
+  g.fillStyle = P.ojo; g.beginPath(); g.ellipse(3, -2.9, 2.3, 1.45, -0.15, 0, Math.PI*2); g.fill();
+  g.fillStyle = '#1a0a04'; g.fillRect(2.75, -4, 0.55, 2.3);
+  g.fillStyle = '#fff2c0'; g.beginPath(); g.arc(3.8, -3.4, 0.45, 0, Math.PI*2); g.fill();
+  g.globalAlpha = 0.28; g.fillStyle = P.ojo;                                               // su brillo
+  g.beginPath(); g.ellipse(3, -2.9, 4.4, 3, 0, 0, Math.PI*2); g.fill(); g.globalAlpha = 1;
+  if (st.rayos){                                            // la carga en la garganta
     g.globalAlpha = 0.55 + Math.sin(st.t*30 + i)*0.2;
     g.fillStyle = '#fff3a0';
-    g.beginPath(); g.arc(15, 1.8, 4.2, 0, Math.PI*2); g.fill();
+    g.beginPath(); g.arc(15, 1.8, 4.6, 0, Math.PI*2); g.fill();
     g.globalAlpha = 1;
   }
   g.restore();
@@ -14700,7 +14746,7 @@ function conDragon(e, fn){
   const m = dra.mirA, mt = dra.mordT, mc = dra.mordCab, ml = dra.mordL, cp = vil.capa, ru = dra.rumbo;
   dra.mirA = e.mirA || 0; dra.mordT = e.mordT || 0; dra.mordCab = 1; dra.mordL = 22; vil.capa = e.anim || 0;
   dra.rumbo = e.rumbo === undefined ? Math.PI/2 : e.rumbo;
-  const rg = dra.rugeT, rv = dra.rugidoT; dra.rugeT = 0; dra.rugidoT = 0;
+  const rg = dra.rugeT, rv = dra.rugidoT; dra.rugeT = e.rugeT || 0; dra.rugidoT = 0;
   try { return fn(); } finally { dra.mirA = m; dra.mordT = mt; dra.mordCab = mc; dra.mordL = ml; vil.capa = cp; dra.rumbo = ru; dra.rugeT = rg; dra.rugidoT = rv; }
 }
 function kaiBoca(e, i){
@@ -14713,6 +14759,38 @@ function giraHacia(a, b, max){
   while (d < -Math.PI) d += Math.PI*2;
   return a + clamp(d, -max, max);
 }
+// ---- la entrada: una sombra gigante que ruge en círculos y luego aterriza ----
+const KAI_SOMBRA_T = 3.6, KAI_CAE_T = 1.1, KAI_CAE_ALTO = 520, KAI_RUGE_T = 1.6;
+const KAI_SOMBRA_PAL = { cl:'#000', cm:'#000', co:'#000', mem:'#000', memO:'#000', vientre:'#000', cuerno:'#000', ojo:'#000' };
+function kaiEntraSombra(e){
+  Object.assign(e, { fase:'sombra', ft:KAI_SOMBRA_T, cielo:1, lift:0, vuela:1, som0: Math.random()*Math.PI*2, somDir: Math.random() < 0.5 ? 1 : -1 });
+  kaiSombraPos(e, 0);
+  e._rx = undefined;
+}
+// Vuelta en espiral alrededor del invasor: de lejos a unos 250 px.
+function kaiSombraPos(e, k){
+  const r = lerp(470, 250, 1 - (1 - k)*(1 - k)), an = e.som0 + k*Math.PI*1.6*e.somDir;
+  e.x = clamp(player.x + Math.cos(an)*r, 80, WORLD_W - 80); e.y = clamp(player.y + Math.sin(an)*r*0.75, 80, WORLD_H - 80);
+}
+// La silueta: el dragón entero en negro, pintado pequeño y ampliado (así sale
+// difuminada, como una sombra de verdad) y muy grande: está muy alto.
+let _kaiSom = null;
+function drawKaiSombra(e, k){
+  if (!_kaiSom){ _kaiSom = document.createElement('canvas'); _kaiSom.width = 300; _kaiSom.height = 250; }
+  const g = _kaiSom.getContext('2d');
+  g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1;
+  g.clearRect(0, 0, 300, 250);
+  const st = { t: (e.anim || 0)*0.5, vol: true, lift: 0, aleteoT: 0, colaFase: '', colaT: 0, rayos: false, mordT: 0, mordCab: 1,
+               pal: KAI_SOMBRA_PAL, paso: 0, incl: 0, anda: false, alas: 1, ruge: false, boca: 0 };
+  conDragon(e, ()=> dibujaDragon(g, 150, 170, 1, st));
+  g.globalCompositeOperation = 'source-in'; g.fillStyle = '#000'; g.fillRect(0, 0, 300, 250);
+  const s = S(e.x, e.y), E = KAI_ESC*(1 + 0.55*k);
+  ctx.save(); ctx.globalAlpha = 0.2 + 0.34*k;
+  const suave = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(_kaiSom, s.x - 150*E, s.y - 120*E, 300*E, 250*E);
+  ctx.imageSmoothingEnabled = suave;
+  ctx.restore();
+}
 function updateKaiyin(e, dt, a, ang){
   e.anim = (e.anim || 0) + dt;
   if (e.hieloT > 0) return;
@@ -14722,9 +14800,35 @@ function updateKaiyin(e, dt, a, ang){
   // la tormenta vuelve cada rato
   e.tormCd -= dt;
   if (e.tormCd <= 0){ e.tormT = 8; e.tormCd = rand(20, 26); toast('¡TORMENTA!'); sfx('trueno'); }
-  if (e.tormT > 0){ e.tormT -= dt; kaiTormenta(e, dt); }
+  if (e.tormT > 0 && !e.cielo){ e.tormT -= dt; kaiTormenta(e, dt); }       // la tormenta llega con él al suelo
+  if (e.rugeT > 0) e.rugeT = Math.max(0, e.rugeT - dt);
+  // intocable solo mientras dura la entrada: si algo la corta, baja a tierra
+  if (e.cielo && e.fase !== 'sombra' && e.fase !== 'desciende' && e.fase !== 'aterriza'){ e.cielo = 0; e.lift = Math.min(e.lift || 0, 80); }
   const angC = Math.atan2(player.y - (e.y - (e.lift || 0)), player.x - e.x);
   switch (e.fase){
+    case 'sombra': {
+      // allá arriba: solo se ve su sombra, que da vueltas cada vez más cerrada
+      const k = 1 - clamp(e.ft/KAI_SOMBRA_T, 0, 1);
+      const x0 = e.x, y0 = e.y;
+      kaiSombraPos(e, k);
+      e.mirA = Math.atan2(e.y - y0, e.x - x0);
+      e.rafT = (e.rafT || 0) - dt;
+      if (e.rafT <= 0){                                  // el viento de sus alas al pasar
+        e.rafT = 0.4; sacudeArboles(e.x, e.y, 300, 0.35);
+        if (dist(e.x, e.y, player.x, player.y) < 380) shake(4, 0.25);
+      }
+      if (e.ft <= 0){ e.fase = 'desciende'; e.ft = KAI_CAE_T; e.lift = KAI_CAE_ALTO; sfx('aleteo'); }
+      break;
+    }
+    case 'desciende': {
+      // baja en picado junto al invasor, con la sombra encogiéndose bajo él
+      const q = clamp(e.ft/KAI_CAE_T, 0, 1);
+      e.vuela = 1; e.lift = KAI_CAE_ALTO*q*q;
+      e.mirA = giraHacia(e.mirA, angC, 4*dt);
+      if (a > 230){ e.x += Math.cos(ang)*160*dt; e.y += Math.sin(ang)*160*dt; }
+      if (e.ft <= 0){ e.fase = 'aterriza'; e.ft = 0.3; }
+      break;
+    }
     case 'entra':
       e.vuela = 1; e.lift = lerp(e.lift, 80, Math.min(1, dt*3));
       e.mirA = giraHacia(e.mirA, angC, 3*dt);
@@ -14733,6 +14837,7 @@ function updateKaiyin(e, dt, a, ang){
       break;
     case 'anda':
       e.vuela = 0; e.lift = lerp(e.lift, 0, Math.min(1, dt*6));
+      if (e.rugeT > 0){ e.andando = 0; break; }          // ruge con las tres cabezas al cielo
       e.mirA = giraHacia(e.mirA, angC, 2.5*dt);
       e.andando = a > 230 ? 1 : 0;
       if (e.andando){ e.x += Math.cos(ang)*e.speed*dt; e.y += Math.sin(ang)*e.speed*dt; e.paso = (e.paso || 0) + dt*5; }
@@ -14793,6 +14898,12 @@ function updateKaiyin(e, dt, a, ang){
       e.lift = lerp(e.lift, 0, Math.min(1, dt*7));
       if (e.ft <= 0){
         e.vuela = 0; e.lift = 0;
+        if (e.cielo){                                    // el final de la entrada: toca tierra y ruge
+          e.cielo = 0; e.rugeT = KAI_RUGE_T; e.cd = KAI_RUGE_T + 0.8;
+          rugido('kaiyin', 1); shake(20, 0.7); sacudeArboles(e.x, e.y, 420, 0.6);
+          kaiOndas.push({ x:e.x, y:e.y, t:0, max:0.7, R:300, col:'#fff0a0' });
+          addParticles(e.x, e.y, '#9a8f78', 26, 260);
+        }
         if (dist(e.x, e.y, player.x, player.y) < 160 + F().r) golpeFantasma(player, 16);
         kaiOndas.push({ x:e.x, y:e.y, t:0, max:0.4, R:160, col:'#e8dcc0' });
         shake(12, 0.3); sfx('aterriza');
@@ -15036,11 +15147,15 @@ function drawKaiyin(e){
     e.rumbo = draNuevoRumbo(e.rumbo, Math.hypot(dx, dy) > 0.4 ? Math.atan2(dy, dx) : (e.mirA || 0));
   }
   e._rx = e.x; e._ry = e.y;
-  const st = { t: e.anim || 0, vol: !!e.vuela, lift: (e.lift || 0)/KAI_ESC, aleteoT: e.aleT || 0,
+  if (e.fase === 'sombra'){ drawKaiSombra(e, 1); return; }                       // aún en el cielo
+  if (e.fase === 'desciende') drawKaiSombra(e, clamp((e.lift || 0)/KAI_CAE_ALTO, 0, 1));
+  const alas = e.vuela || e.fase === 'aleteo' || e.rugeT > 0 || e.fase === 'rayos' ? 1 : 0.84;   // en tierra, algo recogidas
+  e._alas = lerp(e._alas || alas, alas, 0.12);
+  const st = { t: e.anim || 0, vol: !!e.vuela, lift: (e.lift || 0)/KAI_ESC, aleteoT: e.aleT || 0, ruge: e.rugeT > 0, alas: e._alas, boca: 0,
                colaFase: e.fase === 'cola' ? 'golpe' : '', colaT: e.fase === 'cola' ? DRA_COLA_T*clamp((e.colaRest || 0)/470, 0, 1) : 0,
                rayos: e.fase === 'rayos', mordT: e.mordT || 0, mordCab: 1, pal: e.deforme ? KAI_PAL_DEF : KAI_PAL, paso: e.paso || 0, incl: 0, anda: !!e.andando };
   conDragon(e, ()=> dibujaDragon(ctx, s.x, s.y, KAI_ESC, st));
-  if (showHpBars) hpBar(s.x, s.y - 210 - (e.lift || 0), 120, e.hp, e.maxhp, '#c81f1f');
+  if (showHpBars && !e.cielo) hpBar(s.x, s.y - 210 - (e.lift || 0), 120, e.hp, e.maxhp, '#c81f1f');
 }
 // Rayos del Kaiyin, por encima de todo.
 function drawJefes2Rayos(){
