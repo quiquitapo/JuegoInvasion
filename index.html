@@ -1082,6 +1082,41 @@
     filter:drop-shadow(-1px 0 rgba(255,40,90,0.65)) drop-shadow(1px 0 rgba(40,220,255,0.65)) drop-shadow(0 1px 1px rgba(0,0,0,0.5)); }
   @keyframes crtBarrido { 0% { background-position:0 -70%; } 100% { background-position:0 170%; } }
   @keyframes crtParpadeo { 0%, 93%, 100% { opacity:1; } 94% { opacity:0.5; } 95% { opacity:1; } 96.5% { opacity:0.68; } 97.5% { opacity:1; } }
+  /* ---- Efecto CRT retro en el HUD de la partida ----
+     Vida y estamina, puntaje, monedas, reloj y clima, el botón de salir, la
+     oleada y las habilidades parecen pantallitas de tubo, como los mandos
+     táctiles. Pensado para no costar: las líneas y el cristal se pintan una
+     vez (capa fija), y lo que se mueve (la franja que baja y el parpadeo)
+     solo anima transform y opacity, que resuelve la tarjeta gráfica sin
+     volver a pintar nada. */
+  #hud .hp-wrap, #hud .score-hud, #hud .clock-hud, #hud .quitbtn, #wavebadge, #skillbar .skico {
+    position:relative; overflow:hidden; isolation:isolate; }
+  #hud .hp-wrap::before, #hud .score-hud::before, #hud .clock-hud::before, #hud .quitbtn::before, #wavebadge::before, #skillbar .skico::before {
+    content:''; position:absolute; inset:0; border-radius:inherit; pointer-events:none; z-index:2;
+    background:
+      radial-gradient(ellipse 130% 110% at 28% 0%, rgba(255,255,255,0.14), rgba(255,255,255,0) 45%),
+      radial-gradient(ellipse at 50% 50%, rgba(0,0,0,0) 58%, rgba(0,0,0,0.38) 100%),
+      repeating-linear-gradient(180deg, rgba(0,0,0,0.28) 0 1px, rgba(0,0,0,0) 1px 3px);
+    box-shadow:inset 0 0 8px rgba(0,0,0,0.45);
+    animation:crtParpadeo 6.1s steps(1) infinite; }
+  #hud .hp-wrap::after, #hud .score-hud::after, #hud .clock-hud::after, #hud .quitbtn::after, #wavebadge::after, #skillbar .skico::after {
+    content:''; position:absolute; left:0; right:0; top:0; height:45%; pointer-events:none; z-index:3;
+    background:linear-gradient(180deg, rgba(210,255,230,0), rgba(210,255,230,0.12) 50%, rgba(210,255,230,0));
+    transform:translateY(-110%); will-change:transform; animation:crtBarridoT 4.2s linear infinite; }
+  #hud .score-hud::after { animation-delay:-1.3s; }  #hud .coin-hud::after { animation-delay:-2.4s; }
+  #hud .clock-hud::after { animation-delay:-0.7s; }  #hud .quitbtn::after { animation-delay:-3.1s; }
+  #wavebadge::after { animation-delay:-1.9s; }       #skillbar .skico::after { animation-delay:-2.8s; }
+  #hud .coin-hud::before { animation-delay:-2.2s; }  #hud .clock-hud::before { animation-delay:-3.7s; }
+  /* fósforo mal convergido: un halo rojo a un lado y cian al otro */
+  #hud .hp-label, #hud .score-hud .lbl, #hud .clock-hud .cphase, #hud .clock-hud .cnext, #hud .climahud, #hud .quitbtn, #wavebadge, #skillbar .cdt {
+    text-shadow:-1px 0 rgba(255,40,90,0.55), 1px 0 rgba(40,220,255,0.55); }
+  #hud .score-hud .val { text-shadow:-1px 0 rgba(255,40,90,0.6), 1px 0 rgba(40,220,255,0.6), 0 2px 0 rgba(0,0,0,0.6); }
+  #hud .hp-bar-fill, #hud .evo-bar-fill { box-shadow:0 0 6px rgba(255,255,255,0.18); }
+  @keyframes crtBarridoT { from { transform:translateY(-110%); } to { transform:translateY(240%); } }
+  @media (prefers-reduced-motion: reduce){
+    #hud .hp-wrap::before, #hud .score-hud::before, #hud .clock-hud::before, #hud .quitbtn::before, #wavebadge::before, #skillbar .skico::before,
+    #hud .hp-wrap::after, #hud .score-hud::after, #hud .clock-hud::after, #hud .quitbtn::after, #wavebadge::after, #skillbar .skico::after { animation:none; }
+  }
   @media (prefers-reduced-motion: reduce){
     body.touch-ui .actbtn::before, body.movil .actbtn::before, body.touch-ui .p2btn::before, body.movil .p2btn::before,
     body.touch-ui .actbtn::after, body.movil .actbtn::after, body.touch-ui .p2btn::after, body.movil .p2btn::after { animation:none; }
@@ -7017,12 +7052,14 @@ function updateChoqueRayos(dt, o){
   colocaChoque(o, mr.x, mr.y);
   return true;
 }
-// ---- los tres rayos del dragón contra los del Kaiyin ----
-// Si el dragón dispara al Kaiyin mientras este le dispara a él, los haces se
+// ---- los tres rayos del dragón contra los del Kaiyin y el Desgarrador ----
+// Si el dragón dispara al jefe mientras este le dispara a él, los haces se
 // traban a medio camino: el del jefe ya no le alcanza y el dragón lo empuja a
-// tirones hacia sus bocas. Si llega antes de quedarse sin estamina, el Kaiyin
-// se lleva el golpe y pierde sus rayos; si deja de disparar, se suelta.
+// tirones hacia su boca (o su visor). Si llega antes de quedarse sin
+// estamina, el jefe se lleva el golpe y pierde su rayo; si deja de disparar,
+// se suelta. El rayo único del Desgarrador cede algo antes que los tres del Kaiyin.
 const DRA_CHOQUE_VEL = 90;
+const DRA_CHOQUE_RIVAL = { kaiyin:[1, '#fff3a0'], desgarrador:[1.2, '#ffb08a'] };
 function draBocaMedia(){
   let x = 0, y = 0;
   for (let i = 0; i < 3; i++){ const m = draBoca(i); x += m.x; y += m.y; }
@@ -7037,7 +7074,7 @@ function draChoque(dt){
     choque.t += dt;
     e.ft += dt;                                          // su ataque no se acaba mientras dura
     const D = Math.hypot(r.x - o.x, r.y - o.y) || 1;
-    const v = DRA_CHOQUE_VEL*(e.deforme ? 0.85 : 1)*(Math.sin(choque.t*4.3) > -0.35 ? 1 : -0.55);
+    const v = DRA_CHOQUE_VEL*(DRA_CHOQUE_RIVAL[e.type] || [1])[0]*(e.deforme ? 0.85 : 1)*(Math.sin(choque.t*4.3) > -0.35 ? 1 : -0.55);
     choque.s = clamp(choque.s + v*dt/D, 0.12, 1);
     colocaChoque(o, r.x, r.y);
     if (choque.s >= 1 - 14/D) ganaChoque(e, r);
@@ -7047,7 +7084,7 @@ function draChoque(dt){
   let mejor = null, mr = null, md = 1e9;
   for (let i = 0; i < enemies.length; i++){
     const e = enemies[i];
-    if (e.type !== 'kaiyin' || (choqueCd.get(e) || 0) > gameTime) continue;
+    if (!DRA_CHOQUE_RIVAL[e.type] || (choqueCd.get(e) || 0) > gameTime) continue;
     const r = rayoEnemigo(e);
     if (!r) continue;
     const dx = r.x - o.x, dy = r.y - o.y, D = Math.hypot(dx, dy);
@@ -7059,7 +7096,7 @@ function draChoque(dt){
   }
   if (!mejor) return false;
   empiezaChoque(mejor, mr);
-  choque.dra = true; choque.col = '#fff3a0';
+  choque.dra = true; choque.col = DRA_CHOQUE_RIVAL[mejor.type][1];
   colocaChoque(o, mr.x, mr.y);
   return true;
 }
