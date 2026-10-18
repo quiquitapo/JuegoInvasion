@@ -4792,7 +4792,11 @@ function resetGame(){
   proyJ.length = 0; grietas.length = 0; zombis.length = 0; chatarra.length = 0; quemaduras.length = 0; restosAuto.length = 0; caidasAero.length = 0; congelados.clear(); proyRed.length = 0; limpiaJefes2(); limpiaAlien();
   if (typeof isVil === 'function' && isDra()){
     vil.intro = 1; vil.introY = player.y;
-    player.y -= VIL_INTRO_ALTO;
+    // antes de bajar, su sombra gigante da vueltas sobre el sitio (al
+    // castigo se llega cayendo por el portal: ahí no)
+    // (la cámara se queda en el sitio: luego baja en picado solo en el dibujo)
+    if (!esInfierno()){ dra.sombraT = DRA_SOMBRA_T; dra.somRug = 0; dra.som0 = Math.random()*Math.PI*2; dra.somDir = Math.random() < 0.5 ? 1 : -1; }
+    else player.y -= VIL_INTRO_ALTO;
     vil.flying = true; vil.fx = 0; vil.fy = 1;
     vil.charge = 0; vil.holding = false;
   } else if (typeof isVil === 'function' && isVil()){
@@ -7138,6 +7142,7 @@ function recibe(d){
     if (Math.random() < 0.5) addParticles(player.x, player.y - 14, '#7bffa0', 3, 60);
     return (d - a) - a;
   }
+  if (d > 0 && isDra() && buffActivo('tormenta')) return d*(1 - DRA_OVNI_RESIST);   // el dragón con la tormenta del OVNI
   return buffActivo('gigante') ? d * (1 - BUFF_RESIST) : d;
 }
 
@@ -7229,7 +7234,7 @@ function ovniRecompensa(){
     buffTipo = 'tormenta';
     unlockAch('tormenta');
     dra.tormentaCd = 0.4;
-    toast('¡TORMENTA ELÉCTRICA!');
+    toast('¡TORMENTA ELÉCTRICA! CRECES, AGUANTAS Y PEGAS MÁS');
     sfx('trueno');
   } else {
     buffTipo = 'gigante';
@@ -7854,6 +7859,7 @@ function damageEnemy(e, dmg, fx, fy){
   }
   // Escudo dorado del Héroe Mágico: deja pasar solo un 30%.
   if (e.escMag > 0 && dmg > 0){ dmg *= 0.3; addParticles(fx, fy, '#ffe8a0', 4, 70); }
+  if (culpaJug > 0 && dmg > 0 && isDra() && buffActivo('tormenta')) dmg *= DRA_OVNI_DMG;   // el dragón con la tormenta pega más
   // El Artillero deja de repararse en cuanto le entra un golpe.
   if (e.type === 'artillero' && dmg > 0) e.golpeadoT = ART_CURA_PAUSA;
   // Recibir daño le hace saltar lejos si tiene el impulso listo.
@@ -11599,7 +11605,7 @@ const ACHIEVEMENTS = [
   { id:'calorifica',icon:'\u{1F441}\u{FE0F}', name:'VISIÓN CALÓRICA', goal:1,
     desc:'Derriba un OVNI siendo el viltrumita y estrena sus ojos: dos hilos rojos que atraviesan lo que mires mientras dure el regalo.' },
   { id:'tormenta',  icon:'\u{26A1}', name:'SEÑOR DE LA TORMENTA', goal:1,
-    desc:'Derriba un OVNI siendo el dragón de tres cabezas y desata su regalo: una tormenta eléctrica cuyos relámpagos fulminan a los enemigos que te rodean.' },
+    desc:'Derriba un OVNI siendo el dragón de tres cabezas y desata su regalo: una tormenta eléctrica cuyos relámpagos fulminan a los enemigos que te rodean. Mientras dura, el dragón crece un poco, recibe menos daño y pega más fuerte.' },
   { id:'sobrecarga', icon:'\u{1F916}', name:'SOBRECARGA', goal:1,
     desc:'Derriba un OVNI siendo la Máquina Aberrante: sus armas se sobrecargan (espada de plasma más larga y minigun) y un escudo convierte en vida el daño que recibes.' },
   { id:'nigromante', icon:'\u{1F9DF}', name:'NIGROMANTE', goal:1,
@@ -13562,6 +13568,7 @@ function draReset(){
   dra.mordCd = 0; dra.mordT = 0; dra.aleteoCd = 0; dra.aleteoT = 0; dra.rayos = false;
   dra.colaApunta = false; dra.colaFase = ''; dra.colaT = 0; dra.tormentaCd = 0;
   dra.paso = 0; dra.incl = 0; dra.pisaT = 0; dra.rumbo = Math.PI/2; dra.rugeT = 0; dra.bocaT = 0; dra.rayoDecoT = 0; dra.rugidoT = 0; dra.rugidoCd = 0; dra.muerdeMant = false;
+  dra.sombraT = 0; dra.somRug = 0; dra.escK = 1; dra.caeH = 0;
   relampagos.length = 0;
 }
 function sinEstamina(){ sfx('deny'); toast('SIN ESTAMINA'); }
@@ -13667,8 +13674,8 @@ function draNuevoRumbo(r, quiere){
 }
 function draAlzado(){ return vil.flying ? 16 + Math.sin((vil.capa||0)*5)*3 : 0; }
 function draBoca(i){
-  const h = draCabeza(i, draAlzado());
-  return { x: player.x + h.x + Math.cos(h.a)*15, y: player.y + h.y + Math.sin(h.a)*9 };
+  const h = draCabeza(i, draAlzado()), k = dra.escK || 1;
+  return { x: player.x + (h.x + Math.cos(h.a)*15)*k, y: player.y + (h.y + Math.sin(h.a)*9)*k };
 }
 
 // ---- ataques ----
@@ -13807,6 +13814,29 @@ function draColetazo(){
   sfx('coletazo');
 }
 
+// ---- entrada: la sombra y el regalo del OVNI ----
+const DRA_SOMBRA_T = 2.2;                  // vueltas de la sombra antes del picado
+// Con el regalo del OVNI (la tormenta) el dragón crece un poco, aguanta más y pega más fuerte.
+const DRA_OVNI_ESC = 1.15, DRA_OVNI_RESIST = 0.15, DRA_OVNI_DMG = 1.15;
+function draSombraPos(k){
+  const r = lerp(420, 0, 1 - (1 - k)*(1 - k)), an = (dra.som0 || 0) + k*Math.PI*1.5*(dra.somDir || 1);
+  return { x: player.x + Math.cos(an)*r, y: vil.introY + Math.sin(an)*r*0.75 };
+}
+// Mientras está en lo alto (y en el picado) se pinta su sombra en el suelo,
+// enorme al principio y del tamaño del dragón al tocar tierra.
+function drawDraSombraIntro(){
+  if (!isDra() || !vil.intro || dra.rugeT > 0 || vil.caida) return;
+  let x, y, k;
+  if (dra.sombraT > 0){ const p = draSombraPos(1 - clamp(dra.sombraT/DRA_SOMBRA_T, 0, 1)); x = p.x; y = p.y; k = 1; }
+  else { x = player.x; y = vil.introY; k = clamp(((dra.caeH || 0) + vil.introY - player.y)/VIL_INTRO_ALTO, 0, 1); }
+  const rumbo = dra.sombraT > 0 ? (dra.somRumbo || 0) : Math.PI/2;
+  const st = { t: (vil.capa || 0)*0.5, vol: true, lift: 0, aleteoT: 0, colaFase: '', colaT: 0, rayos: false, mordT: 0, mordCab: 1,
+               pal: KAI_SOMBRA_PAL, paso: 0, incl: 0, anda: false, alas: 1, ruge: false, boca: 0, rumbo };
+  const ma = dra.mirA; dra.mirA = rumbo;
+  try { pintaSombraDragon(g => dibujaDragon(g, 150, 170, 1, st), x, y, (dra.escK || 1)*(1 + 1.6*k), 0.18 + 0.3*k); }
+  finally { dra.mirA = ma; }
+}
+
 // ---- actualización ----
 const DRA_RUGE_T = 3.2;                    // lo que dura el rugido de la entrada (el sonido sigue después)
 // El rugido grabado dura más (unos 6,7 s): tras devolverte el control, las
@@ -13824,6 +13854,7 @@ function draRayoAdorno(){
 function updateDragon(dt){
   const volabaAntes = vil.flying;
   vil.capa += dt;
+  dra.escK = lerp(dra.escK || 1, buffActivo('tormenta') ? DRA_OVNI_ESC : 1, Math.min(1, dt*3));   // crece con el regalo del OVNI
   if (dra.bocaT > 0) dra.bocaT -= dt;
   if (dra.rugeT > 0){                      // ruge abriendo las alas, mirando al cielo
     dra.rugeT -= dt;
@@ -13835,6 +13866,23 @@ function updateDragon(dt){
     if (Math.random() < dt*10) shake(3, 0.1);
     if (dra.rugeT <= 0){ dra.rugeT = 0; vil.intro = 0; }
     return;
+  }
+  if (vil.intro && dra.sombraT > 0){        // allá arriba: solo se ve su sombra dando vueltas
+    dra.sombraT -= dt;
+    player.vx = 0; player.vy = 0; vil.flying = true;
+    if (!dra.somRug){ dra.somRug = 1; rugido('kaiyin', 0.8); }
+    const k = 1 - clamp(dra.sombraT/DRA_SOMBRA_T, 0, 1), p0 = draSombraPos(k), p1 = draSombraPos(Math.min(1, k + 0.02));
+    dra.somRumbo = Math.atan2(p1.y - p0.y, p1.x - p0.x);
+    dra.rafT = (dra.rafT || 0) - dt;
+    if (dra.rafT <= 0){ dra.rafT = 0.4; sacudeArboles(p0.x, p0.y, 220, 0.3); shake(3, 0.2); }
+    if (dra.sombraT <= 0){ dra.sombraT = 0; dra.caeH = VIL_INTRO_ALTO; sfx('aleteo'); }   // ahora, el picado
+    return;
+  }
+  if (vil.intro && dra.caeH > 0){           // baja en picado sobre su sombra (solo en el dibujo)
+    player.vx = 0; player.vy = 0; vil.flying = true; vil.fx = 0; vil.fy = 1;
+    dra.caeH = Math.max(0, dra.caeH - VIL_INTRO_VEL*0.8*dt);
+    if (dra.caeH > 0) return;
+    player.y = vil.introY - 1;               // toca tierra: lo de abajo aterriza
   }
   if (vil.intro){                          // entra volando y aterriza de un aletazo
     player.vx = 0; player.vy = VIL_INTRO_VEL*0.8;
@@ -14118,9 +14166,10 @@ function draAlasEntrada(){
   return vil.intro ? 0.45 : 1;
 }
 function drawDragon(){
+  if (vil.intro && dra.sombraT > 0) return;                 // aún en lo alto: solo su sombra (en el suelo)
   const s = S(player.x, player.y);
-  dibujaDragon(ctx, s.x, s.y, 1, {
-    t: vil.capa || 0, vol: !!vil.flying, lift: draAlzado(), aleteoT: dra.aleteoT,
+  dibujaDragon(ctx, s.x, s.y, dra.escK || 1, {
+    t: vil.capa || 0, vol: !!vil.flying, lift: draAlzado() + (dra.caeH || 0), aleteoT: dra.aleteoT,
     colaFase: dra.colaFase, colaT: dra.colaT, rayos: dra.rayos, mordT: dra.mordT,
     mordCab: dra.mordCab, pal: draPaleta(), paso: dra.paso || 0, incl: dra.incl || 0,
     ruge: dra.rugeT > 0 || dra.rugidoT > 0, alas: draAlasEntrada(), boca: dra.bocaT || 0,
@@ -14832,21 +14881,27 @@ function kaiSombraPos(e, k){
 // La silueta: el dragón entero en negro, pintado pequeño y ampliado (así sale
 // difuminada, como una sombra de verdad) y muy grande: está muy alto.
 let _kaiSom = null;
-function drawKaiSombra(e, k){
+// pinta(g) dibuja el dragón en (150, 170) a escala 1; aquí se pasa a negro y se
+// estampa en el suelo (x, y del mundo) a escala E.
+function pintaSombraDragon(pinta, x, y, E, alfa){
   if (!_kaiSom){ _kaiSom = document.createElement('canvas'); _kaiSom.width = 300; _kaiSom.height = 250; }
   const g = _kaiSom.getContext('2d');
   g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1;
   g.clearRect(0, 0, 300, 250);
-  const st = { t: (e.anim || 0)*0.5, vol: true, lift: 0, aleteoT: 0, colaFase: '', colaT: 0, rayos: false, mordT: 0, mordCab: 1,
-               pal: KAI_SOMBRA_PAL, paso: 0, incl: 0, anda: false, alas: 1, ruge: false, boca: 0 };
-  conDragon(e, ()=> dibujaDragon(g, 150, 170, 1, st));
+  pinta(g);
+  g.setTransform(1, 0, 0, 1, 0, 0); g.globalAlpha = 1;
   g.globalCompositeOperation = 'source-in'; g.fillStyle = '#000'; g.fillRect(0, 0, 300, 250);
-  const s = S(e.x, e.y), E = KAI_ESC*(1 + 0.55*k);
-  ctx.save(); ctx.globalAlpha = 0.2 + 0.34*k;
+  const s = S(x, y);
+  ctx.save(); ctx.globalAlpha = alfa;
   const suave = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = true;
   ctx.drawImage(_kaiSom, s.x - 150*E, s.y - 120*E, 300*E, 250*E);
   ctx.imageSmoothingEnabled = suave;
   ctx.restore();
+}
+function drawKaiSombra(e, k){
+  const st = { t: (e.anim || 0)*0.5, vol: true, lift: 0, aleteoT: 0, colaFase: '', colaT: 0, rayos: false, mordT: 0, mordCab: 1,
+               pal: KAI_SOMBRA_PAL, paso: 0, incl: 0, anda: false, alas: 1, ruge: false, boca: 0 };
+  pintaSombraDragon(g => conDragon(e, ()=> dibujaDragon(g, 150, 170, 1, st)), e.x, e.y, KAI_ESC*(1 + 0.55*k), 0.2 + 0.34*k);
 }
 function updateKaiyin(e, dt, a, ang){
   e.anim = (e.anim || 0) + dt;
@@ -29058,6 +29113,7 @@ function draw(){
     }
   }
 
+  drawDraSombraIntro();                      // cae desde el cielo: sobre tejados y todo
   drawBullets(); drawTriRayos(); drawDragonRayos(); drawJefes2Rayos(); drawAlienEfectos(); drawCenturionEfectos(); drawDesgarradorRayo(); drawRefuerzosEfectos(); drawAracnidoEfectos(); drawDesesperacionEfectos(); drawMuerteVelozEfectos(); drawElectroJugador(); drawMeteorosCayendo(); drawProyJ(proyJ); drawProyJ(proyRed);
   if (dobleAnf() && Online.av && Online.av.pj) drawProyJ(Online.av.pj);
   drawMaquinaEfectos(); drawMagoEfectos();
