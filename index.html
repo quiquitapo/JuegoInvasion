@@ -5025,7 +5025,7 @@ function spawnEnemy(type, atX, atY){
   if (type==='kaiyin')    Object.assign(base, {hp:KAI_HP, maxhp:KAI_HP, speed:62, w:170, h:140, grabbable:false,
                             fase:'entra', ft:2.4, cd:3, vuela:1, lift:80, mirA:0, tormT:8, tormCd:24, strikeCd:0.8,
                             rayTick:0, rayOn:0, colaA:0, mordT:0, aleT:0, rtx:0, rty:0, paso:0});
-  if (type==='kaiyin' && gameMode !== 'vs') kaiEntraSombra(base);
+  if (type==='kaiyin') kaiEntraSombra(base, gameMode === 'vs');
   if (type==='ovni')      Object.assign(base, {hp:60,maxhp:60,speed:150, w:96,h:56,
                             alt:150, bob:rand(0,6), rumbo:0, pacifico:true,
                             fase:'llegada', grabbable:true});
@@ -6812,7 +6812,7 @@ function updateRayosOjos(dt){
   // ojos están encendidos y se apunta con el joystick derecho, el mismo que
   // ya coloca lo que llevas agarrado.
   if (tactil() && isVil() && buffActivo('rayos') && !heldObject) rayosOn = true;
-  if (!rayosOn || !isVil() || !buffActivo('rayos')){ rayosOn = false; ojosVil.on = false; ojosVil.d = 1e9; choque.on = false; choque.e = null; choque.r = null; return; }
+  if (!rayosOn || !isVil() || !buffActivo('rayos')){ rayosOn = false; ojosVil.on = false; ojosVil.d = 1e9; if (!choque.dra) sueltaChoque(); return; }
   const o = vilCabeza(), ox = o.x, oy = o.y;
   if (!ojosVil.on){ ojosVil.on = true; sfxEn('laserOjos', ox, oy); }      // se encienden
   // en un choque de rayos el haz va derecho al que dispara y acaba en el choque
@@ -6906,7 +6906,7 @@ const CHOQUE_APUNTA = 0.42;      // rad: hay que apuntar al que dispara para tra
 const CHOQUE_SUELTA = 0.8;       // rad: apuntando más lejos, se suelta
 const CHOQUE_VIENE  = 0.6;       // rad: su rayo tiene que venir hacia ti
 const CHOQUE_DANO   = 130;       // golpe al llegar (más un 6% de su vida máxima)
-const choque = { on:false, e:null, r:null, s:0.5, t:0, px:0, py:0, a:0, dv:0, col:'#ff6a4a', f:1 };
+const choque = { on:false, e:null, r:null, s:0.5, t:0, px:0, py:0, a:0, dv:0, col:'#ff6a4a', f:1, dra:false };   // dra: lo libra el dragón, no los ojos
 const choqueCd = new WeakMap();  // a quién se acaba de ganar un choque: un respiro
 // Fuerza y color de cada rayo (cuanto menos fuerza, más rápido gana el viltrumita).
 const CHOQUE_RIVAL = { omni:[0.9, '#ff4a3a'], kaiyin:[0.55, '#fff3a0'], desgarrador:[0.7, '#ff6a4a'],
@@ -6947,7 +6947,7 @@ function choqueFrente(o, r, lenV){
 }
 function empiezaChoque(e, r){
   const rv = CHOQUE_RIVAL[r.k] || [1, '#ff6a4a'];
-  choque.on = true; choque.e = e; choque.s = 0.5; choque.t = 0;
+  choque.on = true; choque.e = e; choque.s = 0.5; choque.t = 0; choque.dra = false;
   choque.f = rv[0]*(e.deforme ? 0.85 : 1); choque.col = rv[1];
   shake(10, 0.3); sfxEn('boomD', r.x, r.y, 0.6);
 }
@@ -6971,7 +6971,7 @@ function colocaChoque(o, ex, ey){
   choque.px = o.x + (ex - o.x)*k; choque.py = o.y + (ey - o.y)*k;
   choque.a = Math.atan2(ey - o.y, ex - o.x); choque.dv = D*k;
 }
-function sueltaChoque(){ choque.on = false; choque.e = null; choque.r = null; }
+function sueltaChoque(){ choque.on = false; choque.e = null; choque.r = null; choque.dra = false; }
 function updateChoqueRayos(dt, o){
   if (!puedeChocar()){ sueltaChoque(); return false; }
   if (choque.on){
@@ -7010,6 +7010,52 @@ function updateChoqueRayos(dt, o){
   }
   if (!mejor) return false;
   empiezaChoque(mejor, mr);
+  colocaChoque(o, mr.x, mr.y);
+  return true;
+}
+// ---- los tres rayos del dragón contra los del Kaiyin ----
+// Si el dragón dispara al Kaiyin mientras este le dispara a él, los haces se
+// traban a medio camino: el del jefe ya no le alcanza y el dragón lo empuja a
+// tirones hacia sus bocas. Si llega antes de quedarse sin estamina, el Kaiyin
+// se lleva el golpe y pierde sus rayos; si deja de disparar, se suelta.
+const DRA_CHOQUE_VEL = 90;
+function draBocaMedia(){
+  let x = 0, y = 0;
+  for (let i = 0; i < 3; i++){ const m = draBoca(i); x += m.x; y += m.y; }
+  return { x: x/3, y: y/3 };
+}
+function draChoque(dt){
+  if (!isDra() || !dra.rayos || !puedeChocar()){ if (choque.dra) sueltaChoque(); return false; }
+  const o = draBocaMedia();
+  if (choque.on && choque.dra){
+    const e = choque.e, r = e && enemies.includes(e) ? rayoEnemigo(e) : null;
+    if (!r || difAngAbs(dra.rayoA - Math.atan2(r.y - o.y, r.x - o.x)) > CHOQUE_SUELTA){ sueltaChoque(); return false; }
+    choque.t += dt;
+    e.ft += dt;                                          // su ataque no se acaba mientras dura
+    const D = Math.hypot(r.x - o.x, r.y - o.y) || 1;
+    const v = DRA_CHOQUE_VEL*(e.deforme ? 0.85 : 1)*(Math.sin(choque.t*4.3) > -0.35 ? 1 : -0.55);
+    choque.s = clamp(choque.s + v*dt/D, 0.12, 1);
+    colocaChoque(o, r.x, r.y);
+    if (choque.s >= 1 - 14/D) ganaChoque(e, r);
+    return choque.on;
+  }
+  if (choque.on) return false;
+  let mejor = null, mr = null, md = 1e9;
+  for (let i = 0; i < enemies.length; i++){
+    const e = enemies[i];
+    if (e.type !== 'kaiyin' || (choqueCd.get(e) || 0) > gameTime) continue;
+    const r = rayoEnemigo(e);
+    if (!r) continue;
+    const dx = r.x - o.x, dy = r.y - o.y, D = Math.hypot(dx, dy);
+    if (D < 60 || D > DRA_RAYO_MAX + KAI_RAYO_LARGO*0.6) continue;
+    const aE = Math.atan2(dy, dx);
+    if (difAngAbs(dra.rayoA - aE) > CHOQUE_APUNTA + 0.08) continue;     // apuntándole
+    if (difAngAbs(r.a - aE - Math.PI) > CHOQUE_VIENE) continue;          // y su rayo viene hacia ti
+    if (D < md){ md = D; mejor = e; mr = r; }
+  }
+  if (!mejor) return false;
+  empiezaChoque(mejor, mr);
+  choque.dra = true; choque.col = '#fff3a0';
   colocaChoque(o, mr.x, mr.y);
   return true;
 }
@@ -10977,7 +11023,7 @@ const BESTIARY = [
   { id:'golem', name:'GÓLEM FANTASMA', hp:320, dmg:'28 en área', sprite:'golemF', verb:'DISIPADOS',
     desc:'Mole de roca animada por runas. Lento y duro; al tenerte cerca alza los puños y golpea el suelo alrededor. Solo el COLOSO puede levantarlo.' },
   { id:'kaiyin', name:'KAIYIN', hp:2700, dmg:'rayos, aletazo, embestida y mordisco', sprite:'kaiyinF', verb:'DERROTADOS',
-    desc:'El dragón de tres cabezas en tamaño colosal. Primero solo se ve su sombra gigantesca, que da vueltas sobre ti mientras ruge; luego baja en picado, aterriza a tu lado alzando las tres cabezas al cielo y desata una tormenta: los rayos caen donde se marca el suelo. Camina aplastando edificios y alterna ataques: aletazo que lo barre todo alrededor, embestida marcada que arrasa lo que hay en la línea, vuelo en picado con mordisco antes de aterrizar y, sobre todo, sus tres rayos. De esos rayos solo te salva un escudo: ponte detrás de un edificio, interpón un auto o lo que lleves agarrado, o usa la burbuja o los objetos del mago.' },
+    desc:'El dragón de tres cabezas en tamaño colosal. Primero solo se ve su sombra gigantesca, que da vueltas sobre ti mientras ruge; luego baja en picado, aterriza a tu lado alzando las tres cabezas al cielo y desata una tormenta: los rayos caen donde se marca el suelo. Camina aplastando edificios y alterna ataques: aletazo que lo barre todo alrededor, embestida marcada que arrasa lo que hay en la línea, vuelo en picado con mordisco antes de aterrizar y, sobre todo, sus tres rayos. De esos rayos solo te salva un escudo: ponte detrás de un edificio, interpón un auto o lo que lleves agarrado, o usa la burbuja o los objetos del mago. Siendo el dragón puedes responderle con tus tres rayos: chocan a medio camino y, si llegas a sus bocas antes de quedarte sin estamina, se lleva el golpe.' },
   { id:'centinela', name:'CENTINELA', hp:60, dmg:'8 por disparo', sprite:'centinelaF',
     desc:'Soldado de la guardia marciana, con máscara de visores y una mochila de energía a la espalda. Guarda la distancia y dispara ráfagas de su rifle de pulsos. Los ojos escáner los llaman de tres en tres. Se pueden agarrar como cualquier soldado.' },
   { id:'centElite', name:'CENTINELA DE ÉLITE', hp:80, dmg:'9 por disparo', sprite:'centEliteF',
@@ -13473,6 +13519,7 @@ const VIL_ONDA_DMG    = 95;
 const VIL_SPEED   = 210;    // a pie
 const VIL_FLY     = 620;    // en vuelo sónico
 const VIL_STAM_USE= 26;     // estamina por segundo volando
+const DRA_STAM_VUELO = 20;  // el dragón, algo menos: planea con sus alas
 const VIL_STAM_REG= 18;     // recuperación por segundo en tierra
 // Rugido del dragón (R): se planta, ruge con las tres cabezas y recupera estamina.
 const DRA_RUGIDO_T = 3.0, DRA_RUGIDO_CD = 10, DRA_RUGIDO_REG = 26;
@@ -13496,7 +13543,7 @@ const DRA_SPEED = 195;
 const DRA_R = 28;                      // radio del cuerpo
 const DRA_MORD_CD = 0.32, DRA_MORD_T = 0.22, DRA_MORD_DMG = 62, DRA_MORD_ALC = 60, DRA_MORD_STAM = 3;
 const DRA_ALE_CD = 0.9, DRA_ALE_T = 0.5, DRA_ALE_STAM = 20, DRA_ALE_R = 200, DRA_ALE_DMG = 48;
-const DRA_RAYO_STAM = 16, DRA_RAYO_DPS = 42, DRA_RAYO_MAX = 560, DRA_RAYO_TICK = 0.1;
+const DRA_RAYO_STAM = 16, DRA_RAYO_DPS = 48, DRA_RAYO_MAX = 560, DRA_RAYO_TICK = 0.1;
 const DRA_COLA_STAM = 30, DRA_COLA_MAX = 420, DRA_COLA_MIN = 110, DRA_COLA_VEL = 950;
 const DRA_COLA_PASO = 70, DRA_COLA_R = 230, DRA_COLA_DMG = 130, DRA_COLA_T = 0.4;
 const DRA_JEFE = 0.6;                  // los jefes aguantan mejor el coletazo y el aletazo
@@ -13885,7 +13932,7 @@ function updateDragon(dt){
   if (vil.flying && vil.flyDir && !pressed(vil.flyDir)) vil.flying = false;
   const lento = dra.colaApunta ? 0.5 : 1;          // trazando la línea va despacio
   if (vil.flying){
-    vil.stam -= VIL_STAM_USE*dt;
+    vil.stam -= DRA_STAM_VUELO*dt;
     if (dx || dy){
       const l = Math.hypot(dx, dy) || 1;
       vil.fx = lerp(vil.fx, dx/l, 0.08); vil.fy = lerp(vil.fy, dy/l, 0.08);
@@ -13930,6 +13977,7 @@ function updateDragon(dt){
     dra.rayoTick -= dt;
     if (dra.rayos && dra.rayoTick <= 0){ dra.rayoTick = DRA_RAYO_TICK; draRayosDanan(); }
   }
+  draChoque(dt);                                     // ¿trabados con los rayos del Kaiyin?
   // ---- tormenta eléctrica (regalo del OVNI) ----
   if (buffActivo('tormenta')){
     dra.tormentaCd -= dt;
@@ -13976,6 +14024,7 @@ function draObjetivo(){
   return { x: player.x + Math.cos(dra.rayoA)*dra.rayoL, y: player.y + oy + Math.sin(dra.rayoA)*dra.rayoL };
 }
 function draRayosDanan(){
+  if (choque.on && choque.dra){ sfx('rayoDra'); bucleLaser('draRayos', player.x, player.y - 40, true); return; }   // trabados: solo empujan
   const T = draObjetivo();
   const dmg = DRA_RAYO_DPS * DRA_RAYO_TICK;
   // los tres haces, de cada boca al punto apuntado
@@ -14357,12 +14406,13 @@ function draCabezaDibujo(g, h, st, i, P){
 function drawDragonRayos(){
   if (!isDra() || !dra.rayos) return;
   if (esVisorVs() && !verRayosOtro) return;
-  const T = draObjetivo();
+  const ch = choque.on && choque.dra;
+  const T = ch ? { x: choque.px, y: choque.py } : draObjetivo();
   const nx = -Math.sin(dra.rayoA), ny = Math.cos(dra.rayoA);
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   for (let i = 0; i < 3; i++){
     const m = draBoca(i), o = S(m.x, m.y);
-    const d = S(T.x + nx*(i-1)*9, T.y + ny*(i-1)*9);
+    const d = ch ? S(T.x, T.y) : S(T.x + nx*(i-1)*9, T.y + ny*(i-1)*9);    // trabados, los tres se juntan en el choque
     ctx.globalAlpha = 0.28; ctx.strokeStyle = '#ffd84a'; ctx.lineWidth = 11;
     ctx.beginPath(); ctx.moveTo(o.x, o.y); ctx.lineTo(d.x, d.y); ctx.stroke();
     // zigzag que cambia en cada fotograma
@@ -14377,6 +14427,7 @@ function drawDragonRayos(){
     ctx.globalAlpha = 1; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(o.x, o.y); ctx.lineTo(d.x, d.y); ctx.stroke();
   }
+  if (ch){ drawChoqueRayos(); ctx.globalAlpha = 1; return; }
   const c = S(T.x, T.y);
   ctx.globalAlpha = 0.5 + Math.random()*0.3; ctx.fillStyle = '#fff3a0';
   ctx.beginPath(); ctx.arc(c.x, c.y, 9 + Math.random()*4, 0, Math.PI*2); ctx.fill();
@@ -14760,17 +14811,23 @@ function giraHacia(a, b, max){
   return a + clamp(d, -max, max);
 }
 // ---- la entrada: una sombra gigante que ruge en círculos y luego aterriza ----
-const KAI_SOMBRA_T = 3.6, KAI_CAE_T = 1.1, KAI_CAE_ALTO = 520, KAI_RUGE_T = 1.6;
+const KAI_SOMBRA_T = 3.6, KAI_SOMBRA_T_VS = 2.6, KAI_CAE_T = 1.1, KAI_CAE_ALTO = 520, KAI_RUGE_T = 1.6;
 const KAI_SOMBRA_PAL = { cl:'#000', cm:'#000', co:'#000', mem:'#000', memO:'#000', vientre:'#000', cuerno:'#000', ojo:'#000' };
-function kaiEntraSombra(e){
-  Object.assign(e, { fase:'sombra', ft:KAI_SOMBRA_T, cielo:1, lift:0, vuela:1, som0: Math.random()*Math.PI*2, somDir: Math.random() < 0.5 ? 1 : -1 });
+// En el VS lo coloca el otro jugador: la sombra gira sobre ese punto y aterriza
+// justo ahí (y algo más deprisa, para no frenar el duelo).
+function kaiEntraSombra(e, fijo){
+  Object.assign(e, { fase:'sombra', ft: fijo ? KAI_SOMBRA_T_VS : KAI_SOMBRA_T, somT: fijo ? KAI_SOMBRA_T_VS : KAI_SOMBRA_T, cielo:1, lift:0, vuela:1,
+                     som0: Math.random()*Math.PI*2, somDir: Math.random() < 0.5 ? 1 : -1, somFijo: fijo ? 1 : 0, somCx: e.x, somCy: e.y });
   kaiSombraPos(e, 0);
   e._rx = undefined;
 }
-// Vuelta en espiral alrededor del invasor: de lejos a unos 250 px.
+// Vuelta en espiral: alrededor del invasor (de lejos a unos 250 px) o, en el
+// VS, cerrándose sobre el punto donde lo han colocado.
 function kaiSombraPos(e, k){
-  const r = lerp(470, 250, 1 - (1 - k)*(1 - k)), an = e.som0 + k*Math.PI*1.6*e.somDir;
-  e.x = clamp(player.x + Math.cos(an)*r, 80, WORLD_W - 80); e.y = clamp(player.y + Math.sin(an)*r*0.75, 80, WORLD_H - 80);
+  const ease = 1 - (1 - k)*(1 - k);
+  const r = e.somFijo ? lerp(380, 0, ease) : lerp(470, 250, ease), an = e.som0 + k*Math.PI*1.6*e.somDir;
+  const cx = e.somFijo ? e.somCx : player.x, cy = e.somFijo ? e.somCy : player.y;
+  e.x = clamp(cx + Math.cos(an)*r, 80, WORLD_W - 80); e.y = clamp(cy + Math.sin(an)*r*0.75, 80, WORLD_H - 80);
 }
 // La silueta: el dragón entero en negro, pintado pequeño y ampliado (así sale
 // difuminada, como una sombra de verdad) y muy grande: está muy alto.
@@ -14808,7 +14865,7 @@ function updateKaiyin(e, dt, a, ang){
   switch (e.fase){
     case 'sombra': {
       // allá arriba: solo se ve su sombra, que da vueltas cada vez más cerrada
-      const k = 1 - clamp(e.ft/KAI_SOMBRA_T, 0, 1);
+      const k = 1 - clamp(e.ft/(e.somT || KAI_SOMBRA_T), 0, 1);
       const x0 = e.x, y0 = e.y;
       kaiSombraPos(e, k);
       e.mirA = Math.atan2(e.y - y0, e.x - x0);
@@ -14825,7 +14882,7 @@ function updateKaiyin(e, dt, a, ang){
       const q = clamp(e.ft/KAI_CAE_T, 0, 1);
       e.vuela = 1; e.lift = KAI_CAE_ALTO*q*q;
       e.mirA = giraHacia(e.mirA, angC, 4*dt);
-      if (a > 230){ e.x += Math.cos(ang)*160*dt; e.y += Math.sin(ang)*160*dt; }
+      if (a > 230 && !e.somFijo){ e.x += Math.cos(ang)*160*dt; e.y += Math.sin(ang)*160*dt; }
       if (e.ft <= 0){ e.fase = 'aterriza'; e.ft = 0.3; }
       break;
     }
@@ -29706,6 +29763,7 @@ function lucesDinamicas(luz){
     for (const f of [0.3, 0.7]) luz(o.x + Math.cos(a)*L*f, o.y + Math.sin(a)*L*f, 80, luzRoja, 0.7);
     if (choque.on) luz(choque.px, choque.py, 150, luzRoja, 1);      // el choque alumbra alrededor
   }
+  if (choque.on && choque.dra) luz(choque.px, choque.py, 150, luzAmarilla, 1);
 }
 const lucesMax = 28;              // luces dinámicas a la vez
 function drawLucesDia(){
@@ -31753,7 +31811,7 @@ function refreshModeText(){
   } else if (isDra()){
     d.innerHTML = 'La ciudad entera contra ti. Eres el <b>dragón de tres cabezas</b>: no evolucionas, '+
       'pero vuelas por encima de los tejados, muerdes, barres calles con tus alas y escupes rayos por '+
-      'tres bocas a la vez. Todo gasta estamina: adminístrala.<br>'+
+      'tres bocas a la vez (contra los del Kaiyin, chocan). Todo gasta estamina: adminístrala.<br>'+
       '<span class="moderec">Recomendado: <b>WASD</b> y <b>doble toque</b> para volar. <b>Click</b> muerde, '+
       '<b>Z</b> aletea, <b>click der.</b> enciende los rayos (cualquier click los apaga) y <b>mantener C</b> traza la '+
       'embestida con el ratón: al soltar, ataca y remata con un coletazo.</span>';
