@@ -134,8 +134,6 @@
   .small.ghost:active { box-shadow: 0 0 0 #21382a, inset 0 2px 5px rgba(0,0,0,0.45); }
   button.small:disabled { opacity:0.5; box-shadow:none; transform:none; cursor:default; }
 
-  .howto { max-width:500px; color:#6fa382; font-size:0.7rem; line-height:1.7; letter-spacing:0.4px; }
-  .howto b { color:#a9f3c0; }
 
   #menu.overlay { background: radial-gradient(ellipse at center, rgba(2,6,4,0.18) 0%, rgba(2,4,3,0.62) 100%); }
   #menu .panel { background: rgba(6,14,10,0.72); backdrop-filter: blur(2px); }
@@ -1088,7 +1086,7 @@
     body.touch-ui .actbtn::before, body.movil .actbtn::before, body.touch-ui .p2btn::before, body.movil .p2btn::before,
     body.touch-ui .actbtn::after, body.movil .actbtn::after, body.touch-ui .p2btn::after, body.movil .p2btn::after { animation:none; }
   }
-  @media (max-width:820px) { .howto { font-size:0.66rem; } }
+
 </style>
 </head>
 <body>
@@ -1805,30 +1803,6 @@
       <div id="datamsg" class="shopmsg"></div>
     </div>
 
-    <div class="panel" style="min-width:min(340px,92vw); text-align:left">
-      <h3>Guía: cómo se juega</h3>
-      <div class="howto">
-        <b>Mouse</b> dirige el tentáculo · <b>Click izq.</b> agarra o golpea · <b>Click der.</b> lanza.<br>
-        En <b>móvil</b>: joystick izquierdo mueve, joystick derecho apunta, y el <b>botón de acción</b> hace todo:
-        tócalo para <b>agarrar</b>, vuelve a tocarlo para <b>lanzar</b> lo que sostienes, y <b>mantenlo pulsado</b>
-        para <b>golpear</b> con ello. El botón cambia de color y de texto según lo que lleves.<br><br>
-        Empiezas como <b>CRÍA</b>: chocas contra los edificios. Devora suficientes víctimas y evolucionas a
-        <b>COLOSO</b>: más grande, más HP y capaz de <b>pasar por encima de los edificios</b>, hundiéndolos y viendo lo que hay dentro. Ahí llegan <b>tanques y helicópteros</b>.<br><br>
-        Los edificios pasan por <b>3 etapas</b>: intacto, dañado y <b>escombros</b> (ya se puede caminar sobre ellos).<br><br>
-        Sostén un auto, árbol o rehén <b>frente a los disparos</b> para bloquearlos: el escudo solo funciona si el
-        objeto se interpone físicamente.<br><br>
-        Ojo con el <b>camión cisterna</b>: es raro, pero lanzarlo provoca una explosión enorme.<br><br>
-        <b>Embestida:</b> no hace falta lanzar. Si arrastras un auto o árbol sostenido contra alguien,
-        civiles, policías y militares mueren al instante; tanques y helicópteros solo reciben daño leve y
-        salen empujados. Cada impacto desgasta el objeto que sostienes.<br><br>
-        <b>Oleada final:</b> si sobrevives lo suficiente como COLOSO llegan el <b>helicóptero artillado</b>
-        (misiles autoguiados que dejan de perseguirte tras unos segundos) y el <b>cañón de asedio</b>
-        (obús lento y devastador que cae en el punto marcado en rojo: muévete de ahí).<br><br>
-        <b>Ciclo día/noche:</b> el reloj del HUD marca la fase (mañana, día, atardecer, noche) y cuánto falta
-        para la siguiente. De noche la ciudad se oscurece y solo las <b>farolas</b> iluminan.<br><br>
-        Tu puntaje y el registro de enemigos se <b>guardan localmente</b> entre partidas.
-      </div>
-    </div>
     </div>
     <button class="small" id="btnCtrlBack">Volver</button>
   </div>
@@ -4802,7 +4776,8 @@ function resetGame(){
   clima = 'sol'; nubeK = 0; lluviaK = 0; climaMostrado = null;
   auraTxts.length = 0;
   buffT = 0; buffTipo = null; ovniCd = rand(50, 90); rayosOn = false; sueltaChoque();
-  for (let __i78 = 0, __a78 = buildings; __i78 < __a78.length; __i78++){ const b = __a78[__i78]; b.stage=0; b.hp=b.maxhp; b.hitFlash=0; b.downAt=undefined; b._aguj = null; b._agCv = null; b._agBase = null; b._pisX = undefined; }
+  for (let __i78 = 0, __a78 = buildings; __i78 < __a78.length; __i78++){ const b = __a78[__i78]; b.stage=0; b.hp=b.maxhp; b.hitFlash=0; b.downAt=undefined; b._aguj = null; b._agCv = null; b._agBase = null; b._agFin = null; b._pisX = undefined; }
+  _agFin.length = 0;
   vilPaso.edif = null; vilPasoCompa.edif = null; vilPasoCompa.ok = false;
   for (const k in regenSeen) regenSeen[k] = {};
   // spawn player on a road intersection so it isn't stuck inside a building
@@ -11035,7 +11010,7 @@ const BESTIARY = [
     desc:'Un guerrero metido en una armadura de exterminio de placas negras remachadas, con franjas amarillas de peligro, un casco con forma de calavera y ojos rojos, un puño de combate y un cañón doble en el brazo. Sobre los hombros carga dos lanzadores de misiles. Camina despacio balanceando los brazos y alterna: apunta (verás la línea) y suelta dos disparos pesados, o marca una zona naranja en el suelo y la cubre con una lluvia de misiles pequeños. Aguanta mucho: solo el COLOSO puede levantarlo.' },
   { id:'desgarrador', name:'EL DESGARRADOR', hp:2600, dmg:'embestidas, motosierras, rayo y coletazo', sprite:'desgarradorF', verb:'DERROTADOS',
     hint:'El otro guardián del Mundo Alienígena. Aún no lo has derrotado.',
-    desc:'Kaiju cíborg del planeta marciano: garfios y motosierras por brazos, una sierra circular en el pecho, aletas rojas, cola de púas y un visor rojo. Embiste volando a gran velocidad cortando con sus dos cuchillas, dispara desde el visor un rayo que te persigue (escóndete tras un edificio o un escudo), lanza tajos con las motosierras si te tiene cerca, embiste por el suelo con las motosierras por delante y barre todo alrededor con la cola. Además se regenera poco a poco. En Castigo Divino vuelve deformado y despellejado: se le ven las costillas, la quijada y los huesos.' },
+    desc:'Kaiju cíborg del planeta marciano: garfios y motosierras por brazos, un núcleo rojo en el pecho, aletas rojas, cola de púas acabada en cuchilla, un cuerno y un visor rojo. Cada ataque se anuncia con su postura: alza las motosierras antes del tajo, levanta la cola como un escorpión antes del coletazo, se agacha abriendo las aletas antes de despegar y el visor se enciende antes del rayo. Embiste volando a gran velocidad cortando con sus dos cuchillas, dispara desde el visor un rayo que te persigue (escóndete tras un edificio o un escudo), lanza tajos con las motosierras si te tiene cerca, embiste por el suelo con las motosierras por delante y barre todo alrededor con la cola. Además se regenera poco a poco. En Castigo Divino vuelve deformado y despellejado: se le ven las costillas, la quijada y los huesos.' },
   { id:'centurion', name:'EL CENTURIÓN', hp:2200, dmg:'embestida, bombas, misiles, minigun, corte láser, rayo congelante, doble láser y ráfaga giratoria', sprite:'centurionF', verb:'DERROTADOS',
     hint:'El guardián del Mundo Alienígena. Aún no lo has derrotado.',
     desc:'La armadura robótica que protege el planeta marciano. Vuela a tu alrededor y alterna sus armas: embestida por una línea que marca en el suelo, bombas pegajosas que se te quedan encima (o en lo que lleves agarrado: lánzalo lejos), salvas de misiles guiados, ráfagas de su minigun láser, un rayo congelante de muy largo alcance que te deja helado (marca su línea antes de disparar: sal de ella o ponte detrás de un edificio) un gran corte láser que barre un abanico enorme marcado en rojo, un doble láser que marca una franja en el suelo, dispara y marca otra donde estés, y una ráfaga giratoria de balas que se abren con la distancia (esquívalas por los huecos o cúbrete tras edificios, árboles o autos). Por debajo de la mitad de vida pierde el blindaje y se vuelve más rápido, y al 30% entra en furia y apenas para entre ataques. Habla, y no precisamente con humildad.' },
@@ -11292,7 +11267,7 @@ function regVariantes(b){
                                       [INF + ' · sin brazos: a dos patas, a mordiscos', ()=> cvURL(desespFrame(2, 'corre', 1), 0.85)]];
   if (id === 'arana') return [[VD + ' · patas de araña', ()=> regD(conMapa('infierno', ()=> alienFrame('arana', 'anda', 0)), 1.3)]];
   if (id === 'desgarrador') return [[VD + ' · despellejado', ()=> conMapa('infierno', ()=>
-    regD(desFrame('corta', 0, 'carne'), 0.9, g=> g.drawImage(desFrame('corta', 0, 'huesos'), 0, 0)))]];
+    regD(desFrame('cortaAviso', 0, 'carne'), 0.9, g=> g.drawImage(desFrame('cortaAviso', 0, 'huesos'), 0, 0)))]];
   if (id === 'tripode') return [[VD + ' · ojos y pezuñas', ()=> regD(tripodeIconCv(), 1.6, regOjosTripode)]];
   if (id === 'omni') return [[VD + ' · ojo humano', ()=> regD(omniIconCv(), 1.6, regOjoOmni)]];
   if (REG_D[id]) return [[VD, ()=> regD(spriteListo(REG_D[id][0]), REG_D[id][1])]];
@@ -19761,25 +19736,6 @@ function drawCharcosLava(){
     ctx.globalAlpha = 1;
   }
 }
-// La lluvia del castigo es roja.
-let _lluviaPatRoja = null;
-function lluviaPatRoja(){
-  if (_lluviaPatRoja) return _lluviaPatRoja;
-  const T = 256, cv = document.createElement('canvas'); cv.width = cv.height = T;
-  const g = cv.getContext('2d');
-  let sem = 9133;
-  const rnd = ()=>{ sem = (sem*1664525 + 1013904223) & 0x7fffffff; return sem / 0x7fffffff; };
-  g.lineCap = 'round';
-  for (let i = 0; i < 46; i++){
-    const x = rnd()*T, y = rnd()*T, l = 7 + rnd()*16;
-    g.strokeStyle = `rgba(220,40,30,${0.28 + rnd()*0.34})`;
-    g.lineWidth = rnd() < 0.2 ? 1.5 : 1;
-    for (const dx of [-T, 0, T]) for (const dy of [-T, 0, T]){ g.beginPath(); g.moveTo(x + dx, y + dy); g.lineTo(x + dx - l*0.28, y + dy + l); g.stroke(); }
-  }
-  _lluviaPatRoja = ctx.createPattern(cv, 'repeat');
-  return _lluviaPatRoja;
-}
-
 // ---------- disparo del tanque araña: estallido y ralentizado ----------
 let lentoT = 0;
 const LENTO_DUR = 1.6, LENTO_K = 0.65;                 // 35 % más lento durante 1,6 s
@@ -19883,7 +19839,7 @@ function ojoHumanoOmni(e, x, y, er, cargando, disparando){
 // vértebras de la cola (los huesos van en una capa aparte para que el
 // recoloreado de los deformes no los pinte de carne).
 const DES_HP = 2600, DES_ESC = 1.45, DES_REGEN = 6;
-const DES_TAM = [190, 176, 92, 166];
+const DES_TAM = [244, 188, 128, 174];
 const desCache = new Map();
 function desFrame(pose, f, capa){
   const k = pose + f + (capa || '');
@@ -19898,30 +19854,75 @@ function desFrame(pose, f, capa){
   desCache.set(k, c);
   return c;
 }
-// Geometría compartida por el cuerpo y la capa de huesos.
+// Postura de cada fotograma: inclinación del cuerpo (gira sobre la cadera),
+// rebote al andar, ángulo de los brazos, cuánto se agacha, aletas abiertas,
+// boca abierta y la forma de la cola. Cada ataque tiene su preparación
+// (Aviso) y su golpe, para que se lea lo que va a hacer.
+function desPose(pose, f){
+  const ph = f/4*Math.PI*2, s = pose === 'anda' ? Math.sin(ph) : 0;
+  const P = { ph, s, lean: 0.04, bob: 0, brazo: 0.35, brazoL: 0.47, agacha: 0, aletas: 0, boca: 0.1, cola: 'normal', patas: 'pie' };
+  switch (pose){
+    case 'anda':       P.bob = -Math.abs(Math.cos(ph))*2.5; P.brazo = 0.35 + s*0.12; P.brazoL = 0.47 - s*0.12; break;
+    case 'cortaAviso': P.lean = -0.14; P.brazo = -2.05; P.brazoL = -1.8; P.agacha = 0.35; P.boca = 0.7; break;
+    case 'corta':      P.lean = 0.16; P.brazo = f ? 0.62 : 0.3; P.brazoL = f ? 0.8 : 0.5; P.agacha = 0.25; P.boca = 0.9; break;
+    case 'colaAviso':  P.lean = -0.06; P.cola = 'enrosca'; P.agacha = 0.45; P.brazo = 0.7; P.brazoL = 0.8; P.boca = 0.4; break;
+    case 'cola':       P.lean = 0.1; P.cola = 'barre'; P.brazo = 0.15; P.brazoL = 0.3; P.boca = 0.5; break;
+    case 'vuelaAviso': P.lean = 0.12; P.agacha = 0.85; P.aletas = 1; P.brazo = -0.4; P.brazoL = -0.25; P.boca = 0.5; break;
+    case 'vuela':      P.lean = 0.34; P.aletas = 1.3; P.brazo = -0.12; P.brazoL = 0.02; P.patas = 'recoge'; P.cola = 'recta'; P.boca = 0.3; break;
+    case 'rayoCarga':  P.lean = -0.1; P.agacha = 0.2; P.brazo = 0.75; P.brazoL = 0.85; P.boca = 0.5; P.aletas = 0.4; break;
+    case 'rayo':       P.lean = -0.04; P.brazo = 0.55; P.brazoL = 0.65; P.boca = 1; P.aletas = 0.6; break;
+    case 'carga':      P.lean = 0.3; P.agacha = 0.35; P.brazo = f ? -0.04 : 0.04; P.brazoL = 0.1; P.boca = 0.6; break;
+  }
+  return P;
+}
+// La parte de arriba gira sobre la cadera; las piernas quedan plantadas.
+const DES_CADERA = -56;
+function desTorso(g, P){ g.translate(0, DES_CADERA + P.bob + P.agacha*8); g.rotate(P.lean); g.translate(0, -DES_CADERA); }
+// El visor en coordenadas del dibujo, con la postura aplicada (de él sale el rayo).
+function desVisor(pose, f){
+  const P = desPose(pose, f), x = 36, y = -131 - DES_CADERA, c = Math.cos(P.lean), sn = Math.sin(P.lean);
+  return { x: x*c - y*sn, y: DES_CADERA + P.bob + P.agacha*8 + x*sn + y*c };
+}
+// La cola: una cadena de tramos que se curva según la postura.
 function desCola(pose, ph){
-  const cola = pose === 'cola', pts = [];
-  for (let i = 0; i <= 8; i++){
-    const t = i/8;
-    pts.push(cola ? [-14 + Math.cos(Math.PI*0.95 - t*2.4)*(20 + t*70), -34 + Math.sin(Math.PI*0.95 - t*2.4)*(10 + t*26)]
-                  : [-18 - t*76, -34 + t*24 + Math.sin(t*3 + ph)*3]);
+  const P = typeof pose === 'object' ? pose : desPose(pose, ph/(Math.PI*2)*4), pts = [[-16, -50]];
+  let a, k, L = 13;
+  if (P.cola === 'barre'){                       // barrida hacia delante, rodeándolo
+    for (let i = 1; i <= 8; i++){ const t = i/8; pts.push([-14 + Math.cos(Math.PI*0.95 - t*2.4)*(20 + t*74), -36 + Math.sin(Math.PI*0.95 - t*2.4)*(10 + t*28)]); }
+    return pts;
+  }
+  if (P.cola === 'enrosca'){ a = Math.PI*1.02; k = 0.19; }           // recogida y en alto, lista para el latigazo
+  else if (P.cola === 'recta'){ a = Math.PI*0.96; k = 0.01; }          // estirada al volar
+  else { a = Math.PI*0.84; k = -0.035; }
+  for (let i = 1; i <= 8; i++){
+    const sw = P.cola === 'normal' ? Math.sin(P.ph + i*0.7)*0.07 : 0;
+    a += k + sw; const [x, y] = pts[i - 1];
+    pts.push([x + Math.cos(a)*L, y + Math.sin(a)*L]); L *= 0.97;
   }
   return pts;
 }
-function desRodilla(x0, lado, s){ return { kx: x0 + 8 + lado*s*6, ky: -34 }; }
+// Rodilla, tobillo y pie de cada pierna.
+function desPierna(P, x0, lado){
+  const hy = DES_CADERA + P.bob*0.6;
+  if (P.patas === 'recoge') return { hx: x0, hy, kx: x0 + 18, ky: -40, ax: x0 + 4, ay: -26, fx: x0 + 16, fy: -20 };
+  const s = P.s*lado, ag = P.agacha;
+  return { hx: x0, hy, kx: x0 + 9 + s*7 + ag*8, ky: -34 + ag*9, ax: x0 - 4 + s*9 - ag*5, ay: -14 + ag*2,
+           fx: x0 + 6 + s*11, fy: -3 - Math.max(0, -Math.cos(P.ph)*lado)*(P.s ? 5 : 0) };
+}
 function dibDesHuesos(g, pose, f){
   const hueso = '#e8e0c6', huesoO = '#a89c80', hueco = '#1a0606';
-  const ph = f/4*Math.PI*2, s = pose === 'anda' ? Math.sin(ph) : 0;
+  const P = desPose(pose, f);
+  // el fémur de la pierna cercana
+  const R = desPierna(P, 10, 1);
+  jL(g, huesoO, 4.6, R.hx + 2, R.hy + 2, R.kx + 1, R.ky - 2); jL(g, hueso, 3.2, R.hx + 2, R.hy + 2, R.kx + 1, R.ky - 2);
+  jO(g, hueso, R.hx + 2, R.hy + 2, 3.2, 3); jO(g, hueso, R.kx + 1, R.ky - 2, 3.4, 3);
+  g.save(); desTorso(g, P);
   // vértebras de la cola, al aire entre jirones
-  const pts = desCola(pose, ph);
+  const pts = desCola(P);
   for (let i = 2; i < 7; i++){
     const mx = (pts[i][0] + pts[i + 1][0])/2, my = (pts[i][1] + pts[i + 1][1])/2, r = 4.2 - i*0.35;
     jO(g, huesoO, mx, my, r + 0.8, r*0.9 + 0.6); jO(g, hueso, mx - 0.4, my - 0.5, r, r*0.85);
   }
-  // el fémur de la pierna cercana
-  const R = desRodilla(10, 1, s);
-  jL(g, huesoO, 4.6, 12, -54, R.kx + 1, R.ky - 2); jL(g, hueso, 3.2, 12, -54, R.kx + 1, R.ky - 2);
-  jO(g, hueso, 12, -54, 3.2, 3); jO(g, hueso, R.kx + 1, R.ky - 2, 3.4, 3);
   // la caja torácica: espinazo y costillas sobre el hueco del pecho
   jL(g, huesoO, 3.6, -13, -100, -12, -58); jL(g, hueso, 2.4, -13, -100, -12, -58);
   for (let i = 0; i < 5; i++){
@@ -19929,91 +19930,158 @@ function dibDesHuesos(g, pose, f){
     g.strokeStyle = huesoO; g.lineWidth = 3; g.beginPath(); g.moveTo(-12, y); g.quadraticCurveTo(0, y - 6, 8, y + 3); g.stroke();
     g.strokeStyle = hueso; g.lineWidth = 1.8; g.beginPath(); g.moveTo(-12, y); g.quadraticCurveTo(0, y - 6, 8, y + 3); g.stroke();
   }
-  // la quijada pelada bajo el pico, con los dientes
-  jL(g, huesoO, 4, 28, -118, 46, -115); jL(g, hueso, 2.6, 28, -118, 46, -115);
-  for (let k = 0; k < 5; k++) jR(g, hueso, 31 + k*3, -122, 1.4, 3);
+  // la quijada pelada bajo el pico, con los dientes (baja al abrir la boca)
+  const qb = P.boca*6;
+  jL(g, huesoO, 4, 28, -116 + qb*0.4, 46, -113 + qb); jL(g, hueso, 2.6, 28, -116 + qb*0.4, 46, -113 + qb);
+  for (let k = 0; k < 5; k++) jR(g, hueso, 31 + k*3, -120 + qb*(0.4 + k*0.12), 1.4, 3);
   // media calavera asomando detrás del visor
   jO(g, huesoO, 22, -128, 7.5, 6.5); jO(g, hueso, 22, -129, 6.5, 5.5);
   jO(g, hueco, 23, -129, 2.2, 2.4);
+  g.restore();
 }
 function dibDesgarrador(g, pose, f, carne){
-  const neg = '#1a1c24', gris = '#4a505c', grisL = '#8a929e', plata = '#c4ccd6', rojo = '#a81822', rojoL = '#e0303a';
-  const ph = f/4*Math.PI*2, s = pose === 'anda' ? Math.sin(ph) : 0;
-  // cola larga con púas (barrida hacia delante en el coletazo)
-  const pts = desCola(pose, ph);
-  for (let i = 0; i < 8; i++){
-    const w = 12 - i*1.2;
-    jL(g, neg, w, pts[i][0], pts[i][1], pts[i + 1][0], pts[i + 1][1]);
-    jL(g, gris, Math.max(1, w*0.35), pts[i][0], pts[i][1] - w*0.25, pts[i + 1][0], pts[i + 1][1] - w*0.25);
-    const mx = (pts[i][0] + pts[i + 1][0])/2, my = (pts[i][1] + pts[i + 1][1])/2;
-    g.fillStyle = grisL; g.beginPath(); g.moveTo(mx - 3, my - w*0.4); g.lineTo(mx, my - w*0.4 - 7 + i*0.4); g.lineTo(mx + 3, my - w*0.4); g.fill();   // púas
-  }
-  // aletas rojas del lomo (abiertas al volar)
-  const ala = pose === 'vuela';
-  for (let i = 0; i < 4; i++){
-    const bx = -6 - i*6, by = -96 + i*6, L = ala ? 46 - i*6 : 30 - i*4, an = ala ? -2.2 + i*0.25 : -2.0 + i*0.18;
-    g.fillStyle = i % 2 ? '#5a0c12' : rojo;
-    g.beginPath(); g.moveTo(bx, by); g.lineTo(bx + Math.cos(an)*L, by + Math.sin(an)*L);
-    g.lineTo(bx + Math.cos(an + 0.35)*L*0.6, by + Math.sin(an + 0.35)*L*0.6); g.lineTo(bx + 8, by + 6); g.closePath(); g.fill();
-    jL(g, neg, 1.6, bx, by, bx + Math.cos(an)*L, by + Math.sin(an)*L);
-  }
-  // piernas digitígradas
-  const pierna = (x0, lado, lejos)=>{
-    const { kx, ky } = desRodilla(x0, lado, s), ax = x0 - 4 + lado*s*8, ay = -14, fx = x0 + 6 + lado*s*10;
-    jL(g, lejos ? neg : gris, 13, x0, -56, kx, ky); jL(g, lejos ? neg : gris, 9, kx, ky, ax, ay); jL(g, lejos ? neg : gris, 7, ax, ay, fx, -3);
-    if (!lejos){ jL(g, grisL, 2, x0 + 2, -54, kx + 2, ky); jR(g, plata, kx - 3, ky - 3, 6, 4); }
-    for (let k = 0; k < 3; k++) jL(g, lejos ? '#2a2c34' : plata, 2, fx - 4 + k*5, -3, fx - 2 + k*5 + 4, 1);   // garras
+  const K = '#0c0d12', neg = '#1a1c24', osc = '#2a2d38', gris = '#4a505c', grisM = '#626a78', grisL = '#8a929e', plata = '#c4ccd6', brillo = '#eef2f8';
+  const rojo = '#a81822', rojoO = '#5a0c12', rojoL = '#e0303a', ascua = '#ff6a4a';
+  const P = desPose(pose, f);
+  const poli = (c, pts)=>{ g.fillStyle = c; g.beginPath(); g.moveTo(pts[0], pts[1]); for (let k = 2; k < pts.length; k += 2) g.lineTo(pts[k], pts[k + 1]); g.closePath(); g.fill(); };
+  // tramo con borde oscuro y un filo de luz arriba (muslos, cuello, brazos)
+  const tramo = (x0, y0, x1, y1, w0, w1, c, filo)=>{
+    const dx = x1 - x0, dy = y1 - y0, l = Math.hypot(dx, dy) || 1, nx = -dy/l, ny = dx/l;
+    const q = (a, b, col)=> poli(col, [x0 + nx*a, y0 + ny*a, x1 + nx*b, y1 + ny*b, x1 - nx*b, y1 - ny*b, x0 - nx*a, y0 - ny*a]);
+    q(w0/2 + 1.5, w1/2 + 1.5, K); q(w0/2, w1/2, c);
+    if (filo) jL(g, filo, 1.4, x0 - nx*w0*0.26, y0 - ny*w0*0.26, x1 - nx*w1*0.26, y1 - ny*w1*0.26);
   };
+  // ---- brazo con su motosierra y el garfio ----
+  const brazo = (sx, sy, a, lejos)=>{
+    const c0 = lejos ? neg : gris, ex = sx + Math.cos(a + 0.5)*17, ey = sy + Math.sin(a + 0.5)*17;
+    tramo(sx, sy, ex, ey, 11, 9, c0, lejos ? null : grisL);
+    jO(g, K, ex, ey, 5.5, 5.5); jO(g, lejos ? osc : grisM, ex, ey, 4.2, 4.2);              // codo
+    g.save(); g.translate(ex, ey); g.rotate(a);
+    // la espada de la sierra con los dientes corriendo por el borde
+    const bl = 48, bw = 11;
+    jR(g, K, 7, -bw/2 - 1.5, bl + 2, bw + 3); jO(g, K, 7 + bl, 0, bw/2 + 1.5, bw/2 + 1.5);
+    jR(g, lejos ? gris : grisL, 8, -bw/2, bl, bw); jO(g, lejos ? gris : grisL, 8 + bl, 0, bw/2, bw/2);
+    jR(g, lejos ? osc : gris, 10, -1.5, bl - 4, 3);                                    // canal central
+    if (!lejos) jR(g, brillo, 10, -bw/2 + 1, bl - 6, 1);
+    const dc = lejos ? grisL : plata;
+    for (let i = 0; i < 12; i++){
+      const x = 9 + ((i*4.2 + f*2.1) % (bl - 2));
+      poli(dc, [x, -bw/2, x + 3, -bw/2, x + 1.5, -bw/2 - 3]); poli(dc, [x, bw/2, x + 3, bw/2, x + 1.5, bw/2 + 3]);
+    }
+    // el motor: carcasa blindada con un piloto rojo
+    jR(g, K, -5, -9, 16, 18); jR(g, lejos ? neg : osc, -4, -8, 14, 16); jR(g, lejos ? osc : gris, -4, -8, 14, 4);
+    jR(g, rojoO, 4, 2, 4, 3); jR(g, lejos ? rojo : rojoL, 4.5, 2.5, 3, 2);
+    // el garfio, curvado por encima
+    g.fillStyle = K; g.beginPath(); g.moveTo(1, -7); g.quadraticCurveTo(18, -31, 38, -17); g.lineTo(30, -13); g.quadraticCurveTo(18, -21, 7, -4); g.closePath(); g.fill();
+    g.fillStyle = lejos ? gris : plata; g.beginPath(); g.moveTo(3, -7); g.quadraticCurveTo(18, -28, 35, -17); g.lineTo(30, -15); g.quadraticCurveTo(18, -21, 8, -5); g.closePath(); g.fill();
+    if (!lejos) jL(g, brillo, 1, 8, -12, 20, -23);
+    g.restore();
+    // hombrera
+    jO(g, K, sx, sy, 10, 8.5); jO(g, lejos ? neg : gris, sx, sy - 1, 8.5, 7); if (!lejos){ jO(g, grisL, sx - 2, sy - 4, 5, 2.5); }
+    poli(lejos ? osc : plata, [sx - 5, sy - 6, sx - 1, sy - 15, sx + 2, sy - 6]);                  // púa del hombro
+  };
+  // ---- pierna digitígrada con el muslo acorazado ----
+  const pierna = (x0, lado, lejos)=>{
+    const L = desPierna(P, x0, lado), c = lejos ? neg : gris, c2 = lejos ? '#15161d' : osc;
+    tramo(L.hx, L.hy, L.kx, L.ky, 17, 11, c, lejos ? null : grisL);
+    tramo(L.kx, L.ky, L.ax, L.ay, 10, 7, c2, lejos ? null : gris);
+    tramo(L.ax, L.ay, L.fx, L.fy, 7, 6, c, lejos ? null : grisL);
+    if (!lejos){ jO(g, K, L.hx + 4, L.hy + 10, 9, 7); jO(g, grisM, L.hx + 4, L.hy + 9, 7.5, 5.5); jO(g, grisL, L.hx + 2, L.hy + 7, 4, 2); }   // placa del muslo
+    jO(g, K, L.kx, L.ky, 5, 5); jO(g, lejos ? osc : plata, L.kx, L.ky, 3.6, 3.6);                // rodilla
+    poli(lejos ? osc : plata, [L.kx + 1, L.ky - 3, L.kx + 9, L.ky - 7, L.kx + 3, L.ky + 2]);     // púa de la rodilla
+    for (let k = 0; k < 3; k++){ const cx = L.fx - 3 + k*5; poli(lejos ? '#2a2c34' : plata, [cx - 2, L.fy - 1, cx + 2, L.fy - 1, cx + 5, L.fy + 3]); }   // garras
+  };
+  // ================= dibujo, de lo más lejano a lo más cercano =================
+  g.save(); desTorso(g, P);
+  brazo(-2, -92, P.brazoL, true);
+  // cola: placas con bandas y una fila de púas, acabada en cuchilla
+  const pts = desCola(P);
+  for (let i = 0; i < 8; i++){
+    const w = 15 - i*1.45, [x0, y0] = pts[i], [x1, y1] = pts[i + 1];
+    tramo(x0, y0, x1, y1, w, w - 1.4, i % 2 ? neg : osc, i % 2 ? gris : grisM);
+    const mx = (x0 + x1)/2, my = (y0 + y1)/2, an = Math.atan2(y1 - y0, x1 - x0) - Math.PI/2;
+    const px = mx + Math.cos(an)*w*0.45, py = my + Math.sin(an)*w*0.45, ln = 8 - i*0.5;
+    poli(K, [px - Math.cos(an + 1.57)*3.4, py - Math.sin(an + 1.57)*3.4, px + Math.cos(an)*(ln + 1.5), py + Math.sin(an)*(ln + 1.5), px + Math.cos(an + 1.57)*3.4, py + Math.sin(an + 1.57)*3.4]);
+    poli(i % 2 ? grisL : plata, [px - Math.cos(an + 1.57)*2.2, py - Math.sin(an + 1.57)*2.2, px + Math.cos(an)*ln, py + Math.sin(an)*ln, px + Math.cos(an + 1.57)*2.2, py + Math.sin(an + 1.57)*2.2]);
+  }
+  { const [x0, y0] = pts[7], [x1, y1] = pts[8], an = Math.atan2(y1 - y0, x1 - x0), cx = Math.cos(an), sy = Math.sin(an);   // la cuchilla de la punta
+    poli(K, [x1 - sy*6, y1 + cx*6, x1 + cx*17, y1 + sy*17, x1 + sy*6, y1 - cx*6]);
+    poli(plata, [x1 - sy*4.5, y1 + cx*4.5, x1 + cx*14, y1 + sy*14, x1 + sy*4.5, y1 - cx*4.5]); }
+  g.restore();
   pierna(-12, -1, true);
-  // torso: costillas de metal y vientre negro (ya sin la sierra del pecho:
-  // en su sitio, una placa)
-  jO(g, neg, -2, -76, 24, 30); jO(g, gris, 0, -78, 20, 26);
-  for (let i = 0; i < 5; i++) jL(g, grisL, 2, -16, -96 + i*8, 12, -92 + i*8);
-  jO(g, neg, 4, -58, 15, 10);
-  jO(g, neg, 12, -82, 10, 13); jO(g, gris, 12, -83, 8, 11); jL(g, grisL, 1.5, 7, -90, 16, -88);
+  g.save(); desTorso(g, P);
+  // aletas rojas del lomo: se abren al saltar y al volar
+  for (let i = 0; i < 4; i++){
+    const bx = -8 - i*6.5, by = -100 + i*7, L = (32 - i*4)*(1 + P.aletas*0.5), an = -2.05 + i*0.2 - P.aletas*0.22;
+    const tx = bx + Math.cos(an)*L, ty = by + Math.sin(an)*L, mx = bx + Math.cos(an + 0.42)*L*0.62, my = by + Math.sin(an + 0.42)*L*0.62;
+    poli(K, [bx - 2, by + 1, tx, ty - 1.5, mx + 1, my + 1, bx + 10, by + 7]);
+    poli(i % 2 ? rojoO : rojo, [bx, by, tx, ty, mx, my, bx + 8, by + 6]);
+    poli(i % 2 ? rojo : rojoL, [bx + 1, by, tx - (tx - bx)*0.08, ty - (ty - by)*0.08, bx + (mx - bx)*0.5 + 2, by + (my - by)*0.5]);
+    jL(g, rojoO, 1, bx + 3, by + 2, tx, ty);                                                // nervio
+  }
+  // torso: barril acorazado por placas, vientre oscuro y un núcleo rojo
+  jO(g, K, -2, -78, 26, 32); jO(g, neg, -2, -78, 24.5, 30.5); jO(g, gris, 1, -81, 20, 26);
+  jO(g, grisM, -1, -88, 14, 15); jO(g, grisL, -4, -95, 8, 5); jO(g, brillo, -6, -97, 3, 1.4);
+  for (let i = 0; i < 5; i++){ const y = -98 + i*8; jL(g, K, 2, -17, y, 14, y + 4); jL(g, grisL, 1, -16, y + 2, 12, y + 5.6); }
+  jO(g, K, 6, -60, 17, 12); jO(g, osc, 6, -61, 15, 10);                                       // vientre
+  for (let i = 0; i < 3; i++){ jR(g, rojoO, -2 + i*6, -66, 4, 9); jR(g, rojoL, -1.4 + i*6, -65, 2.8, 7); }   // rejilla del núcleo
+  jO(g, K, 13, -82, 11, 14); jO(g, gris, 13, -83, 9, 12); jL(g, grisL, 1.5, 8, -91, 17, -89);    // pecho
   if (carne){
     // el pecho abierto (las costillas van en la capa de huesos) y jirones de piel colgando
     jO(g, '#3a0a0a', -2, -80, 13, 21); jO(g, '#1a0606', -2, -80, 10, 18);
     for (const [x, y, L] of [[-20, -66, 14], [14, -64, 10], [-4, -52, 12], [20, -96, 9]]){
       g.fillStyle = '#7a2a24'; g.beginPath(); g.moveTo(x - 3, y); g.lineTo(x + 3, y); g.lineTo(x + 1, y + L); g.lineTo(x - 2, y + L*0.7); g.closePath(); g.fill();
     }
-    jO(g, '#5a1414', 10, -44, 6, 5);                                                      // carne viva en el muslo
     for (let i = 2; i < 7; i++){ const mx = (pts[i][0] + pts[i + 1][0])/2, my = (pts[i][1] + pts[i + 1][1])/2; jO(g, '#3a0a0a', mx, my, 5.5 - i*0.4, 4.6 - i*0.35); }
   }
-  // cuello y cabeza con el visor rojo y el pico
-  jL(g, neg, 12, 8, -102, 22, -122);
-  jO(g, neg, 30, -128, 15, 11); jO(g, gris, 30, -130, 13, 9);
-  jL(g, grisL, 4, 24, -138, 18, -156); jL(g, plata, 2, 24, -138, 19, -154);                  // cuerno
-  jR(g, '#2a0406', 22, -134, 26, 6); jR(g, pose === 'rayo' ? '#ffe0d0' : rojoL, 23, -133, 24, 4);  // visor
-  g.fillStyle = plata; g.beginPath(); g.moveTo(38, -124); g.lineTo(52, -122); g.lineTo(44, -114); g.lineTo(38, -118); g.closePath(); g.fill();   // pico
-  jR(g, neg, 40, -121, 8, 1.5);
+  // cuello por anillos
+  for (let i = 0; i < 3; i++){ const x = 9 + i*5.5, y = -102 - i*7, r = 11 - i*1.2; jO(g, K, x, y, r + 1.5, r*0.85 + 1.5); jO(g, i % 2 ? osc : gris, x, y - 0.6, r, r*0.85); jL(g, grisL, 1.2, x - r*0.6, y - r*0.55, x + r*0.4, y - r*0.7); }
+  // cabeza: cráneo alargado, cresta, visor y un pico que se abre
+  const bo = P.boca*7;
+  poli(K, [40, -121, 58, -115 + bo, 44, -110 + bo*0.7, 34, -114]);                             // mandíbula de abajo
+  poli(plata, [41, -120, 55, -115 + bo, 44, -112 + bo*0.7, 36, -115]);
+  if (P.boca > 0.3){ poli('#3a0406', [40, -121, 54, -119 + bo*0.3, 54, -116 + bo*0.8, 40, -116]); jR(g, ascua, 42, -119 + bo*0.3, 9, 1.2); }   // garganta al rojo
+  poli(K, [15, -129, 22, -142, 34, -144, 48, -134, 60, -124, 46, -118, 30, -117, 18, -120]);
+  poli(gris, [17, -129, 23, -140, 34, -142, 47, -133, 57, -124, 46, -120, 30, -119, 19, -121]);
+  poli(grisM, [21, -134, 25, -140, 34, -141, 44, -134, 30, -133]);
+  jL(g, brillo, 1.2, 26, -139, 36, -140);
+  poli(plata, [46, -126, 61, -123, 52, -118, 44, -120]); jL(g, brillo, 1, 48, -125, 58, -123);  // pico de arriba
+  // cuerno curvo hacia atrás
+  g.strokeStyle = K; g.lineWidth = 6; g.beginPath(); g.moveTo(25, -139); g.quadraticCurveTo(19, -156, 8, -164); g.stroke();
+  g.strokeStyle = grisL; g.lineWidth = 3.6; g.beginPath(); g.moveTo(25, -139); g.quadraticCurveTo(19, -156, 8, -164); g.stroke();
+  g.strokeStyle = brillo; g.lineWidth = 1.2; g.beginPath(); g.moveTo(24, -142); g.quadraticCurveTo(19, -155, 10, -162); g.stroke();
+  // el visor: una banda que brilla (al rojo blanco al disparar)
+  poli(K, [21, -136, 50, -133, 50, -126, 21, -129]);
+  poli(pose === 'rayo' ? '#ffe0d0' : rojoL, [23, -134.5, 48.5, -132, 48.5, -127.5, 23, -130]);
+  jL(g, pose === 'rayo' ? '#ffffff' : '#ff9a8a', 1, 25, -133.5, 46, -131.4);
+  g.restore();
   pierna(10, 1, false);
-  // brazos: garfio arriba y motosierra larga
-  const brazo = (sx, sy, lejos)=>{
-    let a = pose === 'corta' ? -0.05 : pose === 'vuela' ? -0.55 : pose === 'carga' ? 0.9 : 0.35;
-    if (lejos) a += 0.12;
-    const ex = sx + Math.cos(a)*18, ey = sy + Math.sin(a)*18;
-    jL(g, lejos ? neg : gris, 9, sx, sy, ex, ey);
-    g.save(); g.translate(ex, ey); g.rotate(a);
-    jR(g, lejos ? '#2a2c34' : neg, -2, -7, 12, 14);                                    // la carcasa
-    jR(g, lejos ? gris : grisL, 8, -5, 44, 10);                                        // la espada de la sierra
-    for (let i = 0; i < 11; i++){                                                      // dientes que corren
-      const x = 8 + ((i*4 + f*2) % 44);
-      jR(g, lejos ? grisL : plata, x, -7, 2, 2); jR(g, lejos ? grisL : plata, x, 5, 2, 2);
-    }
-    g.fillStyle = lejos ? gris : plata;                                               // garfio
-    g.beginPath(); g.moveTo(4, -6); g.quadraticCurveTo(20, -26, 34, -14); g.lineTo(28, -12); g.quadraticCurveTo(18, -18, 8, -4); g.closePath(); g.fill();
-    g.restore();
-  };
-  brazo(-2, -92, true);
-  brazo(10, -94, false);
+  g.save(); desTorso(g, P);
+  brazo(10, -94, P.brazo, false);
+  g.restore();
 }
 function golpeDes(dmg){
   if (vil.intro) return;
   const d0 = hp; hp = clamp(hp - recibe(dmg), 0, maxHp()); p2Gain(d0 - hp); shake(12, 0.3); sfx('hurt');
 }
 function desSuelo(e){ return { x: e.x + (e.facing < 0 ? -1 : 1)*40, y: e.y }; }
-function desOjo(e){ return { x: e.x + (e.facing < 0 ? -1 : 1)*36*DES_ESC, y: e.y + 8 - (e.alt || 0) - 131*DES_ESC }; }
+// La pose y el fotograma según lo que esté haciendo: cada ataque se prepara
+// con su postura (Aviso) y golpea con otra.
+function desPoseDe(e){
+  const fa = e.fase, t2 = Math.floor((e.anim || 0)*16) % 2;
+  if (fa === 'vueloAviso') return ['vuelaAviso', t2];
+  if (fa === 'vuelo') return ['vuela', t2];
+  if (fa === 'sierrasAviso') return ['cortaAviso', t2];
+  if (fa === 'sierras') return ['corta', e.ft > 0.2 ? 0 : 1];
+  if (fa === 'colaAviso' || fa === 'cola') return [fa, t2];
+  if (fa === 'rayoCarga' || fa === 'rayo') return [fa, t2];
+  if (fa === 'disco' || fa === 'discoAviso') return ['carga', t2];
+  return ['anda', Math.floor(e.paso || 0) % 4];
+}
+function desOjo(e){
+  const [pose, f] = desPoseDe(e), v = desVisor(pose, f);
+  return { x: e.x + (e.facing < 0 ? -1 : 1)*v.x*DES_ESC, y: e.y + 8 - (e.alt || 0) + v.y*DES_ESC };
+}
 function updateDesgarrador(e, dt, a, ang){
   e.anim = (e.anim || 0) + dt;
   e.giro = (e.giro || 0) + dt*(e.fase === 'disco' ? 30 : 8);
@@ -20154,26 +20222,64 @@ function desEligeAtaque(e, a, ang){
   else if (a < 300){ e.fase = 'colaAviso'; e.ft = 0.9; }
   else { e.fase = 'vueloAviso'; e.ft = 0.9; e.eA = ang; toast('¡EMBESTIDA EN VUELO!'); }
 }
+// Resplandor rojo del visor (una estampa que se reutiliza).
+let _desBrillo = null;
+function desBrillo(){
+  if (_desBrillo) return _desBrillo;
+  const c = document.createElement('canvas'); c.width = c.height = 64;
+  const g = c.getContext('2d'), rg = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  rg.addColorStop(0, 'rgba(255,200,180,0.9)'); rg.addColorStop(0.3, 'rgba(255,60,40,0.55)'); rg.addColorStop(1, 'rgba(255,30,20,0)');
+  g.fillStyle = rg; g.fillRect(0, 0, 64, 64);
+  return (_desBrillo = c);
+}
 function drawDesgarrador(e){
-  const s = S(e.x, e.y), alt = e.alt || 0;
+  const s = S(e.x, e.y), alt = e.alt || 0, t = e.anim || 0, fa = e.fase;
   sombra(s.x, s.y + 10, 120, 30, alt ? 0.5 : 0.9);
   const dy = s.y + 8 - alt;
-  const pose = e.fase === 'vuelo' || e.fase === 'vueloAviso' ? 'vuela' : (e.fase === 'sierras' || e.fase === 'sierrasAviso') ? 'corta'
-             : (e.fase === 'cola' || e.fase === 'colaAviso') ? 'cola' : (e.fase === 'rayo' || e.fase === 'rayoCarga') ? 'rayo'
-             : (e.fase === 'disco' || e.fase === 'discoAviso') ? 'carga' : 'anda';
-  const f = pose === 'anda' ? Math.floor(e.paso || 0) % 4 : Math.floor((e.anim || 0)*16) % 2;
+  const [pose, f] = desPoseDe(e);
   const inf = esInfierno();
   let c = desFrame(pose, f, inf ? 'carne' : '');
   if (pintaDeforme) c = deformCv(c);
+  const hue = inf ? desFrame(pose, f, 'huesos') : null;
   const [W, H, cx, py] = DES_TAM;
   const fl = e.facing < 0 ? -1 : 1;
-  ctx.save(); ctx.translate(s.x, dy); ctx.scale(fl*DES_ESC, DES_ESC);
+  // tiembla mientras carga un ataque; respira cuando está quieto
+  const tiembla = fa === 'vueloAviso' || fa === 'discoAviso' || fa === 'rayoCarga' ? Math.sin(t*70)*1.3 : fa === 'rayo' ? Math.sin(t*90)*0.7 : 0;
+  const resp = pose === 'anda' ? 1 + Math.sin(t*2.6)*0.014 : 1;
   const suave = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = false;
+  // en la embestida en vuelo deja dos estelas de sí mismo
+  if (fa === 'vuelo'){
+    for (let k = 2; k >= 1; k--){
+      ctx.save(); ctx.globalAlpha = 0.14*(3 - k);
+      ctx.translate(s.x - Math.cos(e.eA)*k*34, dy - Math.sin(e.eA)*k*20); ctx.scale(fl*DES_ESC, DES_ESC);
+      ctx.drawImage(c, -cx, -py); ctx.restore();
+    }
+  }
+  ctx.save(); ctx.translate(s.x + tiembla, dy); ctx.scale(fl*DES_ESC, DES_ESC*resp);
   ctx.drawImage(c, -cx, -py);
-  ctx.imageSmoothingEnabled = suave;
-  if (inf){ ctx.imageSmoothingEnabled = false; ctx.drawImage(desFrame(pose, f, 'huesos'), -cx, -py); ctx.imageSmoothingEnabled = suave; }   // los huesos, sin recolorear
+  if (hue) ctx.drawImage(hue, -cx, -py);                // los huesos, sin recolorear
+  // el visor brilla: late despacio, se enciende al cargar el rayo y arde al disparar
+  const v = desVisor(pose, f);
+  const k = fa === 'rayo' ? 1 : fa === 'rayoCarga' ? clamp(1 - e.ft/1.3, 0, 1)*0.85 + Math.sin(t*30)*0.1 : 0.22 + Math.sin(t*3)*0.08;
+  if (k > 0.05){
+    const r = 10 + k*26;
+    ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = clamp(k, 0, 1);
+    ctx.drawImage(desBrillo(), v.x - r, v.y - r*0.7, r*2, r*1.4);
+    ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+  }
   ctx.restore();
-  if (showHpBars) hpBar(s.x, dy - 175*DES_ESC*0.95, 120, e.hp, e.maxhp, '#c81f1f');
+  ctx.imageSmoothingEnabled = suave;
+  // el tajo de las motosierras: un arco que barre el abanico y se apaga
+  if (fa === 'sierras' && e.ft > 0){
+    const p = clamp(e.ft/0.35, 0, 1), a0 = e.sA - 0.85, a1 = e.sA - 0.85 + 1.7*Math.min(1, (1 - p)*2.2);
+    ctx.save(); ctx.translate(s.x, s.y - 34); ctx.scale(1, 0.7); ctx.lineCap = 'round';
+    for (const [R, w, col, al] of [[150, 26, '#ffb36b', 0.35], [168, 10, '#fff2c8', 0.8], [188, 4, '#ffffff', 0.9]]){
+      ctx.globalAlpha = al*p; ctx.strokeStyle = col; ctx.lineWidth = w;
+      ctx.beginPath(); ctx.arc(0, 0, R, a0, a1); ctx.stroke();
+    }
+    ctx.restore();
+  }
+  if (showHpBars) hpBar(s.x, dy - 178*DES_ESC*0.95, 120, e.hp, e.maxhp, '#c81f1f');
 }
 function drawDesgarradorAvisos(){
   for (let __i201 = 0, __a201 = enemies; __i201 < __a201.length; __i201++){ const e = __a201[__i201];
@@ -20386,7 +20492,7 @@ function drawMisilCayendo(m){
   ficha('murcielagoF', alienFrame('murcielago', 'ataca', 0), 2); ficha('caza40kF', alienFrame('caza40k', 'ataca', 0), 1.4);
   ficha('centurionF', centFrame('dispara', 0, false), 1.6);
   ficha('vengativoF', vengFrame('ataca', 0), 2.4);
-  ficha('desgarradorF', desFrame('corta', 0), 0.9);
+  ficha('desgarradorF', desFrame('cortaAviso', 0), 0.9);
   ficha('bichoF', alienFrame('bicho', 'ataca', 0), 1.3);
   ficha('amalgamaF', amalFrame('lanza', 0), 1.1);
   ficha('desesperacionF', desespFrame(0, 'golpe', 0), 0.85);
@@ -24845,6 +24951,27 @@ function edifAgujereado(b, base){
   b._agN = b._aguj.length; b._agCv = c;
   return c;
 }
+// El edificio agujereado listo para pintar: el interior, una penumbra para que
+// el hueco se note y encima la fachada con sus boquetes. Solo se rehace al
+// abrirse un boquete nuevo. Se guardan los de los últimos edificios pintados
+// (los demás se rehacen si vuelven a verse), para no acumular memoria.
+const AGUJ_FIN_MAX = 12, _agFin = [];
+function edifConBoquetes(b, cv){
+  if (b._agFin && b._agFinN === b._agN && b._agFinB === cv) return b._agFin;
+  let c = b._agFin;
+  if (!c){
+    if (_agFin.length >= AGUJ_FIN_MAX){ const v = _agFin.shift(); c = v._agFin; v._agFin = null; }
+    if (!c || c.width !== cv.width || c.height !== cv.height){ c = document.createElement('canvas'); c.width = cv.width; c.height = cv.height; }
+    b._agFin = c; _agFin.push(b);
+  }
+  const g = c.getContext('2d');
+  g.globalCompositeOperation = 'copy'; g.drawImage(edifInterior(b), 0, 0, c.width, c.height);
+  g.globalCompositeOperation = 'source-over';
+  g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(0, 0, c.width, c.height);
+  g.drawImage(cv, 0, 0);
+  b._agFinN = b._agN; b._agFinB = cv;
+  return c;
+}
 // Pisada del coloso: el techo se hunde bajo su peso. Sin canto claro ni
 // penumbra, porque se solapan unas con otras formando un surco continuo.
 function cortaPisada(g, h){
@@ -26792,33 +26919,61 @@ function nubePat(){
       g.beginPath(); g.arc(x+dx, y+dy, r, 0, Math.PI*2); g.fill();
     }
   }
-  _nubePat = ctx.createPattern(cv, 'repeat');
+  _nubePat = cv;
   return _nubePat;
 }
+// El patrón con la transparencia ya aplicada (en 16 escalones): rellenar con
+// globalAlpha a 1 va por el camino rápido; con otra opacidad es mucho más caro.
+// Solo se rehace cuando cambia el escalón (al anochecer o al cambiar el clima).
+const _nubeA = { q: -1, cv: null, pat: null };
+function nubePatAlfa(a){
+  const q = Math.max(1, Math.round(a*16)), N = _nubeA;
+  if (q === N.q) return N.pat;
+  const src = nubePat();
+  if (!N.cv){ N.cv = document.createElement('canvas'); N.cv.width = src.width; N.cv.height = src.height; }
+  const g = N.cv.getContext('2d');
+  g.clearRect(0, 0, src.width, src.height); g.globalAlpha = q/16; g.drawImage(src, 0, 0);
+  N.q = q; N.pat = ctx.createPattern(N.cv, 'repeat');
+  return N.pat;
+}
 
-// Lluvia: trazos finos e inclinados en una textura que cae en diagonal.
-let _lluviaPat = null;
-function lluviaPat(){
-  if (_lluviaPat) return _lluviaPat;
-  const T = 256;
-  const cv = document.createElement('canvas'); cv.width = cv.height = T;
-  const g = cv.getContext('2d');
-  let sem = 4411;
+// Lluvia: gotas finas e inclinadas sobre una baldosa que se repite y cae en
+// diagonal. Cada capa se genera una vez, ya repartida en grupos por brillo y
+// grosor para pintarla con muy pocos stroke(). En el castigo es roja.
+const _gotas = {};
+function gotasLluvia(capa, roja){
+  const k = capa*2 + roja;
+  if (_gotas[k]) return _gotas[k];
+  const larga = capa === 1, T = larga ? 320 : 256;
+  let sem = larga ? 9127 : roja ? 9133 : 4411;
   const rnd = ()=>{ sem = (sem*1664525 + 1013904223) & 0x7fffffff; return sem / 0x7fffffff; };
-  g.lineCap = 'round';
-  // Pocas gotas, de largos y brillos distintos: así no se nota la repetición
-  // y se lee como lluvia de verdad y no como una trama.
-  for (let i = 0; i < 46; i++){
-    const x = rnd()*T, y = rnd()*T, l = 7 + rnd()*16;
-    g.strokeStyle = `rgba(205,222,240,${0.16 + rnd()*0.30})`;
-    g.lineWidth = rnd() < 0.2 ? 1.4 : 0.9;
-    // se repite a los lados para que el trazo no se corte en el borde
-    for (const dx of [-T, 0, T]) for (const dy of [-T, 0, T]){
-      g.beginPath(); g.moveTo(x+dx, y+dy); g.lineTo(x+dx - l*0.28, y+dy + l); g.stroke();
-    }
+  const col = roja ? (larga ? '255,140,110' : '220,40,30') : (larga ? '225,238,255' : '205,222,240');
+  const N = larga ? 22 : 46, aMin = larga ? 0.22 : roja ? 0.28 : 0.16, aVar = larga ? 0.32 : roja ? 0.34 : 0.30;
+  const grupos = [];                                   // brillo (3) x grosor (2), con sus trazos
+  for (let i = 0; i < N; i++){
+    const x = rnd()*T, y = rnd()*T, l = larga ? 22 + rnd()*26 : 7 + rnd()*16;
+    const al = aMin + rnd()*aVar, gr = rnd() < (larga ? 0.3 : 0.2) ? 1 : 0;
+    const ia = Math.min(2, Math.floor((al - aMin)/aVar*3)), key = ia*2 + gr;
+    const g = grupos[key] || (grupos[key] = { a: aMin + aVar*(ia + 0.5)/3, w: larga ? (gr ? 1.6 : 1.1) : roja ? (gr ? 1.5 : 1) : (gr ? 1.4 : 0.9), p: [] });
+    g.p.push(x, y, -l*(larga ? 0.3 : 0.28), l);
   }
-  _lluviaPat = ctx.createPattern(cv, 'repeat');
-  return _lluviaPat;
+  return (_gotas[k] = { T, col: 'rgba(' + col + ',', grupos: grupos.filter(Boolean) });
+}
+function pintaGotas(G, dx, dy, alfa){
+  const T = G.T, ox = ((dx % T) + T) % T - T, oy = ((dy % T) + T) % T - T;
+  ctx.globalAlpha = 1;
+  for (const g of G.grupos){
+    ctx.strokeStyle = G.col + (alfa*g.a).toFixed(3) + ')'; ctx.lineWidth = g.w;
+    ctx.beginPath();
+    const P = g.p;
+    for (let ty = oy; ty < CH; ty += T) for (let tx = ox; tx < CW + 20; tx += T)
+      for (let i = 0; i < P.length; i += 4){
+        const x = tx + P[i], y = ty + P[i + 1];
+        if (x < -2 || x + P[i + 2] > CW + 2 || y > CH + 2 || y + P[i + 3] < -2) continue;
+        ctx.moveTo(x, y); ctx.lineTo(x + P[i + 2], y + P[i + 3]);
+      }
+    ctx.stroke();
+  }
 }
 
 function drawClima(){
@@ -26830,31 +26985,26 @@ function drawClima(){
   // se desvanecen al anochecer y de noche no se pintan (un relleno menos)
   const sombraNube = nubeK*clamp(1 - (oscuridadAhora() - 0.15)/0.3, 0, 1);
   if (sombraNube > 0.01){
-    const p = nubePat();
+    const p = nubePatAlfa(sombraNube);
     const T = 512;
-    const ox = -(((camX*ZOOM - gameTime*22) % T) + T) % T;
-    const oy = -(((camY*ZOOM - gameTime*9) % T) + T) % T;
-    ctx.globalAlpha = sombraNube;
+    // en píxeles enteros: con decimales el patrón se filtra píxel a píxel y
+    // el relleno cuesta varias veces más (son manchas difusas, no se nota)
+    const ox = -Math.round((((camX*ZOOM - gameTime*22) % T) + T) % T);
+    const oy = -Math.round((((camY*ZOOM - gameTime*9) % T) + T) % T);
+    ctx.globalAlpha = 1;
     ctx.save(); ctx.translate(ox, oy);
-    ctx.fillStyle = p; ctx.fillRect(0, 0, CW + T, CH + T);
+    ctx.fillStyle = p; ctx.fillRect(0, 0, CW - ox, CH - oy);
     ctx.restore();
   }
   // 3) lluvia en dos capas: al fondo, gotas cortas; delante, gotas largas y
-  // brillantes que caen más rápido. Dos rellenos con patrón, como siempre.
+  // brillantes que caen más rápido. Antes eran dos rellenos de pantalla
+  // completa con patrón, que pintan cada píxel aunque esté vacío; ahora cada
+  // capa es un puñado de trazos agrupados por brillo (un stroke por grupo), que
+  // solo tocan los píxeles de las gotas.
   if (lluviaK > 0.01){
-    const p = esInfierno() ? lluviaPatRoja() : lluviaPat();
-    const T = 256;
-    let ox = -((((gameTime*900*0.28)) % T) + T) % T, oy = -((((-gameTime*900)) % T) + T) % T;
-    ctx.globalAlpha = lluviaK*0.75;
-    ctx.save(); ctx.translate(ox, oy);
-    ctx.fillStyle = p; ctx.fillRect(0, 0, CW + T*2, CH + T*2);
-    ctx.restore();
-    const pl = lluviaPatLarga(), T2 = 320, vel = 1250;
-    ox = -((((gameTime*vel*0.3) + 37) % T2) + T2) % T2; oy = -((((-gameTime*vel) + 11) % T2) + T2) % T2;
-    ctx.globalAlpha = lluviaK*0.6;
-    ctx.save(); ctx.translate(ox, oy);
-    ctx.fillStyle = pl; ctx.fillRect(0, 0, CW + T2*2, CH + T2*2);
-    ctx.restore();
+    const roja = esInfierno() ? 1 : 0;
+    pintaGotas(gotasLluvia(0, roja), -(gameTime*900*0.28), gameTime*900, lluviaK*0.75);
+    pintaGotas(gotasLluvia(1, roja), -(gameTime*1250*0.3 + 37), gameTime*1250 - 11, lluviaK*0.6);
   }
   // 4) salpicaduras en el suelo: un puñado fijo que se recicla, nunca crece
   if (lluviaK > 0.25) drawSalpicaduras();
@@ -26863,27 +27013,6 @@ function drawClima(){
 
 const SALP_N = 36;
 const salp = [];
-// Gotas largas de la capa cercana (también una textura que se repite).
-const _lluviaLarga = {};
-function lluviaPatLarga(){
-  const roja = esInfierno() ? 1 : 0;                 // en el castigo, lluvia roja
-  if (_lluviaLarga[roja]) return _lluviaLarga[roja];
-  const T = 320;
-  const cv = document.createElement('canvas'); cv.width = cv.height = T;
-  const g = cv.getContext('2d');
-  let sem = 9127;
-  const rnd = ()=>{ sem = (sem*1664525 + 1013904223) & 0x7fffffff; return sem / 0x7fffffff; };
-  g.lineCap = 'round';
-  for (let i = 0; i < 22; i++){
-    const x = rnd()*T, y = rnd()*T, l = 22 + rnd()*26;
-    g.strokeStyle = roja ? `rgba(255,140,110,${0.22 + rnd()*0.3})` : `rgba(225,238,255,${0.22 + rnd()*0.32})`;
-    g.lineWidth = rnd() < 0.3 ? 1.6 : 1.1;
-    for (const dx of [-T, 0, T]) for (const dy of [-T, 0, T]){
-      g.beginPath(); g.moveTo(x+dx, y+dy); g.lineTo(x+dx - l*0.3, y+dy + l); g.stroke();
-    }
-  }
-  return (_lluviaLarga[roja] = ctx.createPattern(cv, 'repeat'));
-}
 function drawSalpicaduras(){
   const n = SALP_N;
   while (salp.length < n) salp.push({ x: Math.random()*CW, y: Math.random()*CH, t: Math.random() });
@@ -28016,9 +28145,13 @@ function drawBuildings(){
     const cv = cv0 && b._aguj && b._aguj.length ? edifAgujereado(b, cv0) : cv0;   // con los boquetes del viltrumita
     const ruina = b.stage === 1 || esInfierno();
     if (cv){
-      if (ruina || cv !== cv0) ctx.drawImage(edifInterior(b), s2.x, s2.y);   // asoma por los agujeros
-      if (cv !== cv0){ ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fillRect(s2.x, s2.y, b.w, b.h); }   // en penumbra: el hueco se nota
-      ctx.drawImage(cv, s2.x, s2.y);
+      // con boquetes: interior en penumbra + fachada agujereada, ya juntos en
+      // un solo lienzo (una copia por fotograma en vez de tres capas)
+      if (cv !== cv0) ctx.drawImage(edifConBoquetes(b, cv), s2.x, s2.y);
+      else {
+        if (ruina) ctx.drawImage(edifInterior(b), s2.x, s2.y);              // asoma por los agujeros
+        ctx.drawImage(cv, s2.x, s2.y);
+      }
       if (ruina && b._rotas) llamasVentanas(b, s2);
       // Rayos X solo para el viltrumita: la cría (coloso) no los tiene; de ella
       // se ve el surco que deja al pisar, y ella misma se dibuja por encima.
