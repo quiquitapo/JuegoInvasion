@@ -1331,7 +1331,7 @@
     </div>
     <div class="actbtn borbtn" id="btnBorZ">
       <span class="actlabel">RÁFAGA</span>
-      <span class="acthint">ráfaga de energía</span>
+      <span class="acthint">mantén, apunta, suelta</span>
     </div>
     <div class="actbtn borbtn" id="btnBorC">
       <span class="actlabel">AGARRE</span>
@@ -11627,8 +11627,8 @@ const BIND_LABELS = { up:'Mover arriba', down:'Mover abajo', left:'Mover izquier
 const BIND_HEROE = {
   alien:   { grab:'Agarrar; con algo agarrado, golpear con ello', throw:'Lanzar lo que sostienes' },
   viltrum: { grab:'Agarrar lo que tengas cerca', throw:'Lanzar lo que llevas', draCola:'Presa (mantén, apunta y suelta)' },
-  boros:   { grab:'Puñetazo (además del clic)', throw:'Agarre (además de C)', draAle:'Ráfaga de energía',
-             draCola:'Agarre: patada, salto hasta él y segunda patada', borV:'Patada voladora (mantén, apunta y suelta)', borB:'Rayo del pecho (cañón en la forma meteórica)' },
+  boros:   { grab:'Puñetazo (además del clic)', throw:'Agarre (además de C)', draAle:'Ráfaga de energía (mantén, apunta y suelta)',
+             draCola:'Agarre: patada, salto hasta él y segunda patada', borV:'Patada voladora (mantén, apunta y suelta)', borB:'Rayo del pecho (mantén, apunta y suelta; cañón en la forma meteórica)' },
   dragon:  { grab:'Mordisco', draAle:'Aletazo', draRay:'Rayos (además del clic derecho)',
              draCola:'Coletazo (mantén, apunta y suelta)', magTel:'Rugido' },
   maquina: { grab:'Usar el arma', throw:'Cambiar de arma', draAle:'Incinerar (mantén, apunta y suelta)',
@@ -13324,10 +13324,10 @@ window.addEventListener('keydown', e=>{
     } else if (isVil()){                        // el viltrumita: la presa (mantener, apuntar y soltar)
       if (k === binds.draCola) vilPresaApunta();
     } else if (isBor()){                        // Boros: embestida, agarre, ráfaga y rayo
-      if (k === binds.draAle)  borZ();
+      if (k === binds.draAle)  borZEmpieza();
       if (k === binds.draCola) borC();
       if (k === binds.borV)    borVEmpieza();
-      if (k === binds.borB)    borB();
+      if (k === binds.borB)    borBEmpieza();
     }
   }
   keys[k] = true;
@@ -13346,6 +13346,8 @@ window.addEventListener('keyup', e=>{
   if (isVil() && (k === binds.draCola || antes === binds.draCola)) vilPresaSuelta(!running);
   // Boros suelta la ráfaga de puñetazos al soltar V
   if (isBor() && (k === binds.borV || antes === binds.borV)) borVSuelta(!running);
+  if (isBor() && (k === binds.draAle || antes === binds.draAle)) borZSuelta(!running);
+  if (isBor() && (k === binds.borB || antes === binds.borB)) borBSuelta(!running);
   // la máquina lanza la incineración al soltar Z
   if (isMaq() && (k === binds.draAle || antes === binds.draAle)) maqIncineraSuelta(!running);
   // la máquina salta con las motosierras al soltar C
@@ -23966,10 +23968,10 @@ function bindDragonBtns(){
   // BOROS: golpe (mantén para cargar, arrastra para apuntar), embestida, ráfaga y
   // rayo se mantienen, apuntan y sueltan; el agarre se toca (arrastrar elige hacia dónde lanzar)
   joystickBoton('btnBorGolpe', 'golpe', ()=>{ if (!vil.intro){ bor.holding = true; borGolpe(); } }, ()=> borSueltaGolpe(), isBor);
-  joystickBoton('btnBorZ', 'borZ', ()=> borZ(), ()=>{}, isBor);
+  joystickBoton('btnBorZ', 'borZ', ()=> borZEmpieza(), (c)=> borZSuelta(c), isBor);
   joystickBoton('btnBorC', 'borC', ()=> borC(), ()=>{}, isBor);
   joystickBoton('btnBorV', 'borV', ()=> borVEmpieza(), (c)=> borVSuelta(c), isBor);
-  joystickBoton('btnBorB', 'borB', ()=> borB(), ()=>{}, isBor);
+  joystickBoton('btnBorB', 'borB', ()=> borBEmpieza(), (c)=> borBSuelta(c), isBor);
   joystickBoton('btnRayosDra', 'rayo', ()=>{ if (!dra.rayos) draAlternaRayos(); },
                                        ()=>{ dra.rayos = false; });
   // COLA: se arrastra para trazar la línea (dirección y largo); al soltar, embiste.
@@ -24300,10 +24302,10 @@ function habilidadesDe(h){
   ];
   if (h === 'boros') return [
     { n:'Puñetazos (combo de tres)', ico:'golpe', key:()=> SK_CLIC, cd:()=> bor.golpeCd, act:()=> bor.est === 'golpe' },
-    { n:'Ráfaga de energía', ico:'punos', key:()=> skTecla('draAle'), cd:()=> bor.zCd, coste:()=> BOR_Z_COSTE[borMet()], act:()=> bor.est === 'rafaga' || bor.est === 'rafagaFin' },
+    { n:'Ráfaga de energía', ico:'punos', key:()=> skTecla('draAle'), cd:()=> bor.zCd, coste:()=> BOR_Z_COSTE[borMet()], act:()=> bor.zApunta || bor.est === 'rafaga' || bor.est === 'rafagaFin' },
     { n:'Agarre: patada, salto y patada', ico:'lanzar', key:()=> skTecla('draCola', SK_CLICD), cd:()=> bor.cCd, coste:()=> BOR_C_COSTE[borMet()], act:()=> bor.est === 'agarre' },
     { n:'Patada voladora (mantén y apunta)', ico:'patada', key:()=> skTecla('borV'), cd:()=> bor.vCd, coste:()=> BOR_V_COSTE[borMet()], act:()=> bor.vApunta || bor.est === 'salto' || bor.est === 'patada2' },
-    { n:'Rayo del pecho / cañón meteórico', ico:'canon', key:()=> skTecla('borB'), cd:()=> bor.bCd, coste:()=> BOR_B_COSTE[borMet()], act:()=> bor.est === 'rayo' || bor.est === 'canon' },
+    { n:'Rayo del pecho / cañón meteórico', ico:'canon', key:()=> skTecla('borB'), cd:()=> bor.bCd, coste:()=> BOR_B_COSTE[borMet()], act:()=> bor.bApunta || bor.est === 'rayo' || bor.est === 'canon' },
     { n:'Correr', ico:'vuelo', key:skVuelo, act:()=> bor.corre }
   ];
   if (h === 'mago') return [
@@ -25297,7 +25299,7 @@ const bor = { est:'', estT:0, hecho:false, pose:borPoseN({}), fase:0, mirA:0, di
               vApunta:false, vX:0, vY:0, vA:0, vD:0,
               rayoOn:false, rayoTick:0, rayoN:0,
               cargaPecho:0, brilloPuno:0, fuegoT:0,
-              zCd:0, cCd:0, vCd:0, bCd:0, pend:'', pendT:0 };
+              zCd:0, cCd:0, vCd:0, bCd:0, pend:'', pendT:0, zApunta:false, zA:0, bApunta:false, bA:0 };
 let borPresa = null;                                     // a quién lleva o persigue en el agarre / la patada
 const borPaso = { edif:null };                           // para atravesar edificios
 const borPunos = [];                                     // los puños de energía de la ráfaga
@@ -25308,7 +25310,7 @@ function borForma(){ return borMet(); }
 function borMaxHp(){ return BOR_HP; }
 function borReset(){
   Object.assign(bor, { est:'', estT:0, hecho:false, z:0, corre:false, mueveT:0, invT:0, holding:false, combo:0, comboVentana:0,
-                       agFase:'', vApunta:false, rayoOn:false, cargaPecho:0, brilloPuno:0, fuegoT:0, zCd:0, cCd:0, vCd:0, bCd:0, pend:'', pendT:0 });
+                       agFase:'', vApunta:false, rayoOn:false, cargaPecho:0, brilloPuno:0, fuegoT:0, zCd:0, cCd:0, vCd:0, bCd:0, pend:'', pendT:0, zApunta:false, bApunta:false });
   bor.pose = borPoseN({});
   borPresa = null; borPaso.edif = null; borPunos.length = 0; borRastro.length = 0;
 }
@@ -25439,20 +25441,45 @@ function borGolpeUpdate(dt){
 // ---- Z: ráfaga de energía (puñetazos rapidísimos y un golpe final), azul y morada ----
 // Si está terminando otro ataque, lo pedido se guarda un instante y sale en cuanto pueda.
 function borPide(q){ bor.pend = q; bor.pendT = 0.35; }
+// Mantener Z apunta hacia dónde se lanza (se ve la franja); al soltar, sale.
+const BOR_Z_LARGO = 230, BOR_Z_ANCHO = 64;
+function borZEmpieza(){ if (vil.intro || bor.zApunta) return; bor.zApunta = true; borZApunta(); }
+function borZApunta(){ bor.zA = apuntaHeroe(['borZ'], 0, BOR_Z_LARGO, 340).a; }
+function borZSuelta(cancelado){
+  if (!bor.zApunta) return;
+  bor.zApunta = false;
+  if (cancelado) return;
+  borZ();                                              // con la última dirección apuntada (el dedo ya se soltó)
+}
 function borZ(){
   if (vil.intro) return;
   if (!borLibre()){ borPide('z'); return; }
   if (!borGasta(BOR_Z_COSTE, BOR_Z_CD, 'zCd')) return;
   tutEv('rafaga');
-  const rv = borCercano(320);
-  borMira(rv ? Math.atan2(rv.y - player.y, rv.x - player.x) : borApunta('borZ'));
+  borMira(bor.zA);
   borPonEst('rafaga'); bor.rafN = borMet() ? 16 : 11; bor.rafDados = 0; bor.rafT = 0;
   sfx('dash');
 }
+// Lo más cercano dentro del cono hacia donde se lanzó.
+function borEnCono(R, a, abre){
+  let best = null, bd = R;
+  for (const pool of [enemies, civilians]){
+    for (let i = 0; i < pool.length; i++){ const t = pool[i];
+      if (t.dead || t.held || t.pacifico || t.cielo) continue;
+      const d = dist(player.x, player.y, t.x, t.y);
+      if (d >= bd) continue;
+      let da = Math.atan2(t.y - player.y, t.x - player.x) - a; da = Math.atan2(Math.sin(da), Math.cos(da));
+      if (Math.abs(da) > abre && d > 40) continue;
+      bd = d; best = t;
+    }
+  }
+  return best;
+}
 function borRafagaUpdate(dt){
-  const rv = borCercano(260), dR = rv ? dist(rv.x, rv.y, player.x, player.y) : 1e9, cerca = !!rv && dR < 220;
-  if (cerca) borMira(Math.atan2(rv.y - player.y, rv.x - player.x));          // persigue al más cercano mientras golpea
-  const v = cerca && dR > 48 ? 300 : 70;
+  // se lanza hacia donde apuntó; si alguien queda en ese camino, va a por él mientras golpea
+  const rv = borEnCono(240, bor.zA, 0.6), dR = rv ? dist(rv.x, rv.y, player.x, player.y) : 1e9;
+  if (rv) borMira(Math.atan2(rv.y - player.y, rv.x - player.x)); else borMira(bor.zA);
+  const v = rv ? (dR > 48 ? 320 : 60) : 300;
   player.vx = Math.cos(bor.dirA)*v; player.vy = Math.sin(bor.dirA)*v;
   bor.rafT -= dt;
   while (bor.rafT <= 0 && bor.rafDados < bor.rafN){
@@ -25633,12 +25660,21 @@ function borPatada2Update(dt){
   if (bor.estT > 0.5){ borPonEst(''); bor.z = 0; desatascar(22); }
 }
 // ---- B: rayo del pecho (cian); en la meteórica, el cañón de estrella colapsante ----
+// Mantener B apunta (la línea del rayo, o la franja del cañón); al soltar, dispara hacia ahí.
+function borBEmpieza(){ if (vil.intro || bor.bApunta) return; bor.bApunta = true; borBApunta(); }
+function borBApunta(){ bor.bA = apuntaHeroe(['borB'], -40*BOR_ESC, 520, 520).a; }
+function borBSuelta(cancelado){
+  if (!bor.bApunta) return;
+  bor.bApunta = false;
+  if (cancelado) return;
+  borB();
+}
 function borB(){
   if (vil.intro) return;
   if (!borLibre()){ borPide('b'); return; }
   if (!borGasta(BOR_B_COSTE, BOR_B_CD, 'bCd')) return;
   tutEv('rayo');
-  borMira(borApunta('borB'));
+  borMira(bor.bA);
   bor.rayoOn = false; bor.rayoTick = 0; bor.rayoN = 0;
   player.vx = player.vy = 0;
   if (borMet()){ borPonEst('canon'); bor.invT = Math.max(bor.invT, 0.4); toast('¡RUGIENTE CAÑÓN DE ESTRELLA COLAPSANTE!', 2.2); }
@@ -25650,8 +25686,7 @@ function borRayoUpdate(dt){
   const R = borHaz(), canon = bor.est === 'canon';
   player.vx = player.vy = 0;
   if (bor.estT < R.carga){
-    bor.cargaPecho = bor.estT/R.carga;
-    borMira(giraHacia(bor.dirA, borApunta('borB'), (canon ? 1.2 : 3)*dt));
+    bor.cargaPecho = bor.estT/R.carga;                 // la dirección ya quedó fijada al soltar
     if (canon){ shake(2 + 5*bor.cargaPecho, 0.1); if (Math.random() < 0.8){ const p = borPecho(), a = Math.random()*Math.PI*2, r = rand(40, 120);
       addParticles(p.x + Math.cos(a)*r, p.y + Math.sin(a)*r, Math.random() < 0.5 ? '#c070ff' : '#ffffff', 1, 40); } }
     return;
@@ -25790,6 +25825,8 @@ function updateBoros(dt){
     }
   }
   if (bor.vApunta) borVColoca();
+  if (bor.zApunta) borZApunta();
+  if (bor.bApunta) borBApunta();
   switch (bor.est){
     case 'golpe': borGolpeUpdate(dt); break;
     case 'rafaga': borRafagaUpdate(dt); break;
@@ -25837,11 +25874,11 @@ function updateBoros(dt){
   }
   const corre = bor.corre && mueve && !bor.vApunta;
   let vel = (corre ? BOR_CORRE : BOR_VEL)*(met ? BOR_MET_VEL : 1);
-  if (bor.vApunta) vel *= 0.55;
+  if (bor.vApunta || bor.zApunta || bor.bApunta) vel *= 0.55;
   const len = Math.hypot(dx, dy) || 1, k = 1 - Math.exp(-14*dt);
   player.vx = lerp(player.vx, dx/len*vel*m, k);
   player.vy = lerp(player.vy, dy/len*vel*m, k);
-  if (Math.abs(player.vx) > 8 && !bor.vApunta) player.facing = player.vx > 0 ? 1 : -1;
+  if (Math.abs(player.vx) > 8 && !bor.vApunta && !bor.zApunta && !bor.bApunta) player.facing = player.vx > 0 ? 1 : -1;
   const x0 = player.x, y0 = player.y;
   player.x = clamp(player.x + player.vx*dt, 30, WORLD_W - 30);
   player.y = clamp(player.y + player.vy*dt, 30, WORLD_H - 30);
@@ -25861,6 +25898,8 @@ function updateBoros(dt){
     collideBuildings(player, 20, dt, 0);
   }
   if (bor.vApunta) player.facing = Math.cos(bor.vA) >= 0 ? 1 : -1;
+  else if (bor.bApunta) player.facing = Math.cos(bor.bA) >= 0 ? 1 : -1;
+  else if (bor.zApunta) player.facing = Math.cos(bor.zA) >= 0 ? 1 : -1;
   else {
     const a = (lastInputTouch && !aimJoy.active) ? (v > 30 ? Math.atan2(player.vy, player.vx) : bor.mirA) : borApunta('golpe');
     bor.mirA = a;
@@ -25924,6 +25963,8 @@ function borPoseObj(){
       if (bor.estT < 0.95) return P({ lean:0.38 + Math.sin(t*60)*0.03, mF:0.45, rF:0.65, mB:-0.45, rB:0.6, bF:0.2, cF:0.25, bB:0.1, cB:0.3, cab:0.2 });
       return P({ lean:-0.22, cab:-0.35, mF:0.4, rF:0.2, mB:-0.45, rB:0.2, bF:2.55, cF:0.25, bB:2.35, cB:0.3 });
   }
+  if (bor.bApunta) return P({ lean:-0.18, cab:-0.15, mF:0.4, rF:0.5, mB:-0.4, rB:0.4, bF:-0.5, cF:1.2, bB:-0.7, cB:1.0 });   // saca pecho
+  if (bor.zApunta) return P({ lean:-0.18, mF:0.45, rF:0.5, mB:-0.4, rB:0.4, bF:-0.85, cF:0.9, bB:0.9, cB:1.8, cab:0.1 });    // puño atrás
   if (bor.vApunta) return P({ lean:0.42, mF:0.75, rF:1.5, mB:-0.55, rB:1.3, bF:0.25, cF:0.5, bB:-0.4, cB:0.6 });   // agachado, listo para saltar
   const sp = Math.hypot(player.vx || 0, player.vy || 0);
   if (sp > 25){
@@ -26005,6 +26046,36 @@ function drawBorosEfectos(){
       ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x + ca*120*(1.2 - k), p.y + sa*90*(1.2 - k)); ctx.stroke();
       ctx.globalAlpha = 0.9*k; ctx.strokeStyle = '#f0e0ff'; ctx.lineWidth = 3*k;
       ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x + ca*120*(1.2 - k), p.y + sa*90*(1.2 - k)); ctx.stroke();
+    }
+    ctx.restore();
+  }
+  if (bor.zApunta){                                                       // hacia dónde se lanzará la ráfaga
+    const p0 = S(player.x, player.y), a = bor.zA, L = BOR_Z_LARGO, nx = -Math.sin(a)*BOR_Z_ANCHO/2, ny = Math.cos(a)*BOR_Z_ANCHO/2;
+    ctx.save(); ctx.lineCap = 'round';
+    ctx.fillStyle = 'rgba(110,120,255,0.14)'; ctx.strokeStyle = 'rgba(170,140,255,0.8)'; ctx.lineWidth = 2; ctx.setLineDash([10, 8]); ctx.lineDashOffset = -gameTime*60;
+    ctx.beginPath(); ctx.moveTo(p0.x + nx, p0.y + ny); ctx.lineTo(p0.x + nx + Math.cos(a)*L, p0.y + ny + Math.sin(a)*L);
+    ctx.lineTo(p0.x - nx + Math.cos(a)*L, p0.y - ny + Math.sin(a)*L); ctx.lineTo(p0.x - nx, p0.y - ny); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.setLineDash([]);
+    const ex = p0.x + Math.cos(a)*L, ey = p0.y + Math.sin(a)*L;
+    ctx.fillStyle = '#b48aff'; ctx.beginPath(); ctx.moveTo(ex + Math.cos(a)*14, ey + Math.sin(a)*14);
+    ctx.lineTo(ex + Math.cos(a + 2.5)*12, ey + Math.sin(a + 2.5)*12); ctx.lineTo(ex + Math.cos(a - 2.5)*12, ey + Math.sin(a - 2.5)*12); ctx.fill();
+    ctx.restore();
+  }
+  if (bor.bApunta){                                                       // la línea del rayo (o la franja del cañón)
+    const o = borPecho(), p0 = S(o.x, o.y), a = bor.bA;
+    ctx.save(); ctx.lineCap = 'round';
+    if (borMet()){
+      const L = 900, an = BOR_CANON.ancho, nx = -Math.sin(a)*an/2, ny = Math.cos(a)*an/2;
+      ctx.fillStyle = 'rgba(170,90,255,0.16)'; ctx.strokeStyle = 'rgba(200,150,255,0.7)'; ctx.lineWidth = 2; ctx.setLineDash([12, 8]); ctx.lineDashOffset = -gameTime*60;
+      ctx.beginPath(); ctx.moveTo(p0.x + nx, p0.y + ny); ctx.lineTo(p0.x + nx + Math.cos(a)*L, p0.y + ny + Math.sin(a)*L);
+      ctx.lineTo(p0.x - nx + Math.cos(a)*L, p0.y - ny + Math.sin(a)*L); ctx.lineTo(p0.x - nx, p0.y - ny); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.setLineDash([]);
+    } else {
+      const L = 520, ex = p0.x + Math.cos(a)*L, ey = p0.y + Math.sin(a)*L;
+      ctx.strokeStyle = 'rgba(70,220,255,0.25)'; ctx.lineWidth = BOR_RAYO.ancho;
+      ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.lineTo(ex, ey); ctx.stroke();
+      ctx.strokeStyle = 'rgba(70,220,255,0.75)'; ctx.lineWidth = 3; ctx.setLineDash([10, 8]); ctx.lineDashOffset = -gameTime*60;
+      ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.lineTo(ex, ey); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle = '#5ff2ff'; ctx.beginPath(); ctx.moveTo(ex + Math.cos(a)*12, ey + Math.sin(a)*12);
+      ctx.lineTo(ex + Math.cos(a + 2.5)*10, ey + Math.sin(a + 2.5)*10); ctx.lineTo(ex + Math.cos(a - 2.5)*10, ey + Math.sin(a - 2.5)*10); ctx.fill();
     }
     ctx.restore();
   }
@@ -31561,7 +31632,7 @@ function pasosTutorial(h){
     { tit:'COMBO DE PUÑETAZOS', t:'Clic izquierdo: puñetazo. Encadena tres seguidos (o mantén el clic): el tercero manda a volar.', m:'Toca GOLPE junto a los policías (mantén para encadenar).',
       prep(){ TUT.lista = [0, 1, 2].map(i=> tutEnemigo('police', 150, i*0.6)); TUT.marca = TUT.lista[0]; },
       ok: ()=> (TUT.ev.golpe || 0) >= 3 || vivos(TUT.lista) === 0, cuenta: ()=> Math.min(3, TUT.ev.golpe || 0) + '/3' },
-    { tit:'RÁFAGA DE ENERGÍA', t:'Pulsa ' + K_('draAle') + ': una lluvia de puñetazos azules y morados persigue al más cercano y acaba con un golpe que lo barre todo.', m:'Toca RÁFAGA con los soldados cerca.',
+    { tit:'RÁFAGA DE ENERGÍA', t:'Mantén ' + K_('draAle') + ' y apunta hacia dónde lanzarte; al soltar, una lluvia de puñetazos azules y morados va hacia ahí y acaba con un golpe que lo barre todo.', m:'Mantén RÁFAGA, apunta a los soldados y suelta.',
       prep(){ TUT.lista = [0, 1].map(i=> tutEnemigo('military', 130, i*0.5)); TUT.marca = TUT.lista[0]; }, ok: ()=> (TUT.ev.rafaga || 0) >= 1 },
     { tit:'AGARRE Y DOS PATADAS', t:'Junto al soldado pulsa ' + K_('draCola') + ' (o clic derecho): lo agarras, una patada floja lo lanza hacia la mira, de un salto llegas hasta él y la segunda patada lo manda volando.', m:'Toca AGARRE junto al soldado.',
       prep(){ TUT.lista = [tutEnemigo('military', 80, 0)]; TUT.marca = TUT.lista[0]; },
@@ -31569,7 +31640,7 @@ function pasosTutorial(h){
       ok: ()=> (TUT.ev.agarre || 0) >= 1 && bor.est !== 'agarre' },
     { tit:'PATADA VOLADORA', t:'Mantén ' + K_('borV') + ': apuntas el salto (si cae cerca de alguien, va a por él). Al soltar, saltas atravesando lo que haya y lo pateas.', m:'Mantén PATADA, apunta al tanque y suelta.',
       prep(){ TUT.lista = [tutEnemigo('tank', 260, 0)]; TUT.marca = TUT.lista[0]; }, ok: ()=> (TUT.ev.patada || 0) >= 1 },
-    { tit:'EL RAYO DEL PECHO', t:'Pulsa ' + K_('borB') + ': un rayo sale del ojo de tu pecho. En la forma meteórica (regalo del OVNI) se convierte en un cañón colosal.', m:'Mantén RAYO, apunta y suelta.',
+    { tit:'EL RAYO DEL PECHO', t:'Mantén ' + K_('borB') + ' para apuntar (ves la línea del rayo) y suéltalo: sale del ojo de tu pecho. En la forma meteórica (regalo del OVNI) se convierte en un cañón colosal.', m:'Mantén RAYO, apunta y suelta.',
       prep(){ TUT.lista = [tutEnemigo('tank', 280, 0)]; TUT.marca = TUT.lista[0]; }, ok: ()=> (TUT.ev.rayo || 0) >= 1 }
   ];
   if (h === 'mago') return [
@@ -33182,7 +33253,7 @@ function textoControles(h){
   if (h === 'viltrum') return mov + ' moverte · <b>Clic</b> golpeas (se puede mantener para cargar) · <b>Doble toque</b> a ' + mov + ': vuelo hipersónico · <b>Clic derecho</b> agarras y lanzas · <b>Mantén</b> ' + K('draCola') + ' presa';
   if (h === 'dragon')  return mov + ' moverte · <b>Clic</b> mordisco · <b>Clic derecho</b> rayos · ' + K('draAle') + ' aletazo · <b>Mantén</b> ' + K('draCola') + ' embestida · ' + K('magTel') + ' rugido (recupera estamina) · <b>Doble toque</b> a ' + mov + ': volar';
   if (h === 'maquina') return mov + ' moverte (mantén una dirección para acelerar) · <b>Clic</b> atacas (se puede mantener) · <b>Clic derecho</b> cambias de arma · <b>Mantén</b> ' + K('draAle') + ' apuntas la incineración y al soltar la lanzas · <b>Mantén</b> ' + K('draCola') + ' motosierras';
-  if (h === 'boros')   return mov + ' moverte (doble toque o mantener: correr) · <b>Clic</b> combo de puñetazos · ' + K('draAle') + ' ráfaga de energía · ' + K('draCola') + ' agarre y dos patadas · <b>Mantén</b> ' + K('borV') + ' patada voladora · ' + K('borB') + ' rayo del pecho';
+  if (h === 'boros')   return mov + ' moverte (doble toque o mantener: correr) · <b>Clic</b> combo de puñetazos · ' + '<b>Mantén</b> ' + K('draAle') + ' ráfaga de energía · ' + K('draCola') + ' agarre y dos patadas · <b>Mantén</b> ' + K('borV') + ' patada voladora · <b>Mantén</b> ' + K('borB') + ' rayo del pecho';
   if (h === 'mago')    return mov + ' flotar · <b>Clic</b> rayo · <b>Mantén clic derecho</b> telequinesis · ' + K('draAle') + ' hielo · ' + K('draCola') + ' escudo · ' + K('magFue') + ' fuego · ' + K('magTel') + ' teletransporte';
   return mov + ' moverte · <b>Clic</b> agarras (' + K('grab') + ') y, con algo agarrado, golpeas · <b>Clic derecho</b> lanzas (' + K('throw') + ') · Devora para evolucionar a <b>COLOSO</b>';
 }
@@ -34098,8 +34169,8 @@ function refreshModeText(){
     d.innerHTML = 'La ciudad entera contra ti. Eres <b>Boros</b>, el dominador del universo, ya sin su armadura: '+
       'reparte puñetazos, corre atravesando manzanas y con el regalo del OVNI libera su <b>forma meteórica</b>.<br>'+
       '<span class="moderec">Recomendado: <b>WASD</b> (doble toque o mantener: correr). <b>Click</b> combo de puñetazos, '+
-      '<b>Z</b> ráfaga de energía, <b>C</b> agarre con dos patadas, <b>mantener V</b> patada voladora y '+
-      '<b>B</b> el rayo del pecho (el cañón, en la forma meteórica).</span>';
+      '<b>mantener Z</b> apunta la ráfaga de energía, <b>C</b> agarre con dos patadas, <b>mantener V</b> patada voladora y '+
+      '<b>mantener B</b> apunta el rayo del pecho (el cañón, en la forma meteórica).</span>';
     v.innerHTML = 'Dos jugadores en el mismo teclado. <b>Boros</b> debe aguantar 2:30 mientras '+
       'el <b>Jugador 2</b> gasta materiales desplegando tropas donde quiera.<br>'+
       '<span class="moderec"><b class="tipmovil">En móvil funciona, pero este modo se disfruta mucho más en ordenador.</b>'+
@@ -34592,12 +34663,12 @@ function fichaHeroe(h){
       desc: 'El dominador del universo, ya sin su armadura. Pelea a puñetazos, corre atravesando edificios y se regenera poco a poco. Con el regalo del OVNI libera su forma meteórica.',
       t: [[mover, 'Moverse (doble toque o mantener la dirección: correr atravesando edificios y arrollando a la gente)'],
           ['Click izq. / ' + K('grab'), 'Combo de tres puñetazos; el tercero manda a volar (mantén para encadenarlos)'],
-          [K('draAle'), 'Ráfaga de energía: una lluvia de puñetazos azules y morados y un golpe final que lo barre todo'],
+          ['Mantén ' + K('draAle'), 'Ráfaga de energía: apuntas hacia dónde lanzarte y al soltar sale una lluvia de puñetazos azules y morados con un golpe final que lo barre todo'],
           [K('draCola') + ' / click der.', 'Agarre: una patada floja lo lanza, de un salto llegas hasta él y la segunda patada lo manda volando entre chispas moradas'],
           ['Mantén ' + K('borV'), 'Patada voladora: apunta el salto y suelta; atraviesa edificios y patea a quien pille'],
-          [K('borB'), 'Rayo del pecho; en la forma meteórica, el Rugiente Cañón de Estrella Colapsante'],
+          ['Mantén ' + K('borB'), 'Apunta el rayo del pecho (ves su línea) y suéltalo; en la forma meteórica, el Rugiente Cañón de Estrella Colapsante'],
           ['OVNI', 'Forma meteórica: corre más, pega más fuerte, arde en llamas azules y moradas y abrasa lo que toca']],
-      m: 'GOLPE (mantén: combo), RÁFAGA y AGARRE al tocarlos; PATADA y RAYO son joysticks: mantén, apunta y suelta. Joystick al tope para correr.' }
+      m: 'GOLPE (mantén: combo) y AGARRE al tocarlos; RÁFAGA, PATADA y RAYO son joysticks: mantén, apunta y suelta. Joystick al tope para correr.' }
   };
   return f[normHeroe(h)];
 }
