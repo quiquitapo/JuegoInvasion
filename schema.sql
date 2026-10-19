@@ -13,17 +13,17 @@ CREATE TABLE IF NOT EXISTS scores (
   id          BIGSERIAL PRIMARY KEY,
   player_name VARCHAR(14)  NOT NULL,
   score       INTEGER      NOT NULL CHECK (score >= 0 AND score <= 5000000),
-  hero        VARCHAR(16)  NOT NULL DEFAULT 'alien',   -- 'alien' | 'viltrum' | 'dragon' | 'maquina' | 'mago'
+  hero        VARCHAR(16)  NOT NULL DEFAULT 'alien',   -- 'alien' | 'viltrum' | 'dragon' | 'maquina' | 'mago' | 'boros'
   device      VARCHAR(8)   NOT NULL DEFAULT 'pc',
   created_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
--- Solo se aceptan los cinco personajes del juego. NOT VALID: se exige a todo
+-- Solo se aceptan los seis personajes del juego. NOT VALID: se exige a todo
 -- lo que se guarde a partir de ahora sin revisar lo antiguo, así que nunca
 -- falla sobre una base que ya tenga puntajes.
 ALTER TABLE scores DROP CONSTRAINT IF EXISTS scores_hero_valido;
 ALTER TABLE scores ADD CONSTRAINT scores_hero_valido
-  CHECK (hero IN ('alien', 'viltrum', 'dragon', 'maquina', 'mago')) NOT VALID;
+  CHECK (hero IN ('alien', 'viltrum', 'dragon', 'maquina', 'mago', 'boros')) NOT VALID;
 
 -- Cada mapa (CIUDAD, MUNDO ALIENÍGENA y CASTIGO DIVINO) tiene su propio
 -- ranking. Los puntajes que ya existían son de la ciudad.
@@ -83,6 +83,12 @@ CREATE OR REPLACE VIEW ranking_mago AS
   SELECT RANK() OVER (ORDER BY score DESC) AS puesto,
          player_name AS jugador, score AS puntaje, device AS dispositivo, created_at AS fecha
   FROM scores WHERE hero = 'mago' AND mapa = 'ciudad'
+  ORDER BY score DESC, created_at ASC;
+
+CREATE OR REPLACE VIEW ranking_boros AS
+  SELECT RANK() OVER (ORDER BY score DESC) AS puesto,
+         player_name AS jugador, score AS puntaje, device AS dispositivo, created_at AS fecha
+  FROM scores WHERE hero = 'boros' AND mapa = 'ciudad'
   ORDER BY score DESC, created_at ASC;
 
 

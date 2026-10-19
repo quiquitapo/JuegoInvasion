@@ -16,7 +16,7 @@ import { nombreInapropiado } from './_nombres.js';
 
 const MAX_SCORE    = 5000000;   // techo defensivo: por encima se rechaza
 const MAX_NOMBRE   = 14;
-const HEROES       = ['alien', 'viltrum', 'dragon', 'maquina', 'mago'];
+const HEROES       = ['alien', 'viltrum', 'dragon', 'maquina', 'mago', 'boros'];
 const DISPOSITIVOS = ['pc', 'movil'];
 const MAPAS        = ['ciudad', 'alien', 'infierno'];
 

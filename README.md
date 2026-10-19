@@ -34,18 +34,19 @@ automáticamente en endpoints: `api/scores.js` se publica como `/api/scores`.
 
 Guarda esa cadena: es la que usarás como `DATABASE_URL`.
 
-### Si ya tenías la base creada (añadir al dragón, la máquina y el mago)
+### Si ya tenías la base creada (añadir al dragón, la máquina, el mago y Boros)
 
 Vuelve a pegar y ejecutar **los dos** archivos, `schema.sql` y
 `schema_salas.sql`, en el SQL Editor de Neon. Están hechos para ejecutarse
 sobre una base existente: no borran ni cambian ningún puntaje, solo añaden lo
 que falte:
 
-- el control de que solo se guarden los cinco personajes (`alien`,
-  `viltrum`, `dragon`, `maquina` y `mago`), tanto en el ranking como en las
-  salas;
-- cinco vistas de solo lectura, una por personaje: `ranking_alien`,
-  `ranking_viltrum`, `ranking_dragon`, `ranking_maquina` y `ranking_mago`.
+- el control de que solo se guarden los seis personajes (`alien`,
+  `viltrum`, `dragon`, `maquina`, `mago` y `boros`), tanto en el ranking como
+  en las salas;
+- seis vistas de solo lectura, una por personaje: `ranking_alien`,
+  `ranking_viltrum`, `ranking_dragon`, `ranking_maquina`, `ranking_mago` y
+  `ranking_boros`.
   Sirven para ver cada tabla de puntajes desde Neon
   (`SELECT * FROM ranking_mago;`); el juego no las necesita.
 
@@ -138,7 +139,7 @@ juego solo conoce la ruta `/api/scores`.
 ### `GET /api/scores?limit=25&hero=alien`
 
 Hay **una tabla por personaje**, igual que en el ranking local. `hero` acepta
-`alien`, `viltrum`, `dragon`, `maquina` o `mago`; si se omite, devuelve el
+`alien`, `viltrum`, `dragon`, `maquina`, `mago` o `boros`; si se omite, devuelve el
 ranking conjunto.
 
 ```json
