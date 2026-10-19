@@ -81,9 +81,9 @@
   .mapcard.on { border-color:#2fe86e; color:#7bffa0; background:rgba(20,54,32,0.9); box-shadow:0 0 10px rgba(47,232,110,0.3); }
   .mapcard[data-pm="alien"].on { border-color:#7fe8ff; color:#bff6ff; background:rgba(16,40,54,0.9); box-shadow:0 0 10px rgba(127,232,255,0.3); }
   .mapcard[data-pm="infierno"].on { border-color:#ff7a3a; color:#ffd36a; background:rgba(54,16,8,0.9); box-shadow:0 0 10px rgba(255,122,58,0.3); }
-  /* la elección de mapa al invadir: postal más grande con nombre y una línea */
-  #modeselect .mapcards.grandes { gap:10px; margin:0 0 6px; width:min(640px, 94vw); }
-  #modeselect .mapcard { max-width:200px; padding:6px 6px 8px; gap:4px; font-size:0.5rem; background:rgba(10,22,16,0.8); color:#bfe9cd; border-color:#24506b; font-weight:400; }
+  /* la elección de mapa al invadir: postal con su nombre (la descripción, debajo) */
+  #modeselect .mapcards.grandes { gap:8px; margin:0 0 4px; width:min(480px, 94vw); }
+  #modeselect .mapcard { max-width:150px; padding:5px 5px 6px; gap:4px; font-size:0.5rem; background:rgba(10,22,16,0.8); color:#bfe9cd; border-color:#24506b; font-weight:400; }
   #modeselect .mapcard b { font-size:0.56rem; letter-spacing:1px; }
   #modeselect .mapcard small { font-size:0.44rem; line-height:1.4; color:#8fb3a0; letter-spacing:0; }
   #modeselect .mapcard.on { border-color:#7bffa0; color:#7bffa0; background:rgba(20,54,32,0.92); box-shadow:0 0 12px rgba(123,255,160,0.35); }
@@ -355,8 +355,10 @@
     100% { opacity:1; transform:scale(1) rotate(0deg); filter:blur(0) brightness(1); }
   }
   /* cada tarjeta entra desde su lado y frena al llegar a su sitio */
-  #modeselect.anim #cardInvasion { animation: slideFromLeft  .62s cubic-bezier(.16,.84,.32,1) both .12s; }
-  #modeselect.anim #cardVs       { animation: slideFromRight .62s cubic-bezier(.16,.84,.32,1) both .12s; }
+  #modeselect.anim .modelist .modecard:nth-child(1),
+  .modelist.entra .modecard:nth-child(1) { animation: slideFromLeft  .62s cubic-bezier(.16,.84,.32,1) both .12s; }
+  #modeselect.anim .modelist .modecard:nth-child(2),
+  .modelist.entra .modecard:nth-child(2) { animation: slideFromRight .62s cubic-bezier(.16,.84,.32,1) both .12s; }
   @keyframes slideFromLeft {
     0%   { opacity:0; transform:translateX(-115%); }
     100% { opacity:1; transform:translateX(0); }
@@ -368,8 +370,7 @@
   /* Windows suele traer "efectos de animación" desactivados, lo que anulaba
      estas animaciones en escritorio. Ahora manda el ajuste del juego. */
   body.no-anim #modeselect.anim .logo2,
-  body.no-anim #modeselect.anim #cardInvasion,
-  body.no-anim #modeselect.anim #cardVs { animation:none !important; }
+  body.no-anim #modeselect .modecard { animation:none !important; }
 
   /* tentáculos que asoman alrededor del botón JUGAR */
   .btnwrap { position:relative; display:inline-flex; align-items:center; justify-content:center; }
@@ -377,18 +378,67 @@
              pointer-events:none; z-index:0; background:transparent; border:0; }
   .btnwrap .modebtn { position:relative; z-index:1; }
 
-  .modelist { display:flex; gap:16px; flex-wrap:wrap; justify-content:center;
-              width:min(920px,96vw); margin-bottom:18px; }
-  .modecard { flex:1 1 380px; max-width:440px; display:flex; flex-direction:column; align-items:center;
+  /* pasos: 1 mapa, 2 cómo jugar */
+  .mshead { display:flex; align-items:center; gap:8px; color:#8fbfa2; font-size:0.62rem; letter-spacing:3px; margin:6px 0 7px; }
+  .mshead span { display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; border-radius:50%;
+                 background:#2fe86e; color:#04140a; font-weight:900; letter-spacing:0; font-size:0.62rem; }
+  .mapdesc { color:#8fb3a0; font-size:0.6rem; line-height:1.45; min-height:1.45em; margin:2px 0 8px; max-width:min(520px, 92vw); }
+  /* pestañas 1 JUGADOR / 2 JUGADORES */
+  .mstabs { display:inline-flex; gap:4px; padding:4px; border-radius:11px; background:rgba(0,0,0,0.45);
+            border:2px solid #1f5c37; max-width:96vw; }
+  .mstab { display:inline-flex; align-items:center; gap:8px; font:inherit; font-weight:900; font-size:0.78rem; letter-spacing:2px;
+           padding:9px 20px; border:0; border-radius:8px; cursor:pointer; color:#8fbfa2; background:transparent;
+           transition:background .15s ease, color .15s ease, transform .07s ease; }
+  .mstab svg { width:18px; height:18px; fill:currentColor; flex:0 0 auto; }
+  .mstab:hover { color:#c9f7d8; background:rgba(47,232,110,0.1); }
+  .mstab:active { transform:translateY(2px); }
+  .mstab.on { color:#04140a; background:linear-gradient(180deg,#2fe86e,#0f8a3c);
+              box-shadow:0 3px 0 #0a5e28, inset 0 2px 0 rgba(200,255,220,0.35); }
+  .modelist { display:flex; gap:14px; flex-wrap:wrap; justify-content:center; align-items:stretch;
+              width:min(920px,96vw); margin:12px 0 4px; }
+  .modecard { flex:1 1 360px; max-width:440px; display:flex; flex-direction:column; align-items:center;
               background:linear-gradient(180deg, rgba(20,40,28,0.6), rgba(8,16,11,0.6));
-              border:2px solid #1f5c37; border-radius:6px; padding:18px 18px 20px; }
+              border:2px solid #1f5c37; border-radius:8px; padding:14px 16px 16px; }
   .modecard:hover { border-color:#2fe86e; }
   .modename { color:#7bffa0; font-size:1rem; font-weight:900; letter-spacing:3px; }
-  .modetag { color:#ffe066; font-size:0.6rem; letter-spacing:2px; margin:4px 0 10px; }
-  .modedesc { color:#8fbfa2; font-size:0.68rem; line-height:1.65; text-align:left; margin-bottom:14px; }
-  .modedesc b { color:#c9f7d8; }
+  .modetag { color:#ffe066; font-size:0.56rem; letter-spacing:2px; margin:3px 0 8px; }
+  .modedesc { color:#a7d4b6; font-size:0.66rem; line-height:1.55; margin-bottom:6px; max-width:400px; }
+  .modedesc b { color:#e2ffeb; }
+  .modectl { color:#6fa382; font-size:0.56rem; line-height:1.5; margin-bottom:10px; }
+  .modectl b { color:#9fd9b4; }
   .moderec { display:block; margin-top:10px; padding-top:9px; border-top:1px dashed #1f4a2c; color:#6fa382; }
   .modebtn { padding:11px 26px; font-size:0.95rem; flex:0 0 auto; }
+  .btncol { display:flex; flex-direction:column; align-items:center; gap:4px; }
+  .btncol .modebtn2 { margin-top:8px; padding:8px 18px; }
+  #cardVs { border-color:#5c1f2a; background:linear-gradient(180deg, rgba(44,14,20,0.6), rgba(14,6,8,0.62)); }
+  #cardVs:hover { border-color:#ff6a7a; }
+  #cardVs .modename { color:#ff9aa6; }
+  #cardDoble { border-color:#1f4a6b; background:linear-gradient(180deg, rgba(12,30,46,0.6), rgba(5,12,18,0.62)); }
+  #cardDoble:hover { border-color:#7fd0ff; }
+  #cardDoble .modename { color:#9fdcff; }
+  #cardDoble .modebtn { background:linear-gradient(180deg,#5cc8ff,#1f6fae); box-shadow:0 6px 0 #154d7a, 0 8px 18px rgba(0,0,0,0.5), inset 0 2px 0 rgba(220,240,255,0.4); }
+  #cardLeyenda .modebtn { background:linear-gradient(180deg,#ffd257,#c08412); box-shadow:0 6px 0 #7a520a, 0 8px 18px rgba(0,0,0,0.5), inset 0 2px 0 rgba(255,240,200,0.45); }
+  #modeselect .logo2 { width:min(170px,40vw); }
+  @media (min-width: 561px){
+    #modeselect .playrow { flex-wrap:nowrap; }
+    #modeselect .modeanim { flex:0 1 200px; min-width:110px; }
+  }
+  @media (max-height: 830px){
+    #modeselect .logo2 { width:min(112px,30vw); }
+    #modeselect .mapcard { max-width:116px; }
+    #modeselect .mapcard img { aspect-ratio:2/1; object-fit:cover; }
+    .mshead { margin:4px 0 5px; }
+    .mapdesc { margin:1px 0 5px; }
+    .modelist { margin-top:9px; }
+    .modecard { padding:11px 14px 13px; }
+  }
+  @media (max-height: 480px){ #modeselect .logo2 { display:none; } }
+  @media (max-width: 560px){
+    .mstab { padding:9px 13px; font-size:0.7rem; letter-spacing:1px; gap:6px; }
+    .modecard { padding:12px 10px 14px; }
+    .modecard .modeanim { width:150px; flex-basis:150px; }
+    .modebtn { padding:10px 20px; }
+  }
   .playrow { display:flex; align-items:center; justify-content:center; gap:10px;
              margin-top:auto; width:100%; flex-wrap:wrap; }
   /* ---- VS LEGENDARIO ---- */
@@ -396,6 +446,7 @@
   #cardLeyenda:hover { border-color:#ffd257; }
   #cardLeyenda .modename { color:#ffd257; }
   #leyRec { color:#ffe9a0; letter-spacing:1px; }
+  #cardLeyenda .modedesc b { color:#ffe9a0; }
   #leyRec b { color:#ffd257; font-size:0.85rem; }
   .leytitulo { color:#ffd257; font-weight:900; font-size:clamp(1.3rem, 5vw, 2.1rem); letter-spacing:4px;
                text-shadow:0 0 14px rgba(255,190,60,0.55), 3px 3px 0 #3a2404; margin-bottom:12px; }
@@ -1527,90 +1578,78 @@
       <svg class="ico-cerrar" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3v6H3M21 9h-6V3M15 21v-6h6M3 15h6v6"/></svg>
     </button>
     <img id="gamelogo2" class="gamelogo logo2" alt="Invasión">
-    <div class="subtitle">¿Cómo quieres invadir?</div>
-    <div class="mapslbl grande">MAPAS:</div>
+    <div class="mshead"><span>1</span> ELIGE EL MAPA</div>
     <div class="mapcards grandes">
-      <button type="button" class="mapbtn mapcard on" data-mapa="ciudad"><img data-minimapa="ciudad" alt="">
-        <b>CIUDAD</b><small>La ciudad humana de siempre: policía, ejército y blindados.</small></button>
-      <button type="button" class="mapbtn mapcard" data-mapa="alien"><img data-minimapa="alien" alt="">
-        <b>MUNDO ALIENÍGENA</b><small>El planeta marciano: ciudad futurista, su ejército y sus jefes.</small></button>
-      <button type="button" class="mapbtn mapcard" data-mapa="infierno"><img data-minimapa="infierno" alt="">
-        <b>CASTIGO DIVINO</b><small>El infierno: ruinas, lava y todos a los que mataste.</small></button>
+      <button type="button" class="mapbtn mapcard on" data-mapa="ciudad"><img data-minimapa="ciudad" alt=""><b>CIUDAD</b></button>
+      <button type="button" class="mapbtn mapcard" data-mapa="alien"><img data-minimapa="alien" alt=""><b>ALIENÍGENA</b></button>
+      <button type="button" class="mapbtn mapcard" data-mapa="infierno"><img data-minimapa="infierno" alt=""><b>CASTIGO DIVINO</b></button>
+    </div>
+    <div class="mapdesc" id="mapDesc"></div>
+
+    <div class="mshead"><span>2</span> ELIGE CÓMO JUGAR</div>
+    <div class="mstabs" role="tablist">
+      <button type="button" class="mstab on" data-tab="1" role="tab" aria-selected="true">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7z"/></svg>1 JUGADOR</button>
+      <button type="button" class="mstab" data-tab="2" role="tab" aria-selected="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="8" r="3.4"/><circle cx="16.5" cy="8.6" r="3"/><path d="M1.5 21c0-4 2.9-6.4 6.5-6.4s6.5 2.4 6.5 6.4z"/><path d="M15.4 14.7c3.8-.4 7.1 1.7 7.1 6.3h-6.3c0-2.5-.3-4.6-.8-6.3z"/></svg>2 JUGADORES</button>
     </div>
 
-    <div class="modelist">
+    <div class="modelist" id="panel1J">
       <div class="modecard" id="cardInvasion">
-        <div class="modename">MODO INVASIÓN</div>
-        <div class="modetag">1 jugador · supervivencia</div>
-        <div class="modedesc" id="descInvasion">
-          La ciudad entera contra ti. Devora civiles para evolucionar de <b>CRÍA</b> a <b>COLOSO</b>,
-          demuele edificios y aguanta oleadas cada vez más duras: policía, ejército, blindados y,
-          al final, helicópteros artillados y cañones de asedio. Sobrevive lo máximo posible
-          y acumula puntaje.<br>
-          <span class="moderec">Recomendado: <b>WASD</b> para moverte y el <b>ratón</b> para dirigir el tentáculo
-          (<b>click izq.</b> agarra, <b>click der.</b> lanza). Si prefieres solo teclado, usa
-          <b>E</b> para agarrar y <b>Q</b> para lanzar. Todo se puede cambiar en <b>Controles</b>.</span>
-        </div>
+        <div class="modename">INVASIÓN</div>
+        <div class="modetag">Supervivencia · el modo principal</div>
+        <div class="modedesc" id="descInvasion">Devora civiles, evoluciona de <b>CRÍA</b> a <b>COLOSO</b> y aguanta oleadas cada vez más duras. ¡Consigue el mayor puntaje!</div>
+        <div class="modectl" id="ctlInvasion"><b>WASD</b> moverse · <b>Click</b> agarrar · <b>Click der.</b> lanzar</div>
         <div class="playrow">
+          <canvas class="modeanim" id="animInvasion" width="230" height="130"></canvas>
           <span class="btnwrap">
             <canvas class="btntent" id="tentInvasion" width="168" height="88"></canvas>
             <button class="big modebtn" id="btnModeInvasion">JUGAR</button>
           </span>
-          <canvas class="modeanim" id="animInvasion" width="230" height="130"></canvas>
-        </div>
-      </div>
-
-      <div class="modecard" id="cardVs">
-        <div class="modename">CONTRA OTRO JUGADOR</div>
-        <div class="modetag">2 jugadores · duelo a 2:30</div>
-        <div class="modedesc" id="descVs">
-          Duelo en el mismo teclado. El <b>alien</b> debe <b>sobrevivir 1 minuto y 30 segundos</b> para ganar.
-          El <b>Jugador 2</b> comanda al ejército: gana <b>materiales al dañar al alien</b> y los gasta en
-          desplegar unidades donde quiera, como plantar semillas. Si acaba con el alien antes de que
-          se agote el tiempo, gana él.<br>
-          <span class="moderec"><b class="tipmovil">En móvil funciona, pero este modo se disfruta mucho más en ordenador.</b>Recomendado: el <b>alien</b> juega con <b>WASD + ratón</b> y el
-          <b>Jugador 2</b> con las <b>flechas</b> del teclado, colocando unidades con <b>Start (Intro)</b>
-          y cambiando de unidad con <b>Re Pág / Av Pág</b>. Puedes reasignar las teclas de
-          <b>ambos jugadores</b> en <b>Controles</b> antes de empezar.</span>
-        </div>
-        <div class="playrow">
-          <span class="btnwrap">
-            <canvas class="btntent" id="tentVs" width="168" height="88"></canvas>
-            <button class="big modebtn" id="btnModeVs">JUGAR</button>
-          </span>
-          <canvas class="modeanim" id="animVs" width="230" height="130"></canvas>
         </div>
       </div>
 
       <div class="modecard" id="cardLeyenda">
         <div class="modename">VS LEGENDARIO</div>
-        <div class="modetag">1 jugador · duelos contra la CPU</div>
-        <div class="modedesc">
-          Sin oleadas: solo <b>duelos</b>. Elige tu personaje y a tu <b>rival</b> (cualquier jefe, <b>Boros</b> o el
-          <b>viltrumita</b>, manejados por la CPU). El mapa y su clima se anuncian arriba al empezar. Cada victoria te
-          da una <b>pequeña ventaja</b> (más salud, regeneración, más OVNIS o más daño) y luego llega otro rival...
-          y más adelante, <b>dos a la vez</b>. ¿Cuántos combates aguantas?
-          <span class="moderec" id="leyRec">RÉCORD: <b>0</b> COMBATES</span>
-        </div>
+        <div class="modetag">Duelos contra la CPU</div>
+        <div class="modedesc">Elige rival: un jefe, <b>Boros</b> o el <b>viltrumita</b>. Cada victoria te da una ventaja y el siguiente rival es más duro. ¿Cuántos aguantas?</div>
+        <div class="modectl" id="leyRec">RÉCORD: <b>0</b> COMBATES</div>
         <div class="playrow">
+          <canvas class="modeanim" id="animLeyenda" width="230" height="130"></canvas>
           <span class="btnwrap">
             <button class="big modebtn" id="btnModeLeyenda">JUGAR</button>
           </span>
         </div>
       </div>
+    </div>
+
+    <div class="modelist hidden" id="panel2J">
+      <div class="modecard" id="cardVs">
+        <div class="modename">CONTRA OTRO JUGADOR</div>
+        <div class="modetag">Duelo · 2:30</div>
+        <div class="modedesc" id="descVs">Uno es el <b>invasor</b> y debe aguantar <b>2:30</b>. El otro dirige al <b>ejército</b>: despliega tropas donde quiera para detenerlo.</div>
+        <div class="modectl"><b class="tipmovil">Se disfruta más en ordenador.</b><b>LOCAL</b>: los dos en este dispositivo · <b>EN LÍNEA</b>: cada uno en el suyo</div>
+        <div class="playrow">
+          <canvas class="modeanim" id="animVs" width="230" height="130"></canvas>
+          <div class="btncol">
+            <span class="btnwrap">
+              <canvas class="btntent" id="tentVs" width="168" height="88"></canvas>
+              <button class="big modebtn" id="btnModeVs">LOCAL</button>
+            </span>
+            <button class="small modebtn2" id="btnModeVsOnline">EN LÍNEA</button>
+          </div>
+        </div>
+      </div>
 
       <div class="modecard" id="cardDoble">
         <div class="modename">DOBLE INVASIÓN</div>
-        <div class="modetag">2 jugadores en línea · cooperativo</div>
-        <div class="modedesc">
-          Invadid la ciudad <b>juntos</b>, cada uno desde su teléfono u ordenador. Uno crea una
-          <b>sala</b> y comparte el <b>código</b>; el otro lo escribe y entra. Cada jugador pone su
-          nombre y elige personaje, y se pueden repetir: dos crías, dos viltrumitas o uno de cada.<br>
-          <span class="moderec">Necesita conexión a internet y la versión publicada del juego.</span>
-        </div>
+        <div class="modetag">Cooperativo · en línea</div>
+        <div class="modedesc">Invadid la ciudad <b>juntos</b>, cada uno desde su teléfono u ordenador. Uno crea la sala y comparte el <b>código</b>.</div>
+        <div class="modectl">Necesita conexión a internet</div>
         <div class="playrow">
+          <canvas class="modeanim" id="animDoble" width="230" height="130"></canvas>
           <span class="btnwrap">
-            <button class="big modebtn" id="btnModeDoble">JUGAR EN LÍNEA</button>
+            <button class="big modebtn" id="btnModeDoble">EN LÍNEA</button>
           </span>
         </div>
       </div>
@@ -4056,10 +4095,10 @@ function pintaBotonesMapa(){
   document.querySelectorAll('.mapbtn').forEach(b=> b.classList.toggle('on', b.dataset.mapa === mapaElegido));
   const d = document.getElementById('mapDesc');
   if (d) d.textContent = mapaElegido === 'alien'
-    ? 'El planeta de los marcianos que quisieron conquistar la Tierra: ciudad futurista, su propio ejército y su jefe.'
+    ? 'El planeta marciano: ciudad futurista, su propio ejército y sus jefes.'
     : mapaElegido === 'infierno'
-    ? 'El castigo eterno: una ciudad en ruinas en el infierno, almas en pena y todos a los que mataste, deformados y sedientos de venganza.'
-    : 'La ciudad humana de siempre.';
+    ? 'El infierno: ruinas, lava y todos a los que mataste, sedientos de venganza.'
+    : 'La ciudad humana de siempre: policía, ejército y blindados.';
 }
 // ================= CASTIGO DIVINO =================
 // Tercer mapa: el infierno del invasor. La misma rejilla de manzanas, pero
@@ -11985,7 +12024,7 @@ function applyUIArt(){
 
 // ================= ANIMACIONES DEL SELECTOR DE MODO =================
 // Dos bucles pequeños que muestran de qué va cada modo, sin tocar el juego.
-const modeAnim = { raf:null, t:0, last:0, invCtx:null, vsCtx:null };
+const modeAnim = { raf:null, t:0, last:0, invCtx:null, vsCtx:null, leyCtx:null, dobCtx:null };
 
 // Viltrumita en miniatura para las animaciones del menú.
 function miniVil(c, x, y, r, t, hx, hy){
@@ -12459,6 +12498,76 @@ function animInvMaquina(c, t, W, H){
 // La cría y el viltrumita le lanzan un auto; el dragón, sus rayos; la máquina
 // va cambiando de arma (ráfaga, escopeta, cohete); el mago alterna mente,
 // rayo y hielo.
+// VS LEGENDARIO: Boros y el Regente se embisten y chocan en el centro.
+function drawAnimLeyenda(c, t){
+  const W = 230, H = 130, CY = 2.8, p = (t % CY)/CY;
+  const fondo = c.createRadialGradient(W/2, H*0.6, 6, W/2, H*0.6, W*0.7);
+  fondo.addColorStop(0, '#4a3208'); fondo.addColorStop(1, '#0c0803');
+  c.fillStyle = fondo; c.fillRect(0, 0, W, H);
+  c.save(); c.globalAlpha = 0.16; c.strokeStyle = '#ffd257'; c.lineWidth = 2; c.beginPath();
+  for (let i = 0; i < 14; i++){ const a = i/14*Math.PI*2 + t*0.25; c.moveTo(W/2, H*0.6); c.lineTo(W/2 + Math.cos(a)*W, H*0.6 + Math.sin(a)*W); }
+  c.stroke(); c.restore();
+  c.fillStyle = 'rgba(0,0,0,0.4)'; c.fillRect(0, H - 14, W, 14);
+  // se acercan acelerando, chocan (destello) y vuelven a su sitio
+  const choque = p > 0.42 && p < 0.62, k = p < 0.42 ? Math.pow(p/0.42, 3) : choque ? 1 : 1 - (p - 0.62)/0.38;
+  const dx = k*34, pies = H - 9;
+  c.fillStyle = 'rgba(0,0,0,0.35)';
+  c.beginPath(); c.ellipse(52 + dx, pies, 20, 4, 0, 0, Math.PI*2); c.ellipse(W - 52 - dx, pies, 20, 4, 0, 0, Math.PI*2); c.fill();
+  borRetrato(c, 52 + dx, pies, 96, 0, choque || k > 0.6 ? 'golpe' : 'quieto', t);
+  c.save(); c.translate(W - 52 - dx, pies - 27.8*1.75); c.scale(-1.75, 1.75);
+  vilFigura(c, { t, pose: choque || k > 0.6 ? 'golpe' : 'quieto', punchT:0, golpeLado:1, manos:0, carga:1, la:0, agarre:null, sangre:null, pal:VIL_REGENTE, SK:null, cabeza:null });
+  c.restore();
+  if (choque){
+    const q = (p - 0.42)/0.2;
+    c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 1 - q;
+    const rg = c.createRadialGradient(W/2, H*0.5, 1, W/2, H*0.5, 36 + q*40);
+    rg.addColorStop(0, '#fff6d0'); rg.addColorStop(0.4, 'rgba(255,200,80,0.75)'); rg.addColorStop(1, 'rgba(255,120,30,0)');
+    c.fillStyle = rg; c.fillRect(0, 0, W, H); c.restore();
+  }
+  const e = 1 + (choque ? 0.25 : 0.06*Math.sin(t*5));
+  c.save(); c.translate(W/2, 22); c.scale(e, e);
+  c.font = '900 22px "Courier New", monospace'; c.textAlign = 'center'; c.textBaseline = 'middle';
+  c.lineWidth = 4; c.strokeStyle = '#2a0404'; c.strokeText('VS', 0, 0); c.fillStyle = '#ff5a3a'; c.fillText('VS', 0, 0);
+  c.restore();
+}
+// DOBLE INVASIÓN: tu personaje y el de tu compañero, unidos por la señal, y
+// un soldado que sale volando.
+const _dobIco = {};
+function dobIcono(h){
+  const u = heroIconURL(h); if (!u) return null;
+  let im = _dobIco[u];
+  if (!im){ im = new Image(); im.src = u; _dobIco[u] = im; }
+  return im.complete && im.naturalWidth ? im : null;
+}
+function drawAnimDoble(c, t){
+  const W = 230, H = 130, CY = 3, p = (t % CY)/CY, suelo = H*0.66;
+  animGround(c, W, H);
+  const otro = hero === 'alien' ? 'viltrum' : 'alien';
+  const lista = [[hero, 44, 0, 'J1'], [otro, 108, 1.7, 'J2']];
+  // la señal entre los dos
+  c.save(); c.strokeStyle = '#7fd0ff'; c.lineWidth = 1.6;
+  for (let i = 0; i < 3; i++){
+    const q = ((t*1.4 + i/3) % 1);
+    c.globalAlpha = (1 - q)*0.8; c.beginPath(); c.arc(76, suelo - 46, 6 + q*16, Math.PI*1.15, Math.PI*1.85); c.stroke();
+  }
+  c.restore();
+  for (const [h, x, ph, et] of lista){
+    const im = dobIcono(h), y = suelo + Math.sin(t*5 + ph)*3;
+    c.fillStyle = 'rgba(0,0,0,0.3)'; c.beginPath(); c.ellipse(x, suelo + 26, 20, 4.5, 0, 0, Math.PI*2); c.fill();
+    if (im){ c.imageSmoothingEnabled = false; c.drawImage(im, x - 30, y - 34, 60, 60); }
+    c.fillStyle = '#0d2a40'; c.strokeStyle = '#7fd0ff'; c.lineWidth = 1;
+    c.beginPath(); c.roundRect ? c.roundRect(x - 11, y - 46, 22, 12, 4) : c.rect(x - 11, y - 46, 22, 12); c.fill(); c.stroke();
+    c.fillStyle = '#bfe8ff'; c.font = '900 9px "Courier New", monospace'; c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.fillText(et, x, y - 40);
+  }
+  const sx = 186;
+  if (p < 0.5) animUnidad(c, 'soldier', sx, suelo, 41, 34, -1, 0);
+  else {
+    const q = (p - 0.5)/0.5;
+    animUnidad(c, 'soldier', sx + q*70, suelo - Math.sin(q*Math.PI)*46, 41, 34, -1, q*9);
+    if (q < 0.45) animBoom(c, sx - 6, suelo - 4, q/0.45);
+  }
+}
 function drawAnimVs(c, t){
   const W=230, H=130, CYCLE=3.6;
   const p = (t % CYCLE) / CYCLE, vuelta = Math.floor(t / CYCLE);
@@ -12681,9 +12790,16 @@ function modeAnimLoop(now){
     c.setTransform(1, 0, 0, 1, 0, 0); c.globalAlpha = 1; c.globalCompositeOperation = 'source-over';
     try { fn(c); } catch(e){ c.setTransform(1, 0, 0, 1, 0, 0); c.globalAlpha = 1; }
   };
-  pinta(modeAnim.invCtx, c => drawAnimInvasion(c, modeAnim.t));
-  pinta(modeAnim.vsCtx,  c => drawAnimVs(c, modeAnim.t));
+  // solo se pinta la pestaña que se ve
+  if (modoTab === '1'){
+    pinta(modeAnim.invCtx, c => drawAnimInvasion(c, modeAnim.t));
+    pinta(modeAnim.leyCtx, c => drawAnimLeyenda(c, modeAnim.t));
+  } else {
+    pinta(modeAnim.vsCtx,  c => drawAnimVs(c, modeAnim.t));
+    pinta(modeAnim.dobCtx, c => drawAnimDoble(c, modeAnim.t));
+  }
   for (const k of ['inv','vs']){
+    if ((k === 'inv') !== (modoTab === '1')) continue;
     const st = btnTent[k];
     updateBtnTent(st, dt);
     pinta(st.ctx, c => drawBtnTentacles(c, st, modeAnim.t));
@@ -12696,6 +12812,9 @@ function startModeAnims(){
   const b = document.getElementById('animVs');
   modeAnim.invCtx = a && a.getContext ? a.getContext('2d') : null;
   modeAnim.vsCtx  = b && b.getContext ? b.getContext('2d') : null;
+  const l = document.getElementById('animLeyenda'), d = document.getElementById('animDoble');
+  modeAnim.leyCtx = l && l.getContext ? l.getContext('2d') : null;
+  modeAnim.dobCtx = d && d.getContext ? d.getContext('2d') : null;
   refreshBtnFx();                       // se revisa cada vez, no solo la primera
   if (!btnTentBound){
     bindBtnTent('btnModeInvasion','tentInvasion','inv');
@@ -12708,7 +12827,7 @@ function startModeAnims(){
 }
 function stopModeAnims(){
   if (modeAnim.raf != null){ cancelAnimationFrame(modeAnim.raf); modeAnim.raf = null; }
-  modeAnim.invCtx = null; modeAnim.vsCtx = null;
+  modeAnim.invCtx = null; modeAnim.vsCtx = null; modeAnim.leyCtx = null; modeAnim.dobCtx = null;
 }
 
 // ================= MODO CONTRA OTRO JUGADOR =================
@@ -34295,95 +34414,48 @@ document.getElementById('btnResetBinds').addEventListener('click', ()=>{
   saveBinds(); renderBinds();
 });
 
-let descInvOrig = '', descVsOrig = '';
-(function capturaTextos(){
-  const d = document.getElementById('descInvasion'), v = document.getElementById('descVs');
-  if (d) descInvOrig = d.innerHTML;
-  if (v) descVsOrig  = v.innerHTML;
-})();
-// Los textos del selector cambian según el personaje elegido.
+// Los textos del modo invasión cambian según el personaje elegido: una
+// línea de qué se hace y otra con los controles básicos.
+const MODO_TEXTOS = {
+  alien:   ['Devora civiles, evoluciona de <b>CRÍA</b> a <b>COLOSO</b> y aguanta oleadas cada vez más duras. ¡Consigue el mayor puntaje!',
+            '<b>WASD</b> moverse · <b>Click</b> agarrar · <b>Click der.</b> lanzar'],
+  viltrum: ['Eres un <b>soldado viltrumita</b>: vuela a velocidad sónica, revienta muros con el cuerpo y reparte puñetazos.',
+            '<b>WASD</b> moverse · <b>doble toque</b> volar · <b>Click</b> golpear · <b>Click der.</b> agarrar'],
+  dragon:  ['Eres el <b>dragón de tres cabezas</b>: vuela sobre los tejados, muerde y escupe rayos por tres bocas.',
+            '<b>WASD</b> · <b>doble toque</b> volar · <b>Click</b> morder · <b>Z</b> aletear · <b>Click der.</b> rayos'],
+  maquina: ['Eres la <b>Máquina Aberrante</b>: poca vida, pero se recompone con cada víctima. ¡No te pares nunca!',
+            '<b>WASD</b> · <b>Click</b> disparar · <b>Click der.</b> cambiar arma · <b>Z</b> llamarada · <b>C</b> salto'],
+  mago:    ['Eres el <b>Mago Aberrante</b>: rayos del cielo, telequinesis, hielo y escudo. Cada hechizo gasta maná.',
+            '<b>WASD</b> · <b>Click</b> rayos · <b>Click der.</b> telequinesis · <b>Z</b> congelar · <b>C</b> escudo'],
+  boros:   ['Eres <b>Boros</b>, el dominador del universo: combos de puñetazos, lluvia de golpes y su <b>forma meteórica</b>.',
+            '<b>WASD</b> · <b>Click</b> combo · <b>Z</b> lluvia de puñetazos · <b>C</b> agarre · <b>V</b> patada · <b>B</b> rayo']
+};
 function refreshModeText(){
-  const d = document.getElementById('descInvasion');
-  const v = document.getElementById('descVs');
-  if (!d || !v) return;
-  // Red de seguridad: si no se capturó al arrancar, se captura ahora, pero
-  // nunca a partir del texto del viltrumita (se quedaría fijado para siempre).
-  if (!descInvOrig && !/soldado viltrumita/i.test(d.innerHTML)){
-    descInvOrig = d.innerHTML; descVsOrig = v.innerHTML;
-  }
-
-  if (isBor()){
-    d.innerHTML = 'La ciudad entera contra ti. Eres <b>Boros</b>, el dominador del universo, ya sin su armadura: '+
-      'reparte puñetazos, corre atravesando manzanas y con el regalo del OVNI libera su <b>forma meteórica</b>.<br>'+
-      '<span class="moderec">Recomendado: <b>WASD</b> (doble toque o mantener: correr). <b>Click</b> combo de puñetazos, '+
-      '<b>mantener Z</b> apunta la ráfaga de energía, <b>C</b> agarre con dos patadas, <b>mantener V</b> patada voladora y '+
-      '<b>mantener B</b> apunta el rayo del pecho (el cañón, en la forma meteórica).</span>';
-    v.innerHTML = 'Dos jugadores en el mismo teclado. <b>Boros</b> debe aguantar 2:30 mientras '+
-      'el <b>Jugador 2</b> gasta materiales desplegando tropas donde quiera.<br>'+
-      '<span class="moderec"><b class="tipmovil">En móvil funciona, pero este modo se disfruta mucho más en ordenador.</b>'+
-      'J1: <b>WASD</b> + ratón, <b>Z</b>, <b>C</b>, <b>V</b> y <b>B</b> · J2: <b>flechas</b> para mover la mira, '+
-      '<b>Start (Intro)</b> para desplegar, <b>AvPág/RePág</b> para cambiar de unidad y '+
-      '<b>Inicio</b> para traer la mira junto a Boros si te pierdes.</span>';
-  } else if (isMaq()){
-    d.innerHTML = 'La ciudad entera contra ti. Eres la <b>Máquina Aberrante</b>: un endoesqueleto de metal '+
-      'con poca vida, pero que se recompone con cada víctima. Coge carrerilla, cambia de arma sobre la '+
-      'marcha y no te pares nunca.<br>'+
-      '<span class="moderec">Recomendado: <b>WASD</b> (mantener una dirección acelera). <b>Click</b> dispara, '+
-      '<b>click der.</b> cambia de arma (espada de plasma, ráfaga, escopeta, lanzacohetes), <b>mantener Z</b> apunta una '+
-      'llamarada que lo incinera todo (al soltar, la lanza) y <b>mantener C</b> marca dónde saltar con las motosierras: al soltar, cae sobre esa zona.</span>';
-    v.innerHTML = 'Dos jugadores en el mismo teclado. La <b>Máquina Aberrante</b> debe aguantar 2:30 mientras '+
-      'el <b>Jugador 2</b> gasta materiales desplegando tropas donde quiera. Tiene poca vida: cura acabando '+
-      'con lo que se le ponga delante.<br>'+
-      '<span class="moderec"><b class="tipmovil">En móvil funciona, pero este modo se disfruta mucho más en ordenador.</b>'+
-      'J1: <b>WASD</b> + ratón y <b>C</b> · J2: <b>flechas</b> para mover la mira, '+
-      '<b>Start (Intro)</b> para desplegar, <b>AvPág/RePág</b> para cambiar de unidad y '+
-      '<b>Inicio</b> para traer la mira junto a la máquina si te pierdes.</span>';
-  } else if (isMag()){
-    d.innerHTML = 'La ciudad entera contra ti. Eres el <b>Mago Aberrante</b>: flotas despacio bajo tu '+
-      'capucha, pero haces caer rayos del cielo, levantas coches y soldados con la mente, congelas '+
-      'calles enteras y te escudas de todo. Cada hechizo gasta maná.<br>'+
-      '<span class="moderec">Recomendado: <b>WASD</b> para flotar. <b>Click</b> lanza rayos, <b>mantener click der.</b> '+
-      'levanta lo que toques con la mente (suelta para lanzarlo), <b>Z</b> congela a tu alrededor y '+
-      '<b>C</b> activa el escudo, <b>X</b> hace brotar fuego del suelo y <b>R</b> te teletransporta a tu último click.</span>';
-    v.innerHTML = 'Dos jugadores en el mismo teclado. El <b>Mago Aberrante</b> debe aguantar 2:30 mientras '+
-      'el <b>Jugador 2</b> gasta materiales desplegando tropas donde quiera. Flotas despacio: congela y '+
-      'escúdate antes de que te rodeen.<br>'+
-      '<span class="moderec"><b class="tipmovil">En móvil funciona, pero este modo se disfruta mucho más en ordenador.</b>'+
-      'J1: <b>WASD</b> + ratón, <b>Z</b> y <b>C</b> · J2: <b>flechas</b> para mover la mira, '+
-      '<b>Start (Intro)</b> para desplegar, <b>AvPág/RePág</b> para cambiar de unidad y '+
-      '<b>Inicio</b> para traer la mira junto al mago si te pierdes.</span>';
-  } else if (isDra()){
-    d.innerHTML = 'La ciudad entera contra ti. Eres el <b>dragón de tres cabezas</b>: no evolucionas, '+
-      'pero vuelas por encima de los tejados, muerdes, barres calles con tus alas y escupes rayos por '+
-      'tres bocas a la vez (contra los del Kaiyin, chocan). Todo gasta estamina: adminístrala.<br>'+
-      '<span class="moderec">Recomendado: <b>WASD</b> y <b>doble toque</b> para volar. <b>Click</b> muerde, '+
-      '<b>Z</b> aletea, <b>click der.</b> enciende los rayos (cualquier click los apaga) y <b>mantener C</b> traza la '+
-      'embestida con el ratón: al soltar, ataca y remata con un coletazo.</span>';
-    v.innerHTML = 'Dos jugadores en el mismo teclado. El <b>dragón</b> debe aguantar 2:30 mientras '+
-      'el <b>Jugador 2</b> gasta materiales desplegando tropas donde quiera. Volar y cada ataque gastan '+
-      'estamina: elige bien cuándo usarla.<br>'+
-      '<span class="moderec"><b class="tipmovil">En móvil funciona, pero este modo se disfruta mucho más en ordenador.</b>'+
-      'J1: <b>WASD</b> + ratón, <b>Z</b> y <b>C</b> · J2: <b>flechas</b> para mover la mira, '+
-      '<b>Start (Intro)</b> para desplegar, <b>AvPág/RePág</b> para cambiar de unidad y '+
-      '<b>Inicio</b> para traer la mira junto al dragón si te pierdes.</span>';
-  } else if (isVil()){
-    d.innerHTML = 'La ciudad entera contra ti. Eres un <b>soldado viltrumita</b>: no evolucionas, '+
-      'pero vuelas. Atraviesa manzanas enteras en <b>vuelo sónico</b>, revienta muros con el cuerpo '+
-      'y reparte puñetazos. Aguanta oleadas cada vez más duras y acumula puntaje.<br>'+
-      '<span class="moderec">Recomendado: <b>WASD</b> para moverte y <b>doble toque</b> de una dirección '+
-      'para el vuelo sónico (se mantiene mientras la sujetes). <b>Click izq.</b> golpea y '+
-      '<b>mantenerlo</b> carga el puñetazo; <b>click der.</b> agarra y vuelve a lanzarlo.</span>';
-    v.innerHTML = 'Dos jugadores en el mismo teclado. El <b>viltrumita</b> debe aguantar 2:30 mientras '+
-      'el <b>Jugador 2</b> gasta materiales desplegando tropas donde quiera. Volar rápido gasta estamina: '+
-      'elige bien cuándo cruzar el mapa.<br>'+
-      '<span class="moderec"><b class="tipmovil">En móvil funciona, pero este modo se disfruta mucho más en ordenador.</b>'+
-      'J1: <b>WASD</b> + ratón · J2: <b>flechas</b> para mover la mira, '+
-      '<b>Start (Intro)</b> para desplegar, <b>AvPág/RePág</b> para cambiar de unidad y '+
-      '<b>Inicio</b> para traer la mira junto al alien si te pierdes.</span>';
-  } else {
-    d.innerHTML = descInvOrig; v.innerHTML = descVsOrig;
+  const d = document.getElementById('descInvasion'), c = document.getElementById('ctlInvasion');
+  const T = MODO_TEXTOS[hero] || MODO_TEXTOS.alien;
+  if (d) d.innerHTML = T[0];
+  if (c) c.innerHTML = T[1];
+}
+// Pestañas del selector: 1 JUGADOR / 2 JUGADORES. Al cambiar, las tarjetas
+// entran deslizándose como al abrir la pantalla.
+let modoTab = '1';
+function ponModoTab(t, animar){
+  modoTab = t === '2' ? '2' : '1';
+  document.querySelectorAll('.mstab').forEach(b=>{
+    const on = b.dataset.tab === modoTab;
+    b.classList.toggle('on', on); b.setAttribute('aria-selected', on ? 'true' : 'false');
+  });
+  for (const [id, k] of [['panel1J', '1'], ['panel2J', '2']]){
+    const el = document.getElementById(id); if (!el) continue;
+    el.classList.toggle('hidden', k !== modoTab);
+    el.classList.remove('entra');
+    if (animar && k === modoTab && menuAnimOn){ void el.offsetWidth; el.classList.add('entra'); }
   }
 }
+document.querySelectorAll('.mstab').forEach(b=> b.addEventListener('click', ()=>{
+  if (b.dataset.tab === modoTab) return;
+  sfx('ui'); ponModoTab(b.dataset.tab, true);
+}));
 
 function playModeIntro(){
   const ms = document.getElementById('modeselect');
@@ -36047,7 +36119,8 @@ async function loadMapa(){
   if (puntMapa !== mapaElegido){ puntMapa = mapaElegido; pintaMapasPuntaje(); if (scoreTab === 'global') showGlobal(false); else renderScoreList(); }
 }
 document.getElementById('btnModeInvasion').addEventListener('click', ()=> crackAndStart('btnModeInvasion', ()=> startGame('invasion')));
-document.getElementById('btnModeVs').addEventListener('click', ()=>{ sfx('ui'); show('vselige'); });
+document.getElementById('btnModeVs').addEventListener('click', ()=> crackAndStart('btnModeVs', ()=> startGame('vs')));
+document.getElementById('btnModeVsOnline').addEventListener('click', ()=>{ sfx('ui'); abrirSala('vs'); });
 document.getElementById('btnRetry').addEventListener('click', ()=>{ if (gameMode === 'leyenda') leyEmpieza(); else startGame(gameMode); });
 document.getElementById('btnModeLeyenda').addEventListener('click', ()=>{ sfx('ui'); abreLeyenda(); });
 document.getElementById('btnLeyLucha').addEventListener('click', ()=> crackAndStart('btnLeyLucha', leyEmpieza));
