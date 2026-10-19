@@ -241,6 +241,7 @@
   .skinbtn.buy { border-color:#ffe066; color:#ffe066; }
   .skinbtn.buy.poor { border-color:#5a5a4a; color:#6a6a5a; }
   .skinbtn.on { border:1px solid #ffe066; color:#ffe066; background:#3a2a08; cursor:default; }
+  .skinbtn.premio { border:1px dashed #ff8a4a; color:#ffb27a; background:#2a1208; cursor:default; text-align:center; line-height:1.25; }
   .achlist { width:min(560px,94vw); margin-bottom:18px; display:flex; flex-direction:column; gap:9px; }
   .achcard { display:flex; align-items:center; gap:12px; text-align:left; padding:10px 12px;
              background:linear-gradient(180deg, rgba(40,32,12,0.6), rgba(14,10,4,0.6));
@@ -8403,7 +8404,13 @@ const SKINS = [
   // viltrumita llevan además una rueda de colores girando en el cuerpo.
   { id:'cody',     name:'CODY MILLERS', cost:230, c:['#ff8ad0','#e0287a','#5a0a30'],
     limb:'#3ad6ff', tip:'#ffe94a', multicolor:true,
-    muestra:'conic-gradient(#ff4d4d, #ffb03a, #ffe94a, #5dff6a, #3ad6ff, #6a5dff, #e05aff, #ff4d4d)' }
+    muestra:'conic-gradient(#ff4d4d, #ffb03a, #ffe94a, #5dff6a, #3ad6ff, #6a5dff, #e05aff, #ff4d4d)' },
+  // Regente viltrumita: traje naranja, cuello de piel blanca, capa, faldón
+  // gris y brazaletes de plata. No se compra: se gana al derrotar al
+  // viltrumita en VS LEGENDARIO.
+  { id:'regente',  name:'REGENTE',  cost:0, premio:true, c:['#ef6a36','#c2421c','#5e1a0a'],
+    limb:'#c9ccd2', tip:'#f3efe6', regente:true,
+    muestra:'linear-gradient(#f3efe6 0 22%, #e2582c 22% 58%, #8d9097 58% 84%, #e46a2c 84%)' }
 ];
 function skinById(id){
   if (id === 'custom') return customSkin;
@@ -8915,7 +8922,7 @@ function comboPts(pts){
 
 function coinsFor(sc, demo){ return Math.floor(sc/50) + demo*2; }
 
-const SKIN_UNICA = { drip:1, israel:1, cosmica:1, huaso:1, calabaza:1, navidad:1, cody:1 };
+const SKIN_UNICA = { drip:1, israel:1, cosmica:1, huaso:1, calabaza:1, navidad:1, cody:1, regente:1 };
 
 // ---- Skins hechas con una imagen propia ----
 // Se guarda la imagen ya reducida (240px de lado, JPEG) más el encuadre
@@ -8999,13 +9006,14 @@ function renderShop(){
     const active = activeSkin === k.id;
     const btn = active ? `<span class="skinbtn on">EN USO</span>`
       : owned ? `<button class="skinbtn own" data-use="${k.id}">USAR</button>`
+      : k.premio ? `<span class="skinbtn premio">VENCE AL<br>VILTRUMITA</span>`
       : `<button class="skinbtn buy${coins>=k.cost?'':' poor'}" data-buy="${k.id}">${k.cost} ⬤</button>`;
     // el color original es el de cada personaje: verde la cría y el viltrumita,
     // dorado el dragón, azul la máquina y morado el mago
     const c = k.id === 'verde' ? colorOriginal() : k.c;
     return `<div class="skincard${active?' active':''}${uniq?' uniq':''}">
       <span class="swatch" style="background:${k.muestra || `radial-gradient(circle at 34% 30%, ${c[0]}, ${c[1]} 60%, ${c[2]})`}"></span>
-      <span class="skinname">${k.name}</span>${btn}</div>`;
+      <span class="skinname">${k.name}${k.premio && !owned ? '<br><span class="customsub">Premio de VS LEGENDARIO</span>' : ''}</span>${btn}</div>`;
   };
   const lk = document.getElementById('imgLock');
   if (lk) lk.classList.toggle('on', !customBought);
@@ -26942,9 +26950,15 @@ function drawNubesEntrada(){
 const VIL_TRAJE = { traje:'#d8d1c5', sombra:'#aea596', oscuro:'#857c70', banda:'#3d383a', bota:'#c6bdb0',
                     piel:'#e8b58a', pielO:'#c58d66', pelo:'#1d1b20', ojo:'#2b2f38', linea:'#2a2527' };
 let _vilPalK = '', _vilPalV = null;
+// El traje del Regente (skin de premio y el rival de VS LEGENDARIO).
+const VIL_REGENTE = { traje:'#e2582c', sombra:'#b43f1d', oscuro:'#7c2812', banda:'#5a2212', bota:'#a8381a',
+                      piel:'#e3ad86', pielO:'#bf8762', pelo:'#141216', ojo:'#2b2f38', linea:'#2a120c',
+                      regente:true, falda:'#8d9097', faldaO:'#62666d', piel2:'#f3efe6', piel2O:'#bdb6aa',
+                      capa:'#e8682e', capaO:'#9c3616', plata:'#d0d3d8', plataO:'#80848c', placa:'#7a7e86' };
 function vilPaleta(){
   const SK = skin();
   if (!SK || SK.id === 'verde') return VIL_TRAJE;
+  if (SK.regente) return VIL_REGENTE;
   const clave = SK.id + SK.c[0] + SK.c[1] + SK.c[2] + SK.tip;
   if (clave === _vilPalK) return _vilPalV;
   const h = c => /^#[0-9a-f]{6}$/i.test(c) ? c : '#d8d1c5';
@@ -26996,7 +27010,11 @@ function vilBrazo(g, a, P, manos, lado, extra, flex){
   }
   vilTramo(g, ex, ey, hx, hy, flex ? 5.3 : 4.8, col, P.linea);
   vilBandas(g, sx, sy, ex, ey, 0.45, 5.4, 2, P.banda);
-  vilBandas(g, ex, ey, hx, hy, 0.5, flex ? 5.3 : 4.8, 3, P.banda);
+  if (P.regente){                                                // brazalete de plata en el antebrazo
+    const ax = ex + (hx - ex)*0.4, ay = ey + (hy - ey)*0.4, bx = ex + (hx - ex)*0.9, by = ey + (hy - ey)*0.9, w = (flex ? 5.3 : 4.8) + 1.4;
+    vilTramo(g, ax, ay, bx, by, w, lado < 0 ? P.plataO : P.plata, P.linea);
+    vilBandas(g, ax, ay, bx, by, 0.2, w, 2, P.plataO);
+  } else vilBandas(g, ex, ey, hx, hy, 0.5, flex ? 5.3 : 4.8, 3, P.banda);
   const R = flex ? 4 : 3.3;
   g.fillStyle = P.linea; g.beginPath(); g.arc(hx, hy, R, 0, Math.PI*2); g.fill();     // puño
   g.fillStyle = lado < 0 ? P.pielO : P.piel; g.beginPath(); g.arc(hx, hy, R - 0.7, 0, Math.PI*2); g.fill();
@@ -27069,6 +27087,65 @@ function vilBrazos(st, pose){
   r[4] += tr;
   return [atras, vilBrazoGira(r, (st.la || 0)*0.45)];
 }
+// ---- piezas del Regente ----
+// Capa naranja que cae por la espalda (al volar, ondea hacia atrás).
+function vilCapa(g, P, t, vuela, baja){
+  const w = t*(vuela ? 10 : 2.2), on = Math.sin(w)*(vuela ? 3 : 1.6), on2 = Math.sin(w + 1.3)*(vuela ? 3.4 : 2);
+  const ab = vuela ? 9 : 0, lg = baja ? 18 : vuela ? 25 : 24;
+  g.beginPath(); g.moveTo(6.2, -13.6); g.lineTo(-8.6, -13.2);
+  g.quadraticCurveTo(-12.5 - ab*0.5 + on*0.5, 2, -15 - ab + on, lg - 2);
+  g.lineTo(-11 - ab*0.8 + on2, lg + 1); g.lineTo(-7 - ab*0.6 + on, lg - 0.8); g.lineTo(-3 - ab*0.4 + on2, lg + 1.4);
+  g.lineTo(1 - ab*0.2 + on*0.6, lg); g.lineTo(4 + on*0.3, lg - 3); g.closePath();
+  g.fillStyle = P.capaO; g.fill(); g.strokeStyle = P.linea; g.lineWidth = 1; g.stroke();
+  g.lineCap = 'round';
+  g.strokeStyle = P.capa; g.lineWidth = 2.4;                      // el borde de fuera, más claro
+  g.beginPath(); g.moveTo(-9, -11); g.quadraticCurveTo(-12 - ab*0.45 + on*0.5, 4, -13.6 - ab*0.9 + on, lg - 3); g.stroke();
+  g.strokeStyle = P.linea; g.globalAlpha = 0.35; g.lineWidth = 0.7;  // pliegues
+  g.beginPath(); g.moveTo(-5, -8); g.quadraticCurveTo(-7 - ab*0.3, 8, -7.5 - ab*0.6 + on, lg - 2);
+  g.moveTo(-1, -6); g.quadraticCurveTo(-2 - ab*0.2, 8, -2.6 - ab*0.4 + on2, lg - 1); g.stroke();
+  g.globalAlpha = 1;
+}
+// Peto gris con el emblema en el pecho.
+function vilPlaca(g, P){
+  g.beginPath(); g.moveTo(-6.6, -12.8); g.lineTo(7.6, -12.8); g.lineTo(7.2, -6.4);
+  g.quadraticCurveTo(0.6, -2.2, -5.8, -6.4); g.closePath();
+  g.fillStyle = P.placa; g.fill(); g.strokeStyle = P.linea; g.lineWidth = 0.9; g.stroke();
+  g.strokeStyle = P.plata; g.lineWidth = 0.7; g.beginPath(); g.moveTo(-5.4, -11.4); g.lineTo(6.4, -11.4); g.stroke();
+  g.fillStyle = P.linea; g.beginPath(); g.arc(0.8, -8.4, 2.6, 0, Math.PI*2); g.fill();
+  g.fillStyle = P.traje; g.beginPath(); g.arc(0.8, -8.4, 2, 0, Math.PI*2); g.fill();
+  g.strokeStyle = P.piel2; g.lineWidth = 0.8; g.beginPath();      // la uve del emblema
+  g.moveTo(-0.4, -9.6); g.lineTo(0.8, -7.2); g.lineTo(2, -9.6); g.stroke();
+}
+// Faldón largo gris que tapa las piernas hasta media espinilla.
+function vilFalda(g, P, on, vuela, baja){
+  const lf = baja ? 12 : vuela ? 19 : 18, tr = vuela ? -4 : 0;
+  g.beginPath(); g.moveTo(-6.6, 7.2); g.lineTo(6.6, 7.2);
+  g.lineTo(8.4 + on + tr, 7.2 + lf);
+  const bajo = [[5.8, 1.04], [3, 0.97], [0.4, 1.05], [-2.4, 0.96], [-5, 1.03]];
+  for (const [xx, k] of bajo) g.lineTo(xx + on + tr, 7.2 + lf*k);
+  g.lineTo(-7.6 + on*0.6 + tr, 7.2 + lf*0.95); g.closePath();
+  g.fillStyle = P.falda; g.fill(); g.strokeStyle = P.linea; g.lineWidth = 1; g.stroke();
+  g.strokeStyle = P.faldaO; g.lineWidth = 1.1; g.beginPath();      // pliegues
+  for (const xx of [-3.6, 0.4, 4.2]){ g.moveTo(xx, 8.2); g.lineTo(xx*1.12 + on*0.9 + tr, 6.4 + lf*0.96); }
+  g.stroke();
+}
+// Gran cuello de piel blanca que rodea los hombros.
+function vilPielCuello(g, P, t){
+  const n = 8;
+  for (let pas = 0; pas < 2; pas++){
+    g.fillStyle = pas ? P.piel2 : P.piel2O;
+    g.beginPath();
+    for (let i = 0; i < n; i++){
+      const u = i/(n - 1), x = -9.4 + u*19.4, y = -13.4 - Math.sin(u*Math.PI)*2.6 + Math.sin(t*3 + i)*0.15;
+      const r = (i % 2 ? 3.1 : 2.6) + (pas ? 0 : 0.8);
+      g.moveTo(x + r, y); g.arc(x, y, r, 0, Math.PI*2);
+    }
+    g.fill();
+  }
+  g.strokeStyle = P.piel2O; g.lineWidth = 0.6; g.beginPath();     // mechones
+  for (let i = 0; i < 6; i++){ const x = -7.6 + i*3.2, y = -14.6 - Math.sin(i/5*Math.PI)*2; g.moveTo(x, y); g.lineTo(x + 1, y + 1.6); }
+  g.stroke();
+}
 function vilFigura(g, st){
   if (st.SK && st.SK.cosmic) return vilFiguraCosmica(g, st);
   const P = st.pal, t = st.t, pose = VIL_POSES[st.pose] || VIL_POSES.quieto, pie = VIL_PIERNAS[pose.p];
@@ -27079,6 +27156,7 @@ function vilFigura(g, st){
   // en la presa, el puño que toca golpear da un directo
   const gol = st.punchT > 0 && (st.pose === 'presa' || st.pose === 'presaVuelo') ? (st.pose === 'presa' ? [7, -1] : [0, -6]) : null;
   const delante = vilBrazoDelante(st);
+  if (P.regente) vilCapa(g, P, t, vuela, st.pose === 'aterriza');
   vilBrazo(g, brazos[0], P, st.manos, -1, gol && st.golpeLado < 0 ? gol : null);
   vilPierna(g, pie[0], P, -1, t);
   vilPierna(g, pie[1], P, 1, t);
@@ -27109,18 +27187,21 @@ function vilFigura(g, st){
   g.moveTo(-7.4, -7.2); g.quadraticCurveTo(0.5, -4.4, 7.6, -7.2);
   g.moveTo(5.2, -12.6); g.lineTo(6.6, -7); g.moveTo(-4.6, -12.8); g.lineTo(-5.6, -7);
   g.moveTo(-3.6, -1.5); g.lineTo(4.8, -1.5); g.stroke();
+  if (P.regente) vilPlaca(g, P);
   // hombrera del brazo de delante, con su emblema
-  g.fillStyle = P.sombra; g.beginPath(); g.ellipse(7.6, -10.6, 3.4, 3.9, 0.2, 0, Math.PI*2); g.fill();
+  else { g.fillStyle = P.sombra; g.beginPath(); g.ellipse(7.6, -10.6, 3.4, 3.9, 0.2, 0, Math.PI*2); g.fill();
   g.strokeStyle = L; g.lineWidth = 0.9; g.stroke();
-  g.strokeStyle = P.banda; g.lineWidth = 0.8; g.beginPath(); g.moveTo(6.4, -12); g.lineTo(6.4, -9.2); g.moveTo(7.7, -12.3); g.lineTo(7.7, -9.1); g.moveTo(9, -11.8); g.lineTo(9, -9.4); g.stroke();
-  // cinturón: tres vueltas oscuras
-  g.fillStyle = P.traje; g.fillRect(-6.4, 3, 12.8, 4.6);
+  g.strokeStyle = P.banda; g.lineWidth = 0.8; g.beginPath(); g.moveTo(6.4, -12); g.lineTo(6.4, -9.2); g.moveTo(7.7, -12.3); g.lineTo(7.7, -9.1); g.moveTo(9, -11.8); g.lineTo(9, -9.4); g.stroke(); }
+  // cinturón: tres vueltas oscuras (de plata en el Regente)
+  g.fillStyle = P.regente ? P.plata : P.traje; g.fillRect(-6.4, 3, 12.8, 4.6);
   g.strokeStyle = L; g.lineWidth = 0.9; g.strokeRect(-6.4, 3, 12.8, 4.6);
-  g.strokeStyle = P.banda; g.lineWidth = 0.8; g.beginPath();
+  g.strokeStyle = P.regente ? P.plataO : P.banda; g.lineWidth = 0.8; g.beginPath();
   for (const yy of [4.2, 5.4, 6.6]){ g.moveTo(-6.2, yy); g.lineTo(6.2, yy); }
   g.stroke();
   // faldón roto que cuelga de la cadera y ondea (al volar, hacia atrás)
   const on = Math.sin(t*(vuela ? 9 : 2.6))*(vuela ? 2.4 : 1.4), largo = vuela ? 17 : (st.pose === 'aterriza' ? 11 : 15);
+  if (P.regente) vilFalda(g, P, on, vuela, st.pose === 'aterriza');
+  else {
   g.beginPath(); g.moveTo(-1.6, 7.2); g.lineTo(6.6, 7.2);
   g.lineTo(7.4 + on*0.6, 7.2 + largo*0.55);
   const fondo = [[6.8, 0.98], [5.2, 1.08], [3.6, 0.94], [2.2, 1.1], [0.6, 0.96], [-0.8, 1.04], [-2.2, 0.9]];
@@ -27128,6 +27209,7 @@ function vilFigura(g, st){
   g.closePath();
   g.fillStyle = P.traje; g.fill(); g.strokeStyle = L; g.lineWidth = 1; g.stroke();
   g.strokeStyle = P.sombra; g.lineWidth = 1; g.beginPath(); g.moveTo(2.4, 8); g.lineTo(2.8 + on*0.8, 7.2 + largo*0.9); g.stroke();
+  }
   // sangre (se va secando)
   if (st.sangre && st.sangre.length){
     for (const sp of st.sangre){
@@ -27139,8 +27221,11 @@ function vilFigura(g, st){
   }
   // cuello alto con dos vueltas
   g.fillStyle = P.piel; g.fillRect(-1.8, -17.5, 3.6, 3);
+  if (P.regente) vilPielCuello(g, P, t);
+  else {
   g.fillStyle = P.traje; g.fillRect(-3.6, -16.4, 7.2, 3.2); g.strokeStyle = L; g.lineWidth = 0.9; g.strokeRect(-3.6, -16.4, 7.2, 3.2);
   g.strokeStyle = P.banda; g.lineWidth = 0.7; g.beginPath(); g.moveTo(-3.4, -15.4); g.lineTo(3.4, -15.4); g.moveTo(-3.4, -14.2); g.lineTo(3.4, -14.2); g.stroke();
+  }
   // brazo de delante
   if (!delante) vilBrazo(g, brazos[1], P, st.manos, 1, gol && st.golpeLado > 0 ? gol : null, st.pose === 'golpe' || st.pose === 'carga');
   // cabeza
@@ -27251,21 +27336,30 @@ function vilCabezaDib(g, P){
   // hasta la oreja, con unas puntas en la coronilla y flequillo en mechones
   g.fillStyle = P.pelo;
   g.beginPath();
-  const pelo = [[-5.6,-19.4],[-6.8,-22.6],[-8.8,-24.8],[-6.6,-25.4],[-7.2,-28.2],[-4,-27.6],[-3.6,-30.4],[-0.8,-28.8],
+  const pelo = P.regente
+    // engominado hacia atrás, con entradas y una coleta corta en la nuca
+    ? [[-5.8,-19.2],[-7.6,-21.4],[-9.2,-21.8],[-7.6,-23],[-7.4,-25.6],[-5,-27.8],[-1.2,-28.8],[2.8,-28.4],
+       [5.6,-26.8],[6.9,-24.6],[6.4,-23.6],[4.6,-24.4],[2.6,-25],[1.6,-23.6],[0.2,-24.2],[-2,-23.8],[-3.6,-22.6],[-4,-19.8]]
+    : [[-5.6,-19.4],[-6.8,-22.6],[-8.8,-24.8],[-6.6,-25.4],[-7.2,-28.2],[-4,-27.6],[-3.6,-30.4],[-0.8,-28.8],
                 [1.2,-31],[2.6,-28.8],[5.4,-28.2],[7,-26],[7.6,-23.6],[7.2,-22.2],[6,-23.2],[5.1,-22.4],[4.2,-23.6],
                 [3,-22.8],[2,-24],[0.6,-23.6],[-1.6,-23.4],[-3.2,-22.6],[-3.9,-19.8]];
   pelo.forEach((q, i)=> i ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1]));
   g.closePath(); g.fill();
   g.strokeStyle = L; g.lineWidth = 0.8; g.stroke();
   g.strokeStyle = '#4a4650'; g.lineWidth = 0.6;                   // mechones con algo de brillo
-  g.beginPath(); g.moveTo(3.6, -26.8); g.quadraticCurveTo(1.6, -27.6, 0.4, -26); g.moveTo(-1.4, -26.4); g.quadraticCurveTo(-3.4, -26.6, -4.6, -24.6);
-  g.moveTo(5.6, -25.2); g.lineTo(4.4, -24); g.stroke();
+  if (P.regente){ g.beginPath(); g.moveTo(4.4, -26.6); g.quadraticCurveTo(0, -27.8, -5.4, -24.4); g.moveTo(3.2, -25.4); g.quadraticCurveTo(-1, -26.4, -6.2, -22.6); g.stroke(); }
+  else { g.beginPath(); g.moveTo(3.6, -26.8); g.quadraticCurveTo(1.6, -27.6, 0.4, -26); g.moveTo(-1.4, -26.4); g.quadraticCurveTo(-3.4, -26.6, -4.6, -24.6);
+  g.moveTo(5.6, -25.2); g.lineTo(4.4, -24); g.stroke(); }
   g.fillStyle = P.pielO; g.beginPath(); g.ellipse(-2.2, -20.4, 1.2, 1.8, 0, 0, Math.PI*2); g.fill();     // oreja, por delante del pelo
   // gesto serio: ceja hundida, ojo y boca (por encima del flequillo)
   g.strokeStyle = L; g.lineWidth = 1.1;
   g.beginPath(); g.moveTo(2.4, -22.9); g.lineTo(5.8, -22.1); g.stroke();
   g.fillStyle = P.ojo; g.fillRect(3.2, -21.7, 2.4, 1.2);
   g.strokeStyle = P.pielO; g.lineWidth = 0.8; g.beginPath(); g.moveTo(3.4, -17.6); g.lineTo(5.2, -17.9); g.stroke();
+  if (P.regente){                                                 // bigote
+    g.fillStyle = P.pelo; g.beginPath(); g.moveTo(2.4, -17.2); g.quadraticCurveTo(3.2, -19.4, 4.6, -18.9);
+    g.quadraticCurveTo(6.2, -19.6, 6.8, -17.6); g.quadraticCurveTo(5.6, -18.4, 4.6, -18.1); g.quadraticCurveTo(3.4, -18.3, 2.4, -17.2); g.fill();
+  }
 }
 // Dónde quedan las manos sobre lo que lleva (en coordenadas de la figura): en
 // el borde de lo agarrado más cercano a él.
@@ -32635,8 +32729,8 @@ function anotaRecordLeyenda(){
 }
 
 // ---- retratos: el del rival y el del ganador ----
-const RIV_VIL_PAL = { traje:'#26262e', sombra:'#15151b', oscuro:'#0c0c10', banda:'#c8202a', bota:'#b01c26',
-                      piel:'#d9a07a', pielO:'#b07a58', pelo:'#ececec', ojo:'#2b2f38', linea:'#050507' };
+// El viltrumita rival lleva el traje del Regente (vencerlo da la skin).
+const RIV_VIL_PAL = VIL_REGENTE;
 const _rivRet = {};
 function rivalRetrato(t){
   if (_rivRet[t]) return _rivRet[t];
@@ -32817,6 +32911,9 @@ function updateLeyenda(dt){
     if (ley.t > 1 && leyRivalesVivos() === 0){
       ley.fase = 'gana'; ley.t = 0; ley.ganadas++;
       anotaRecordLeyenda();
+      if (ley.tipos.includes('rivalVil') && !ownedSkins.includes('regente')){
+        ownedSkins.push('regente'); saveShop(); ley.skinNueva = true;      // se anuncia en la pantalla de victoria
+      }
       toast('¡COMBATE ' + ley.ganadas + ' GANADO!', 3);
     }
   } else if (ley.fase === 'gana' && ley.t > 2.6){
@@ -32865,7 +32962,10 @@ function leyVictoria(){
   cv.width = lam.width; cv.height = lam.height; cv.getContext('2d').drawImage(lam, 0, 0);
   $('leyFinTit').textContent = '¡COMBATE ' + ley.ganadas + ' GANADO!';
   $('leyFinSub').textContent = 'Derrotaste a ' + vencidos + ' · +' + LEY_MONEDAS + ' monedas';
-  $('leyPremio').innerHTML = '<span class="ico">' + P.ico + '</span> VENTAJA: <b>' + esc(P.n) + '</b>';
+  $('leyPremio').innerHTML = '<span class="ico">' + P.ico + '</span> VENTAJA: <b>' + esc(P.n) + '</b>'
+    + (ley.skinNueva ? '<br><span style="color:#ffb27a">🔓 SKIN NUEVA: <b>REGENTE</b> · úsala desde la TIENDA</span>' : '');
+  if (ley.skinNueva) setTimeout(()=> sfx('buy'), 700);
+  ley.skinNueva = false;
   $('leyLleva').textContent = leyResumenVentajas();
   $('leyProxRiv').textContent = ley.tipos.map(leyNombre).join(' + ') + (ley.tipos.length > 1 ? ' · ¡DOS A LA VEZ!' : '');
   $('leyProxMapa').textContent = MAPA_NOMBRE[ley.mapa] + ' · ' + CLIMAS[ley.clima].icon + ' ' + leyClimaNombre(ley.mapa, ley.clima);
