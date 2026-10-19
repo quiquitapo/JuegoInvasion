@@ -985,8 +985,9 @@
   #btnRugidoDra.on { box-shadow:0 0 0 5px rgba(160,210,255,0.75), 0 4px 12px rgba(0,0,0,0.45); }
   #btnRugidoDra.espera { filter:grayscale(0.85) brightness(0.65); }
   /* Máquina y mago: sus propios botones; el de acción no se usa */
-  .maqbtn, .magbtn { display:none; }
-  body.touch-ui #actionBtns.playing.maq .maqbtn, body.touch-ui #actionBtns.playing.mag .magbtn { display:flex; }
+  .maqbtn, .magbtn, .borbtn { display:none; }
+  body.touch-ui #actionBtns.playing.maq .maqbtn, body.touch-ui #actionBtns.playing.mag .magbtn, body.touch-ui #actionBtns.playing.bor .borbtn { display:flex; }
+  #actionBtns.bor.f1 #btnBorB { opacity:0.4; }
   body.touch-ui #actionBtns.playing.maq #btnAction, body.touch-ui #actionBtns.playing.mag #btnAction { display:none; }
   #btnDisparo  { background:radial-gradient(circle at 35% 30%, #8fb4ff, #1d3f8a); }
   #btnDisparo.on { box-shadow:0 0 0 5px rgba(255,138,43,0.65), 0 4px 12px rgba(0,0,0,0.45); }
@@ -1276,6 +1277,27 @@
       <span class="actlabel">SALTO</span>
       <span class="acthint">mantén, apunta, suelta</span>
     </div>
+    <!-- solo con Boros -->
+    <div class="actbtn borbtn" id="btnBorGolpe">
+      <span class="actlabel">GOLPE</span>
+      <span class="acthint">mantén: cargado</span>
+    </div>
+    <div class="actbtn borbtn" id="btnBorZ">
+      <span class="actlabel">EMBESTIDA</span>
+      <span class="acthint">mantén, apunta, suelta</span>
+    </div>
+    <div class="actbtn borbtn" id="btnBorC">
+      <span class="actlabel">AGARRE</span>
+      <span class="acthint">gira y lanza</span>
+    </div>
+    <div class="actbtn borbtn" id="btnBorV">
+      <span class="actlabel">RÁFAGA</span>
+      <span class="acthint">mantén, apunta, suelta</span>
+    </div>
+    <div class="actbtn borbtn" id="btnBorB">
+      <span class="actlabel">RAYO</span>
+      <span class="acthint">mantén y apunta</span>
+    </div>
   </div>
 
   <!-- Mando del Jugador 2 en móvil (modo VS) -->
@@ -1300,6 +1322,7 @@
       <button type="button" class="togglebtn" id="uiEdDra">DRAGÓN</button>
       <button type="button" class="togglebtn" id="uiEdMaq">MÁQUINA</button>
       <button type="button" class="togglebtn" id="uiEdMag">MAGO</button>
+      <button type="button" class="togglebtn" id="uiEdBor">BOROS</button>
     </div>
     <div class="uiedbar">
       <span style="font-size:0.44rem; color:#9fb3a8; letter-spacing:1px; align-self:center">MODO:</span>
@@ -1565,6 +1588,7 @@
           <button type="button" class="small salahero" id="salaHeroeDra">DRAGÓN</button>
           <button type="button" class="small salahero" id="salaHeroeMaq">MÁQUINA</button>
           <button type="button" class="small salahero" id="salaHeroeMag">MAGO</button>
+          <button type="button" class="small salahero" id="salaHeroeBor">BOROS</button>
         </div>
         <button class="small" id="btnSalaCrear">CREAR SALA</button>
         <div class="salasep">o entra en la de otra persona</div>
@@ -1591,6 +1615,7 @@
             <button type="button" class="small salahero" id="salaHeroeDra2">DRAGÓN</button>
             <button type="button" class="small salahero" id="salaHeroeMaq2">MÁQUINA</button>
             <button type="button" class="small salahero" id="salaHeroeMag2">MAGO</button>
+            <button type="button" class="small salahero" id="salaHeroeBor2">BOROS</button>
           </div>
           <div class="salalbl" id="salaSkinLbl">Tu skin</div>
           <div id="salaSkins" class="salaskins"></div>
@@ -4761,7 +4786,7 @@ function F(){
 }
 // El viltrumita no evoluciona, así que parte con más aguante.
 const VIL_HP = 230;
-function maxHp(){ return isVil() ? VIL_HP : isDra() ? DRA_HP : isMaq() ? MAQ_HP : isMag() ? MAG_HP : F().hp; }
+function maxHp(){ return isVil() ? VIL_HP : isDra() ? DRA_HP : isMaq() ? MAQ_HP : isMag() ? MAG_HP : isBor() ? borMaxHp() : F().hp; }
 
 // ================= STATE =================
 let player = { x: WORLD_W/2, y: WORLD_H/2, vx:0, vy:0, tentaclePhase:0 };
@@ -4823,7 +4848,7 @@ function resetGame(){
     vil.presaApunta = false; vil.presaFase = ''; vil.presaCd = 0; vil._presa = null; vil._presaBlanco = null; vil.presaLanzaA = null;
     vil._sangre.length = 0; vil.manos = 0; vil.aterrizaT = 0; vil.punchT = 0; }
   if (typeof draReset === 'function') draReset();
-  maqReset(); magReset();
+  maqReset(); magReset(); borReset();
   proyJ.length = 0; grietas.length = 0; zombis.length = 0; chatarra.length = 0; quemaduras.length = 0; restosAuto.length = 0; caidasAero.length = 0; congelados.clear(); proyRed.length = 0; limpiaJefes2(); limpiaAlien();
   if (typeof isVil === 'function' && isDra()){
     vil.intro = 1; vil.introY = player.y;
@@ -7172,6 +7197,7 @@ const BUFF_RESIST = 0.05;
 function recibe(d){
   if (Online.objetivoInv){ Online.danoInv += d; return 0; }   // el golpe era para el invitado
   if (d > 0 && isMag() && mag.escudoT > 0) return 0;          // la burbuja del mago lo para todo
+  if (d > 0 && isBor() && bor.invT > 0) return 0;             // Boros, en plena embestida o transformándose
   // el escudo de la sobrecarga convierte lo que absorbe en vida
   if (d > 0 && isMaq() && maq.escudo > 0){
     const a = Math.min(d, maq.escudo);
@@ -7267,6 +7293,12 @@ function ovniRecompensa(){
     unlockAch('nigromante');
     toast('¡PODER ARCANO! LOS CAÍDOS SE LEVANTAN');
     sfx('conjuro');
+  } else if (isBor()){
+    buffTipo = 'despertar';
+    unlockAch('despertar');
+    borDespierta();
+    toast('¡BOROS DESPIERTA! TERCERA FORMA', 4);
+    sfx('rugido3');
   } else if (isDra()){
     buffTipo = 'tormenta';
     unlockAch('tormenta');
@@ -11448,7 +11480,7 @@ function dirOfKey(k){
 
 // ================= CONTROLES (rebindable) =================
 const DEFAULT_BINDS = { up:'w', down:'s', left:'a', right:'d', grab:'e', throw:'q', pausa:'p',
-                        draAle:'z', draRay:'', draCola:'c', magFue:'x', magTel:'r' };   // rayos: clic derecho (tecla opcional)
+                        draAle:'z', draRay:'', draCola:'c', magFue:'x', magTel:'r', borV:'v', borB:'b' };   // rayos: clic derecho (tecla opcional)
 const BIND_LABELS = { up:'Mover arriba', down:'Mover abajo', left:'Mover izquierda',
                       right:'Mover derecha', pausa:'Pausa (o Escape)' };
 // Lo que hace cada tecla con cada personaje. Las teclas que el personaje
@@ -11456,6 +11488,8 @@ const BIND_LABELS = { up:'Mover arriba', down:'Mover abajo', left:'Mover izquier
 const BIND_HEROE = {
   alien:   { grab:'Agarrar; con algo agarrado, golpear con ello', throw:'Lanzar lo que sostienes' },
   viltrum: { grab:'Agarrar lo que tengas cerca', throw:'Lanzar lo que llevas', draCola:'Presa (mantén, apunta y suelta)' },
+  boros:   { grab:'Puñetazo (además del clic)', throw:'Agarrar, girar y lanzar (además de C)', draAle:'Embestida, golpe de área y patada dirigida',
+             draCola:'Agarrar, girar y lanzar', borV:'Ráfaga de puñetazos (mantén y apunta)', borB:'Rayo del pecho (sin la armadura)' },
   dragon:  { grab:'Mordisco', draAle:'Aletazo', draRay:'Rayos (además del clic derecho)',
              draCola:'Coletazo (mantén, apunta y suelta)', magTel:'Rugido' },
   maquina: { grab:'Usar el arma', throw:'Cambiar de arma', draAle:'Incinerar (mantén, apunta y suelta)',
@@ -11475,7 +11509,7 @@ async function loadBinds(){
 }
 function saveBinds(){ storeSet('invasion_binds', JSON.stringify(binds)); }
 
-const BIND_ORDER = ['up','left','down','right','grab','throw','draAle','draRay','draCola','magFue','magTel','pausa'];
+const BIND_ORDER = ['up','left','down','right','grab','throw','draAle','draRay','draCola','magFue','magTel','borV','borB','pausa'];
 
 // --- Jugador 2 (modo VS) ---
 const DEFAULT_BINDS_P2 = { p2Up:'arrowup', p2Down:'arrowdown', p2Left:'arrowleft',
@@ -11641,6 +11675,8 @@ const ACHIEVEMENTS = [
     desc:'Derriba un OVNI siendo la cría y aprovecha el regalo: te vuelves enorme y arrancas edificios enteros del suelo para usarlos de maza o de escudo.' },
   { id:'calorifica',icon:'\u{1F441}\u{FE0F}', name:'VISIÓN CALÓRICA', goal:1,
     desc:'Derriba un OVNI siendo el viltrumita y estrena sus ojos: dos hilos rojos que atraviesan lo que mires mientras dure el regalo.' },
+  { id:'despertar', icon:'\u{1F441}', name:'EL DESPERTAR', goal:1,
+    desc:'Derriba un OVNI siendo Boros y despierta su tercera forma: corre más, pega más fuerte, abrasa lo que toca y su rayo se vuelve gigantesco.' },
   { id:'tormenta',  icon:'\u{26A1}', name:'SEÑOR DE LA TORMENTA', goal:1,
     desc:'Derriba un OVNI siendo el dragón de tres cabezas y desata su regalo: una tormenta eléctrica cuyos relámpagos fulminan a los enemigos que te rodean. Mientras dura, el dragón crece un poco, recibe menos daño y pega más fuerte.' },
   { id:'sobrecarga', icon:'\u{1F916}', name:'SOBRECARGA', goal:1,
@@ -11671,7 +11707,7 @@ function resetRunStats(){ runStats = { lamps:0, trees:0, blocks:0 }; }
 const ACH_POR_HEROE = { superviv:1, superviv2:1, apex:1, imparable:1 };
 function achKey(id){
   if (!ACH_POR_HEROE[id]) return id;
-  return isVil() ? id + '@vil' : isDra() ? id + '@dra' : isMaq() ? id + '@maq' : isMag() ? id + '@mag' : id;
+  return isVil() ? id + '@vil' : isDra() ? id + '@dra' : isMaq() ? id + '@maq' : isMag() ? id + '@mag' : isBor() ? id + '@bor' : id;
 }
 function achDone(id){ return !!achUnlocked[achKey(id)]; }
 
@@ -13075,6 +13111,14 @@ window.addEventListener('keydown', e=>{
   if (running && !listeningFor && !escribiendo(e) && TECLAS_NAVEGADOR.indexOf(k) !== -1) e.preventDefault();
   if (esVisorVs() && k !== 'escape' && k !== binds.pausa){ teclaInvitado(e, true); return; }
   // Doble toque de una dirección: activa el vuelo (viltrumita y dragón).
+  if (isBor() && running && !e.repeat && !vil.intro){         // Boros: doble toque, a correr
+    const dir = dirOfKey(k);
+    if (dir){
+      const ahora = performance.now()/1000;
+      if (vil.tapKey === dir && ahora - vil.tapT < VIL_DBL_TAP) bor.corre = true;
+      vil.tapKey = dir; vil.tapT = ahora;
+    }
+  }
   if ((isVil() || isDra()) && running && !e.repeat && !vil.intro){
     const dir = dirOfKey(k);
     if (dir){
@@ -13140,6 +13184,11 @@ window.addEventListener('keydown', e=>{
       if (k === binds.magTel)  magTeleClic();
     } else if (isVil()){                        // el viltrumita: la presa (mantener, apuntar y soltar)
       if (k === binds.draCola) vilPresaApunta();
+    } else if (isBor()){                        // Boros: embestida, agarre, ráfaga y rayo
+      if (k === binds.draAle)  borZ();
+      if (k === binds.draCola) borC();
+      if (k === binds.borV)    borVEmpieza();
+      if (k === binds.borB)    borB();
     }
   }
   keys[k] = true;
@@ -13156,6 +13205,8 @@ window.addEventListener('keyup', e=>{
   }
   // el viltrumita embiste al soltar C
   if (isVil() && (k === binds.draCola || antes === binds.draCola)) vilPresaSuelta(!running);
+  // Boros suelta la ráfaga de puñetazos al soltar V
+  if (isBor() && (k === binds.borV || antes === binds.borV)) borVSuelta(!running);
   // la máquina lanza la incineración al soltar Z
   if (isMaq() && (k === binds.draAle || antes === binds.draAle)) maqIncineraSuelta(!running);
   // la máquina salta con las motosierras al soltar C
@@ -13193,6 +13244,12 @@ canvas.addEventListener('mousedown', e=>{
     else if (e.button === 2) magTKEmpieza();
     return;
   }
+  if (isBor()){
+    // Izquierdo: puñetazo (mantenido, golpe cargado). Derecho: agarra, gira y lanza.
+    if (e.button === 0){ if (!vil.intro){ bor.holding = true; bor.carga = 0.0001; } }
+    else if (e.button === 2) borC();
+    return;
+  }
   if (isDra()){
     // Clic izquierdo: mordisco; con los rayos encendidos, los apaga.
     // Clic derecho: enciende o apaga los rayos de las tres bocas.
@@ -13223,6 +13280,7 @@ canvas.addEventListener('mousedown', e=>{
 // Se escucha en la ventana: soltar el botón fuera del lienzo también cuenta.
 window.addEventListener('mouseup', e=>{
   if (e.button === 0){ maq.gatillo = false; mag.lanzando = false; }
+  if (e.button === 0 && isBor() && bor.holding) borSueltaGolpe(!running);
   if (e.button === 2 && isMag() && mag.tkOn && running) magSueltaTK(false);
 });
 canvas.addEventListener('mouseup', e=>{
@@ -13327,6 +13385,16 @@ const heroIcons = {};
 function heroIconURL(which){
   if (heroIcons[which]) return heroIcons[which];
   if (which === 'dragon') return (heroIcons[which] = UI_ART.icoDra || '');
+  if (which === 'boros'){                         // su cabeza y la hombrera, de la armadura
+    try {
+      const c = document.createElement('canvas'); c.width = c.height = 40;
+      const g = c.getContext('2d'), f = borFrame(1, 'quieto', 0), [W, H, cx, py] = BOR_TAM;
+      g.imageSmoothingEnabled = false;
+      g.drawImage(f, cx - 30, py - 112, 70, 70, -2, -2, 44, 44);
+      heroIcons[which] = c.toDataURL();
+    } catch(e){ heroIcons[which] = ''; }
+    return heroIcons[which];
+  }
   if (which === 'maquina' || which === 'mago'){
     try { heroIcons[which] = iconoHeroe(which); } catch(e){ heroIcons[which] = ''; }
     return heroIcons[which];
@@ -13356,10 +13424,10 @@ function heroIconURL(which){
 }
 function heroName(which){
   return which === 'viltrum' ? 'VILTRUMITA' : which === 'dragon' ? 'DRAGÓN'
-       : which === 'maquina' ? 'MÁQUINA ABERRANTE' : which === 'mago' ? 'MAGO ABERRANTE' : 'CRÍA';
+       : which === 'maquina' ? 'MÁQUINA ABERRANTE' : which === 'mago' ? 'MAGO ABERRANTE' : which === 'boros' ? 'BOROS' : 'CRÍA';
 }
 // Cualquier personaje que llegue de fuera (guardado, red) se reduce a uno válido.
-const HEROES = ['alien', 'viltrum', 'dragon', 'maquina', 'mago'];
+const HEROES = ['alien', 'viltrum', 'dragon', 'maquina', 'mago', 'boros'];
 function normHeroe(h){ return HEROES.indexOf(h) > 0 ? h : 'alien'; }
 
 // ================= PERSONAJE JUGABLE =================
@@ -20822,7 +20890,7 @@ function isMaq(){ return hero === 'maquina'; }
 function isMag(){ return hero === 'mago'; }
 function usaVil(){ return hero !== 'alien'; }
 // Estos apuntan con los joysticks de sus botones: sin segundo joystick.
-function sinAimJoy(){ return isDra() || isMaq() || isMag(); }
+function sinAimJoy(){ return isDra() || isMaq() || isMag() || isBor(); }
 // Vida que devuelve cada baja: la máquina tiene poca, pero se recompone muy bien.
 function curaPorBaja(){ return isMaq() ? MAQ_CURA : hero === 'alien' ? 1 : 1.45; }
 
@@ -20849,7 +20917,7 @@ function apuntaHeroe(tipos, oy, alcance, auto){
 // Sin nadie cerca a quien apuntar: hacia donde se mueve (o la última dirección).
 function heroeMirA(){
   if (Math.hypot(player.vx || 0, player.vy || 0) > 40) return Math.atan2(player.vy, player.vx);
-  return isMaq() ? maq.mirA : mag.mirA;
+  return isMaq() ? maq.mirA : isBor() ? bor.mirA : mag.mirA;
 }
 function danaAuto(c, dmg){
   c.hp -= dmg;
@@ -23370,6 +23438,11 @@ const UI_PIEZAS = [
   { id:'magEsc', el:'btnEscudoMag',nombre:'ESCUDO',  def:{ v:[0.84,0.82], h:[0.78,0.84] } },
   { id:'magFue', el:'btnFuegoMag', nombre:'FUEGO',   def:{ v:[0.64,0.54], h:[0.66,0.70] } },
   { id:'magTel', el:'btnTele',     nombre:'SALTO',   def:{ v:[0.64,0.90], h:[0.66,0.88] } },
+  { id:'borGol', el:'btnBorGolpe', nombre:'GOLPE',   def:{ v:[0.84,0.62], h:[0.91,0.70] } },
+  { id:'borZ',   el:'btnBorZ',     nombre:'EMBESTIDA', def:{ v:[0.84,0.42], h:[0.92,0.50] } },
+  { id:'borC',   el:'btnBorC',     nombre:'AGARRE',  def:{ v:[0.64,0.72], h:[0.78,0.56] } },
+  { id:'borV',   el:'btnBorV',     nombre:'RÁFAGA',  def:{ v:[0.84,0.82], h:[0.78,0.84] } },
+  { id:'borB',   el:'btnBorB',     nombre:'RAYO',    def:{ v:[0.64,0.54], h:[0.66,0.70] } },
   // en vertical, un poco más arriba: en un móvil estrecho no caben joystick y
   // botones a la misma altura y el joystick pisaba el botón ◀
   { id:'p2joy', el:'p2JoyBase',  nombre:'MANDO J2', def:{ v:[0.16,0.79], h:[0.10,0.80] } },
@@ -23391,7 +23464,7 @@ function uiModo(){
   if (Online.activo && Online.modo === 'vs') return Online.rol === 'invitado' ? 'ej' : 'invasion';
   return 'vs';
 }
-let uiCfg = { alien: uiVacio(), viltrum: uiVacio(), dragon: uiVacio(), maquina: uiVacio(), mago: uiVacio() };
+let uiCfg = { alien: uiVacio(), viltrum: uiVacio(), dragon: uiVacio(), maquina: uiVacio(), mago: uiVacio(), boros: uiVacio() };
 function uiFor(h){
   const k = normHeroe(h);
   // Red de seguridad: un guardado dañado no debe tumbar la interfaz.
@@ -23441,6 +23514,7 @@ async function loadUICfg(){
       mezclaUI(uiCfg.dragon,  p.dragon);
       mezclaUI(uiCfg.maquina, p.maquina);
       mezclaUI(uiCfg.mago,    p.mago);
+      mezclaUI(uiCfg.boros,   p.boros);
     } else {                                   // guardado antiguo: vale para los dos
       mezclaUI(uiCfg.alien,   p);
       mezclaUI(uiCfg.viltrum, JSON.parse(JSON.stringify(p)));
@@ -23462,7 +23536,8 @@ function uiPos(id, quien, modo){
 // solo tiene sentido en el duelo.
 function piezasDe(h, modo){
   return UI_PIEZAS.filter(p => {
-    if (p.id === 'act')   return modo !== 'ej' && h !== 'maquina' && h !== 'mago';   // ellos usan los suyos
+    if (p.id === 'act')   return modo !== 'ej' && h !== 'maquina' && h !== 'mago' && h !== 'boros';   // ellos usan los suyos
+    if (p.id.startsWith('bor')) return modo !== 'ej' && h === 'boros';
     if (p.id === 'punch' || p.id.startsWith('vil')) return modo !== 'ej' && h === 'viltrum';
     if (p.id.startsWith('dra')) return modo !== 'ej' && h === 'dragon';
     if (p.id.startsWith('maq')) return modo !== 'ej' && h === 'maquina';
@@ -23660,7 +23735,7 @@ const ACT_LONG_MS = 330;
 let actTimer = null, actLongFired = false;
 
 function actionPressStart(pt){
-  if (isMaq() || isMag()) return;                 // tienen sus propios botones
+  if (isMaq() || isMag() || isBor()) return;      // tienen sus propios botones
   if (isDra()){                                   // morder: muerde sin parar mientras se mantiene,
     const b = document.getElementById('btnAction'); if (b) b.classList.add('pressed');   // hacia el joystick
     if (dra.rayos && draJoy.tipo !== 'rayo'){ dra.rayos = false; sfx('ui'); return; }   // con rayos: los apaga
@@ -23697,7 +23772,7 @@ function actionPressCancel(){
 }
 function actionPressEnd(conDedo){
   clearTimeout(actTimer);
-  if (isMaq() || isMag()) return;
+  if (isMaq() || isMag() || isBor()) return;
   const btn = document.getElementById('btnAction');
   if (btn){ btn.classList.remove('pressed'); btn.classList.remove('charging'); }
   if (isDra()){
@@ -23748,6 +23823,13 @@ function bindDragonBtns(){
   // PRESA del viltrumita: mantener, apuntar y soltar; con alguien agarrado,
   // tocarlo otra vez lo lanza (arrastrando se elige hacia dónde)
   joystickBoton('btnPresa', 'presa', ()=> vilPresaApunta(), (cancelado)=> vilPresaSuelta(!!cancelado), isVil);
+  // BOROS: golpe (mantén para cargar, arrastra para apuntar), embestida, ráfaga y
+  // rayo se mantienen, apuntan y sueltan; el agarre se toca (arrastrar elige hacia dónde lanzar)
+  joystickBoton('btnBorGolpe', 'golpe', ()=>{ if (!vil.intro){ bor.holding = true; bor.carga = 0.0001; } }, (c)=> borSueltaGolpe(c), isBor);
+  joystickBoton('btnBorZ', 'borZ', ()=>{}, (c)=>{ if (!c) borZ(); }, isBor);
+  joystickBoton('btnBorC', 'borC', ()=> borC(), ()=>{}, isBor);
+  joystickBoton('btnBorV', 'borV', ()=> borVEmpieza(), (c)=> borVSuelta(c), isBor);
+  joystickBoton('btnBorB', 'borB', ()=> borB(), ()=>{}, isBor);
   joystickBoton('btnRayosDra', 'rayo', ()=>{ if (!dra.rayos) draAlternaRayos(); },
                                        ()=>{ dra.rayos = false; });
   // COLA: se arrastra para trazar la línea (dirección y largo); al soltar, embiste.
@@ -24014,7 +24096,16 @@ const ICONOS_BTN = {
   vuelo:   '<path fill="currentColor" d="M22.5 1.5L8.5 8.4l3.3 2.4L9.6 17l4.4-4.3 3.4 2.3z"/>'
          + '<path ' + ICO_TRAZO + ' stroke-width="1.9" d="M1.5 14.5h5M3 18.5h4.5M1.5 22.5h6"/>',
   salto:   '<ellipse ' + ICO_TRAZO + ' stroke-width="2" cx="7.5" cy="18" rx="6" ry="2.6"/>'
-         + '<path ' + ICO_TRAZO + ' stroke-width="2.2" d="M7.5 17L18.5 6M12 5h7.5v7.5"/>'
+         + '<path ' + ICO_TRAZO + ' stroke-width="2.2" d="M7.5 17L18.5 6M12 5h7.5v7.5"/>',
+  patada:  '<path fill="currentColor" d="M3 20.5l3.6-8.4 3.4 1.4-2.2 5.6h3.4l.6 2.4z"/>'
+         + '<path fill="currentColor" d="M8.4 11.6l4.2-5 7.6-1.6 1.6 2.6-6.6 2.4-3.4 4z"/>'
+         + '<path ' + ICO_TRAZO + ' stroke-width="1.6" d="M20.5 10.5l2.6 1M18.8 13.2l2 2.2M22 3.6l1.6-1.6"/>',
+  punos:   '<ellipse fill="currentColor" cx="7" cy="7" rx="4" ry="3.4"/><ellipse fill="currentColor" cx="16.5" cy="11" rx="4" ry="3.4"/>'
+         + '<ellipse fill="currentColor" cx="8.5" cy="17" rx="4" ry="3.4"/>'
+         + '<path ' + ICO_TRAZO + ' stroke-width="1.5" d="M1 5.5h2M10.5 9.5h2M2.5 15.5h2M20.5 4.5l2-1.5M21.5 15l2 1"/>',
+  canon:   '<circle ' + ICO_TRAZO + ' stroke-width="2" cx="6.5" cy="12" r="4.6"/><circle fill="currentColor" cx="6.5" cy="12" r="2"/>'
+         + '<path fill="currentColor" d="M11 9.4l12.5-2v9.2L11 14.6z" opacity="0.85"/>'
+         + '<path ' + ICO_LINEA + ' stroke-width="1.2" d="M12.5 12h10"/>'
 };
 // Pone (o cambia) el dibujo de un botón; solo toca el DOM si cambia.
 function iconoBtn(id, nombre){
@@ -24030,7 +24121,8 @@ function iconosBotones(){
   for (const [id, n] of [['btnAction', 'agarrar'], ['btnPunch', 'golpe'], ['btnAleteo', 'aleteo'], ['btnRayosDra', 'rayo'], ['btnCola', 'cola'], ['btnRugidoDra', 'rugido'],
                          ['btnDisparo', 'rafaga'], ['btnArma', 'arma'], ['btnSierras', 'sierra'], ['btnIncinera', 'fuego'],
                          ['btnRayoMag', 'rayo'], ['btnTK', 'mente'], ['btnHielo', 'hielo'], ['btnEscudoMag', 'escudo'],
-                         ['btnFuegoMag', 'fuego'], ['btnTele', 'salto'], ['btnPresa', 'presa']]) iconoBtn(id, n);
+                         ['btnFuegoMag', 'fuego'], ['btnTele', 'salto'], ['btnPresa', 'presa'],
+                         ['btnBorGolpe', 'golpe'], ['btnBorZ', 'patada'], ['btnBorC', 'lanzar'], ['btnBorV', 'punos'], ['btnBorB', 'canon']]) iconoBtn(id, n);
 }
 iconosBotones();
 // ---- barra de habilidades (abajo a la izquierda) ----
@@ -24065,6 +24157,14 @@ function habilidadesDe(h){
     { n:'Cambiar de arma', ico:'arma', key:()=> skTecla('draRay', SK_CLICD) },
     { n:'Incinerar (mantén y suelta)', ico:'fuego', key:()=> skTecla('draAle'), cd:()=> maq.incCd, act:()=> !!maq.incFase },
     { n:'Motosierras (mantén)', ico:'sierra', key:()=> skTecla('draCola'), cd:()=> maq.sierraCd, act:()=> maq.sierraApunta || !!maq.sierraFase }
+  ];
+  if (h === 'boros') return [
+    { n:'Puñetazo (mantén para cargar)', ico:'golpe', key:()=> SK_CLIC, cd:()=> bor.golpeCd, act:()=> bor.holding && bor.carga > BOR_CARGA_MIN },
+    { n:'Embestida y patada', ico:'patada', key:()=> skTecla('draAle'), cd:()=> bor.zCd, coste:()=> BOR_Z_COSTE, act:()=> !!bor.zFase },
+    { n:'Agarrar, girar y lanzar', ico:'lanzar', key:()=> skTecla('draCola', SK_CLICD), cd:()=> bor.cCd, coste:()=> BOR_C_COSTE, act:()=> !!bor.cFase },
+    { n:'Ráfaga de puñetazos (mantén)', ico:'punos', key:()=> skTecla('borV'), cd:()=> bor.vCd, coste:()=> BOR_V_COSTE, act:()=> bor.vApunta || !!bor.vFase },
+    { n:'Rayo del pecho', ico:'canon', key:()=> skTecla('borB'), cd:()=> borForma() < 2 ? 9 : bor.bCd, coste:()=> BOR_B_COSTE[Math.max(2, borForma())], act:()=> !!bor.bFase },
+    { n:'Correr', ico:'vuelo', key:skVuelo, act:()=> bor.corre }
   ];
   if (h === 'mago') return [
     { n:'Rayo', ico:'rayo', key:()=> SK_CLIC, cd:()=> mag.rayoCd, coste:()=> MAG_RAYO_MANA },
@@ -24215,6 +24315,12 @@ function tentacleTip(){
   // sostiene con la mente: su "punta" es el centro de la telequinesis.
   if (isMaq()){ const m = maqBoca(maq.mirA); return { x:m.x, y:m.y, angle:maq.mirA, reach:30 }; }
   if (isMag()){ return { x:mag.tkX || player.x, y:mag.tkY || player.y, angle:mag.mirA, reach:MAG_TK_ALC }; }
+  if (isBor()){
+    // girando: lo agarrado da vueltas a su alrededor; en la patada, flota en el aire
+    if (bor.cFase) return { x: player.x + Math.cos(bor.cA)*BOR_C_ORBITA, y: player.y - 10 + Math.sin(bor.cA)*BOR_C_ORBITA*0.7, angle: bor.cA, reach: BOR_C_ORBITA };
+    if (bor.zFase === 'alto'){ const k = clamp(1 - bor.zT/BOR_Z_APUNTA, 0, 1); return { x: bor.zX, y: bor.zY - 30 - Math.sin(k*Math.PI)*12, angle: bor.zPA, reach: 40 }; }
+    const a = bor.mirA; return { x: player.x + Math.cos(a)*30, y: player.y - 12 + Math.sin(a)*22, angle: a, reach: 34 };
+  }
   const av = aimVector(), rd = av.mag * F().reach, ang = Math.atan2(av.dy, av.dx);
   return { x: player.x + Math.cos(ang)*rd, y: player.y + Math.sin(ang)*rd, angle:ang, reach:rd };
 }
@@ -24469,6 +24575,7 @@ function onGrab(){
   if (isDra()) return draMordisco();
   if (isMaq()){ if (!vil.intro) maq.pulso = true; return; }        // E: una ráfaga o un disparo
   if (isMag()){ if (!vil.intro) mag.pulso = true; return; }        // E: un rayo
+  if (isBor()){ borGolpe(); return; }                               // E: un puñetazo
   const tip = tentacleTip(), R = F().grab;
 
   if (!heldObject){
@@ -24535,6 +24642,7 @@ function onThrow(){
   if (vil.intro) return;
   if (running && isMaq()){ maqCambiaArma(); return; }             // Q: cambia de arma
   if (running && isMag()){ if (mag.tk.length) magSueltaTK(false); return; }   // Q: lanza lo que sostiene
+  if (running && isBor()){ borC(); return; }                                   // Q: agarra, gira y lanza
   if (running && isVil() && vil.presaFase){ vilPresaGira(); return; }        // Q con la presa: gira y la lanza
   if (!running || !heldObject) return;
   if (Online.caidoYo && esDoble()) return;
@@ -24776,6 +24884,854 @@ function updateRam(dt){
 }
 
 // ================= UPDATE =================
+// ================= BOROS: DIBUJO =================
+// Un esqueleto de cadera, piernas, torso, brazos y cabeza con tres pieles:
+// 1 la armadura dorada (capa roja, pantalones blancos, hombreras con
+// cuernos), 2 su cuerpo azul marino surcado de vetas cian con el ojo en el
+// pecho, y 3 el despertar (piel blanca con venas moradas, melena enorme,
+// un ojo en la frente y otro en el pecho, flotando). Cada postura se pinta
+// una vez y se guarda: en partida solo se copia.
+const BOR_TAM = [168, 164, 84, 148];                 // ancho, alto, origen x, origen y (los pies)
+const BOR_S = 1.42;                                  // escala del esqueleto dentro del lienzo                 // ancho, alto, origen x, origen y (los pies)
+const BOR_PAL = [null,
+  { piel:'#3f74d8', pielL:'#6a9cf0', pielO:'#26488e', pelo:'#ff7ad6', peloL:'#ffc2ef', peloO:'#c0409a',
+    oro:'#e8b630', oroL:'#fff0a0', oroM:'#c8901a', oroO:'#8a5a10', capa:'#a8121e', capaO:'#5a0610', capaL:'#d83040',
+    tela:'#f2f0ec', telaO:'#bdb8c8', faja:'#6a2ab0', fajaL:'#9a5ae0', gema:'#e01838', gemaL:'#ff8090', ojo:'#ffe04a' },
+  { piel:'#1d2c78', pielL:'#3450b8', pielO:'#0e1648', veta:'#58ecff', vetaL:'#d8fcff', pelo:'#ff7ad6', peloL:'#ffc2ef', peloO:'#c0409a',
+    hombro:'#16205c', hombroL:'#2c3e98', ojo:'#ffe04a', blanco:'#f4f6ff' },
+  { piel:'#f2eaf8', pielL:'#ffffff', pielO:'#c4b0de', veta:'#3a2a9a', vetaL:'#6a58d0', pelo:'#efe4fa', peloL:'#ffffff', peloO:'#b89ad8',
+    ojo:'#c01830', blanco:'#ffffff', una:'#3a3448' }];
+// Ángulos: 0 hacia abajo, positivo hacia delante (hacia donde mira).
+function borDir(a, l){ return [Math.sin(a)*l, Math.cos(a)*l]; }
+// Postura de cada fotograma.
+function borPose(pose, f, forma){
+  const P = { bob: 0, lean: 0.05, piernas: [[0.18, -0.05], [-0.12, -0.22]], brazos: [[0.12, 0.35], [-0.18, 0.15]],
+              cabeza: 0, puno: [0, 0], cerrado: [1, 1], capa: 0, abre: 0, pecho: 0 };
+  const ph = f/4*Math.PI*2, s = Math.sin(ph), c = Math.cos(ph);
+  switch (pose){
+    case 'quieto':
+      P.bob = f ? -0.8 : 0; P.brazos = [[-0.22, 0.05 - (f ? 0.05 : 0)], [0.2, 0.4]]; break;
+    case 'anda':
+      P.bob = -Math.abs(c)*1.6; P.lean = 0.08;
+      P.piernas = [[s*0.5, s*0.5 - 0.15 - Math.max(0, -s)*0.5], [-s*0.5, -s*0.5 - 0.15 - Math.max(0, s)*0.5]];
+      P.brazos = [[-s*0.45 + 0.05, -s*0.45 + 0.5], [s*0.45 - 0.05, s*0.45 + 0.4]]; P.capa = 0.3; break;
+    case 'corre':
+      P.bob = -Math.abs(c)*3 - 1; P.lean = 0.42;
+      P.piernas = [[s*0.95 + 0.15, s*0.95 - 0.5 - Math.max(0, -s)*1.1], [-s*0.95 + 0.15, -s*0.95 - 0.5 - Math.max(0, s)*1.1]];
+      P.brazos = [[-s*0.9 + 0.3, -s*0.9 + 1.7], [s*0.9 + 0.3, s*0.9 + 1.7]]; P.capa = 1; break;
+    case 'golpe':                                     // directo: f0 con el brazo cercano, f1 con el lejano
+      P.lean = 0.2; P.piernas = [[0.45, 0.2], [-0.35, -0.35]];
+      if (f){ P.brazos = [[0.6, 1.4], [1.5, 1.55]]; } else { P.brazos = [[1.5, 1.55], [0.4, 1.3]]; }
+      P.capa = 0.4; break;
+    case 'carga':                                     // el puño atrás, cargando
+      P.lean = -0.1; P.bob = 2; P.piernas = [[0.5, 0.1], [-0.45, -0.5]];
+      P.brazos = [[-0.9, 0.6], [0.9, 1.9]]; P.capa = 0.2; break;
+    case 'fuerte':                                    // el golpe cargado, a fondo
+      P.lean = 0.38; P.bob = 1; P.piernas = [[0.75, 0.35], [-0.6, -0.55]];
+      P.brazos = [[1.58, 1.6], [-0.7, 0.2]]; P.capa = 1; break;
+    case 'embiste':                                   // se lanza al frente con el puño por delante
+      P.lean = 0.7; P.bob = -2; P.piernas = [[0.3, -0.6], [-1.1, -1.2]];
+      P.brazos = [[1.55, 1.6], [-0.6, 0.6]]; P.capa = 1.3; break;
+    case 'gancho':                                    // el golpe de área: puño arriba
+      P.lean = -0.15; P.bob = -3; P.piernas = [[0.2, -0.2], [-0.25, -0.6]];
+      P.brazos = [[2.9, 3.05], [-0.4, 0.3]]; P.capa = 0.8; P.cabeza = -0.15; break;
+    case 'patada':                                    // la patada final: pierna cercana arriba y adelante
+      P.lean = -0.35; P.bob = -2; P.piernas = [[1.75, 1.85], [-0.15, -0.35]];
+      P.brazos = [[-0.6, 0.3], [0.9, 1.6]]; P.capa = 1; break;
+    case 'agarra':                                    // sostiene delante con los dos brazos
+      P.lean = 0.05; P.piernas = [[0.35, 0.1], [-0.3, -0.35]];
+      P.brazos = [[1.25, 1.75], [1.15, 1.7]]; P.cerrado = [0, 0]; P.capa = 0.6; break;
+    case 'rafaga':                                    // lluvia de puños (f0/f1 alternan)
+      P.lean = 0.25; P.piernas = [[0.5, 0.25], [-0.4, -0.4]];
+      P.brazos = f ? [[1.2, 1.35], [1.65, 1.8]] : [[1.65, 1.8], [1.1, 1.3]]; P.capa = 0.6; break;
+    case 'rayo':                                      // pecho al frente, brazos atrás
+      P.lean = -0.12; P.piernas = [[0.45, 0.2], [-0.45, -0.45]];
+      P.brazos = [[-0.9, -0.5], [-1.0, -0.6]]; P.cerrado = [1, 1]; P.capa = 0.9; P.pecho = 1; P.cabeza = -0.12; break;
+    case 'transforma':                                // brazos abiertos, rugiendo al cielo
+      P.lean = -0.18; P.bob = -2; P.piernas = [[0.35, 0.1], [-0.35, -0.3]];
+      P.brazos = [[2.1, 2.5], [-2.1, -2.5]]; P.cerrado = [0, 0]; P.capa = 1; P.cabeza = -0.3; P.abre = 1; break;
+  }
+  if (forma === 3){                                   // despierto: flota, las piernas cuelgan
+    P.bob -= 6;
+    for (const L of P.piernas){ L[0] = L[0]*0.6 + 0.05; L[1] = L[0] - 0.35; }
+  }
+  return P;
+}
+function dibBoros(g, forma, pose, f){
+  const C = BOR_PAL[forma], P = borPose(pose, f, forma);
+  const K = '#0a0610';
+  const poli = (col, pts)=>{ g.fillStyle = col; g.beginPath(); g.moveTo(pts[0], pts[1]); for (let k = 2; k < pts.length; k += 2) g.lineTo(pts[k], pts[k + 1]); g.closePath(); g.fill(); };
+  const tramo = (x0, y0, x1, y1, w0, w1, col, luz)=>{
+    const dx = x1 - x0, dy = y1 - y0, l = Math.hypot(dx, dy) || 1, nx = -dy/l, ny = dx/l;
+    poli(col, [x0 + nx*w0/2, y0 + ny*w0/2, x1 + nx*w1/2, y1 + ny*w1/2, x1 - nx*w1/2, y1 - ny*w1/2, x0 - nx*w0/2, y0 - ny*w0/2]);
+    g.fillStyle = col; g.beginPath(); g.arc(x0, y0, w0/2, 0, Math.PI*2); g.fill(); g.beginPath(); g.arc(x1, y1, w1/2, 0, Math.PI*2); g.fill();
+    if (luz){ g.strokeStyle = luz; g.lineWidth = Math.max(1, w0*0.22); g.beginPath(); g.moveTo(x0 + nx*w0*0.22 - dx*0.0, y0 + ny*w0*0.22); g.lineTo(x1 + nx*w1*0.22, y1 + ny*w1*0.22); g.stroke(); }
+  };
+  const lin = (col, w, pts)=>{ g.strokeStyle = col; g.lineWidth = w; g.beginPath(); g.moveTo(pts[0], pts[1]); for (let k = 2; k < pts.length; k += 2) g.lineTo(pts[k], pts[k + 1]); g.stroke(); };
+  const oval = (col, x, y, rx, ry, a)=>{ g.fillStyle = col; g.beginPath(); g.ellipse(x, y, rx, ry, a || 0, 0, Math.PI*2); g.fill(); };
+  g.lineCap = 'round'; g.lineJoin = 'round';
+  g.scale(BOR_S, BOR_S);
+  g.translate(0, P.bob);
+  const hx = 0, hy = -30;                                          // cadera
+  // ---- la pierna: muslo, espinilla y pie ----
+  const pierna = (L, lejos)=>{
+    const ox = hx + (lejos ? -3 : 3), [tx, ty] = borDir(L[0], 15), kx = ox + tx, ky = hy + ty;
+    const [sx2, sy2] = borDir(L[1], 15), ax = kx + sx2, ay = ky + sy2;
+    const osc = forma === 3 ? 0.86 : 0.72, sh = (c)=> lejos ? shade(c, osc) : c;
+    if (forma === 1){
+      // pantalón blanco abombado y bota dorada con púas
+      tramo(ox, hy, kx, ky + 1, 15, 14, sh(C.tela), lejos ? null : '#ffffff');
+      tramo(kx, ky + 1, kx + sx2*0.5, ky + sy2*0.5, 14, 10, sh(C.tela));
+      lin(sh(C.telaO), 1, [kx - 4, ky + 3, kx + sx2*0.45 - 3, ky + sy2*0.45]);
+      lin(sh(C.telaO), 1.2, [ox - 3, hy + 3, kx - 3, ky]);
+      tramo(kx + sx2*0.4, ky + sy2*0.4, ax, ay, 10, 8.5, sh(C.oro), lejos ? null : C.oroL);
+      poli(sh(C.oro), [ax - 4, ay - 2, ax + 10, ay + 1, ax + 9, ay + 3.5, ax - 4, ay + 3.5]);   // pie
+      poli(sh(C.oroL), [ax + 6, ay - 1, ax + 14, ay - 6, ax + 9, ay + 1]);                 // púa del empeine
+      poli(sh(C.oroM), [kx + sx2*0.4, ky + sy2*0.4 - 1, kx + sx2*0.4 + 9, ky + sy2*0.4 - 7, kx + sx2*0.4 + 3, ky + sy2*0.4 + 3]);   // púa de la rodilla
+    } else {
+      const piel = sh(C.piel);
+      tramo(ox, hy, kx, ky, 14, 10, piel, lejos ? null : C.pielL);
+      oval(piel, ox + tx*0.45 + 1.5, hy + ty*0.45, 6, 7.5, -L[0]);                      // cuádriceps
+      tramo(kx, ky, ax, ay, 9.5, 6.5, piel, lejos ? null : C.pielL);
+      oval(piel, kx + sx2*0.3 - 1, ky + sy2*0.3, 4.6, 6, -L[1]);                          // gemelo
+      if (forma === 3) poli(piel, [ax - 2.5, ay - 1, ax + 4, ay + 7, ax - 1, ay + 6]);       // puntas de los pies colgando
+      else poli(piel, [ax - 3, ay - 2, ax + 8, ay + 1, ax + 7, ay + 3.5, ax - 3, ay + 3.5]);
+      if (!lejos){                                                   // vetas
+        lin(C.veta, 1.1, [ox + 1, hy + 3, kx + 2, ky - 4, kx - 1, ky + 3]);
+        lin(C.veta, 1.1, [kx, ky + 2, (kx + ax)/2 + 2, (ky + ay)/2, ax, ay - 3]);
+      }
+    }
+  };
+  // ---- el brazo: hombro, codo y puño ----
+  const brazo = (A, lejos)=>{
+    const sx = hx + (lejos ? -4 : 0.5) + Math.sin(P.lean)*19, sy = hy - 18 + (1 - Math.cos(P.lean))*19;
+    const [ux, uy] = borDir(A[0], 12), ex = sx + ux, ey = sy + uy, [fx2, fy2] = borDir(A[1], 12), wx = ex + fx2, wy = ey + fy2;
+    const sh = (c)=> lejos ? shade(c, forma === 3 ? 0.86 : 0.72) : c;
+    const pn = (lejos ? P.cerrado[1] : P.cerrado[0]) ? 6.2 : 5.4;
+    if (forma === 1){
+      tramo(sx, sy, ex, ey, 11, 10, sh(C.oroM), lejos ? null : C.oroL);
+      tramo(ex, ey, wx, wy, 10.5, 9, sh(C.oro), lejos ? null : C.oroL);
+      lin(sh(C.oroO), 1, [ex + fx2*0.5 - 3, ey + fy2*0.5, ex + fx2*0.5 + 3, ey + fy2*0.5]);
+      poli(sh(C.oroL), [ex - fx2*0.15 + 1, ey - fy2*0.15 - 2, ex - 4, ey - 6, ex - 1, ey + 2]);   // púa del codo
+      oval(sh(C.oro), wx + fx2*0.18, wy + fy2*0.18, pn, pn*0.92);
+      oval(sh(C.oroL), wx + fx2*0.18 - 1, wy + fy2*0.18 - 1.5, pn*0.45, pn*0.35);
+    } else {
+      tramo(sx, sy, ex, ey, 12.5, 10, sh(C.piel), lejos ? null : C.pielL);
+      oval(sh(C.piel), sx + ux*0.5, sy + uy*0.5, 6.6, 7.4, -A[0]);                    // bíceps
+      tramo(ex, ey, wx, wy, 10.5, 8.5, sh(C.piel), lejos ? null : C.pielL);
+      oval(sh(C.piel), ex + fx2*0.32, ey + fy2*0.32, 5.6, 6.6, -A[1]);
+      oval(sh(C.piel), wx + fx2*0.18, wy + fy2*0.18, pn, pn*0.92);
+      if (forma === 3){ g.strokeStyle = sh(C.una); g.lineWidth = 1.2; for (const k of [-1, 0, 1]){ g.beginPath(); g.moveTo(wx + fx2*0.4 + k*1.6, wy + fy2*0.4); g.lineTo(wx + fx2*0.62 + k*1.8, wy + fy2*0.62 + 1.5); g.stroke(); } }
+      if (!lejos){ lin(C.veta, 1.1, [sx + 2, sy + 2, (sx + ex)/2 - 1, (sy + ey)/2 + 1, ex + 1, ey]); lin(C.veta, 1, [ex, ey + 1, (ex + wx)/2 + 1.5, (ey + wy)/2, wx - 1, wy]); }
+    }
+    return { sx, sy };
+  };
+  // ---- de atrás adelante ----
+  const nx = Math.sin(P.lean)*21, ny = -21*Math.cos(P.lean);      // del centro de la cadera al cuello
+  const cx0 = hx, cy0 = hy, cuX = cx0 + nx, cuY = cy0 + ny;        // cuello
+  if (forma === 1){                                                // capa roja que ondea por detrás
+    const ola = P.capa, cx = cuX - 2, cy = cuY + 2, fondo = -2 + Math.max(0, 1 - ola)*0;
+    const bx = cx - 10 - ola*16, by = fondo - ola*6;
+    poli(C.capaO, [cx - 6, cy, cx + 5, cy + 2, bx + 14, by - 2, bx + 4, by + 3, bx - 6 - ola*6, by - 4 + Math.sin(f*1.7)*2, bx - 4 - ola*4, by - 16]);
+    poli(C.capa, [cx - 5, cy + 1, cx + 3, cy + 3, bx + 10, by - 5, bx + 2, by - 1, bx - 4 - ola*5, by - 7 + Math.sin(f*1.7)*2, bx - 2 - ola*3, by - 17]);
+    lin(C.capaL, 1.4, [cx - 3, cy + 4, bx - 1 - ola*2, by - 12]);
+  }
+  if (forma === 3){                                                // la melena enorme cae por la espalda
+    const ola = P.capa, mx = cuX - 2, my = cuY - 12;
+    for (let capa = 0; capa < 2; capa++){
+      const col = capa ? C.pelo : C.peloO, enc = capa ? 0.86 : 1;
+      for (let k = 0; k < 11; k++){
+        const t = k/10, ang = -0.5 + t*1.25;                         // de arriba (hacia atrás) a abajo (por la espalda)
+        const L = (34 + ((k*29) % 9)*2 + ola*10)*enc;
+        const bx = mx - 2 + Math.sin(t*2)*-3, by = my - 6 + t*14;
+        const tx = bx - Math.cos(ang)*L, ty = by + Math.sin(ang)*L + t*18;
+        const w = (7 - t*2)*enc;
+        poli(col, [bx, by - w, tx, ty, bx + 2, by + w]);
+      }
+    }
+    for (let k = 0; k < 8; k++){ const t = k/7; lin(C.peloO, 0.9, [mx - 4, my - 2 + t*16, mx - 26 - t*10 - ola*8, my + 4 + t*34]); }
+  }
+  const shL = brazo(P.brazos[1], true);
+  if (forma === 1){                                                // la hombrera lejana asoma con su cuerno
+    poli(C.oroO, [shL.sx - 7, shL.sy + 2, shL.sx - 4, shL.sy - 7, shL.sx + 6, shL.sy - 6, shL.sx + 6, shL.sy + 3]);
+    poli(C.oroM, [shL.sx - 3, shL.sy - 6, shL.sx - 11, shL.sy - 24, shL.sx + 1, shL.sy - 7]);
+  } else if (forma === 2){ oval(shade(C.hombro, 0.8), shL.sx, shL.sy - 1, 8, 7); }
+  pierna(P.piernas[1], true);
+  // torso: pecho ancho, cintura estrecha, inclinado
+  g.save(); g.translate(cx0, cy0); g.rotate(P.lean);
+  const torso = (cO, c, cL)=>{
+    poli(cO, [-9, 2, 9, 2, 13, -10, 16, -19, 13, -24, -13, -24, -15, -18, -12, -10]);
+    poli(c, [-8, 1, 8, 1, 12, -10, 15, -19, 12, -23, -12, -23, -14, -18, -11, -10]);
+  };
+  if (forma === 1){
+    torso(C.oroO, C.oro, C.oroL);
+    oval(C.oroL, -1, -20, 7, 3.4, -0.1); oval(C.oroL, 8, -19, 5, 3, 0.2);                 // relieve de los pectorales
+    poli(C.oroM, [-9, -15, 13, -15, 12, -13, -9, -13]);
+    for (const y of [-11, -7, -3]){ lin(C.oroM, 1.1, [-7, y, 9, y]); lin(C.oroL, 0.8, [-6, y - 1.2, 8, y - 1.2]); }
+    lin(C.oroM, 1.2, [1, -12, 1, 0]);
+    oval(C.oroO, 3, -18, 6.4, 6.4); oval(C.gema, 3, -18, 5, 5); oval(C.gemaL, 1.6, -19.6, 1.9, 1.5);   // la gema roja
+    lin(C.faja, 1.6, [-11, -22, -3, -17, -7, -8]);
+    poli(C.faja, [-9, 2, 9, 2, 9, -3, -9, -3]);                                     // faja morada
+    poli(C.faja, [1, 1, 8, 1, 7, 15, 2, 16]); lin(C.oroL, 1, [1, 1, 2, 16]); lin(C.oroL, 1, [8, 1, 7, 15]);   // paño delantero
+    lin(C.fajaL, 1, [-8, -1.5, 8, -1.5]);
+  } else {
+    torso(C.pielO, C.piel, C.pielL);
+    oval(C.pielL, 6, -19, 6.5, 3.6, 0.15); oval(C.pielL, -4, -20, 6, 3.2, -0.1);           // pectorales
+    lin(C.pielO, 1.2, [1, -22, 1.5, -15]);
+    for (const y of [-12, -8, -4]){ lin(C.pielO, 1, [-5, y, 7, y]); }                  // abdominales
+    lin(C.pielO, 1, [1, -14, 1, 0]);
+    lin(C.veta, 1.3, [-12, -21, -6, -15, -8, -8, -3, 1]); lin(C.veta, 1.3, [13, -20, 9, -13, 10, -6, 6, 1]);
+    lin(C.veta, 1, [-3, -23, -1, -19]); lin(C.veta, 1, [-9, -11, -12, -6]);
+    // el ojo del pecho (en el despertar, rojo y vigilante)
+    const pe = P.pecho;
+    oval(K, 2, -16, 7, 5.4); oval(C.blanco, 2, -16, 6, 4.5); oval(C.ojo, 2.6, -16, 2.8 + pe*0.8, 2.8 + pe*0.8); oval(K, 2.9, -16, 1.1, 1.9);
+    if (forma === 2){ poli(C.piel, [-8, 2, 8, 2, 7, 11, -7, 11]); lin(C.pielO, 1, [-6, 7, 6, 7]); }
+  }
+  g.restore();
+  pierna(P.piernas[0], false);
+  // hombreras: doradas con cuernos (1) o bolas oscuras con pinchos (2)
+  const sh0 = brazo(P.brazos[0], false);
+  if (forma === 1){
+    const ax = sh0.sx, ay = sh0.sy;
+    poli(C.oroO, [ax - 11, ay + 5, ax - 9, ay - 5, ax + 7, ay - 6, ax + 12, ay + 3, ax + 2, ay + 9]);
+    poli(C.oro, [ax - 10, ay + 4, ax - 8, ay - 4, ax + 6, ay - 5, ax + 11, ay + 2, ax + 2, ay + 8]);
+    poli(C.oroL, [ax - 6, ay - 3, ax + 5, ay - 4, ax + 3, ay - 1, ax - 5, ay]);
+    lin(C.oroM, 1, [ax - 8, ay + 3, ax + 9, ay + 1]);
+    poli(C.oroO, [ax - 8, ay - 3, ax - 30, ay - 30, ax - 3, ay - 6]);              // el gran cuerno hacia atrás
+    poli(C.oroM, [ax - 8, ay - 4, ax - 28, ay - 28, ax - 4, ay - 6]);
+    poli(C.oroL, [ax - 8, ay - 5, ax - 24, ay - 24, ax - 6, ay - 6]);
+    poli(C.oroM, [ax + 8, ay, ax + 18, ay - 3, ax + 9, ay + 4]);
+  } else if (forma === 2){
+    const ax = sh0.sx, ay = sh0.sy;
+    oval(K, ax - 1, ay + 1, 10.5, 8.5); oval(C.hombro, ax - 1, ay + 1, 9.5, 7.5); oval(C.hombroL, ax - 3, ay - 2, 5, 2.6);
+    for (const [a, l] of [[-2.7, 7], [-2.1, 8], [-1.5, 6], [-0.6, 6], [0.3, 5]]){ const px = ax - 1 + Math.cos(a)*9, py = ay + 1 + Math.sin(a)*7.5; poli(C.hombro, [px - Math.sin(a)*2, py + Math.cos(a)*2, px + Math.cos(a)*l, py + Math.sin(a)*l, px + Math.sin(a)*2, py - Math.cos(a)*2]); }
+    lin(C.veta, 1, [ax - 5, ay + 2, ax - 1, ay - 2, ax + 4, ay + 1]);
+  }
+  // cabeza
+  const kx2 = cuX + 3, ky2 = cuY - 9;
+  g.save(); g.translate(kx2, ky2); g.rotate(P.cabeza);
+  if (forma === 1){ poli(C.oroM, [-6, 6, 6, 6, 5, 1, -5, 1]); lin(C.oroL, 1, [-5, 3, 5, 3]); }       // gorjal dorado
+  // pelo en púas (en el despertar, una melena salvaje hacia arriba)
+  const puas = forma === 3 ? 9 : 8, lg = forma === 3 ? 22 : 19;
+  for (let k = 0; k < puas; k++){
+    const a = -2.5 + k/(puas - 1)*2.2 + (k % 2 ? 0.08 : -0.06), L = lg*(0.75 + ((k*37) % 10)/24);
+    const b0 = [Math.cos(a - 0.3)*5, Math.sin(a - 0.3)*5 - 4], b1 = [Math.cos(a + 0.3)*5, Math.sin(a + 0.3)*5 - 4], tp = [Math.cos(a)*L - 2, Math.sin(a)*L - 4];
+    poli(C.peloO, [b0[0], b0[1], tp[0], tp[1], b1[0], b1[1]]);
+    poli(k % 2 ? C.pelo : C.peloL, [b0[0]*0.8, b0[1]*0.8, tp[0]*0.9, tp[1]*0.9, b1[0]*0.8, b1[1]*0.8]);
+  }
+  // cara
+  oval(C.pielO, 0.5, 0, 7, 7.8);
+  oval(C.piel, 0.8, -0.4, 6.2, 7);
+  poli(C.piel, [3, -2, 8, 1, 6, 4, 2, 3]);                                         // perfil: nariz y mandíbula
+  poli(C.pielO, [-3, -3, -6, -9, -2, -4]);                                          // oreja puntiaguda
+  if (forma === 3){ oval(K, 1, -6.5, 2.4, 1.6); oval(C.ojo, 1.3, -6.5, 1.2, 1.2); }          // ojo de la frente
+  oval(K, 3, -1.2, 3, 2.3); oval(forma === 3 ? C.blanco : C.ojo, 3.2, -1.2, 2.3, 1.7);        // el ojo
+  oval(forma === 3 ? C.ojo : K, 3.8, -1.2, 0.9, 1.3);
+  if (P.abre){ poli('#3a0610', [3, 3.4, 7, 3.4, 6.4, 6, 3.2, 5.6]); }                   // ruge
+  else lin(C.pielO, 1, [3, 4, 6.5, 3.6]);
+  if (forma === 2) lin(C.veta, 1, [-2, 2, -1, 5, 1, 6]);
+  if (forma === 3) lin(C.veta, 1, [-2, 1, -3, 4, -1, 6]);
+  g.restore();
+}
+const borCache = new Map();
+function borFrame(forma, pose, f){
+  const k = forma + pose + f;
+  let c = borCache.get(k);
+  if (c) return c;
+  const [W, H, cx, py] = BOR_TAM;
+  c = document.createElement('canvas'); c.width = W; c.height = H;
+  const g = c.getContext('2d');
+  g.translate(cx, py);
+  dibBoros(g, forma, pose, f);
+  pixelArte(c, '#0a0610');
+  borCache.set(k, c);
+  return c;
+}
+
+// ================= BOROS =================
+// El sexto personaje. Pelea a puñetazos y no vuela, pero corre (doble toque o
+// manteniendo la dirección) atravesando edificios. Tres formas: con la
+// armadura tiene poca vida; al caer a cero la armadura revienta y sigue
+// peleando en su forma real (que ya lanza el rayo del pecho, B); con el
+// regalo del OVNI despierta: corre más, pega más fuerte, abrasa lo que toca
+// y su rayo se vuelve gigantesco. Usa la barra de `vil` como energía.
+const BOR_HP1 = 160, BOR_HP2 = 320;
+const BOR_VEL = 180, BOR_CORRE = 330, BOR_VEL3 = 225, BOR_CORRE3 = 470, BOR_CORRE_MANT = 0.8;
+const BOR_REGEN = [0, 1.5, 2.5, 4];                 // vida por segundo según la forma
+const BOR_EN_REG = 16, BOR_EN_REG3 = 26;            // energía por segundo
+const BOR_GOLPE_CD = 0.24, BOR_GOLPE_DMG = [0, 34, 44, 62], BOR_GOLPE_R = 44;
+const BOR_CARGA_MIN = 0.22, BOR_CARGA_MAX = 1.1, BOR_CARGA_DMG = 220, BOR_CARGA_COSTE = 10;
+const BOR_Z_COSTE = 30, BOR_Z_CD = 1.3, BOR_Z_DIST = 170, BOR_Z_T = 0.2, BOR_Z_R = 100, BOR_Z_DMG = 90, BOR_Z_APUNTA = 0.55, BOR_Z_PATADA = 1.9, BOR_Z_JEFE = 170;
+const BOR_C_COSTE = 25, BOR_C_CD = 1.4, BOR_C_R = 58, BOR_C_GIRO = 1.05, BOR_C_VUELTAS = 3, BOR_C_ORBITA = 46, BOR_C_LANZA = 1150, BOR_C_DMG = 2.1, BOR_C_ROCE = 35;
+const BOR_V_COSTE = 35, BOR_V_CD = 1.8, BOR_V_R = 62, BOR_V_ALC = 120, BOR_V_GOLPES = 12, BOR_V_T = 0.72, BOR_V_DMG = 22, BOR_V_MANT = 1.6;
+const BOR_B_COSTE = [0, 0, 50, 40], BOR_B_CD = 4, BOR_B_CARGA = 0.5, BOR_B_T = [0, 0, 1.0, 1.8], BOR_B_DPS = [0, 0, 320, 520],
+      BOR_B_ANCHO = [0, 0, 26, 72], BOR_B_LARGO = [0, 0, 640, 920];
+const BOR_CALOR_R = 40, BOR_CALOR_DMG = 7;          // abrasa cada 0,1 s
+const BOR_TRANSF_T = 1.6, BOR_PIES = 16;            // los pies quedan 16 px por debajo de su centro
+const bor = { fase:1, mirA:0, golpeCd:0, golpeT:0, lado:0, holding:false, carga:0, fuerteT:0,
+              corre:false, mueveT:0, invT:0, transfT:0, despT:0, paso:0, anim:0, calorT:0,
+              zFase:'', zT:0, zA:0, zCd:0, zPA:0, zX:0, zY:0, zJefe:false,
+              cFase:'', cT:0, cCd:0, cA:0, cVuelta:0,
+              vApunta:false, vT:0, vX:0, vY:0, vCd:0, vFase:'', vN:0, vTick:0,
+              bFase:'', bT:0, bCd:0, bA:0, bTick:0 };
+let borZObj = null;                                  // a quién se va a patear
+const borPaso = { edif:null };                       // para atravesar edificios corriendo
+const borPunos = [];                                 // los puños de la ráfaga, para dibujarlos
+function isBor(){ return hero === 'boros'; }
+function borForma(){ return buffActivo('despertar') ? 3 : bor.fase; }
+function borMaxHp(){ return bor.fase === 1 && !buffActivo('despertar') ? BOR_HP1 : BOR_HP2; }
+function borReset(){
+  Object.assign(bor, { fase:1, golpeCd:0, golpeT:0, holding:false, carga:0, fuerteT:0, corre:false, mueveT:0, invT:0, transfT:0, despT:0,
+                       zFase:'', zCd:0, cFase:'', cCd:0, vApunta:false, vFase:'', vCd:0, bFase:'', bCd:0 });
+  borZObj = null; borPaso.edif = null; borPunos.length = 0;
+}
+function borApunta(tipo){ return apuntaHeroe([tipo], 0, 300, 420).a; }
+// El pecho: de ahí sale el rayo.
+function borPecho(){ const f = player.facing || 1; return { x: player.x + f*8, y: player.y + BOR_PIES - 56 }; }
+// ¿Se puede patear o lanzar? Todo menos los jefes (y lo anclado, salvo despierto).
+function borLanzable(o){
+  if (!o || o.dead || o.thrown) return false;
+  if (o.kind) return true;
+  if (!o.grabbable || JEFES[o.type]) return false;
+  if ((o.type === 'siege' || o.type === 'gravitron') && !buffActivo('despertar')) return false;
+  return true;
+}
+// Lo más cercano que puede agarrar: lo de siempre y, además, lo pesado.
+function borAgarrable(p, R){
+  let best = grabbablesNear(p, R), bd = best ? dist(p.x, p.y, best.x, best.y - alturaVisible(best)) : R;
+  for (let i = 0; i < enemies.length; i++){ const e = enemies[i];
+    if (e.dead || e.held || e.thrown || !borLanzable(e)) continue;
+    const d = dist(p.x, p.y, e.x, e.y - alturaVisible(e));
+    if (d < bd){ bd = d; best = e; }
+  }
+  return best;
+}
+function borAgarra(o){
+  if (o.kind === 'lamp' && !o.uprooted){ o.uprooted = true; addParticles(o.x, o.y, '#ffe9a8', 16, 150); }
+  if (o.kind === 'tree' && !o.uprooted){ o.uprooted = true; planters.push({ x:o.x, y:o.y, w:44, h:20 }); addParticles(o.x, o.y, '#6b4a2a', 12, 110); }
+  o.held = true; o.thrown = false; o.stunT = 0; o.stunVx = 0; o.stunVy = 0; o.byEnemy = false;
+  if (o.person || o.kind === 'civ') gritaAgarrado(o);
+  if (o.rayoFase){ o.rayoFase = 'espera'; o.rayoT = rand(MBT_ESPERA[0], MBT_ESPERA[1]); }
+  heldObject = { ref:o, dur: objDurability(o), maxDur: objDurability(o) };
+  if (dobleInv()) enviaAccion({ t:'agarra', r: refDe(o) });
+}
+// Lanza (o patea) algo con fuerza: como el lanzamiento de siempre, más rápido y más dañino.
+function borLanza(o, ang, vel, mult){
+  o.held = false; o.thrown = true; o.porInv = false; o.tocado = false;
+  o.restan = aguanteLanzado(o) + 1; o.golpeados = [];
+  o.vx = Math.cos(ang)*vel; o.vy = Math.sin(ang)*vel;
+  o.throwDmg = objThrowDmg(o)*mult*(borForma() === 3 ? 1.35 : 1); o.throwLife = 1.6;
+  o.spin = rand(9, 14)*(Math.random() < 0.5 ? -1 : 1); o.rot = 0;
+  if (heldObject && heldObject.ref === o) heldObject = null;
+  if (dobleInv()){ const r = refDe(o); if (r) enviaAccion({ t:'lanza', r, x:o.x, y:o.y, vx:o.vx, vy:o.vy, dmg:o.throwDmg, spin:o.spin }); }
+  windRings.push({ x:o.x, y:o.y, ang, r:10, life:0.4, max:0.4 });
+  sfx('throw');
+}
+// Daña todo lo que hay en un círculo (gente, unidades, autos, mobiliario, edificios).
+function borArea(x, y, R, dmg, empuje, edif){
+  let dio = false;
+  for (const pool of [civilians, enemies]){
+    for (let i = 0; i < pool.length; i++){ const t = pool[i];
+      if (t.dead || t.held || (heldObject && heldObject.ref === t)) continue;
+      const d = distCuerpo(x, y, t);
+      if (d > R) continue;
+      porJugador(()=> damageEnemy(t, dmg, t.x, t.y));
+      dio = true;
+      if (empuje && !t.dead && (t.person || t.kind === 'civ')){
+        const a = Math.atan2(t.y - y, t.x - x);
+        t.stunT = Math.max(t.stunT || 0, 0.7); t.stunVx = Math.cos(a)*empuje; t.stunVy = Math.sin(a)*empuje;
+      }
+    }
+  }
+  for (let i = 0; i < cars.length; i++){ const c = cars[i];
+    if (c.dead || c.held || dist(c.x, c.y, x, y) > R + 10) continue;
+    c.hp -= dmg; dio = true;
+    if (c.hp <= 0) porJugador(()=> autoAbatido(c));
+  }
+  if (edif){
+    for (let i = 0; i < buildings.length; i++){ const b = buildings[i];
+      if (b.stage >= 2) continue;
+      const cx = clamp(x, b.x, b.x + b.w), cy = clamp(y, b.y, b.y + b.h);
+      if (dist(cx, cy, x, y) < R){ porJugador(()=> damageBuilding(b, edif)); dio = true; }
+    }
+  }
+  return dio;
+}
+// ---- golpes ----
+function borGolpe(){
+  if (vil.intro || bor.golpeCd > 0 || bor.zFase || bor.cFase || bor.bFase || bor.transfT > 0) return;
+  tutEv('golpe');
+  const fo = borForma(), a = borApunta('golpe');
+  bor.mirA = a; if (Math.abs(Math.cos(a)) > 0.05) player.facing = Math.cos(a) > 0 ? 1 : -1;
+  bor.golpeCd = BOR_GOLPE_CD*(fo === 3 ? 0.75 : 1); bor.golpeT = 0.14; bor.lado ^= 1;
+  const px = player.x + Math.cos(a)*34, py = player.y + Math.sin(a)*26;
+  const dio = borArea(px, py, BOR_GOLPE_R, BOR_GOLPE_DMG[fo], 160, 40);
+  addParticles(px, py, dio ? (fo === 3 ? '#ffd27a' : '#ffe066') : '#8899aa', dio ? 10 : 4, 130);
+  sfx(dio ? 'hit' : 'whoosh');
+  if (dio) shake(4, 0.08);
+}
+function borSueltaGolpe(cancelado){
+  const c = bor.carga; bor.holding = false; bor.carga = 0;
+  if (cancelado || vil.intro) return;
+  if (c < BOR_CARGA_MIN){ borGolpe(); return; }
+  if (bor.golpeCd > 0 || bor.zFase || bor.cFase || bor.bFase) return;
+  if (vil.stam < BOR_CARGA_COSTE){ borGolpe(); return; }
+  vil.stam -= BOR_CARGA_COSTE;
+  tutEv('cargado');
+  const fo = borForma(), k = clamp(c/BOR_CARGA_MAX, 0, 1), a = borApunta('golpe');
+  bor.mirA = a; if (Math.abs(Math.cos(a)) > 0.05) player.facing = Math.cos(a) > 0 ? 1 : -1;
+  bor.golpeCd = 0.5; bor.fuerteT = 0.3;
+  const dmg = (80 + (BOR_CARGA_DMG - 80)*k)*(fo === 3 ? 1.4 : fo === 2 ? 1.15 : 1);
+  const alc = 60 + 60*k;
+  // un cono por delante: lo cercano recibe todo, lo de la punta algo menos
+  for (let paso = 0; paso < 3; paso++){
+    const d = 30 + paso*alc*0.4;
+    borArea(player.x + Math.cos(a)*d, player.y + Math.sin(a)*d*0.8, 40 + paso*12, dmg*(1 - paso*0.18), 380*k + 120, 120*k + 60);
+  }
+  const ex = player.x + Math.cos(a)*alc, ey = player.y + Math.sin(a)*alc*0.8;
+  anilloImpacto(ex, ey, 70 + 70*k, fo === 3 ? '#ffd27a' : '#ffe9a0', 0.35);
+  addParticles(ex, ey, '#ffe066', 14 + Math.round(16*k), 220);
+  rafagaViento(a);
+  shake(8 + 10*k, 0.2); hitstop(0.05 + 0.05*k);
+  sfx(k > 0.6 ? 'bigboom' : 'boom');
+}
+// ---- Z: se lanza al frente, golpe de área, y remata con una patada dirigida ----
+function borZ(){
+  if (vil.intro || bor.zFase || bor.cFase || bor.bFase || bor.transfT > 0 || bor.zCd > 0) return;
+  if (vil.stam < BOR_Z_COSTE){ sfx('ui'); return; }
+  vil.stam -= BOR_Z_COSTE; tutEv('embiste');
+  bor.zA = borApunta('borZ'); bor.zFase = 'lanza'; bor.zT = BOR_Z_T; bor.invT = Math.max(bor.invT, BOR_Z_T + 0.15);
+  player.facing = Math.cos(bor.zA) >= 0 ? 1 : -1;
+  sonicBoom(player.x, player.y, bor.zA); sfx('dash');
+}
+function borZUpdate(dt){
+  bor.zT -= dt;
+  if (bor.zFase === 'lanza'){
+    const v = BOR_Z_DIST/BOR_Z_T, x0 = player.x, y0 = player.y;
+    player.x = clamp(player.x + Math.cos(bor.zA)*v*dt, 30, WORLD_W - 30); player.y = clamp(player.y + Math.sin(bor.zA)*v*dt, 30, WORLD_H - 30);
+    vilAtraviesa(borPaso, x0, y0, player.x, player.y, 26, true);
+    if (Math.random() < 0.8) addParticles(player.x, player.y, '#d8e2f0', 2, 120);
+    if (bor.zT <= 0){
+      // el golpe de área: todo sale volando
+      const fo = borForma(), R = BOR_Z_R*(fo === 3 ? 1.25 : 1);
+      // a quién se patea: lo más cercano que haya (mejor un enemigo que un civil)
+      borZObj = null; let bd = R + 20;
+      for (const pool of [enemies, civilians]){
+        for (let i = 0; i < pool.length; i++){ const t = pool[i];
+          if (t.dead || t.held || t.pacifico) continue;
+          const d = distCuerpo(player.x, player.y, t) + (pool === civilians ? 40 : 0);
+          if (d < bd){ bd = d; borZObj = t; }
+        }
+      }
+      borArea(player.x, player.y, R, BOR_Z_DMG*(fo === 3 ? 1.5 : fo === 2 ? 1.2 : 1), 420, 140);
+      anilloImpacto(player.x, player.y, R*1.4, '#fff0c0', 0.4); anilloPolvo(player.x, player.y + 10, R*0.7, 20, '#9a9288');
+      sacudeArboles(player.x, player.y, R + 80, 0.6);
+      shake(14, 0.3); hitstop(0.07); sfx('bigboom');
+      bor.zFase = 'alto'; bor.zT = BOR_Z_APUNTA;
+      bor.zJefe = !!(borZObj && !borZObj.dead && !borLanzable(borZObj));
+      if (borZObj && !borZObj.dead && !bor.zJefe){
+        bor.zX = borZObj.x; bor.zY = borZObj.y;
+        if (heldObject && heldObject.ref !== borZObj) heldObject.ref.held = false, heldObject = null;
+        borAgarra(borZObj);                           // queda suspendido en el aire, esperando la patada
+      } else if (!borZObj || borZObj.dead){ borZObj = null; bor.zFase = ''; bor.zCd = BOR_Z_CD; }
+      else { bor.zX = borZObj.x; bor.zY = borZObj.y; }
+    }
+  } else if (bor.zFase === 'alto'){
+    // se elige hacia dónde va la patada (ratón o joystick; en el móvil, al rumbo de la embestida)
+    bor.zPA = (lastInputTouch && draJoy.tipo !== 'borZ') ? bor.zA : borApunta('borZ');
+    if (bor.zT <= 0){
+      const o = borZObj;
+      if (!o || o.dead){ bor.zFase = ''; bor.zCd = BOR_Z_CD; borZObj = null; return; }
+      // aparece detrás de él y le suelta la patada
+      player.x = clamp(o.x - Math.cos(bor.zPA)*30, 30, WORLD_W - 30); player.y = clamp(o.y - Math.sin(bor.zPA)*24, 30, WORLD_H - 30);
+      player.facing = Math.cos(bor.zPA) >= 0 ? 1 : -1;
+      if (bor.zJefe){ porJugador(()=> damageEnemy(o, BOR_Z_JEFE*(borForma() === 3 ? 1.4 : 1), o.x, o.y)); }
+      else borLanza(o, bor.zPA, 1250, BOR_Z_PATADA);
+      addParticles(o.x, o.y - 20, '#ffe066', 22, 260); anilloImpacto(o.x, o.y - 20, 90, '#ffffff', 0.3);
+      shake(16, 0.3); hitstop(0.08); sfx('bigboom');
+      bor.zFase = 'patada'; bor.zT = 0.28; borZObj = null;
+    }
+  } else if (bor.zFase === 'patada'){
+    if (bor.zT <= 0){ bor.zFase = ''; bor.zCd = BOR_Z_CD; }
+  }
+}
+// ---- C: agarra, da vueltas y lanza ----
+function borC(){
+  if (vil.intro || bor.zFase || bor.cFase || bor.bFase || bor.transfT > 0 || bor.cCd > 0) return;
+  if (vil.stam < BOR_C_COSTE){ sfx('ui'); return; }
+  const a = borApunta('borC');
+  const p = { x: player.x + Math.cos(a)*26, y: player.y + Math.sin(a)*20 };
+  const o = heldObject && heldObject.ref ? heldObject.ref : borAgarrable(p, BOR_C_R);
+  if (!o){ bor.golpeT = 0.2; sfx('whoosh'); return; }
+  vil.stam -= BOR_C_COSTE; tutEv('agarre');
+  if (!heldObject) borAgarra(o);
+  bor.cFase = 'gira'; bor.cT = BOR_C_GIRO; bor.cA = a; bor.cVuelta = 0;
+  sfx('grab');
+}
+function borCUpdate(dt){
+  const o = heldObject && heldObject.ref;
+  if (!o || o.dead){ bor.cFase = ''; bor.cCd = BOR_C_CD; heldObject = null; return; }
+  bor.cT -= dt;
+  const w = BOR_C_VUELTAS*Math.PI*2/BOR_C_GIRO;
+  bor.cA += w*dt;
+  bor.cVuelta = Math.floor((BOR_C_GIRO - bor.cT)/BOR_C_GIRO*BOR_C_VUELTAS);
+  player.facing = Math.cos(bor.cA) >= 0 ? 1 : -1;
+  // lo que da vueltas golpea a todo lo que toca (una vez por vuelta)
+  const tp = tentacleTip();
+  for (const pool of [civilians, enemies]){
+    for (let i = 0; i < pool.length; i++){ const t = pool[i];
+      if (t === o || t.dead || t.held || t._borGiro === bor.cVuelta + bor.cCd*1000 + 1) continue;
+      if (distCuerpo(tp.x, tp.y, t) > 30) continue;
+      t._borGiro = bor.cVuelta + bor.cCd*1000 + 1;
+      porJugador(()=> damageEnemy(t, BOR_C_ROCE, t.x, t.y));
+      addParticles(t.x, t.y, '#ffd27a', 6, 120);
+    }
+  }
+  if (Math.random() < 0.5) addParticles(tp.x, tp.y, '#e8eef6', 1, 60);
+  if (bor.cT <= 0){
+    const a = borApunta('borC');
+    o.x = player.x + Math.cos(a)*34; o.y = player.y + Math.sin(a)*24;
+    borLanza(o, a, BOR_C_LANZA, BOR_C_DMG);
+    shake(10, 0.25); sfx('bigboom');
+    bor.cFase = ''; bor.cCd = BOR_C_CD; player.facing = Math.cos(a) >= 0 ? 1 : -1;
+  }
+}
+// ---- V: mantener marca un área cerca (se dirige con la mira); al soltar, lluvia de puños ----
+function borVEmpieza(){
+  if (vil.intro || bor.vApunta || bor.vFase || bor.zFase || bor.cFase || bor.bFase || bor.transfT > 0 || bor.vCd > 0) return;
+  if (vil.stam < BOR_V_COSTE){ sfx('ui'); return; }
+  bor.vApunta = true; bor.vT = 0; borVColoca();
+}
+function borVColoca(){
+  const ap = apuntaHeroe(['borV'], 0, BOR_V_ALC, 300);
+  const d = clamp(ap.d || BOR_V_ALC, 50, BOR_V_ALC);
+  bor.vX = player.x + Math.cos(ap.a)*d; bor.vY = player.y + Math.sin(ap.a)*d*0.85;
+  bor.mirA = ap.a;
+}
+function borVSuelta(cancelado){
+  if (!bor.vApunta) return;
+  bor.vApunta = false;
+  if (cancelado || vil.intro || vil.stam < BOR_V_COSTE) return;
+  vil.stam -= BOR_V_COSTE; tutEv('rafaga');
+  bor.vFase = 'golpes'; bor.vN = BOR_V_GOLPES; bor.vTick = 0;
+  player.facing = bor.vX >= player.x ? 1 : -1;
+  sfx('dash');
+}
+function borVUpdate(dt){
+  if (bor.vApunta){
+    borVColoca(); bor.vT += dt;
+    if (bor.vT >= BOR_V_MANT) borVSuelta(false);        // no se puede apuntar para siempre
+    return;
+  }
+  bor.vTick -= dt;
+  while (bor.vFase && bor.vTick <= 0){
+    bor.vTick += BOR_V_T/BOR_V_GOLPES; bor.vN--;
+    const fo = borForma();
+    borArea(bor.vX, bor.vY, BOR_V_R, BOR_V_DMG*(fo === 3 ? 1.5 : fo === 2 ? 1.15 : 1), 90, 30);
+    const a = Math.random()*Math.PI*2, r = Math.random()*BOR_V_R*0.75;
+    borPunos.push({ x: bor.vX + Math.cos(a)*r, y: bor.vY + Math.sin(a)*r*0.8, t: 0.16, l: Math.random() < 0.5 ? 1 : -1 });
+    if (borPunos.length > 24) borPunos.shift();
+    addParticles(bor.vX + Math.cos(a)*r, bor.vY + Math.sin(a)*r*0.8, '#ffe066', 3, 110);
+    if (bor.vN % 3 === 0){ sfx('hit'); shake(4, 0.06); }
+    if (bor.vN <= 0){ bor.vFase = ''; bor.vCd = BOR_V_CD; anilloImpacto(bor.vX, bor.vY, BOR_V_R*1.3, '#fff0c0', 0.3); }
+  }
+}
+// ---- B: el rayo del pecho (sin la armadura); despierto, gigantesco ----
+function borB(){
+  if (vil.intro || bor.bFase || bor.zFase || bor.cFase || bor.transfT > 0 || bor.bCd > 0) return;
+  const fo = borForma();
+  if (fo < 2){ toast('EL RAYO SE LIBERA AL ROMPER LA ARMADURA'); sfx('ui'); return; }
+  if (vil.stam < BOR_B_COSTE[fo]){ sfx('ui'); return; }
+  vil.stam -= BOR_B_COSTE[fo]; tutEv('rayo');
+  bor.bFase = 'carga'; bor.bT = BOR_B_CARGA; bor.bA = borApunta('borB');
+  sfx('cargaM');
+}
+function borBUpdate(dt){
+  const fo = borForma();
+  const quiere = borApunta('borB');
+  bor.bT -= dt;
+  if (bor.bFase === 'carga'){
+    bor.bA = quiere; player.facing = Math.cos(bor.bA) >= 0 ? 1 : -1;
+    if (bor.bT <= 0){ bor.bFase = 'fuego'; bor.bT = BOR_B_T[Math.max(2, fo)]; bor.bTick = 0; sfx('rayoM'); shake(12, 0.3); }
+    return;
+  }
+  bor.bA = giraHacia(bor.bA, quiere, 1.3*dt);
+  player.facing = Math.cos(bor.bA) >= 0 ? 1 : -1;
+  if (Math.random() < dt*12) shake(4, 0.1);
+  bor.bTick -= dt;
+  if (bor.bTick <= 0){
+    bor.bTick = 0.08;
+    const f2 = Math.max(2, fo), o = borPecho(), L = BOR_B_LARGO[f2], W = BOR_B_ANCHO[f2], dmg = BOR_B_DPS[f2]*0.08;
+    for (const pool of [civilians, enemies]){
+      for (let i = 0; i < pool.length; i++){ const t = pool[i];
+        if (t.dead || t.held) continue;
+        if (rayoToca(t, o.x, o.y, bor.bA, L, W/2)) porJugador(()=> damageEnemy(t, dmg, t.x, t.y - alturaVisible(t)));
+      }
+    }
+    for (let i = 0; i < cars.length; i++){ const c = cars[i];
+      if (c.dead || c.held || !enLinea(c.x, c.y, o.x, o.y, bor.bA, L, W/2 + 12)) continue;
+      c.hp -= dmg; if (c.hp <= 0) porJugador(()=> autoAbatido(c));
+    }
+    // atraviesa los edificios y los va deshaciendo
+    const ca = Math.cos(bor.bA), sa = Math.sin(bor.bA), tocados = new Set();
+    for (let d = 20; d < L; d += 36){
+      const x = o.x + ca*d, y = o.y + sa*d;
+      for (let i = 0; i < buildings.length; i++){ const b = buildings[i];
+        if (b.stage >= 2 || tocados.has(b) || x < b.x || x > b.x + b.w || y < b.y || y > b.y + b.h) continue;
+        tocados.add(b); porJugador(()=> damageBuilding(b, dmg*1.5));
+      }
+    }
+    const fx = o.x + ca*L*(0.4 + Math.random()*0.6), fy = o.y + sa*L*(0.4 + Math.random()*0.6);
+    addParticles(fx, fy, fo === 3 ? '#ffcc33' : '#8ad8ff', 3, 140);
+  }
+  if (bor.bT <= 0){ bor.bFase = ''; bor.bCd = BOR_B_CD; }
+}
+// ---- despierto: abrasa lo que toca ----
+function borCalor(dt){
+  bor.calorT -= dt;
+  if (bor.calorT > 0) return;
+  bor.calorT = 0.1;
+  borArea(player.x, player.y, BOR_CALOR_R, BOR_CALOR_DMG, 0, 22);
+  if (Math.random() < 0.7) addParticles(player.x + rand(-18, 18), player.y + rand(-30, 10), Math.random() < 0.5 ? '#ffcc66' : '#ffffff', 2, 70);
+}
+// ---- la armadura revienta: segunda forma ----
+function borTransforma(){
+  bor.fase = 2; hp = BOR_HP2;
+  bor.transfT = BOR_TRANSF_T; bor.invT = BOR_TRANSF_T + 0.5;
+  bor.zFase = ''; bor.cFase = ''; bor.vApunta = false; bor.vFase = ''; bor.bFase = ''; bor.holding = false; bor.carga = 0;
+  if (heldObject && heldObject.ref){ heldObject.ref.held = false; heldObject = null; }
+  borZObj = null;
+  addParticles(player.x, player.y - 30, '#ffd257', 34, 280); addParticles(player.x, player.y - 30, '#fff0a0', 18, 220);
+  addParticles(player.x, player.y - 30, '#a8121e', 14, 180);
+  anilloImpacto(player.x, player.y, 220, '#ffe9a0', 0.5); anilloImpacto(player.x, player.y, 120, '#58ecff', 0.35);
+  borArea(player.x, player.y, 170, 80, 420, 60);
+  shake(22, 0.7); hitstop(0.1); sfx('bigboom'); sfx('rugido3');
+  toast('¡LA ARMADURA REVIENTA! BOROS LIBERA SU PODER');
+}
+// ---- el regalo del OVNI: el despertar ----
+function borDespierta(){
+  if (bor.fase === 1) bor.fase = 2;
+  hp = Math.min(BOR_HP2, hp + BOR_HP2*0.5);
+  bor.despT = 1.4; bor.invT = Math.max(bor.invT, 1.6);
+  addParticles(player.x, player.y - 30, '#ffffff', 30, 260); addParticles(player.x, player.y - 30, '#c4a8ff', 20, 220);
+  anilloImpacto(player.x, player.y, 260, '#ffffff', 0.6); anilloImpacto(player.x, player.y, 160, '#ffcc33', 0.45);
+  shake(20, 0.6);
+}
+// ---- la entrada: cae del cielo como un meteoro ----
+const BOR_CAE_T = 0.85, BOR_ENTRA_T = 2.0;
+function borEntrada(dt){
+  const t0 = vil.introT || 0;
+  vil.introT = t0 + dt;
+  player.vx = 0; player.vy = 0;
+  if (vil.introY) player.y = vil.introY;
+  if (t0 === 0) sfx('caeCielo');
+  if (t0 < BOR_CAE_T && vil.introT >= BOR_CAE_T){
+    shake(22, 0.6); hitstop(0.08); sfx('caidaGolpe'); sfxEn('colapso', player.x, player.y, 0.5);
+    anilloImpacto(player.x, player.y + 12, 210, '#fff0c0', 0.5); anilloPolvo(player.x, player.y + 18, 70, 26, '#9a9288');
+    if (grietas.length >= 12) grietas.shift();
+    grietas.push({ x:player.x, y:player.y + 18, t0:gameTime, sem:Math.random()*1000, m: esAlien() ? 1 : 0, esc:3, dur:16 });
+    for (const pool of [civilians, enemies]) for (let i = 0; i < pool.length; i++){ const t = pool[i];
+      if (!t.dead && !t.held && distCuerpo(player.x, player.y, t) < 130) porJugador(()=> damageEnemy(t, 60, t.x, t.y)); }
+    sacudeArboles(player.x, player.y, 260, 0.6);
+  }
+  if (vil.introT >= BOR_CAE_T + 0.4 && t0 < BOR_CAE_T + 0.4) sfx('rugido3');
+  if (vil.introT >= BOR_ENTRA_T){ vil.intro = 0; vil.introT = 0; }
+}
+function updateBoros(dt){
+  vil.capa += dt; bor.anim += dt;
+  for (const k of ['golpeCd', 'golpeT', 'fuerteT', 'zCd', 'cCd', 'vCd', 'bCd', 'invT', 'transfT', 'despT']) if (bor[k] > 0) bor[k] = Math.max(0, bor[k] - dt);
+  for (let i = borPunos.length - 1; i >= 0; i--){ borPunos[i].t -= dt; if (borPunos[i].t <= 0) borPunos.splice(i, 1); }
+  if (vil.intro){ borEntrada(dt); return; }
+  if (hp <= 0 && bor.fase === 1 && !buffActivo('despertar') && !Online.caidoYo) borTransforma();   // la armadura revienta
+  const fo = borForma();
+  if (hp > 0) hp = Math.min(maxHp(), hp + BOR_REGEN[fo]*dt);
+  vil.stam = Math.min(vil.maxStam, vil.stam + (fo === 3 ? BOR_EN_REG3 : BOR_EN_REG)*dt);
+  drawR = lerp(drawR, 24, 0.08);
+  if (bor.transfT > 0 || bor.despT > 0){ player.vx = 0; player.vy = 0; return; }   // transformándose
+  if (bor.holding) bor.carga = Math.min(BOR_CARGA_MAX, bor.carga + dt);
+  if (bor.zFase){ borZUpdate(dt); return; }
+  if (bor.cFase) borCUpdate(dt);
+  if (bor.vApunta || bor.vFase) borVUpdate(dt);
+  if (bor.bFase) borBUpdate(dt);
+  if (fo === 3) borCalor(dt);
+  // ---- a pie: anda o corre ----
+  let dx = 0, dy = 0, m = 1;
+  if (moveJoy.active && !paralizado() && !congelado()){ dx = moveJoy.dx; dy = moveJoy.dy; m = clamp(Math.hypot(dx, dy), 0, 1); }
+  else { if (pressed('up')) dy -= 1; if (pressed('down')) dy += 1; if (pressed('left')) dx -= 1; if (pressed('right')) dx += 1; }
+  const mueve = dx || dy;
+  if (mueve){
+    bor.mueveT += dt;
+    if (bor.mueveT >= BOR_CORRE_MANT || (moveJoy.active && m >= VIL_JOY_ON)) bor.corre = true;   // manteniendo, arranca a correr
+  } else {
+    if (bor.corre){ bor.corre = false; desatascar(22); }
+    bor.mueveT = 0;
+  }
+  const corre = bor.corre && mueve && !bor.holding && !bor.cFase && !bor.bFase && !bor.vApunta;
+  let vel = corre ? (fo === 3 ? BOR_CORRE3 : BOR_CORRE) : (fo === 3 ? BOR_VEL3 : BOR_VEL);
+  if (bor.holding && bor.carga > BOR_CARGA_MIN) vel *= 0.45;
+  if (bor.bFase || bor.vApunta) vel *= 0.35;
+  if (bor.cFase || bor.vFase) vel *= 0.25;
+  const len = Math.hypot(dx, dy) || 1;
+  player.vx = lerp(player.vx, dx/len*vel*m, corre ? 0.22 : 0.18);
+  player.vy = lerp(player.vy, dy/len*vel*m, corre ? 0.22 : 0.18);
+  if (Math.abs(player.vx) > 8 && !bor.cFase && !bor.bFase) player.facing = player.vx > 0 ? 1 : -1;
+  const x0 = player.x, y0 = player.y;
+  player.x = clamp(player.x + player.vx*dt, 30, WORLD_W - 30);
+  player.y = clamp(player.y + player.vy*dt, 30, WORLD_H - 30);
+  const v = Math.hypot(player.vx, player.vy);
+  bor.paso += dt*(v > 12 ? (corre ? 13 : 8) : 0)*0.6;
+  if (corre){
+    // corriendo atraviesa los edificios y arrolla a quien se cruce
+    vilAtraviesa(borPaso, x0, y0, player.x, player.y, 26, true);
+    for (const pool of [civilians, enemies]) for (let i = 0; i < pool.length; i++){ const t = pool[i];
+      if (t.dead || t.held || (t._borPisa || 0) > gameTime || distCuerpo(player.x, player.y, t) > 28) continue;
+      t._borPisa = gameTime + 0.4;
+      porJugador(()=> damageEnemy(t, fo === 3 ? 45 : 28, t.x, t.y));
+      if (!t.dead && (t.person || t.kind === 'civ')){ const a = Math.atan2(t.y - player.y, t.x - player.x); t.stunT = Math.max(t.stunT || 0, 0.6); t.stunVx = Math.cos(a)*320; t.stunVy = Math.sin(a)*320; }
+    }
+    if (Math.random() < 0.5) addParticles(player.x - (player.facing || 1)*10, player.y + BOR_PIES, fo === 3 ? '#ffd8a0' : '#b8b0a2', 1, 60);
+  } else {
+    borPaso.edif = null;
+    collideBuildings(player, 22, dt, 0);
+  }
+  if (!bor.bFase && !bor.cFase && !bor.vApunta && !bor.vFase){
+    const a = (lastInputTouch && !aimJoy.active) ? (v > 30 ? Math.atan2(player.vy, player.vx) : bor.mirA) : borApunta('golpe');
+    bor.mirA = a;
+  }
+}
+// ---- dibujo ----
+function borPoseActual(){
+  const fo = borForma(), t = bor.anim;
+  if (vil.intro){ const k = vil.introT || 0; return k < BOR_CAE_T ? ['embiste', 0] : ['transforma', 0]; }
+  if (bor.transfT > 0 || bor.despT > 0) return ['transforma', 0];
+  if (bor.zFase === 'lanza') return ['embiste', 0];
+  if (bor.zFase === 'alto') return ['gancho', 0];
+  if (bor.zFase === 'patada') return ['patada', 0];
+  if (bor.cFase) return ['agarra', 0];
+  if (bor.vFase) return ['rafaga', Math.floor(t*22) % 2];
+  if (bor.bFase) return ['rayo', 0];
+  if (bor.vApunta || (bor.holding && bor.carga > BOR_CARGA_MIN)) return ['carga', 0];
+  if (bor.fuerteT > 0) return ['fuerte', 0];
+  if (bor.golpeT > 0) return ['golpe', bor.lado];
+  if (Math.hypot(player.vx || 0, player.vy || 0) > 25) return [bor.corre ? 'corre' : 'anda', Math.floor(bor.paso) % 4];
+  return ['quieto', Math.floor(t*1.6) % 2];
+}
+// Resplandor detrás del despierto (una estampa que se reutiliza).
+let _borAura = null;
+function borAura(){
+  if (_borAura) return _borAura;
+  const c = document.createElement('canvas'); c.width = c.height = 128;
+  const g = c.getContext('2d'), rg = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+  rg.addColorStop(0, 'rgba(255,240,220,0.75)'); rg.addColorStop(0.35, 'rgba(255,204,51,0.35)'); rg.addColorStop(0.7, 'rgba(70,60,200,0.18)'); rg.addColorStop(1, 'rgba(40,30,160,0)');
+  g.fillStyle = rg; g.fillRect(0, 0, 128, 128);
+  return (_borAura = c);
+}
+function drawBoros(){
+  const s = S(player.x, player.y), fo = borForma(), [pose, f] = borPoseActual();
+  const [W, H, cx, py] = BOR_TAM;
+  let y = s.y + BOR_PIES;
+  // entrada: baja del cielo envuelto en fuego
+  let caida = 0;
+  if (vil.intro){ const k = clamp((vil.introT || 0)/BOR_CAE_T, 0, 1); caida = (1 - k*k)*640; }
+  const flota = fo === 3 ? Math.sin(bor.anim*2.4)*2.5 : 0;
+  sombra(s.x, y - 2, 30 - Math.min(20, caida/30), 9, caida ? 0.4 : 0.85);
+  const fl = (player.facing || 1) < 0 ? -1 : 1;
+  ctx.save();
+  ctx.translate(s.x, y - caida + flota);
+  if (fo === 3 || bor.transfT > 0 || bor.despT > 0 || bor.bFase){       // resplandor
+    const k = fo === 3 ? 0.55 + Math.sin(bor.anim*5)*0.1 : 0.45;
+    ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = k;
+    ctx.drawImage(borAura(), -70, -120, 140, 130);
+    ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+  }
+  if (caida > 0){                                                          // estela de fuego al caer
+    ctx.globalCompositeOperation = 'lighter';
+    for (let k = 1; k <= 4; k++){ ctx.globalAlpha = 0.22/k; ctx.fillStyle = k % 2 ? '#ffcc66' : '#ff7a2a'; ctx.beginPath(); ctx.ellipse(0, -40 - k*36, 18 - k*2, 40, 0, 0, Math.PI*2); ctx.fill(); }
+    ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+  }
+  ctx.scale(fl, 1);
+  if (pose === 'carga' && bor.holding){ const tb = Math.sin(bor.anim*60)*Math.min(1.5, bor.carga*1.5); ctx.translate(tb, 0); }
+  const suave = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(borFrame(fo, pose, f), -cx, -py);
+  ctx.imageSmoothingEnabled = suave;
+  ctx.restore();
+}
+// Efectos: la carga del puño, el área de la ráfaga, la línea de la patada, el rayo.
+function drawBorosEfectos(){
+  if (!isBor()) return;
+  const fo = borForma();
+  if (bor.holding && bor.carga > BOR_CARGA_MIN){                         // el puño se carga de luz
+    const k = clamp(bor.carga/BOR_CARGA_MAX, 0, 1), a = bor.mirA, p = S(player.x + Math.cos(a)*20, player.y - 30 + Math.sin(a)*14);
+    ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.3 + k*0.5;
+    ctx.drawImage(borAura(), p.x - 14 - k*16, p.y - 14 - k*16, 28 + k*32, 28 + k*32); ctx.restore();
+  }
+  if (bor.vApunta){                                                        // dónde caerá la ráfaga
+    const p = S(bor.vX, bor.vY);
+    ctx.save();
+    ctx.globalAlpha = 0.18 + Math.sin(gameTime*10)*0.05; ctx.fillStyle = '#ff5a3a';
+    ctx.beginPath(); ctx.ellipse(p.x, p.y, BOR_V_R, BOR_V_R*0.62, 0, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 0.9; ctx.strokeStyle = '#ffd27a'; ctx.lineWidth = 2.5; ctx.setLineDash([10, 6]); ctx.lineDashOffset = -gameTime*40;
+    ctx.beginPath(); ctx.ellipse(p.x, p.y, BOR_V_R, BOR_V_R*0.62, 0, 0, Math.PI*2); ctx.stroke(); ctx.setLineDash([]);
+    const k = clamp(bor.vT/BOR_V_MANT, 0, 1);
+    ctx.globalAlpha = 0.8; ctx.lineWidth = 4; ctx.strokeStyle = '#ffffff';
+    ctx.beginPath(); ctx.ellipse(p.x, p.y, BOR_V_R*(1 - k), BOR_V_R*0.62*(1 - k), 0, 0, Math.PI*2); ctx.stroke();
+    ctx.restore();
+  }
+  if (borPunos.length){                                                    // puños fantasma de la ráfaga
+    ctx.save();
+    for (const q of borPunos){
+      const p = S(q.x, q.y), k = q.t/0.16;
+      ctx.globalAlpha = 0.85*k; ctx.fillStyle = fo === 3 ? '#fff0f8' : fo === 2 ? '#3450b8' : '#e8b630';
+      ctx.beginPath(); ctx.ellipse(p.x, p.y - 24, 7, 6, 0, 0, Math.PI*2); ctx.fill();
+      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.globalAlpha = 0.6*k;
+      ctx.beginPath(); ctx.moveTo(p.x - q.l*20, p.y - 22); ctx.lineTo(p.x - q.l*6, p.y - 24); ctx.stroke();
+    }
+    ctx.restore();
+  }
+  if (bor.zFase === 'alto' && borZObj && !borZObj.dead){                 // hacia dónde irá la patada
+    const o = borZObj, p = S(o.x, o.y), q = S(o.x + Math.cos(bor.zPA)*220, o.y + Math.sin(bor.zPA)*220);
+    ctx.save(); ctx.globalAlpha = 0.85; ctx.strokeStyle = '#ffd84a'; ctx.lineWidth = 4; ctx.setLineDash([14, 8]); ctx.lineDashOffset = -gameTime*80;
+    ctx.beginPath(); ctx.moveTo(p.x, p.y - 30); ctx.lineTo(q.x, q.y - 30); ctx.stroke(); ctx.setLineDash([]);
+    const a = Math.atan2(q.y - p.y, q.x - p.x);
+    ctx.fillStyle = '#ffd84a'; ctx.beginPath(); ctx.moveTo(q.x + Math.cos(a)*14, q.y - 30 + Math.sin(a)*14);
+    ctx.lineTo(q.x + Math.cos(a + 2.5)*12, q.y - 30 + Math.sin(a + 2.5)*12); ctx.lineTo(q.x + Math.cos(a - 2.5)*12, q.y - 30 + Math.sin(a - 2.5)*12); ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+  if (bor.bFase){                                                          // el rayo del pecho
+    const o = borPecho(), so = S(o.x, o.y), f2 = Math.max(2, fo);
+    if (bor.bFase === 'carga'){
+      const k = 1 - bor.bT/BOR_B_CARGA;
+      ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.5 + k*0.5;
+      const r = 10 + k*(f2 === 3 ? 34 : 20);
+      ctx.drawImage(borAura(), so.x - r, so.y - r, r*2, r*2);
+      ctx.fillStyle = f2 === 3 ? '#ffcc33' : '#8ad8ff'; ctx.beginPath(); ctx.arc(so.x, so.y, 3 + k*6, 0, Math.PI*2); ctx.fill();
+      ctx.restore();
+    } else {
+      const L = BOR_B_LARGO[f2], W = BOR_B_ANCHO[f2], ca = Math.cos(bor.bA), sa = Math.sin(bor.bA);
+      const ex = so.x + ca*L, ey = so.y + sa*L, j = Math.sin(gameTime*50)*0.08;
+      const capas = f2 === 3 ? [[W*1.6, '#1a1a7a', 0.45], [W*1.1, '#2a2ab0', 0.6], [W*0.75, '#ffcc33', 0.75], [W*0.42, '#fff0b0', 0.9], [W*0.18, '#ffffff', 1]]
+                             : [[W*1.6, '#2a5aff', 0.3], [W, '#58b8ff', 0.6], [W*0.5, '#c8f0ff', 0.9], [W*0.2, '#ffffff', 1]];
+      ctx.save(); ctx.lineCap = 'round';
+      for (const [w, col, al] of capas){
+        ctx.globalAlpha = al; ctx.strokeStyle = col; ctx.lineWidth = w*(1 + j);
+        ctx.beginPath(); ctx.moveTo(so.x, so.y); ctx.lineTo(ex, ey); ctx.stroke();
+      }
+      if (f2 === 3){                                                       // la espiral dorada alrededor
+        ctx.globalAlpha = 0.85; ctx.strokeStyle = '#ffd84a'; ctx.lineWidth = 3;
+        const px = -sa, py = ca;
+        for (const ph of [0, Math.PI]){
+          ctx.beginPath();
+          for (let d = 0; d <= L; d += 18){ const w = Math.sin(d*0.045 - gameTime*24 + ph)*W*0.7; const x = so.x + ca*d + px*w, y = so.y + sa*d + py*w; d ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
+          ctx.stroke();
+        }
+      }
+      ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.9;
+      ctx.drawImage(borAura(), so.x - W, so.y - W, W*2, W*2);
+      ctx.restore();
+    }
+  }
+}
+
 function updatePlayer(dt){
   if (Online.caidoYo && esDoble()) return;
   if (vil.caida){ updateCaida(dt); return; }
@@ -24797,6 +25753,7 @@ function updatePlayerLibre(dt){
   if (isDra()) return updateDragon(dt);
   if (isMaq()) return updateMaquina(dt);
   if (isMag()) return updateMago(dt);
+  if (isBor()) return updateBoros(dt);
   if (vil.intro){                              // la cría surge de una nube de humo verde
     player.tentaclePhase += dt*6;
     if (Math.random() < 0.5) addParticles(player.x + rand(-24, 24), player.y + rand(-10, 20), '#5fce7f', 1, 50);
@@ -28776,6 +29733,7 @@ function drawPlayer(){
   if (isDra()) return drawDragon();
   if (isMaq()) return drawMaquina();
   if (isMag()) return drawMago();
+  if (isBor()) return drawBoros();
   if (vil.intro) return drawEntradaHumo(drawAlien);
   drawAlien();
 }
@@ -29151,6 +30109,7 @@ function draw(){
   }
 
   drawDraSombraIntro();                      // cae desde el cielo: sobre tejados y todo
+  drawBorosEfectos();
   drawBullets(); drawTriRayos(); drawDragonRayos(); drawJefes2Rayos(); drawAlienEfectos(); drawCenturionEfectos(); drawDesgarradorRayo(); drawRefuerzosEfectos(); drawAracnidoEfectos(); drawDesesperacionEfectos(); drawMuerteVelozEfectos(); drawElectroJugador(); drawMeteorosCayendo(); drawProyJ(proyJ); drawProyJ(proyRed);
   if (dobleAnf() && Online.av && Online.av.pj) drawProyJ(Online.av.pj);
   drawMaquinaEfectos(); drawMagoEfectos();
@@ -30525,7 +31484,7 @@ const MAPA_NOMBRE = { ciudad:'CIUDAD', alien:'MUNDO ALIENÍGENA', infierno:'CAST
 let puntMapa = 'ciudad';            // de qué mapa es la tabla que se está viendo
 function scoreKey(m){
   const base = isVil() ? 'invasion_scores_vil' : isDra() ? 'invasion_scores_dra'
-             : isMaq() ? 'invasion_scores_maq' : isMag() ? 'invasion_scores_mag' : 'invasion_scores';
+             : isMaq() ? 'invasion_scores_maq' : isMag() ? 'invasion_scores_mag' : isBor() ? 'invasion_scores_bor' : 'invasion_scores';
   return m && m !== 'ciudad' ? base + '_' + m : base;
 }
 function pintaMapasPuntaje(){
@@ -30793,11 +31752,13 @@ function loop(t){
     camY = clamp(player.y-VH/2, 0, Math.max(0,WORLD_H-VH));
 
     pintaHUD();
+    if (hp <= 0 && isBor() && bor.fase === 1 && !buffActivo('despertar') && esDoble() && !Online.caidoYo) borTransforma();
     if (dobleAnf()){
       const a = Online.av;
       if (gestionaCaida(dt, !!(a && a.caido), a && !a.caido ? a.pl : null) === 'fin') endGame();
     }
     if (enLineaAnfitrion()) tickAnfitrion(dtReal);
+    if (hp <= 0 && isBor() && bor.fase === 1 && !buffActivo('despertar') && !Online.caidoYo) borTransforma();   // la armadura revienta
     if (hp<=0 && !esDoble()){
       if (gameMode === 'vs' && !vsWinner) vsWinner = 'p2';
       endGame();
@@ -30843,12 +31804,13 @@ function pintaHUD(){
     hudCss('hpfill', 'width', pctCss(hp/maxHp()));
     pintaHabilidades();
     if (usaVil()){
-      hudTxt('formname', isMaq() ? 'MÁQUINA' : isMag() ? 'MAGO' : heroName(hero));   // corto: cabe en el móvil
+      hudTxt('formname', isMaq() ? 'MÁQUINA' : isMag() ? 'MAGO' : isBor() ? ['', 'BOROS', 'BOROS', 'DESPIERTO'][borForma()] : heroName(hero));   // corto: cabe en el móvil
       hudCss('stamwrap', 'display', '');
       // la máquina muestra su impulso; el mago, su maná; los demás, estamina
       hudCss('stamfill', 'width', pctCss(isMaq() ? maq.impulso : vil.stam/vil.maxStam));
       hudCss('stamfill', 'background', isMaq() ? 'linear-gradient(90deg,#ff8a2b,#ffd84a)'
                                      : isMag() ? 'linear-gradient(90deg,#7a3fb0,#d6a8ff)'
+                                     : isBor() ? (borForma() === 3 ? 'linear-gradient(90deg,#2a2ab0,#ffcc33)' : 'linear-gradient(90deg,#c0409a,#ffd257)')
                                      : 'linear-gradient(90deg,#3aa7ff,#9fd6ff)');
       hudCss('evofill', 'width', '0%');
       hudCss('evowrap', 'display', 'none');        // sin barra de evolución
@@ -30930,6 +31892,7 @@ function startGame(mode){
   ab.classList.toggle('dra', isDra());          // y los tres del dragón, solo con él
   ab.classList.toggle('maq', isMaq());
   ab.classList.toggle('mag', isMag());
+  ab.classList.toggle('bor', isBor());
   const p2t = document.getElementById('p2touch');
   if (p2t) p2t.classList.toggle('playing', gameMode === 'vs' && !vsLocalTelefono());
   try { document.body.classList.toggle('vstel', vsLocalTelefono()); } catch(e){}
@@ -31456,7 +32419,7 @@ function uiEdRender(){
   if (bv2) bv2.classList.toggle('off', uiEdHero !== 'viltrum');
   const bd = document.getElementById('uiEdDra');
   if (bd) bd.classList.toggle('off', uiEdHero !== 'dragon');
-  for (const [id, v] of [['uiEdMaq', 'maquina'], ['uiEdMag', 'mago']]){
+  for (const [id, v] of [['uiEdMaq', 'maquina'], ['uiEdMag', 'mago'], ['uiEdBor', 'boros']]){
     const b = document.getElementById(id); if (b) b.classList.toggle('off', uiEdHero !== v);
   }
   const bi = document.getElementById('uiEdInv'), bvs = document.getElementById('uiEdVs');
@@ -31685,7 +32648,7 @@ const _edVil = document.getElementById('uiEdVil');
 if (_edVil) _edVil.addEventListener('click', ()=>{ uiEdHero='viltrum'; uiEdRender(); sfx('ui'); });
 const _edDra = document.getElementById('uiEdDra');
 if (_edDra) _edDra.addEventListener('click', ()=>{ uiEdHero='dragon'; uiEdRender(); sfx('ui'); });
-for (const [id, v] of [['uiEdMaq', 'maquina'], ['uiEdMag', 'mago']]){
+for (const [id, v] of [['uiEdMaq', 'maquina'], ['uiEdMag', 'mago'], ['uiEdBor', 'boros']]){
   const b = document.getElementById(id);
   if (b) b.addEventListener('click', ()=>{ uiEdHero = v; uiEdRender(); sfx('ui'); });
 }
@@ -31873,7 +32836,21 @@ function refreshModeText(){
     descInvOrig = d.innerHTML; descVsOrig = v.innerHTML;
   }
 
-  if (isMaq()){
+  if (isBor()){
+    d.innerHTML = 'La ciudad entera contra ti. Eres <b>Boros</b>, el conquistador: con la armadura dorada '+
+      'tienes poca vida, pero al reventar sigues peleando en tu forma real y con el regalo del OVNI despiertas '+
+      'tu tercera forma. Corre atravesando manzanas y reparte puñetazos.<br>'+
+      '<span class="moderec">Recomendado: <b>WASD</b> (doble toque o mantener: correr). <b>Click</b> golpea (mantener: cargado), '+
+      '<b>Z</b> embiste y remata con una patada dirigida, <b>C</b> agarra, gira y lanza, <b>mantener V</b> apunta una '+
+      'lluvia de puñetazos y <b>B</b> dispara el rayo del pecho (sin la armadura).</span>';
+    v.innerHTML = 'Dos jugadores en el mismo teclado. <b>Boros</b> debe aguantar 2:30 mientras '+
+      'el <b>Jugador 2</b> gasta materiales desplegando tropas donde quiera. Si cae con la armadura, revienta '+
+      'y sigue luchando en su segunda forma.<br>'+
+      '<span class="moderec"><b class="tipmovil">En móvil funciona, pero este modo se disfruta mucho más en ordenador.</b>'+
+      'J1: <b>WASD</b> + ratón, <b>Z</b>, <b>C</b>, <b>V</b> y <b>B</b> · J2: <b>flechas</b> para mover la mira, '+
+      '<b>Start (Intro)</b> para desplegar, <b>AvPág/RePág</b> para cambiar de unidad y '+
+      '<b>Inicio</b> para traer la mira junto a Boros si te pierdes.</span>';
+  } else if (isMaq()){
     d.innerHTML = 'La ciudad entera contra ti. Eres la <b>Máquina Aberrante</b>: un endoesqueleto de metal '+
       'con poca vida, pero que se recompone con cada víctima. Coge carrerilla, cambia de arma sobre la '+
       'marcha y no te pares nunca.<br>'+
@@ -31953,7 +32930,7 @@ function playModeIntro(){
 // mago se lo llevan unas plantas oscuras que salen del suelo.
 function crackAndStart(btnId, fn){
   const b = document.getElementById(btnId);
-  if (b && (isDra() || isMaq() || isMag()) && menuAnimOn) return fxBotonJugar(b, fn);
+  if (b && (isDra() || isMaq() || isMag() || isBor()) && menuAnimOn) return fxBotonJugar(b, fn);
   if (!isVil() || !b){ fn(); return; }
   if (b.dataset.cracking === '1') return;
   b.dataset.cracking = '1';
@@ -32199,8 +33176,18 @@ function pintaMiniMapas(){
 // cambiar con las flechas.
 const HOLO_W = 150, HOLO_H = 140;
 const holo = { raf:0, esperando:false, t:0, last:0, aparece:1, fig:null, medida:{} };
+// Boros en miniatura: cambia de forma cada pocos segundos y pasa por sus golpes.
+function miniBoros(g, x, y, r, t){
+  const fo = 1 + Math.floor(t/3.2) % 3, ciclo = t % 3.2;
+  const pose = ciclo < 1.4 ? ['quieto', Math.floor(t*1.6) % 2] : ciclo < 1.9 ? ['golpe', Math.floor(t*6) % 2] : ciclo < 2.5 ? ['fuerte', 0] : ['quieto', 0];
+  const c = borFrame(fo, pose[0], pose[1]), [W, H, cx, py] = BOR_TAM, k = r/40;
+  const suave = g.imageSmoothingEnabled; g.imageSmoothingEnabled = false;
+  g.drawImage(c, x - cx*k, y + r*0.62 - py*k, W*k, H*k);
+  g.imageSmoothingEnabled = suave;
+}
 function holoFigura(g, h, x, y, t){
-  if (h === 'dragon') miniDragon(g, x, y, 36, t);
+  if (h === 'boros') miniBoros(g, x, y, 36, t);
+  else if (h === 'dragon') miniDragon(g, x, y, 36, t);
   else if (h === 'maquina') miniMaquina(g, x, y, 36, t);
   else if (h === 'mago') miniMago(g, x, y, 36, t);
   else if (h === 'viltrum') miniVil(g, x, y, 36, t);
@@ -32213,7 +33200,7 @@ function holoMide(h){
   const g = c.getContext('2d');
   // la máquina cambia de pose (escopetazo, incineración...): se mide con todas
   // menos los tajos, que pueden salirse un poco
-  const poses = h === 'maquina' ? [0.3, 3.3, 5.5, 8.0, 10.2, 10.45, 10.9] : [0.3];
+  const poses = h === 'maquina' ? [0.3, 3.3, 5.5, 8.0, 10.2, 10.45, 10.9] : h === 'boros' ? [0.3, 3.5, 6.7, 2.1, 5.3, 8.5] : [0.3];
   for (const tp of poses) holoFigura(g, h, 160, 190, tp);
   const px = g.getImageData(0, 0, 320, 320).data;
   let x0 = 320, y0 = 320, x1 = 0, y1 = 0;
@@ -32302,7 +33289,7 @@ function refreshHeroUI(){
   const tn = document.getElementById('tutNombre'); if (tn) tn.textContent = heroName(hero);
   // la cría y el dragón la devoran; el viltrumita, la máquina y el mago la destruyen
   const lema = document.getElementById('menuLema');
-  if (lema) lema.textContent = 'La ciudad es tuya. ' + ((isVil() || isMaq() || isMag()) ? 'Destrúyela.' : 'Devórala.');
+  if (lema) lema.textContent = 'La ciudad es tuya. ' + ((isVil() || isMaq() || isMag() || isBor()) ? 'Destrúyela.' : 'Devórala.');
   const hdr = document.getElementById('scoreheader');
   if (hdr) hdr.textContent = 'JUGANDO COMO: ' + heroName(hero);
 }
@@ -32347,7 +33334,17 @@ function fichaHeroe(h){
           [K('draAle'), 'Congela todo a tu alrededor'], [K('draCola'), 'Escudo que para cualquier daño'],
           [K('magFue'), 'Columna de fuego donde apuntas'], [K('magTel'), 'Teletransporte al último sitio donde hiciste click'],
           ['OVNI', 'Poder arcano: hechizos más fuertes y todo lo que mates se une a ti: la tropa como zombis, tanques y bestias como ogros, todo lo que vuela como dragones, MBT-MB92, cabezones y bichos como Piernas de pollo y los jefes como gigantes de lava']],
-      m: 'RAYO, MENTE, FUEGO y SALTO son joysticks (mantén, apunta y suelta; con un toque van a lo más cercano). HIELO y ESCUDO al tocarlos.' }
+      m: 'RAYO, MENTE, FUEGO y SALTO son joysticks (mantén, apunta y suelta; con un toque van a lo más cercano). HIELO y ESCUDO al tocarlos.' },
+    boros: {
+      desc: 'El conquistador de la armadura dorada. Pelea a puñetazos y corre atravesando edificios. Con la armadura tiene poca vida, pero se regenera; al caer a cero, la armadura revienta y sigue peleando en su forma real, que ya lanza el rayo del pecho.',
+      t: [[mover, 'Moverse (doble toque o mantener la dirección: correr atravesando edificios y arrollando a la gente)'],
+          ['Click izq. / ' + K('grab'), 'Puñetazo; mantenido, golpe cargado que barre todo por delante'],
+          [K('draAle'), 'Embestida al frente con un golpe de área que lo manda todo a volar; el más cercano queda en el aire y lo rematas con una patada hacia la mira'],
+          [K('draCola') + ' / click der.', 'Agarra lo que tengas cerca, da varias vueltas golpeando con ello y lo lanza con fuerza hacia la mira'],
+          ['Mantén ' + K('borV'), 'Marca una zona pequeña cerca (se dirige con la mira); al soltar, lluvia de puñetazos sobre ella'],
+          [K('borB'), 'Sin la armadura: un rayo poderoso desde el ojo del pecho'],
+          ['OVNI', 'El despertar: corre más, pega más fuerte, abrasa todo lo que toca y su rayo es gigantesco, azul oscuro y dorado']],
+      m: 'GOLPE (mantén para cargar), EMBESTIDA, RÁFAGA y RAYO son joysticks: mantén, apunta y suelta. AGARRE al tocarlo. Joystick al tope para correr.' }
   };
   return f[normHeroe(h)];
 }
@@ -32470,9 +33467,9 @@ function cambiaRolSala(r){
 function marcaHeroeSala(h){
   Sala.heroe = normHeroe(h);
   for (const [id, v] of [['salaHeroeAlien','alien'],['salaHeroeVil','viltrum'],['salaHeroeDra','dragon'],
-                         ['salaHeroeMaq','maquina'],['salaHeroeMag','mago'],
+                         ['salaHeroeMaq','maquina'],['salaHeroeMag','mago'],['salaHeroeBor','boros'],
                          ['salaHeroeAlien2','alien'],['salaHeroeVil2','viltrum'],['salaHeroeDra2','dragon'],
-                         ['salaHeroeMaq2','maquina'],['salaHeroeMag2','mago']]){
+                         ['salaHeroeMaq2','maquina'],['salaHeroeMag2','mago'],['salaHeroeBor2','boros']]){
     const b = document.getElementById(id); if (b) b.classList.toggle('on', Sala.heroe === v);
   }
 }
@@ -32812,6 +33809,7 @@ function instantaneaAnfitrion(){
   if (isDra()) i.dra = _prim(dra);
   if (isMaq()) i.maq = _prim(maq);
   if (isMag()) i.mag = _prim(mag);
+  if (isBor()) i.bor = _prim(bor);
   if (relampagos.length) i.rl = relampagos.map(r => _prim(r));
   if (proyJ.length) i.pj = proyJ.filter(_dentro).map(p => _prim(p));
   if (zombis.length) i.zb = zombis.filter(_dentro).map(z => _prim(z));
@@ -32924,7 +33922,7 @@ function aplicaInstantanea(i){
   if (doble){
     // tu invasor es tuyo: del anfitrión solo se guarda cómo es el suyo
     Online.companero = { pl:i.pl, hero:i.hero, form:i.form, dr:i.dr, sk:skinDeRed(i.sk), vil:i.vil || null, dra:i.dra || null,
-                         maq:i.maq || null, mag:i.mag || null, ry: i.rayos ? 1 : 0,
+                         maq:i.maq || null, mag:i.mag || null, bor:i.bor || null, ry: i.rayos ? 1 : 0,
                          ap:i.ap, bT:i.buff[0], bP:i.buff[1], caido: !!i.caido };
     aplicaMundo(i);
     if (i.hi && !vil.intro){                       // lo que te han hecho (mientras entras, nada)
@@ -32959,6 +33957,7 @@ function aplicaInstantanea(i){
   if (i.dra) Object.assign(dra, i.dra);
   if (i.maq) Object.assign(maq, i.maq);
   if (i.mag) Object.assign(mag, i.mag);
+  if (i.bor) Object.assign(bor, i.bor);
   relampagos.length = 0; if (i.rl) for (const r of i.rl) relampagos.push(r);
   // La mira se predice en local (ver loopInvitado) y aquí solo se corrige hacia
   // la del anfitrión; si la diferencia es grande (volvió junto al alien), se salta.
@@ -33279,13 +34278,14 @@ function companeroDibujo(){
 function dibujaCompanero(){
   const c = companeroDibujo(); if (!c) return;
   const g = { player, hero, form, drawR, activeSkin, buffT, buffTipo, heldObject, vil: Object.assign({}, vil), dra: Object.assign({}, dra),
-             maq: Object.assign({}, maq), mag: Object.assign({}, mag) };
+             maq: Object.assign({}, maq), mag: Object.assign({}, mag), bor: Object.assign({}, bor) };
   player = c.pl; hero = c.hero; form = c.form; drawR = c.dr || drawR; activeSkin = c.sk;
   buffT = c.bT || 0; buffTipo = c.bP || null; heldObject = null;
   if (c.vil) Object.assign(vil, c.vil);
   if (c.dra) Object.assign(dra, c.dra);
   if (c.maq) Object.assign(maq, c.maq);
   if (c.mag) Object.assign(mag, c.mag);
+  if (c.bor) Object.assign(bor, c.bor);
   _apCompa = c.ap || null;
   const a0 = ctx.globalAlpha, rayos0 = rayosOn;
   if (c.caido) ctx.globalAlpha = 0.35;
@@ -33294,7 +34294,7 @@ function dibujaCompanero(){
     // su visión calórica, con su puntería (antes no se dibujaba)
     if (c.ry && verRayosOtro && !c.caido){ rayosOn = true; drawRayosOjos(); }
     if (hero === 'dragon' && verRayosOtro && !c.caido) drawDragonRayos();   // los de sus tres bocas
-    if (!c.caido){ drawMaquinaEfectos(); drawMagoEfectos(); }            // sierras, telequinesis
+    if (!c.caido){ drawMaquinaEfectos(); drawMagoEfectos(); drawBorosEfectos(); }   // sierras, telequinesis, rayo
   }
   finally {
     rayosOn = rayos0;
@@ -33305,6 +34305,7 @@ function dibujaCompanero(){
     Object.assign(dra, g.dra);
     Object.assign(maq, g.maq);
     Object.assign(mag, g.mag);
+    Object.assign(bor, g.bor);
   }
   // su nombre encima, para no confundirse
   const otro = Sala.jugadores.find(j => j.id === Online.otro);
@@ -33327,7 +34328,7 @@ function enviaAvatar(dt){
   const tp = tentacleTip();
   salaEnviar(Online.otro, { t:'av', pl:_prim(player), hero, form, dr:drawR, sk:skinRed(), ry: rayosOn ? 1 : 0,
     vil: _prim(vil), dra: isDra() ? _prim(dra) : null,
-    maq: isMaq() ? _prim(maq) : null, mag: isMag() ? _prim(mag) : null,
+    maq: isMaq() ? _prim(maq) : null, mag: isMag() ? _prim(mag) : null, bor: isBor() ? _prim(bor) : null,
     pj: proyJ.length ? proyJ.slice(0, 40).map(p => _prim(p)) : null,
     rl: relampagos.length ? relampagos.map(r => _prim(r)) : null,
     ap: aimVector(), tip:{ x:tp.x, y:tp.y }, r: F().r,
@@ -33535,7 +34536,7 @@ document.getElementById('salaHeroeAlien2').addEventListener('click', ()=> cambia
 document.getElementById('salaHeroeVil2').addEventListener('click', ()=> cambiaHeroeSala('viltrum'));
 document.getElementById('salaHeroeDra').addEventListener('click', ()=> cambiaHeroeSala('dragon'));
 document.getElementById('salaHeroeDra2').addEventListener('click', ()=> cambiaHeroeSala('dragon'));
-for (const [id, v] of [['salaHeroeMaq','maquina'],['salaHeroeMag','mago'],['salaHeroeMaq2','maquina'],['salaHeroeMag2','mago']])
+for (const [id, v] of [['salaHeroeMaq','maquina'],['salaHeroeMag','mago'],['salaHeroeMaq2','maquina'],['salaHeroeMag2','mago'],['salaHeroeBor','boros'],['salaHeroeBor2','boros']])
   document.getElementById(id).addEventListener('click', ()=> cambiaHeroeSala(v));
 function cambiaHeroeSala(h){
   marcaHeroeSala(h); sfx('ui');
