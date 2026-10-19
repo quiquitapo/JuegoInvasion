@@ -12861,6 +12861,8 @@ const P2_CIUDAD = [
   { type:'kaiyin',   name:'KAIYIN',    cost:1250,cool:28.0,sprite:'kaiyinF' },
   { type:'mbt',      name:'MBT-MB92',  cost:300, cool:6.0, sprite:'mbt'     },
   { type:'mbtFrio',  name:'MBT FRÍO',  cost:340, cool:7.0, sprite:'mbtFrio' },
+  // La camada: una colosal y tres crías, como el jefe de la invasión.
+  { type:'crias',    name:'CRÍAS',     cost:1300,cool:30.0,sprite:null, especial:'crias' },
   // No es una unidad: desata durante unos segundos una versión corta de la
   // oleada final, con lo más pesado del ejército cayendo sobre el alien.
   { type:'miniOleada', name:'MINI OLEADA FINAL', cost:1300, cool:45.0, sprite:'gunship', oleada:true }
@@ -12914,6 +12916,7 @@ const P2_INFIERNO = [
   { type:'centurion', name:'CENTURIÓN D.', cost:1500,cool:30.0,sprite:'centurionF', deforme:1 },
   { type:'desgarrador',name:'DESGARRADOR D.',cost:1550,cool:30.0,sprite:'desgarradorF', deforme:1 },
   { type:'desesperacion',name:'DESESPERACIÓN',cost:1500,cool:30.0,sprite:'desesperacionF' },
+  { type:'crias',     name:'CRÍAS',        cost:1400,cool:30.0,sprite:null, especial:'crias' },
   { type:'miniOleada', name:'MINI OLEADA FINAL', cost:1300, cool:45.0, sprite:'vengativoF', oleada:true }
 ];
 const P2_SETS = { ciudad:P2_CIUDAD, alien:P2_ALIEN, infierno:P2_INFIERNO };
@@ -13010,6 +13013,7 @@ function p2Place(){
   if (p2.cool[p2.sel] > 0){ sfx('deny'); return; }
   if (p2.mat < u.cost){ sfx('deny'); return; }
   if (u.especial === 'refuerzos' && refz){ sfx('deny'); return; }     // una flota a la vez
+  if (u.especial === 'crias' && criasActivas()){ sfx('deny'); return; }   // y una camada
   // no plantar dentro de un edificio en pie (la oleada no se planta en ningún
   // sitio, y el meteorito cae donde sea)
   if (!u.oleada && u.especial !== 'meteoro') for (let __i112 = 0, __a112 = buildings; __i112 < __a112.length; __i112++){ const b = __a112[__i112];
@@ -13025,6 +13029,10 @@ function p2Place(){
   }
   if (u.especial === 'horda') hordaVengativa(6, p2.x, p2.y, 20, 90);
   else if (u.especial === 'refuerzos') lanzaRefuerzos(true, p2.x, p2.y);
+  else if (u.especial === 'crias'){
+    const camada = lanzaCrias(p2.x, p2.y, true);
+    if (u === P2_INFIERNO.find(k => k.especial === 'crias')) camada.forEach(e => hazDeforme(e, 1.3));
+  }
   else if (u.especial === 'meteoro'){
     lanzaMisilEn(p2.x, p2.y, u.misil || 'meteoro');
   } else if (u.especial === 'tripodeN'){
@@ -13287,6 +13295,7 @@ let p2Seeds = null, p2SeedsSig = '', p2MatShown = -1;
 function iconoUnidadP2(u){
   if (u.type === 'omni') return omniIconURL();
   if (u.type === 'tripode') return tripodeIconURL();
+  if (u.type === 'crias') return criasIconURL();
   if (u.deforme){                                   // el icono, deformado (se hace una vez)
     if (u._ic) return u._ic;
     let src = null, esc = 1;
@@ -16524,6 +16533,7 @@ function refuerzoLlega(tipo, n){
       const e = enemies[enemies.length - 1];
       e.refz = 1;
       e.llega = 0.6;                                   // baja en un haz de luz
+      if (refz.ley){ e.hp = e.maxhp = Math.round(e.maxhp*refz.ley); e.oleada = true; }
       addParticles(x, y - (e.alt || 0), '#9fd8ff', 14, 160);
     }
   }
@@ -16540,9 +16550,9 @@ function updateRefuerzos(dt){
   while (refz.i < G.length && G[refz.i][0] <= refz.t){ const g = G[refz.i++]; refuerzoLlega(g[1], g[2]); }
   let vivo = 0, quedan = 0;
   for (let __i150 = 0, __a150 = enemies; __i150 < __a150.length; __i150++){ const e = __a150[__i150]; if (e.llega > 0) e.llega -= dt; if (e.refz && !e.dead){ vivo += Math.max(0, Math.min(e.hp, e.maxhp)); quedan++; } }
-  let pend = 0; for (let k = refz.i; k < G.length; k++) pend += G[k][2]*REFZ_HP[G[k][1]];
+  let pend = 0; for (let k = refz.i; k < G.length; k++) pend += G[k][2]*REFZ_HP[G[k][1]]*(refz.ley || 1);
   refz.hp = Math.min(refz.max, vivo + pend);
-  if (!refz.ign){
+  if (!refz.ign && gameMode !== 'leyenda'){
     refz.plazo += dt;
     if (refz.plazo >= BOSS_PLAZO){ refz.ign = true; if (!enAsedio()) toast('EL EJÉRCITO SE REORGANIZA'); }
   }
@@ -32587,19 +32597,29 @@ function criasActivas(){
   return false;
 }
 function criaAlcance(e){ return e.colosal ? 250 : 165; }
-function lanzaCrias(){
+// Sin punto, alrededor del jugador; con él (el J2 del VS), la camada sale
+// ahí, en corro. Devuelve las cuatro.
+function lanzaCrias(x, y, sinPausa){
+  const camada = [];
   for (let i = 0; i < 4; i++){
-    const tipo = i === 0 ? 'criaColosal' : 'criaJefe', p = leySitio(i);
+    const tipo = i === 0 ? 'criaColosal' : 'criaJefe';
+    let p = x === undefined ? leySitio(i) : { x, y };
+    if (x !== undefined && i > 0){
+      const a = i/3*Math.PI*2 + 0.5, px = clamp(x + Math.cos(a)*90, 60, WORLD_W - 60), py = clamp(y + Math.sin(a)*70, 60, WORLD_H - 60);
+      p = dentroDeEdificio(px, py, 20) ? { x, y } : { x:px, y:py };
+    }
     spawnEnemy(tipo, p.x, p.y);
     const e = enemies[enemies.length - 1];
     if (!e || e.type !== tipo) continue;
     e.x = p.x; e.y = p.y; e.nace = 0.9 + i*0.25;
+    camada.push(e);
     addParticles(p.x, p.y, '#7bffa0', 24, 200); addParticles(p.x, p.y, '#2f7a45', 14, 140);
   }
-  const c = enemies.find(e => e.type === 'criaColosal' && !e.dead);
-  if (c) presentaJefe(c);
+  const c = camada.find(e => e.type === 'criaColosal');
+  if (c) presentaJefe(c, sinPausa);
   sfx('humoVerde');
   shake(20, 0.7);
+  return camada;
 }
 // Lo que puede agarrar: farolas, papeleras, bancas, árboles y humanos; la colosal, también autos y blindados.
 function criaBuscaPresa(e){
@@ -32805,7 +32825,7 @@ function criasIconURL(){
 // partir del cuarto pueden venir dos a la vez. El mapa y el clima cambian en
 // cada pelea y se anuncian arriba al empezar.
 const LEY_RIVALES = ['rivalBoros', 'rivalVil', 'heroe', 'kaiyin', 'omni', 'superx', 'tripode', 'flametank', 'artillero',
-                     'centurion', 'desgarrador', 'aracnido', 'muerteVeloz', 'desesperacion'];
+                     'centurion', 'desgarrador', 'aracnido', 'muerteVeloz', 'desesperacion', 'criaColosal', 'refuerzos'];
 const RIVAL_CPU = { rivalBoros:1, rivalVil:1 };
 const LEY_DOBLE = 3;                 // con tantas victorias ya pueden venir dos juntos
 const LEY_DOBLE_SIEMPRE = 6;         // y con estas, siempre
@@ -32998,6 +33018,16 @@ function leySueltaRivales(){
   const extra = (1 + ley.ganadas*0.1)*(ley.tipos.length > 1 ? 0.75 : 1);
   ley.tipos.forEach((t, i)=>{
     const p = leySitio(i);
+    if (t === 'criaColosal'){                                    // la camada entera; cada una con su vida
+      const camada = lanzaCrias(p.x, p.y, i > 0);
+      for (const e of camada){ e.leyRival = true; e.oleada = true; e.hp = e.maxhp = Math.round(e.maxhp*extra); }
+      return;
+    }
+    if (t === 'refuerzos'){                                      // la flota baja junto al rival
+      lanzaRefuerzos(i > 0, p.x, p.y);
+      if (refz){ refz.ley = extra; refz.vs = true; refz.max *= extra; refz.hp = refz.max; }
+      return;
+    }
     spawnEnemy(t, p.x, p.y);
     const e = enemies[enemies.length - 1];
     if (!e || e.type !== t) return;
@@ -33013,6 +33043,7 @@ function leySueltaRivales(){
 function leyRivalesVivos(){
   let n = 0;
   for (let i = 0; i < enemies.length; i++){ const e = enemies[i]; if (e.leyRival && !e.dead) n++; }
+  if (refz && ley.tipos.includes('refuerzos')) n++;               // la flota cuenta hasta que la repeles
   return n;
 }
 // Desde updateSpawns: la gente y los autos siguen; el ejército, no.
