@@ -450,45 +450,72 @@
   #leyRec b { color:#ffd257; font-size:0.85rem; }
   .leytitulo { color:#ffd257; font-weight:900; font-size:clamp(1.3rem, 5vw, 2.1rem); letter-spacing:4px;
                text-shadow:0 0 14px rgba(255,190,60,0.55), 3px 3px 0 #3a2404; margin-bottom:12px; }
-  .leymapa { display:flex; align-items:center; gap:10px; background:rgba(10,8,4,0.7); border:2px solid #7a5a12;
-             border-radius:6px; padding:8px 10px; margin-bottom:14px; max-width:100%; }
-  .leymapa img { width:min(140px,30vw); height:auto; border-radius:4px; border:1px solid #5a4410; image-rendering:pixelated; }
-  .leymapainfo { display:flex; flex-direction:column; align-items:flex-start; gap:6px; min-width:0; }
+  /* el mapa de fondo, ampliado y oscurecido, que se mueve despacio */
+  .leyfondo { background:#050403; }
+  .leybg { position:fixed; inset:-6%; background-size:cover; background-position:center; image-rendering:pixelated;
+           filter:brightness(0.55) saturate(1.1); animation:leyPaneo 28s ease-in-out infinite alternate; z-index:0; }
+  .leyfondo::after { content:''; position:fixed; inset:0; z-index:0; pointer-events:none;
+                     background:radial-gradient(ellipse at center, rgba(0,0,0,0.05) 30%, rgba(0,0,0,0.72) 100%),
+                                linear-gradient(90deg, rgba(10,40,20,0.35), transparent 35%, transparent 65%, rgba(60,8,8,0.4)); }
+  @keyframes leyPaneo { from { transform:scale(1.04) translateX(-1.5%); } to { transform:scale(1.1) translateX(1.5%); } }
+  body.no-anim .leybg { animation:none; }
+  .leyin { position:relative; z-index:1; }
+  .leyfondo canvas { background:transparent; cursor:default; }
+  .leymapa { display:flex; align-items:center; gap:10px; background:rgba(10,8,4,0.72); border:2px solid #7a5a12;
+             border-radius:6px; padding:6px 10px; margin-bottom:10px; max-width:100%; }
+  .leymapainfo { display:flex; flex-direction:column; align-items:center; gap:5px; min-width:120px; }
   .leymapainfo b { color:#ffe9a0; letter-spacing:2px; font-size:clamp(0.7rem, 2.6vw, 0.95rem); }
   .leyclima { font:inherit; font-size:0.66rem; letter-spacing:1px; padding:4px 8px; border-radius:4px; cursor:pointer;
               background:rgba(0,0,0,0.45); color:#ffe9a0; border:1px solid rgba(255,210,110,0.55); }
   .leyclima.lluvia { color:#bfe0ff; border-color:rgba(110,170,240,0.7); }
   .leyclima.nube { color:#d6dde4; border-color:rgba(190,200,210,0.6); }
   .leyflecha { margin:0 !important; padding:6px 10px !important; flex:0 0 auto; }
-  .leycols { display:flex; align-items:stretch; justify-content:center; gap:14px; flex-wrap:wrap; width:min(940px, 100%); }
-  .leylado { flex:0 1 220px; display:flex; flex-direction:column; align-items:center; gap:6px;
-             background:rgba(10,20,14,0.6); border:2px solid #1f5c37; border-radius:6px; padding:10px; }
-  .leyladoriv { flex:1 1 420px; border-color:#6a1a1a; background:rgba(26,8,8,0.6); }
+  /* los dos lados del duelo */
+  .leyduelo { display:flex; align-items:center; justify-content:center; gap:clamp(8px, 3vw, 40px); width:min(900px, 100%); }
+  .leycarta { flex:0 1 300px; min-width:0; display:flex; flex-direction:column; align-items:center; gap:6px; padding:10px 8px;
+              border-radius:10px; border:2px solid #1f7a45; background:linear-gradient(180deg, rgba(8,30,16,0.78), rgba(4,12,8,0.86));
+              box-shadow:0 0 22px rgba(47,232,110,0.18); }
+  .leycarta.leyel { border-color:#8a1c1c; background:linear-gradient(180deg, rgba(40,6,6,0.78), rgba(14,3,3,0.86)); box-shadow:0 0 22px rgba(255,60,40,0.2); }
   .leylbl { color:#8fbfa2; font-size:0.66rem; letter-spacing:2px; }
-  .leylbl b { color:#ff9a7a; }
+  .leyel .leylbl { color:#ff9a7a; }
   .leyheroe { display:flex; align-items:center; gap:6px; }
-  .leyheroe canvas { width:150px; height:130px; }
-  .leynom { color:#7bffa0; font-weight:900; letter-spacing:2px; font-size:0.8rem; }
-  .leyvs { align-self:center; color:#ff5a3a; font-weight:900; font-size:clamp(1.4rem, 5vw, 2.4rem); letter-spacing:2px;
-           text-shadow:0 0 12px rgba(255,60,30,0.6), 2px 2px 0 #2a0404; }
-  .leyrivales { display:grid; grid-template-columns:repeat(auto-fill, minmax(76px, 1fr)); gap:6px; width:100%; }
-  .leyriv { display:flex; flex-direction:column; align-items:center; gap:2px; padding:4px 2px; margin:0; cursor:pointer;
-            background:rgba(0,0,0,0.45); border:2px solid #3a1414; border-radius:5px; color:#e8c8c0; font:inherit; font-size:0.5rem; letter-spacing:0.5px; }
-  .leyriv canvas { width:64px; height:52px; image-rendering:pixelated; }
-  .leyriv span { max-width:74px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .leyriv:hover { border-color:#ff6a4a; }
-  .leyriv.on { border-color:#ffd257; background:rgba(90,60,8,0.55); color:#ffe9a0; box-shadow:0 0 10px rgba(255,200,80,0.35); }
-  #leyGanador { width:min(300px, 86vw); height:auto; border-radius:8px; box-shadow:0 0 30px rgba(255,200,80,0.35); margin-bottom:10px; }
-  .leysub { color:#c9f7d8; font-size:0.75rem; margin-bottom:8px; }
-  .leypremio { color:#ffe9a0; font-size:0.78rem; background:rgba(60,44,8,0.6); border:1px solid #7a5a12; border-radius:5px; padding:8px 12px; margin-bottom:6px; }
-  .leypremio .ico { font-size:1rem; }
-  .leylleva { color:#9fd0b0; font-size:0.62rem; margin-bottom:10px; min-height:0.8rem; }
-  .leyprox { display:flex; flex-direction:column; align-items:center; gap:4px; background:rgba(26,8,8,0.6); border:2px solid #6a1a1a;
-             border-radius:6px; padding:8px 14px; margin-bottom:10px; }
-  .leyprox b { color:#ff9a7a; letter-spacing:1px; font-size:0.8rem; }
-  .leyprox span { color:#bfe0ff; font-size:0.66rem; }
-  .leyproximgs { display:flex; gap:8px; }
-  .leyrecfin { color:#ffd257; font-size:0.7rem; letter-spacing:2px; margin-bottom:6px; }
+  .leyheroe canvas, #leyMisterio { width:min(200px, 28vw); height:auto; aspect-ratio:1; }
+  .leynom { color:#7bffa0; font-weight:900; letter-spacing:2px; font-size:0.85rem; text-align:center; }
+  .leyel .leynom { color:#ff8a6a; }
+  .leyvs { align-self:center; color:#ff5a3a; font-weight:900; font-size:clamp(1.6rem, 6vw, 3rem); letter-spacing:2px;
+           text-shadow:0 0 14px rgba(255,60,30,0.7), 3px 3px 0 #2a0404; }
+  .leyrecsel { color:#ffe9a0; font-size:0.66rem; letter-spacing:1px; margin-top:10px; text-shadow:0 1px 2px #000; }
+  .leyrecsel b { color:#ffd257; }
+  /* la pantalla VS */
+  .leyvstop { color:#ffe9a0; font-size:clamp(0.7rem, 2.4vw, 0.9rem); letter-spacing:3px; margin-bottom:10px; text-shadow:0 1px 3px #000;
+              background:rgba(0,0,0,0.5); border:1px solid rgba(255,210,110,0.4); border-radius:20px; padding:5px 14px; }
+  .leyvsgana { color:#ffd257; font-weight:900; font-size:clamp(1rem, 4vw, 1.6rem); letter-spacing:3px; margin-bottom:6px;
+               text-shadow:0 0 14px rgba(255,190,60,0.6), 2px 2px 0 #3a2404; text-align:center; }
+  .leyvsgana small { display:block; font-size:0.62rem; font-weight:400; letter-spacing:1px; color:#ffe9a0; margin-top:4px; text-shadow:0 1px 2px #000; }
+  .leyvsgana .nueva { color:#7bffa0; }
+  #leyVsYo { width:min(210px, 30vw); height:auto; aspect-ratio:1; }
+  .leyvsriv { display:flex; justify-content:center; gap:4px; }
+  .leyvsriv canvas { width:min(190px, 30vw); height:auto; aspect-ratio:1; }
+  .leyvsriv.dos canvas { width:min(130px, 20vw); }
+  .leyvent { display:flex; flex-direction:column; gap:3px; width:100%; }
+  .leyvent span { font-size:0.6rem; color:#c9f7d8; background:rgba(20,60,34,0.6); border:1px solid #2f8a50; border-radius:4px; padding:3px 6px; text-align:left; }
+  .leyvent span.nada { color:#8fbfa2; background:none; border:none; text-align:center; }
+  .leyvent span.nueva { border-color:#ffd257; box-shadow:0 0 8px rgba(255,210,90,0.45); }
+  .leyvsgrande { font-size:clamp(2rem, 8vw, 4rem); }
+  .leyrecfin { color:#ffd257; font-size:0.7rem; letter-spacing:2px; margin:10px 0 6px; text-shadow:0 1px 2px #000; }
+  /* entrada: cada lado llega desde su borde y el VS golpea */
+  #leyVs.entra .leyyo { animation:slideFromLeft .55s cubic-bezier(.16,.84,.32,1) both; }
+  #leyVs.entra .leyel { animation:slideFromRight .55s cubic-bezier(.16,.84,.32,1) both; }
+  #leyVs.entra .leyvsgrande { animation:leyVsGolpe .5s cubic-bezier(.2,1.6,.4,1) both .35s; }
+  @keyframes leyVsGolpe { from { transform:scale(3); opacity:0; } to { transform:scale(1); opacity:1; } }
+  body.no-anim #leyVs.entra .leyyo, body.no-anim #leyVs.entra .leyel, body.no-anim #leyVs.entra .leyvsgrande { animation:none; }
+  @media (max-height: 520px){
+    .leytitulo { margin-bottom:4px; font-size:1.1rem; }
+    .leymapa { margin-bottom:4px; padding:3px 8px; }
+    .leycarta { padding:6px; gap:3px; }
+    .leyheroe canvas, #leyMisterio, #leyVsYo, .leyvsriv canvas { width:min(150px, 30vh); }
+    .leyvsriv.dos canvas { width:min(105px, 22vh); }
+  }
   .modeanim { flex:0 1 200px; width:200px; max-width:100%; height:auto; border-radius:5px;
               background:linear-gradient(180deg, rgba(18,40,28,0.55), rgba(10,22,15,0.6));
               border:1px solid #1f5c37; }
@@ -1616,7 +1643,7 @@
       <div class="modecard" id="cardLeyenda">
         <div class="modename">VS LEGENDARIO</div>
         <div class="modetag">Duelos contra la CPU</div>
-        <div class="modedesc">Elige rival: un jefe, <b>Boros</b> o el <b>viltrumita</b>. Cada victoria te da una ventaja y el siguiente rival es más duro. ¿Cuántos aguantas?</div>
+        <div class="modedesc">El rival es una sorpresa: un jefe, <b>Boros</b> o el <b>viltrumita</b>. Cada victoria te da una ventaja y el siguiente es más duro. ¿Cuántos aguantas?</div>
         <div class="modectl" id="leyRec">RÉCORD: <b>0</b> COMBATES</div>
         <div class="playrow">
           <canvas class="modeanim" id="animLeyenda" width="230" height="130"></canvas>
@@ -1662,53 +1689,63 @@
   </div>
 
   <!-- ============ VS LEGENDARIO: ELECCIÓN ============ -->
-  <div id="leyenda" class="overlay hidden">
-    <div class="overlay-inner">
+  <!-- De fondo, el mapa; a la izquierda tu personaje (con flechas) y a la
+       derecha el rival, que es una incógnita: siempre sale al azar. -->
+  <div id="leyenda" class="overlay hidden leyfondo">
+    <div class="leybg" id="leyBg"></div>
+    <div class="overlay-inner leyin">
       <div class="leytitulo">VS LEGENDARIO</div>
       <div class="leymapa">
         <button type="button" class="small leyflecha" id="leyMapaIzq" aria-label="Mapa anterior">&#9664;</button>
-        <img id="leyMapaImg" alt="">
         <div class="leymapainfo"><b id="leyMapaNom">CIUDAD</b><button type="button" class="leyclima" id="leyClima" title="Cambiar el clima">SOLEADO</button></div>
         <button type="button" class="small leyflecha" id="leyMapaDer" aria-label="Mapa siguiente">&#9654;</button>
       </div>
-      <div class="leycols">
-        <div class="leylado">
+      <div class="leyduelo">
+        <div class="leycarta leyyo">
           <div class="leylbl">TU PERSONAJE</div>
           <div class="leyheroe">
             <button type="button" class="small leyflecha" id="leyHeroeIzq" aria-label="Personaje anterior">&#9664;</button>
-            <canvas id="leyHeroe" width="150" height="130"></canvas>
+            <canvas id="leyHeroe" width="200" height="200"></canvas>
             <button type="button" class="small leyflecha" id="leyHeroeDer" aria-label="Personaje siguiente">&#9654;</button>
           </div>
           <div class="leynom" id="leyHeroeNom">CRÍA</div>
         </div>
         <div class="leyvs">VS</div>
-        <div class="leylado leyladoriv">
-          <div class="leylbl">RIVAL (CPU): <b id="leyRivalNom">BOROS</b></div>
-          <div class="leyrivales" id="leyRivales"></div>
+        <div class="leycarta leyel">
+          <div class="leylbl">RIVAL</div>
+          <canvas id="leyMisterio" width="200" height="200"></canvas>
+          <div class="leynom">¿QUIÉN SERÁ?</div>
         </div>
       </div>
-      <div class="playrow" style="margin-top:14px">
+      <div class="leyrecsel" id="leyRecSel"></div>
+      <div class="playrow" style="margin-top:12px">
         <button class="big modebtn" id="btnLeyLucha">¡A LUCHAR!</button>
       </div>
       <button class="small" id="btnLeyVolver">Volver</button>
     </div>
   </div>
-  <!-- ============ VS LEGENDARIO: ENTRE COMBATES ============ -->
-  <div id="leyendaFin" class="overlay hidden">
-    <div class="overlay-inner">
-      <div class="leytitulo" id="leyFinTit">¡COMBATE GANADO!</div>
-      <canvas id="leyGanador" width="300" height="220"></canvas>
-      <div class="leysub" id="leyFinSub"></div>
-      <div class="leypremio" id="leyPremio"></div>
-      <div class="leylleva" id="leyLleva"></div>
-      <div class="leyprox">
-        <div class="leylbl">PRÓXIMO COMBATE</div>
-        <div class="leyproximgs" id="leyProxImgs"></div>
-        <b id="leyProxRiv"></b>
-        <span id="leyProxMapa"></span>
+  <!-- ============ VS LEGENDARIO: ANTES DE CADA COMBATE ============ -->
+  <!-- El mapa del combate de fondo; tú y tus ventajas a la izquierda, el
+       rival (o los dos) a la derecha. Tras ganar, sale otra vez con lo ganado. -->
+  <div id="leyVs" class="overlay hidden leyfondo">
+    <div class="leybg" id="leyVsBg"></div>
+    <div class="overlay-inner leyin">
+      <div class="leyvsgana hidden" id="leyVsGana"></div>
+      <div class="leyvstop" id="leyVsTop">COMBATE 1</div>
+      <div class="leyduelo">
+        <div class="leycarta leyyo">
+          <canvas id="leyVsYo" width="210" height="210"></canvas>
+          <div class="leynom" id="leyVsYoNom">CRÍA</div>
+          <div class="leyvent" id="leyVsVent"></div>
+        </div>
+        <div class="leyvs leyvsgrande">VS</div>
+        <div class="leycarta leyel">
+          <div class="leyvsriv" id="leyVsRiv"></div>
+          <div class="leynom leynomriv" id="leyVsRivNom"></div>
+        </div>
       </div>
       <div class="leyrecfin" id="leyRecFin"></div>
-      <button class="big" id="btnLeySig">SIGUIENTE COMBATE</button>
+      <button class="big" id="btnLeySig">¡LUCHAR!</button>
       <button class="small" id="btnLeyRetira">Retirarse</button>
     </div>
   </div>
@@ -33050,10 +33087,11 @@ const LEY_PREMIOS = [
   { id:'vida',   ico:'\u{2764}\u{FE0F}', n:'+15% DE SALUD MÁXIMA' },
   { id:'regen',  ico:'\u{2795}',          n:'REGENERACIÓN LEVE (+1 DE VIDA POR SEGUNDO)' },
   { id:'ovni',   ico:'\u{1F6F8}',         n:'EL OVNI APARECE ANTES Y MÁS A MENUDO' },
-  { id:'fuerza', ico:'\u{1F4A5}',         n:'+10% DE DAÑO' }
+  { id:'fuerza', ico:'\u{1F4A5}',         n:'+10% DE DAÑO' },
+  { id:'cd',     ico:'\u{23F1}\u{FE0F}',  n:'-15% DE ENFRIAMIENTO EN LAS HABILIDADES' }
 ];
 const ley = { rival:'rivalBoros', mapa:'ciudad', clima:'sol', r0:'rivalBoros', m0:'ciudad', c0:'sol',
-              ganadas:0, vida:1, regen:0, ovni:0, dano:1, premios:[], fase:'', t:0, tipos:[], ultimo:'',
+              ganadas:0, vida:1, regen:0, ovni:0, dano:1, cd:0, premios:[], fase:'', t:0, tipos:[], ultimo:'',
               empX:0, empY:0, rec:0, recHeroe:'', cartelT:0, verdugo:'' };
 function esLeyenda(){ return gameMode === 'leyenda'; }
 function leyNombre(t){ return JEFE_EST[t] ? JEFE_EST[t].nom : t === 'azar' ? 'AL AZAR' : String(t || '').toUpperCase(); }
@@ -33133,71 +33171,102 @@ function leyLamina(quien, esJugador, titulo){
 
 // ---- la pantalla de elección ----
 function abreLeyenda(){
-  if (!LEY_RIVALES.includes(ley.r0) && ley.r0 !== 'azar') ley.r0 = 'rivalBoros';
+  ley.r0 = 'azar';                                   // el rival siempre es una incógnita
   ley.m0 = MAPAS.includes(mapaElegido) ? mapaElegido : 'ciudad';
   ley.c0 = leySorteaClima(ley.m0);
-  pintaLeyenda(true);
+  pintaLeyenda();
   stopModeAnims(); hide('modeselect'); show('leyenda');
+  leyMisterioAnima();
 }
-function pintaLeyenda(rivales){
+// El mapa elegido, de fondo.
+function leyFondo(id, m){
+  const el = document.getElementById(id);
+  if (el) el.style.backgroundImage = 'url("' + miniMapa(m) + '")';
+}
+// Tu personaje, grande y centrado en su lienzo.
+function leyPintaHeroe(cv){
+  const g = cv.getContext('2d');
+  g.clearRect(0, 0, cv.width, cv.height);
+  try {
+    const M = holoMide(hero), k = Math.min(2.8, (cv.height - 22)/(M.altoR || M.alto/M.k), (cv.width - 14)/(M.anchoR || 999));
+    g.save(); g.translate(cv.width/2, cv.height - 10); g.scale(k, k); g.translate(-M.cx, -M.by); holoFigura(g, hero, 160, 190, 0.3); g.restore();
+  } catch(e){}
+}
+function pintaLeyenda(){
   const $ = id => document.getElementById(id);
-  $('leyMapaImg').src = miniMapa(ley.m0);
+  leyFondo('leyBg', ley.m0);
   $('leyMapaNom').textContent = MAPA_NOMBRE[ley.m0];
   $('leyClima').textContent = CLIMAS[ley.c0].icon + ' ' + leyClimaNombre(ley.m0, ley.c0);
   $('leyClima').className = 'leyclima ' + ley.c0;
   $('leyHeroeNom').textContent = heroName(hero);
-  const hc = $('leyHeroe'), hg = hc.getContext('2d');
-  hg.clearRect(0, 0, hc.width, hc.height);
-  try {
-    const M = holoMide(hero), k = Math.min(1.5, 104/(M.alto/M.k));
-    hg.save(); hg.translate(hc.width/2, hc.height - 8); hg.scale(k, k); hg.translate(-M.cx, -M.by); holoFigura(hg, hero, 160, 190, 0.3); hg.restore();
-  } catch(e){}
-  $('leyRivalNom').textContent = leyNombre(ley.r0);
-  if (rivales){
-    const box = $('leyRivales'); box.innerHTML = '';
-    for (const t of ['azar'].concat(LEY_RIVALES)){
-      const b = document.createElement('button'); b.type = 'button'; b.className = 'leyriv'; b.dataset.riv = t;
-      const cv = document.createElement('canvas'); cv.width = 64; cv.height = 52;
-      const g = cv.getContext('2d');
-      if (t === 'azar'){ g.font = '900 34px monospace'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#ffe066'; g.fillText('?', 32, 28); }
-      else {
-        const im = RIVAL_CPU[t] ? rivalRetrato(t) : retratoJefe(t, 0);
-        if (im){ const iw = im.naturalWidth || im.width, ih = im.naturalHeight || im.height, k = Math.min(60/iw, 50/ih); g.drawImage(im, 32 - iw*k/2, 51 - ih*k, iw*k, ih*k); }
-      }
-      const s = document.createElement('span'); s.textContent = t === 'azar' ? 'AL AZAR' : leyNombre(t).replace(/^(EL|LA) /, '');
-      b.appendChild(cv); b.appendChild(s);
-      b.addEventListener('click', ()=>{ ley.r0 = t; sfx('ui'); marcaRival(); $('leyRivalNom').textContent = leyNombre(t); guardaLeyenda(); });
-      box.appendChild(b);
-    }
-  }
-  marcaRival();
+  leyPintaHeroe($('leyHeroe'));
+  const r = $('leyRecSel');
+  if (r) r.innerHTML = ley.rec > 0 ? 'RÉCORD: <b>' + ley.rec + '</b> ' + (ley.rec === 1 ? 'COMBATE' : 'COMBATES') : 'Cada victoria te da una ventaja. ¿Cuántos combates aguantas?';
 }
-function marcaRival(){
-  document.querySelectorAll('#leyRivales .leyriv').forEach(b => b.classList.toggle('on', b.dataset.riv === ley.r0));
+// El rival misterioso: siluetas de los posibles rivales que van pasando
+// detrás de una gran interrogación.
+let _leyMisRaf = 0;
+function leyMisterioAnima(){
+  cancelAnimationFrame(_leyMisRaf);
+  const cv = document.getElementById('leyMisterio');
+  if (!cv) return;
+  const g = cv.getContext('2d'), W = cv.width, H = cv.height;
+  const sil = document.createElement('canvas'); sil.width = W; sil.height = H;
+  const sg = sil.getContext('2d');
+  let cual = -1, cambia = 0, last = 0;
+  const paso = (now)=>{
+    const el = document.getElementById('leyenda');
+    if (!el || el.classList.contains('hidden')) return;
+    const t = now/1000, dt = last ? Math.min(0.05, t - last) : 0; last = t;
+    cambia -= dt;
+    if (cambia <= 0){                                   // otra silueta
+      cambia = 0.32; cual = (cual + 1 + Math.floor(Math.random()*3)) % LEY_RIVALES.length;
+      const tp = LEY_RIVALES[cual], im = RIVAL_CPU[tp] ? rivalRetrato(tp) : retratoJefe(tp, 0);
+      sg.globalCompositeOperation = 'source-over'; sg.clearRect(0, 0, W, H);
+      if (im){
+        const iw = im.naturalWidth || im.width, ih = im.naturalHeight || im.height, k = Math.min((W - 20)/iw, (H - 20)/ih);
+        sg.drawImage(im, W/2 - iw*k/2, H - 10 - ih*k, iw*k, ih*k);
+        sg.globalCompositeOperation = 'source-in'; sg.fillStyle = '#2a0606'; sg.fillRect(0, 0, W, H);
+      }
+    }
+    g.clearRect(0, 0, W, H);
+    const rg = g.createRadialGradient(W/2, H*0.55, 4, W/2, H*0.55, W*0.6);
+    rg.addColorStop(0, 'rgba(160,30,20,0.55)'); rg.addColorStop(1, 'rgba(20,0,0,0)');
+    g.fillStyle = rg; g.fillRect(0, 0, W, H);
+    g.globalAlpha = 0.85; g.drawImage(sil, 0, 0); g.globalAlpha = 1;
+    const e = 1 + Math.sin(t*4)*0.06;
+    g.save(); g.translate(W/2, H*0.5); g.scale(e, e);
+    g.font = '900 ' + Math.round(H*0.6) + 'px "Courier New", monospace'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.lineWidth = 8; g.strokeStyle = '#1a0202'; g.strokeText('?', 0, 4);
+    g.fillStyle = '#ff5a3a'; g.shadowColor = 'rgba(255,90,60,0.9)'; g.shadowBlur = 18; g.fillText('?', 0, 4);
+    g.restore();
+    _leyMisRaf = requestAnimationFrame(paso);
+  };
+  _leyMisRaf = requestAnimationFrame(paso);
 }
 function leyCambiaMapa(paso){
   const i = MAPAS.indexOf(ley.m0);
   ley.m0 = MAPAS[(i + paso + MAPAS.length) % MAPAS.length];
   if (!leyClimas(ley.m0).includes(ley.c0)) ley.c0 = 'sol';
-  sfx('ui'); pintaLeyenda(false);
+  sfx('ui'); pintaLeyenda();
 }
 function leyCambiaClima(){
   const L = leyClimas(ley.m0); ley.c0 = L[(L.indexOf(ley.c0) + 1) % L.length];
-  sfx('ui'); pintaLeyenda(false);
+  sfx('ui'); pintaLeyenda();
 }
 function leyCambiaHeroe(paso){
   const n = HEROES.length;
   hero = HEROES[(HEROES.indexOf(hero) + paso + n) % n];
   saveHero(); try { refreshHeroUI(); } catch(e){}
-  sfx('ui'); pintaLeyenda(false);
+  sfx('ui'); pintaLeyenda();
 }
-// Primer combate: lo elegido. Se empieza de cero (sin ventajas).
+// Primer combate: el mapa elegido y un rival al azar. Se empieza de cero.
 function leyEmpieza(){
-  Object.assign(ley, { ganadas:0, vida:1, regen:0, ovni:0, dano:1, premios:[], ultimo:'', verdugo:'' });
+  Object.assign(ley, { ganadas:0, vida:1, regen:0, ovni:0, dano:1, cd:0, premios:[], ultimo:'', verdugo:'' });
   ley.mapa = ley.m0; ley.clima = ley.c0;
-  ley.tipos = [ley.r0 === 'azar' ? leySorteaRival() : ley.r0];
+  ley.tipos = [leySorteaRival()];
   hide('leyenda');
-  startGame('leyenda');
+  leyMuestraVs(null);
 }
 function leySorteaRival(evita){
   const L = LEY_RIVALES.filter(t => t !== ley.ultimo && !(evita && evita.includes(t)));
@@ -33269,6 +33338,7 @@ function updateLeyenda(dt){
   spawnTimers.car -= dt;
   if (spawnTimers.car <= 0 && cars.filter(c => !c.held && !c.thrown).length < 10){ spawnCar(); spawnTimers.car = rand(3, 5); }
   if (ley.regen > 0 && hp > 0) hp = Math.min(maxHp(), hp + ley.regen*dt);
+  leyEnfria(dt);
   if (ley.cartelT < 4.2) ley.cartelT += dt;
   rivAgarreRevisa();
   ley.t += dt;
@@ -33320,31 +33390,25 @@ function leyVictoria(){
   if (P.id === 'vida') ley.vida += 0.15;
   else if (P.id === 'regen') ley.regen += 1;
   else if (P.id === 'ovni') ley.ovni += 1;
+  else if (P.id === 'cd') ley.cd = Math.min(0.6, ley.cd + 0.15);
   else ley.dano += 0.1;
   ley.premios.push(P.id);
   const vencidos = ley.tipos.map(leyNombre).join(' Y ');
   leyPreparaSiguiente();
-  const $ = id => document.getElementById(id);
-  const lam = leyLamina(hero, true, '¡GANADOR!'), cv = $('leyGanador');
-  cv.width = lam.width; cv.height = lam.height; cv.getContext('2d').drawImage(lam, 0, 0);
-  $('leyFinTit').textContent = '¡COMBATE ' + ley.ganadas + ' GANADO!';
-  $('leyFinSub').textContent = 'Derrotaste a ' + vencidos + ' · +' + LEY_MONEDAS + ' monedas';
-  $('leyPremio').innerHTML = '<span class="ico">' + P.ico + '</span> VENTAJA: <b>' + esc(P.n) + '</b>'
-    + (ley.skinNueva ? '<br><span style="color:#ffb27a">🔓 SKIN NUEVA: <b>REGENTE</b> · úsala desde la TIENDA</span>' : '');
-  if (ley.skinNueva) setTimeout(()=> sfx('buy'), 700);
-  ley.skinNueva = false;
-  $('leyLleva').textContent = leyResumenVentajas();
-  $('leyProxRiv').textContent = ley.tipos.map(leyNombre).join(' + ') + (ley.tipos.length > 1 ? ' · ¡DOS A LA VEZ!' : '');
-  $('leyProxMapa').textContent = MAPA_NOMBRE[ley.mapa] + ' · ' + CLIMAS[ley.clima].icon + ' ' + leyClimaNombre(ley.mapa, ley.clima);
-  const pr = $('leyProxImgs'); pr.innerHTML = '';
-  for (const t of ley.tipos){
-    const c = document.createElement('canvas'); c.width = 70; c.height = 58;
-    const im = RIVAL_CPU[t] ? rivalRetrato(t) : retratoJefe(t, 0);
-    if (im){ const iw = im.naturalWidth || im.width, ih = im.naturalHeight || im.height, k = Math.min(66/iw, 56/ih); c.getContext('2d').drawImage(im, 35 - iw*k/2, 57 - ih*k, iw*k, ih*k); }
-    pr.appendChild(c);
-  }
-  $('leyRecFin').textContent = ley.ganadas >= ley.rec ? '¡NUEVO RÉCORD!' : 'Récord: ' + ley.rec;
-  show('leyendaFin');
+  const skin = ley.skinNueva; ley.skinNueva = false;
+  if (skin) setTimeout(()=> sfx('buy'), 700);
+  leyMuestraVs({ P, vencidos, skin });
+}
+// Las ventajas que llevas, una por línea (la recién ganada, marcada).
+function leyListaVentajas(nueva){
+  const L = [];
+  if (ley.vida > 1) L.push(['vida', '\u{2764}\u{FE0F} Salud +' + Math.round((ley.vida - 1)*100) + '%']);
+  if (ley.regen > 0) L.push(['regen', '\u{2795} Regeneración +' + ley.regen + '/s']);
+  if (ley.dano > 1) L.push(['fuerza', '\u{1F4A5} Daño +' + Math.round((ley.dano - 1)*100) + '%']);
+  if (ley.cd > 0) L.push(['cd', '\u{23F1}\u{FE0F} Enfriamiento -' + Math.round(ley.cd*100) + '%']);
+  if (ley.ovni > 0) L.push(['ovni', '\u{1F6F8} OVNI ×' + (1 + ley.ovni*0.6).toFixed(1)]);
+  if (!L.length) return '<span class="nada">Sin ventajas todavía: gana combates para conseguirlas</span>';
+  return L.map(([id, t]) => '<span' + (id === nueva ? ' class="nueva"' : '') + '>' + esc(t) + '</span>').join('');
 }
 function leyResumenVentajas(){
   const p = [];
@@ -33352,11 +33416,73 @@ function leyResumenVentajas(){
   if (ley.regen > 0) p.push('regeneración +' + ley.regen + '/s');
   if (ley.ovni > 0) p.push('OVNI ×' + (1 + ley.ovni*0.6).toFixed(1));
   if (ley.dano > 1) p.push('daño +' + Math.round((ley.dano - 1)*100) + '%');
+  if (ley.cd > 0) p.push('enfriamiento -' + Math.round(ley.cd*100) + '%');
   return p.length ? 'Llevas: ' + p.join(' · ') : '';
 }
-function leySiguiente(){ sfx('ui'); hide('leyendaFin'); startGame('leyenda'); }
+// La pantalla VS: antes del primer combate (gana = null) y tras cada victoria.
+// Empieza sola tras una cuenta atrás (o al pulsar el botón).
+let _leyVsT = 0, _leyVsCuenta = 0;
+const LEY_VS_ESPERA = [4, 9];                          // segundos: antes del primero, entre combates
+function leyMuestraVs(gana){
+  const $ = id => document.getElementById(id);
+  leyFondo('leyVsBg', ley.mapa);
+  $('leyVsTop').textContent = 'COMBATE ' + (ley.ganadas + 1) + ' · ' + MAPA_NOMBRE[ley.mapa] + ' · ' + CLIMAS[ley.clima].icon + ' ' + leyClimaNombre(ley.mapa, ley.clima);
+  const gn = $('leyVsGana');
+  if (gana){
+    gn.innerHTML = '¡COMBATE ' + ley.ganadas + ' GANADO!<small>Derrotaste a ' + esc(gana.vencidos) + ' · +' + LEY_MONEDAS + ' monedas'
+      + ' · <span class="nueva">' + gana.P.ico + ' NUEVA VENTAJA: ' + esc(gana.P.n) + '</span>'
+      + (gana.skin ? '<br>\u{1F513} SKIN NUEVA: <b>REGENTE</b> · úsala desde la TIENDA' : '') + '</small>';
+    gn.classList.remove('hidden');
+  } else gn.classList.add('hidden');
+  leyPintaHeroe($('leyVsYo'));
+  $('leyVsYoNom').textContent = heroName(hero);
+  $('leyVsVent').innerHTML = leyListaVentajas(gana ? gana.P.id : '');
+  const box = $('leyVsRiv'); box.innerHTML = ''; box.classList.toggle('dos', ley.tipos.length > 1);
+  for (const t of ley.tipos){
+    const c = document.createElement('canvas'); c.width = c.height = 190;
+    const g = c.getContext('2d'), im = RIVAL_CPU[t] ? rivalRetrato(t) : retratoJefe(t, 0);
+    const rg = g.createRadialGradient(95, 110, 6, 95, 110, 110);
+    rg.addColorStop(0, 'rgba(200,40,30,0.45)'); rg.addColorStop(1, 'rgba(30,0,0,0)'); g.fillStyle = rg; g.fillRect(0, 0, 190, 190);
+    if (im){ const iw = im.naturalWidth || im.width, ih = im.naturalHeight || im.height, k = Math.min(176/iw, 176/ih);
+      g.drawImage(im, 95 - iw*k/2, 186 - ih*k, iw*k, ih*k); }
+    box.appendChild(c);
+  }
+  $('leyVsRivNom').textContent = ley.tipos.map(leyNombre).join(' + ') + (ley.tipos.length > 1 ? ' · ¡DOS A LA VEZ!' : '');
+  $('leyRecFin').textContent = gana ? (ley.ganadas >= ley.rec ? '¡NUEVO RÉCORD!' : 'Récord: ' + ley.rec) : '';
+  $('btnLeyRetira').classList.toggle('hidden', !gana);
+  const vs = $('leyVs');
+  vs.classList.remove('entra'); void vs.offsetWidth; vs.classList.add('entra');
+  show('leyVs'); setTimeout(()=> sfx('caidaGolpe'), 380);
+  _leyVsCuenta = LEY_VS_ESPERA[gana ? 1 : 0];
+  leyVsBoton();
+  clearInterval(_leyVsT);
+  _leyVsT = setInterval(()=>{
+    if ($('leyVs').classList.contains('hidden')){ clearInterval(_leyVsT); return; }
+    _leyVsCuenta -= 1;
+    if (_leyVsCuenta <= 0) leySiguiente(true); else leyVsBoton();
+  }, 1000);
+}
+function leyVsBoton(){
+  const b = document.getElementById('btnLeySig');
+  if (b) b.textContent = '¡LUCHAR! · ' + Math.max(1, _leyVsCuenta);
+}
+// Con la ventaja de enfriamiento, las recargas de las habilidades corren más deprisa.
+function leyEnfria(dt){
+  if (!ley.cd) return;
+  const o = isBor() ? bor : isDra() ? dra : isMaq() ? maq : isMag() ? mag : vil;
+  for (const k in o){
+    if (k.length > 2 && k.endsWith('Cd') && typeof o[k] === 'number' && o[k] > 0) o[k] = Math.max(0, o[k] - dt*ley.cd);
+  }
+}
+function leySiguiente(solo){
+  clearInterval(_leyVsT);
+  if (document.getElementById('leyVs').classList.contains('hidden')) return;
+  if (solo !== true) sfx('ui');
+  hide('leyVs'); startGame('leyenda');
+}
 function leyRetira(){
-  sfx('ui'); hide('leyendaFin');
+  clearInterval(_leyVsT);
+  sfx('ui'); hide('leyVs');
   ley.verdugo = '';
   endGame();
 }
@@ -33938,7 +34064,7 @@ async function endGame(){
   limpiaPresentacion(); numsDano.length = 0; bocadillos.length = 0; charcosAgua.length = 0; evoT = 0;
   fanfarria(gameMode === 'vs' ? 'victoria' : 'derrota');
   if (gameMode === 'leyenda'){
-    hide('leyendaFin');
+    hide('leyVs');
     anotaRecordLeyenda();
     // la lámina del ganador: el rival que te tumbó (o tú, si te retiraste invicto)
     const quien = hp <= 0 ? (ley.verdugo || ley.tipos[0]) : '';
@@ -35122,7 +35248,7 @@ function holoMide(h){
   for (let y = 0; y < 320; y++) for (let x = 0; x < 320; x++) if (px[(y*320 + x)*4 + 3] > 40){ if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
   if (x1 <= x0) return (holo.medida[h] = { k:1, cx:160, by:220, alto:90 });
   const k = Math.min(1.6, 92/(y1 - y0 + 1), 118/(x1 - x0 + 1));
-  return (holo.medida[h] = { k, cx:(x0 + x1)/2, by:y1, alto:(y1 - y0 + 1)*k });
+  return (holo.medida[h] = { k, cx:(x0 + x1)/2, by:y1, alto:(y1 - y0 + 1)*k, altoR:y1 - y0 + 1, anchoR:x1 - x0 + 1 });
 }
 function holoCambia(){ holo.aparece = 0; }
 function holoDibuja(g, t){
