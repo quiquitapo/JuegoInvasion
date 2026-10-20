@@ -501,6 +501,10 @@
   .leydos { color:#ffd257; font-weight:900; letter-spacing:2px; font-size:0.7rem; text-align:center; text-shadow:0 1px 2px #000; }
   .leyvs { align-self:center; color:#ff5a3a; font-weight:900; font-size:clamp(1.6rem, 6vw, 3rem); letter-spacing:2px;
            text-shadow:0 0 14px rgba(255,60,30,0.7), 3px 3px 0 #2a0404; }
+  .leysigue { display:flex; flex-direction:column; align-items:center; gap:4px; margin-top:10px; }
+  .leysigue.hidden { display:none; }
+  .leysigue button { margin:0; background:linear-gradient(180deg, #ffd257, #d89a1c); color:#2a1804; border-color:#ffe9a0; }
+  .leysigue small { color:#ffe9a0; font-size:0.62rem; letter-spacing:1px; text-shadow:0 1px 2px #000; text-align:center; }
   .leyrecsel { color:#ffe9a0; font-size:0.66rem; letter-spacing:1px; margin-top:10px; text-shadow:0 1px 2px #000; }
   .leyrecsel b { color:#ffd257; }
   /* la pantalla VS */
@@ -529,6 +533,7 @@
     .leymapa { margin-bottom:4px; padding:3px 8px; }
     .leylado { flex-basis:min(200px, 40vh); }
     #leyVs .leylado { flex-basis:min(180px, 34vh); }
+    .leysigue { margin-top:4px; } .leysigue small { display:none; }
     .leyvent span { padding:1px 5px; }
   }
   .modeanim { flex:0 1 200px; width:200px; max-width:100%; height:auto; border-radius:5px;
@@ -1735,6 +1740,10 @@
         </div>
       </div>
       <div class="leyrecsel" id="leyRecSel"></div>
+      <div class="leysigue hidden" id="leySigue">
+        <button class="big" id="btnLeySigue">CONTINUAR</button>
+        <small id="leySigueTxt"></small>
+      </div>
       <div class="playrow" style="margin-top:12px">
         <button class="big modebtn" id="btnLeyLucha">¡A LUCHAR!</button>
       </div>
@@ -1773,6 +1782,19 @@
       <div class="leyrecfin" id="leyRecFin"></div>
       <button class="big" id="btnLeySig">¡LUCHAR!</button>
       <button class="small" id="btnLeyRetira">Retirarse</button>
+    </div>
+  </div>
+
+  <!-- ============ VS LEGENDARIO: ¿GUARDAR AL SALIR? ============ -->
+  <div id="leyGuarda" class="overlay hidden">
+    <div class="confirmbox">
+      <h3>¿GUARDAR TU PROGRESO?</h3>
+      <p id="leyGuardaTxt"></p>
+      <div class="confirm-row" style="flex-direction:column;gap:8px">
+        <button class="small" id="btnLeyGuardaSi">GUARDAR Y SALIR</button>
+        <button class="small" id="btnLeyGuardaNo">SALIR SIN GUARDAR</button>
+        <button class="small" id="btnLeyGuardaVuelve">Seguir jugando</button>
+      </div>
     </div>
   </div>
 
@@ -8147,7 +8169,7 @@ function propAbatido(pr){
 // jefes y vehículos. El mobiliario y los edificios quedan fuera.
 // Lo que sobrevive a que lo lances: pierde esa parte de su vida máxima al
 // estrellarse (si le queda más) y se levanta para seguir luchando.
-const AGUANTA_LANZADO = { acorazado: 0.4, rivalVil: 0.07, rivalBoros: 0.07 };   // el choque les quita esa parte de la vida
+const AGUANTA_LANZADO = { acorazado: 0.4, rivalVil: 0.07, rivalBoros: 0.07, heroe: 0.07 };   // el choque les quita esa parte de la vida
 function esUnidadCombo(o){
   if (!o) return false;
   // 'car' cubre auto, taxi y camión cisterna: los tres son vehículos.
@@ -13628,6 +13650,7 @@ window.addEventListener('keydown', e=>{
   // Escape y la tecla de pausa (P por defecto, reasignable) abren lo mismo.
   if (k === 'escape' || k === binds.pausa){
     if (pausedForQuit && ajustesDesdePausa){ cierraAjustes(); sfx('ui'); }
+    else if (!document.getElementById('leyGuarda').classList.contains('hidden')) leyGuardaVuelve();
     else if (pausedForQuit) resumeFromQuit();
     else if (running) askQuit();
     keys[k] = true;
@@ -13723,7 +13746,7 @@ canvas.addEventListener('mousedown', e=>{
   if (isBor()){
     // Izquierdo: puñetazo (mantenido, golpe cargado). Derecho: agarra, gira y lanza.
     if (borApuntaLento()){ bor.patear = true; return; }   // apuntando la patada: cualquier clic la suelta
-    if (e.button === 0){ if (!vil.intro){ bor.holding = true; borGolpe(); } }
+    if (e.button === 0){ if (!vil.intro){ bor.holding = true; bor.holdT = 0; } }   // como el viltrumita: pega al soltar
     else if (e.button === 2) borC();
     return;
   }
@@ -24305,7 +24328,7 @@ function bindDragonBtns(){
   joystickBoton('btnPresa', 'presa', ()=> vilPresaApunta(), (cancelado)=> vilPresaSuelta(!!cancelado), isVil);
   // BOROS: golpe (mantén para cargar, arrastra para apuntar), embestida, ráfaga y
   // rayo se mantienen, apuntan y sueltan; el agarre se toca (arrastrar elige hacia dónde lanzar)
-  joystickBoton('btnBorGolpe', 'golpe', ()=>{ if (!vil.intro){ bor.holding = true; borGolpe(); } }, ()=> borSueltaGolpe(), isBor);
+  joystickBoton('btnBorGolpe', 'golpe', ()=>{ if (!vil.intro){ bor.holding = true; bor.holdT = 0; } }, ()=> borSueltaGolpe(), isBor);
   joystickBoton('btnBorZ', 'borZ', ()=> borZEmpieza(), (c)=> borZSuelta(c), isBor);
   joystickBoton('btnBorC', 'borC', ()=> borC(), ()=>{ if (borApuntaLento()) bor.patear = true; }, isBor);
   joystickBoton('btnBorV', 'borV', ()=>{}, (c)=>{ if (!c) borTele(); }, isBor);   // golpe sombra: al soltar (arrastrando, eliges a quién)
@@ -25707,7 +25730,7 @@ function borReset(){
                        agFase:'', rayoOn:false, cargaPecho:0, brilloPuno:0, fuegoT:0, zCd:0, cCd:0, tCd:0, curaCd:0, bCd:0, pend:'', pendT:0, zApunta:false, bApunta:false, bK:1, bCarga:0, bLleno:false,
                        holdT:0, cargando:false, cargaG:0, cargaLlena:false, cargaK:0, cargaA:null });
   bor.pose = borPoseN({});
-  borPresa = null; borPaso.edif = null; borPunos.length = 0; borRastro.length = 0; borAuras.length = 0;
+  borPresa = null; borPaso.edif = null; borPunos.length = 0; borRastro.length = 0; borAuras.length = 0; borBarridos.length = 0; rivPunos.length = 0;
 }
 function borLibre(){ return !bor.est; }
 function borPonEst(e){ bor.est = e; bor.estT = 0; bor.hecho = false; }
@@ -25763,13 +25786,21 @@ function borLanza(o, ang, vel, mult){
   windRings.push({ x:o.x, y:o.y, ang, r:10, life:0.4, max:0.4 });
 }
 // Daña todo lo que hay en un círculo (gente, unidades, autos, mobiliario, edificios).
-function borArea(x, y, R, dmg, empuje, edif){
+// Con cono = { a, sp }, solo lo que queda dentro de ese abanico visto desde (x, y).
+function borDentroCono(cono, x, y, tx, ty){
+  if (!cono || dist(x, y, tx, ty) < 34) return true;
+  let d = Math.atan2(ty - y, tx - x) - cono.a;
+  while (d > Math.PI) d -= Math.PI*2;
+  while (d < -Math.PI) d += Math.PI*2;
+  return Math.abs(d) <= cono.sp + 0.12;
+}
+function borArea(x, y, R, dmg, empuje, edif, cono){
   let dio = false;
   dmg *= borMet() ? BOR_MET_DMG : 1;
   for (const pool of [civilians, enemies]){
     for (let i = 0; i < pool.length; i++){ const t = pool[i];
       if (t.dead || t.held || t.cielo || (heldObject && heldObject.ref === t)) continue;
-      if (distCuerpo(x, y, t) > R) continue;
+      if (distCuerpo(x, y, t) > R || !borDentroCono(cono, x, y, t.x, t.y)) continue;
       porJugador(()=> damageEnemy(t, dmg, t.x, t.y));
       dio = true;
       if (empuje && !t.dead && (t.person || t.kind === 'civ')){
@@ -25779,7 +25810,7 @@ function borArea(x, y, R, dmg, empuje, edif){
     }
   }
   for (let i = 0; i < cars.length; i++){ const c = cars[i];
-    if (c.dead || c.held || dist(c.x, c.y, x, y) > R + 10) continue;
+    if (c.dead || c.held || dist(c.x, c.y, x, y) > R + 10 || !borDentroCono(cono, x, y, c.x, c.y)) continue;
     c.hp -= dmg; dio = true;
     if (c.hp <= 0) porJugador(()=> autoAbatido(c));
   }
@@ -25787,7 +25818,7 @@ function borArea(x, y, R, dmg, empuje, edif){
     for (let i = 0; i < buildings.length; i++){ const b = buildings[i];
       if (b.stage >= 2) continue;
       const cx = clamp(x, b.x, b.x + b.w), cy = clamp(y, b.y, b.y + b.h);
-      if (dist(cx, cy, x, y) < R){ porJugador(()=> damageBuilding(b, edif)); dio = true; }
+      if (dist(cx, cy, x, y) < R && borDentroCono(cono, x, y, cx, cy)){ porJugador(()=> damageBuilding(b, edif)); dio = true; }
     }
   }
   return dio;
@@ -25818,25 +25849,29 @@ function borGolpe(){
   tutEv('golpe');
   sfx('whoosh');
 }
-// Como el viltrumita: un toque es un puñetazo (y encadena el combo); mantener
-// el clic carga un puñetazo cuyo área se dibuja en el suelo y crece mientras
-// se mantiene. Al soltar pega de 55 a 180; con la carga completa, 360 y la
-// onda sigue de largo.
+// Como el viltrumita: al pulsar empieza a cargar en el acto, con su abanico
+// dibujado delante; si se suelta enseguida sale un puñetazo suave (que encadena
+// el combo) y, cuanto más se mantiene, más fuerte: de 55 a 180, y con la carga
+// completa 360 y la onda sigue de largo.
+const BOR_TOQUE = 0.3;                                    // soltar antes de esto: puñetazo suave
 function borSueltaGolpe(){
+  const t = bor.holdT || 0, k = bor.cargaG;
   bor.holding = false; bor.holdT = 0;
-  if (bor.cargando){
-    const k = bor.cargaG;
-    bor.cargando = false; bor.cargaG = 0; bor.cargaLlena = false;
-    if (k > 0.12 && !vil.intro) borGolpeCargado(k);
+  const cargaba = bor.cargando;
+  bor.cargando = false; bor.cargaG = 0; bor.cargaLlena = false;
+  if (!vil.intro){
+    if (cargaba && t >= BOR_TOQUE) borGolpeCargado(k);
+    else if (borLibre()) borGolpe();
+    else borPide('g');
   }
   bor.cargaA = null;
 }
 const BOR_CARGA_T = VIL_CHARGE_MAX;                      // segundos hasta la carga completa (los del viltrumita)
-const BOR_CARGA_ESPERA = 0.2;                            // lo que hay que mantener para empezar a cargar
-// Dónde pega el puñetazo cargado: el centro y el radio de su área.
-function borZonaCarga(k, a){
-  const R = 90 + 90*k + (k >= 1 ? 20 : 0);
-  return { x: player.x + Math.cos(a)*R*0.62, y: player.y + Math.sin(a)*R*0.5, R };
+const BOR_CARGA_ESPERA = 0;                              // empieza a cargar nada más pulsar
+// Dónde pega el puñetazo cargado: un abanico delante de Boros, como el del
+// viltrumita, más largo y más abierto cuanto más cargado.
+function borZonaCarga(k){
+  return { L: 110 + 120*k + (k >= 1 ? 30 : 0), sp: 0.45 + 0.2*k };
 }
 function borGolpeCargado(k){
   if (!borLibre()){ return; }
@@ -25846,29 +25881,32 @@ function borGolpeCargado(k){
   player.vx = Math.cos(bor.dirA)*av; player.vy = Math.sin(bor.dirA)*av;
   tutEv('golpe'); sfx('whoosh');
 }
-function borOndaCarga(a, R){ return { x: player.x + Math.cos(a)*R*1.55, y: player.y + Math.sin(a)*R*1.25, R: R*0.8 }; }
+const BOR_ONDA_K = 1.7;                                  // con la carga completa, la onda llega hasta aquí
+const borBarridos = [];                                 // el abanico del puñetazo cargado, al soltarlo
 function borGolpeCUpdate(dt){
   const k = bor.cargaK || 0;
   player.vx *= Math.exp(-7*dt); player.vy *= Math.exp(-7*dt);
   if (bor.estT >= 0.1 && !bor.hecho){
     bor.hecho = true;
-    const a = bor.dirA, Z = borZonaCarga(k, a), R = Z.R, px = Z.x, py = Z.y;
+    const a = bor.dirA, Z = borZonaCarga(k), L = Z.L, cono = { a, sp: Z.sp };
+    const px = player.x + Math.cos(a)*L*0.55, py = player.y + Math.sin(a)*L*0.55;           // el centro del abanico, para los efectos
     const dmg = k >= 1 ? VIL_SUPER_DMG : VIL_PUNCH_DM + (VIL_CHARGE_DMG - VIL_PUNCH_DM)*k;   // lo mismo que el puño cargado del viltrumita
-    if (k >= 0.6){                                                      // bien cargado: manda a volar al más cercano
-      let lanzado = null, bd = R + 30;
+    if (k >= 0.6){                                                      // bien cargado: manda a volar al más cercano del abanico
+      let lanzado = null, bd = L + 20;
       for (const pool of [enemies, civilians]) for (let i = 0; i < pool.length; i++){ const t = pool[i];
-        if (t.dead || t.held || t.pacifico || t.cielo) continue;
-        const d = distCuerpo(px, py, t); if (d < bd){ bd = d; lanzado = t; } }
+        if (t.dead || t.held || t.pacifico || t.cielo || !borDentroCono(cono, player.x, player.y, t.x, t.y)) continue;
+        const d = distCuerpo(player.x, player.y, t); if (d < bd){ bd = d; lanzado = t; } }
       if (lanzado && borLanzable(lanzado)){
         lanzado.x = player.x + Math.cos(a)*34; lanzado.y = player.y + Math.sin(a)*26;
         borLanza(lanzado, a, 1100 + 600*k, 1.5 + 1.5*k);
         morados.push({ x:lanzado.x, y:lanzado.y - 16, a, t:0.5 });
       }
     }
-    const dio = borArea(px, py, R, dmg, 260 + 520*k, 34 + 150*k);
-    if (k >= 0.99){ const o = borOndaCarga(a, R); borArea(o.x, o.y, o.R, VIL_RAFAGA_DMG, 520, 60); anilloImpacto(o.x, o.y, o.R, '#7a4cff', 0.4); }   // la onda sigue de largo
-    borAuras.push({ x:px, y:py - 18, r:60 + 50*k, t:0, max:0.45 });
-    anilloImpacto(px, py, 110 + 90*k, '#a46cff', 0.4); anilloImpacto(px, py, 60 + 30*k, '#ffffff', 0.24);
+    const dio = borArea(player.x, player.y, L, dmg, 260 + 520*k, 34 + 150*k, cono);
+    if (k >= 0.99) borArea(player.x, player.y, L*BOR_ONDA_K, VIL_RAFAGA_DMG, 520, 60, cono);   // la onda sigue de largo
+    borBarridos.push({ a, L: k >= 0.99 ? L*BOR_ONDA_K : L, sp: Z.sp, t:0, max:0.35 });
+    borAuras.push({ x:px, y:py - 18, r:50 + 40*k, t:0, max:0.4 });
+    anilloImpacto(player.x, player.y, 60 + 40*k, '#ffffff', 0.22);
     borChispas(px, py - 18, 14 + Math.round(18*k), 220 + 160*k);
     addParticles(px, py, '#ffd257', 6 + Math.round(10*k), 160);
     if (dio || k > 0.4){ shake(6 + 10*k, 0.12 + 0.12*k); hitstop(0.04 + 0.06*k); }
@@ -26404,6 +26442,7 @@ function updateBoros(dt){
   borPunosUpdate(dt);
   for (let i = morados.length - 1; i >= 0; i--){ morados[i].t -= dt; if (morados[i].t <= 0) morados.splice(i, 1); }
   for (let i = borAuras.length - 1; i >= 0; i--){ borAuras[i].t += dt; if (borAuras[i].t >= borAuras[i].max) borAuras.splice(i, 1); }
+  for (let i = borBarridos.length - 1; i >= 0; i--){ borBarridos[i].t += dt; if (borBarridos[i].t >= borBarridos[i].max) borBarridos.splice(i, 1); }
   borLlamasUpdate(dt);
   if (vil.intro){ borEntrada(dt); borActualizaPose(dt); return; }
   const met = borMet();
@@ -26457,7 +26496,7 @@ function updateBoros(dt){
   // ---- libre: lo pedido mientras atacaba, el clic mantenido, andar o correr ----
   if (bor.pendT > 0 && bor.pend){
     const q = bor.pend; bor.pend = ''; bor.pendT = 0;
-    if (q === 'z') borZ(); else if (q === 'c') borC(); else if (q === 'b') borB(); else if (q === 't') borTele(); else if (q === 'r') borCura();
+    if (q === 'g') borGolpe(); else if (q === 'z') borZ(); else if (q === 'c') borC(); else if (q === 'b') borB(); else if (q === 't') borTele(); else if (q === 'r') borCura();
   }
   if (bor.holding && !vil.intro){                        // mantenido: carga el puñetazo
     bor.holdT = (bor.holdT || 0) + dt;
@@ -26691,22 +26730,32 @@ function drawBorosEfectos(){
     }
     ctx.restore();
   }
-  if (bor.cargando && bor.cargaA != null){                                 // el área del puñetazo cargado, como la del viltrumita
-    const k = bor.cargaG, lleno = k >= 1, Z = borZonaCarga(k, bor.cargaA), p = S(Z.x, Z.y), p0 = S(player.x, player.y);
+  if (bor.cargando && bor.cargaA != null){                                 // el abanico del puñetazo cargado, como el del viltrumita
+    const k = bor.cargaG, lleno = k >= 1, Z = borZonaCarga(k), a = bor.cargaA, p0 = S(player.x, player.y);
     ctx.save();
     const rr = 26 + k*30;                                                  // el anillo que crece a su alrededor
     ctx.globalAlpha = 0.25 + k*0.35; ctx.strokeStyle = lleno ? '#c48aff' : '#8a6cff'; ctx.lineWidth = lleno ? 3.5 : 3;
     ctx.beginPath(); ctx.arc(p0.x, p0.y, rr, 0, Math.PI*2); ctx.stroke();
     if (lleno){ ctx.globalAlpha = 0.3 + Math.sin(gameTime*18)*0.22; ctx.beginPath(); ctx.arc(p0.x, p0.y, rr + 7, 0, Math.PI*2); ctx.stroke(); }
-    ctx.globalAlpha = 0.1 + k*0.14; ctx.fillStyle = lleno ? '#b06aff' : '#7a5cff';   // dónde pegará
-    ctx.beginPath(); ctx.arc(p.x, p.y, Z.R, 0, Math.PI*2); ctx.fill();
+    if (lleno){                                                            // hasta dónde sigue la onda
+      ctx.globalAlpha = 0.12 + Math.sin(gameTime*18)*0.05; ctx.fillStyle = '#7a4cff';
+      ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.arc(p0.x, p0.y, Z.L*BOR_ONDA_K, a - Z.sp, a + Z.sp); ctx.closePath(); ctx.fill();
+    }
+    ctx.globalAlpha = 0.14 + k*0.16; ctx.fillStyle = lleno ? '#b06aff' : '#7a5cff';   // dónde pegará
+    ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.arc(p0.x, p0.y, Z.L, a - Z.sp, a + Z.sp); ctx.closePath(); ctx.fill();
     ctx.globalAlpha = 0.45 + k*0.4; ctx.strokeStyle = lleno ? '#e8d8ff' : '#a68cff'; ctx.lineWidth = 2;
-    ctx.setLineDash([10, 7]); ctx.lineDashOffset = -gameTime*50;
-    ctx.beginPath(); ctx.arc(p.x, p.y, Z.R, 0, Math.PI*2); ctx.stroke(); ctx.setLineDash([]);
-    if (lleno){                                                            // y por dónde seguirá la onda
-      const o = borOndaCarga(bor.cargaA, Z.R), q = S(o.x, o.y);
-      ctx.globalAlpha = 0.22 + Math.sin(gameTime*18)*0.08; ctx.fillStyle = '#7a4cff';
-      ctx.beginPath(); ctx.arc(q.x, q.y, o.R, 0, Math.PI*2); ctx.fill();
+    ctx.setLineDash([10, 7]); ctx.lineDashOffset = -gameTime*50; ctx.stroke(); ctx.setLineDash([]);
+    ctx.restore();
+  }
+  if (borBarridos.length){                                                // el abanico al soltar el golpe
+    const p0 = S(player.x, player.y);
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    for (const w of borBarridos){
+      const u = w.t/w.max, r = w.L*(0.55 + 0.45*Math.min(1, u*2.5));
+      ctx.globalAlpha = 0.45*(1 - u); ctx.fillStyle = '#9a5cff';
+      ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.arc(p0.x, p0.y, r, w.a - w.sp, w.a + w.sp); ctx.closePath(); ctx.fill();
+      ctx.globalAlpha = 0.8*(1 - u); ctx.strokeStyle = '#efe0ff'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(p0.x, p0.y, r, w.a - w.sp, w.a + w.sp); ctx.stroke();
     }
     ctx.restore();
   }
@@ -28978,6 +29027,7 @@ function updateBalas(dt){
 }
 
 function updateFX(dt){
+  rivPunosUpdate(dt);
   for (let i = partN - 1; i >= 0; i--){
     const p = particles[i];
     p.x += p.vx*dt; p.y += p.vy*dt;
@@ -31308,7 +31358,7 @@ function draw(){
   }
 
   drawDraSombraIntro();                      // cae desde el cielo: sobre tejados y todo
-  drawBorosEfectos();
+  drawBorosEfectos(); drawRivPunos();
   drawBullets(); drawTriRayos(); drawDragonRayos(); drawJefes2Rayos(); drawAlienEfectos(); drawCenturionEfectos(); drawDesgarradorRayo(); drawRefuerzosEfectos(); drawAracnidoEfectos(); drawDesesperacionEfectos(); drawMuerteVelozEfectos(); drawElectroJugador(); drawMeteorosCayendo(); drawProyJ(proyJ); drawProyJ(proyRed);
   if (dobleAnf() && Online.av && Online.av.pj) drawProyJ(Online.av.pj);
   drawMaquinaEfectos(); drawMagoEfectos();
@@ -33374,7 +33424,7 @@ const LEY_PREMIOS = [
 ];
 const ley = { rival:'rivalBoros', mapa:'ciudad', clima:'sol', r0:'rivalBoros', m0:'ciudad', c0:'sol',
               ganadas:0, vida:1, regen:0, ovni:0, dano:1, cd:0, premios:[], fase:'', t:0, tipos:[], ultimo:'',
-              empX:0, empY:0, rec:0, recHeroe:'', cartelT:0, verdugo:'', vetos:{} };
+              empX:0, empY:0, rec:0, recHeroe:'', cartelT:0, verdugo:'', vetos:{}, guardada:null, salioGuardando:false };
 // El rival que derrotas no vuelve en los dos combates siguientes (también entre
 // partidas), para que vayan saliendo todos.
 const LEY_VETO = 2;
@@ -33390,11 +33440,65 @@ async function loadLeyenda(){
     const v = JSON.parse(await storeGet('invasion_leyenda') || '{}');
     ley.rec = Math.max(0, v.rec | 0); ley.recHeroe = HEROES.includes(v.heroe) ? v.heroe : '';
     if (LEY_RIVALES.includes(v.rival) || v.rival === 'azar') ley.r0 = ley.rival = v.rival;
+    ley.guardada = await leyLeeGuardada();
     if (v.vetos && typeof v.vetos === 'object') for (const t in v.vetos) if (LEY_RIVALES.includes(t)) ley.vetos[t] = clamp(v.vetos[t] | 0, 0, LEY_VETO);
   } catch(e){}
   pintaRecordLeyenda();
 }
 function guardaLeyenda(){ storeSet('invasion_leyenda', JSON.stringify({ rec:ley.rec, heroe:ley.recHeroe, rival:ley.r0, vetos:ley.vetos })); }
+// ---- la partida guardada al salir: se continúa desde el combate en que estabas ----
+const LEY_GUARDA_KEY = 'invasion_ley_partida';
+async function leyLeeGuardada(){
+  try {
+    const g = JSON.parse(await storeGet(LEY_GUARDA_KEY) || 'null');
+    if (!g || !HEROES.includes(g.heroe) || !(g.ganadas > 0)) return null;
+    g.tipos = (Array.isArray(g.tipos) ? g.tipos : []).filter(t => LEY_RIVALES.includes(t)).slice(0, 2);
+    if (!MAPAS.includes(g.mapa)) g.mapa = 'ciudad';
+    if (!leyClimas(g.mapa).includes(g.clima)) g.clima = 'sol';
+    return g;
+  } catch(e){ return null; }
+}
+function leyGuardaPartida(){
+  ley.guardada = { heroe:hero, ganadas:ley.ganadas, vida:ley.vida, regen:ley.regen, ovni:ley.ovni, dano:ley.dano, cd:ley.cd,
+                   premios:ley.premios.slice(), tipos:ley.tipos.slice(), mapa:ley.mapa, clima:ley.clima };
+  storeSet(LEY_GUARDA_KEY, JSON.stringify(ley.guardada)); SaveIO.flush();
+}
+function leyBorraGuardada(){
+  if (!ley.guardada) return;
+  ley.guardada = null; storeSet(LEY_GUARDA_KEY, 'null');
+}
+// Al salir con combates ganados se pregunta si guardar; 'vs' = desde la pantalla VS.
+let _leyGuardaDe = '';
+function leyPreguntaGuardar(de){
+  _leyGuardaDe = de;
+  document.getElementById('leyGuardaTxt').innerHTML = 'Llevas <b>' + ley.ganadas + '</b> ' + (ley.ganadas === 1 ? 'combate ganado' : 'combates ganados')
+    + ' con ' + esc(heroName(hero)) + '. ' + esc((leyResumenVentajas() || 'Aún sin ventajas').replace('Llevas: ', 'Ventajas: ')) + '.'
+    + '<br>Si guardas, podrás continuar desde el combate ' + (ley.ganadas + 1) + ' con lo que llevas.';
+  show('leyGuarda'); sfx('ui');
+}
+async function leyGuardaElige(guardar){
+  hide('leyGuarda'); sfx('ui');
+  if (guardar) leyGuardaPartida(); else leyBorraGuardada();
+  ley.salioGuardando = !!guardar;
+  if (_leyGuardaDe === 'vs'){ hide('leyVs'); ley.verdugo = ''; endGame(); }
+  else { pausedForQuit = false; hide('confirmquit'); running = true; await endGame(); }
+}
+function leyGuardaVuelve(){
+  hide('leyGuarda'); sfx('ui');
+  if (_leyGuardaDe === 'vs') leyVsCuentaAtras();              // la cuenta atrás sigue donde estaba
+  else show('confirmquit');
+}
+function leyContinua(){
+  const g = ley.guardada; if (!g) return;
+  hero = g.heroe; saveHero(); try { refreshHeroUI(); } catch(e){}
+  Object.assign(ley, { ganadas:g.ganadas, vida:g.vida || 1, regen:g.regen || 0, ovni:g.ovni || 0, dano:g.dano || 1, cd:g.cd || 0,
+                       premios:Array.isArray(g.premios) ? g.premios : [], ultimo:'', verdugo:'' });
+  ley.mapa = g.mapa; ley.clima = g.clima;
+  ley.tipos = g.tipos.length ? g.tipos : [leySorteaRival()];
+  leyBorraGuardada();
+  hide('leyenda');
+  leyMuestraVs(null, true);
+}
 function pintaRecordLeyenda(){
   const el = document.getElementById('leyRec'); if (!el) return;
   el.innerHTML = ley.rec > 0
@@ -33548,6 +33652,15 @@ function pintaLeyenda(){
   $('leyHeroeNom').textContent = heroName(hero);
   $('leyHeroeNom').classList.toggle('largo', heroName(hero).length > 14);
   leyPintaHeroe($('leyHeroe'));
+  const g = ley.guardada, sg = $('leySigue');
+  if (sg){
+    sg.classList.toggle('hidden', !g);
+    if (g){
+      $('btnLeySigue').textContent = 'CONTINUAR · COMBATE ' + (g.ganadas + 1);
+      $('leySigueTxt').textContent = 'Partida guardada con ' + heroName(g.heroe) + ' · ' + g.ganadas + (g.ganadas === 1 ? ' victoria' : ' victorias')
+        + '. ¡A LUCHAR! empieza otra desde cero y la borra.';
+    }
+  }
   const r = $('leyRecSel');
   if (r) r.innerHTML = ley.rec > 0 ? 'RÉCORD: <b>' + ley.rec + '</b> ' + (ley.rec === 1 ? 'COMBATE' : 'COMBATES') : 'Cada victoria te da una ventaja. ¿Cuántos combates aguantas?';
 }
@@ -33607,6 +33720,7 @@ function leyCambiaHeroe(paso){
 }
 // Primer combate: el mapa elegido y un rival al azar. Se empieza de cero.
 function leyEmpieza(){
+  leyBorraGuardada();                                          // empezar de cero borra la partida guardada
   Object.assign(ley, { ganadas:0, vida:1, regen:0, ovni:0, dano:1, cd:0, premios:[], ultimo:'', verdugo:'' });
   ley.mapa = ley.m0; ley.clima = ley.c0;
   ley.tipos = [leySorteaRival()]; leyCuentaVetos();
@@ -33777,7 +33891,7 @@ function leyResumenVentajas(){
 // Empieza sola tras una cuenta atrás (o al pulsar el botón).
 let _leyVsT = 0, _leyVsCuenta = 0;
 const LEY_VS_ESPERA = [4, 9];                          // segundos: antes del primero, entre combates
-function leyMuestraVs(gana){
+function leyMuestraVs(gana, sigue){
   const $ = id => document.getElementById(id);
   leyFondo('leyVsBg', ley.mapa);
   $('leyVsTop').textContent = 'COMBATE ' + (ley.ganadas + 1) + ' · ' + MAPA_NOMBRE[ley.mapa] + ' · ' + CLIMAS[ley.clima].icon + ' ' + leyClimaNombre(ley.mapa, ley.clima);
@@ -33786,6 +33900,9 @@ function leyMuestraVs(gana){
     gn.innerHTML = '¡COMBATE ' + ley.ganadas + ' GANADO!<small>Derrotaste a ' + esc(gana.vencidos) + ' · +' + LEY_MONEDAS + ' monedas'
       + ' · <span class="nueva">' + gana.P.ico + ' NUEVA VENTAJA: ' + esc(gana.P.n) + '</span>'
       + (gana.skin ? '<br>\u{1F513} SKIN NUEVA: <b>REGENTE</b> · úsala desde la TIENDA' : '') + '</small>';
+    gn.classList.remove('hidden');
+  } else if (sigue){
+    gn.innerHTML = 'CONTINÚAS TU PARTIDA<small>' + ley.ganadas + (ley.ganadas === 1 ? ' combate ganado' : ' combates ganados') + ' · tus ventajas siguen contigo</small>';
     gn.classList.remove('hidden');
   } else gn.classList.add('hidden');
   leyFondo('leyVsYoBg', ley.mapa); leyFondo('leyVsElBg', ley.mapa);
@@ -33798,15 +33915,19 @@ function leyMuestraVs(gana){
   $('leyVsDos').classList.toggle('hidden', ley.tipos.length < 2);
   leyPreparaArte();
   $('leyRecFin').textContent = gana ? (ley.ganadas >= ley.rec ? '¡NUEVO RÉCORD!' : 'Récord: ' + ley.rec) : '';
-  $('btnLeyRetira').classList.toggle('hidden', !gana);
+  $('btnLeyRetira').classList.toggle('hidden', !gana && !sigue);
   const vs = $('leyVs');
   vs.classList.remove('entra'); void vs.offsetWidth; vs.classList.add('entra');
   show('leyVs'); setTimeout(()=> sfx('caidaGolpe'), 380);
-  _leyVsCuenta = LEY_VS_ESPERA[gana ? 1 : 0];
+  _leyVsCuenta = LEY_VS_ESPERA[gana || sigue ? 1 : 0];
+  leyVsCuentaAtras();
+}
+function leyVsCuentaAtras(){
   leyVsBoton();
   clearInterval(_leyVsT);
   _leyVsT = setInterval(()=>{
-    if ($('leyVs').classList.contains('hidden')){ clearInterval(_leyVsT); return; }
+    const el = document.getElementById('leyVs');
+    if (el.classList.contains('hidden')){ clearInterval(_leyVsT); return; }
     _leyVsCuenta -= 1;
     if (_leyVsCuenta <= 0) leySiguiente(true); else leyVsBoton();
   }, 1000);
@@ -33835,6 +33956,7 @@ function leySiguiente(solo){
 }
 function leyRetira(){
   clearInterval(_leyVsT);
+  if (ley.ganadas > 0){ leyPreguntaGuardar('vs'); return; }       // ¿guardar para continuar luego?
   sfx('ui'); hide('leyVs');
   ley.verdugo = '';
   endGame();
@@ -33885,7 +34007,8 @@ function rivAng(e){ return Math.atan2(player.y - e.y, player.x - e.x); }
 // viltrumita y por la C de Boros, y ellos también te agarran a ti: el
 // viltrumita se te lleva volando a puñetazos, gira y te lanza; Boros te
 // sujeta, te patea, salta tras de ti y te remata con otra patada.
-function esLuchador(t){ return !!t && (t.type === 'rivalVil' || t.type === 'rivalBoros'); }
+// El Héroe Mágico también se deja agarrar como ellos (presa del viltrumita y agarre de Boros).
+function esLuchador(t){ return !!t && (t.type === 'rivalVil' || t.type === 'rivalBoros' || t.type === 'heroe'); }
 function rivalAgarrable(t){ return esLuchador(t) && !t.dead && t.fase !== 'transforma' && !(t.invT > 0); }
 function rivalAgarrado(t){                         // lo que hacía se corta
   if (rivAgarre === t) rivAgarreFin();
@@ -33936,22 +34059,35 @@ function updateRivalBoros(e, dt, a, ang){
     if (e.ft <= 0){ e.fase = ''; e.combo++; e.cd = e.combo >= 3 ? 1.1 : 0.12; if (e.combo >= 3) e.combo = 0; }
     return;
   }
+  // Z: la misma ráfaga que la del jugador. Marca la franja (la sigue un poco y
+  // luego la fija: hay tiempo de salir), descarga los puños y remata en el centro.
   if (e.fase === 'zAviso'){
+    if (e.ft > RIV_BOR_Z.fija){ let d = ang - e.rA; d = Math.atan2(Math.sin(d), Math.cos(d)); e.rA += clamp(d, -dt*1.6, dt*1.6); }
     e.facing = Math.cos(e.rA) >= 0 ? 1 : -1;
-    if (e.ft <= 0){ e.fase = 'z'; e.ft = 0.34; e.golpeo = 0; sfxEn('dash', e.x, e.y, 0.8); }
+    if (e.ft <= 0){ e.fase = 'z'; e.ft = RIV_BOR_Z.n*RIV_BOR_Z.paso; e.n = 0; sfxEn('dash', e.x, e.y, 0.8); }
     return;
   }
   if (e.fase === 'z'){
-    const v = 980 + e.fo*120;
-    e.x += Math.cos(e.rA)*v*dt; e.y += Math.sin(e.rA)*v*dt;
-    collideBuildings(e, 26, dt, 900);
-    e.x = clamp(e.x, 60, WORLD_W - 60); e.y = clamp(e.y, 60, WORLD_H - 60);
-    if (Math.random() < 0.6) addParticles(e.x - Math.cos(e.rA)*30, e.y - 20, '#ffd257', 2, 90);
-    if (!e.golpeo && dist(e.x, e.y, player.x, player.y) < 60){
-      e.golpeo = 1; rivPega(e, 40 + e.fo*10, 900, e.rA, '#ffcc66');
-      anilloImpacto(player.x, player.y, 110, '#ffe9a0', 0.35); hitstop(0.05); sfx('caidaGolpe');
+    const ca = Math.cos(e.rA), sa = Math.sin(e.rA), quiere = Math.floor((RIV_BOR_Z.n*RIV_BOR_Z.paso - e.ft)/RIV_BOR_Z.paso);
+    while (e.n < Math.min(RIV_BOR_Z.n, quiere + 1)){
+      e.n++;
+      const d = rand(50, RIV_BOR_Z.L), off = rand(-RIV_BOR_Z.W/2, RIV_BOR_Z.W/2);
+      rivPunos.push({ e, x0: e.x + ca*16, y0: e.y - 22 + sa*12, x: e.x + ca*d - sa*off, y: e.y + sa*d + ca*off, t:0, dur: 0.07 + d/2600, c: e.n % 2, hit:false });
+      if (e.n % 2) sfxEn('whoosh', e.x, e.y, 0.5);
     }
-    if (e.ft <= 0){ e.fase = ''; e.cd = 0.9; e.zCd = rand(4, 6); }
+    if (e.ft <= 0){ e.fase = 'zFin'; e.ft = 0.55; e.golpeo = 0; sfxEn('cargaM', e.x, e.y, 0.8); }
+    return;
+  }
+  if (e.fase === 'zFin'){                          // el golpe final, en el centro de la franja
+    if (!e.golpeo && e.ft <= 0.3){
+      e.golpeo = 1;
+      const cx = e.x + Math.cos(e.rA)*RIV_BOR_Z.L*0.6, cy = e.y + Math.sin(e.rA)*RIV_BOR_Z.L*0.6;
+      if (dist(player.x, player.y, cx, cy) < RIV_BOR_Z.R + F().r*0.4) rivPega(e, 20 + e.fo*5, 700, Math.atan2(player.y - cy, player.x - cx), '#b06aff');
+      anilloImpacto(cx, cy, RIV_BOR_Z.R + 30, '#b06aff', 0.4); anilloImpacto(cx, cy, 60, '#ffffff', 0.25);
+      for (let i = 0; i < 2; i++) addParticles(cx, cy - 16, i ? '#b56aff' : '#6a8cff', 14, 260);
+      shake(10, 0.25); sfxEn('bigboom', e.x, e.y, 0.9);
+    }
+    if (e.ft <= 0){ e.fase = ''; e.cd = 0.9; e.zCd = rand(5, 7); }
     return;
   }
   if (e.fase === 'vAviso'){
@@ -34035,7 +34171,7 @@ function updateRivalBoros(e, dt, a, ang){
     }
     if (a < 64){ e.fase = 'golpe'; e.ft = 0.24; e.golpeo = 0; e.lado = 1 - e.lado; return; }
     if (e.fo >= 2 && e.bCd <= 0 && a > 160 && a < 560){ e.fase = 'bAviso'; e.ft = 0.75; return; }
-    if (e.zCd <= 0 && a > 140 && a < 460){ e.fase = 'zAviso'; e.ft = 0.42; return; }
+    if (e.zCd <= 0 && a > 90 && a < 320){ e.fase = 'zAviso'; e.ft = RIV_BOR_Z.aviso; return; }
     if (e.vCd <= 0 && a < 260){ e.fase = 'vAviso'; e.ft = 0.6; e.tx = player.x; e.ty = player.y; return; }
   }
   if (a > 52 && !parado){
@@ -34045,6 +34181,40 @@ function updateRivalBoros(e, dt, a, ang){
   }
   e.x = clamp(e.x, 60, WORLD_W - 60); e.y = clamp(e.y, 60, WORLD_H - 60);
   if (e.fo === 3 && dist(e.x, e.y, player.x, player.y) < 46) rivPega(e, 18*dt, 0, ang, '#c48aff');   // abrasa al tocar
+}
+// La Z del Boros de la CPU: franja, puños y cuánto avisa antes (los últimos
+// 'fija' segundos ya no se mueve: es el momento de salir de ella).
+const RIV_BOR_Z = { L:280, W:150, R:105, aviso:1.15, fija:0.6, n:20, paso:0.04 };
+const rivPunos = [];
+function rivPunosUpdate(dt){
+  for (let i = rivPunos.length - 1; i >= 0; i--){ const q = rivPunos[i];
+    q.t += dt;
+    if (!q.hit && q.t >= q.dur){
+      q.hit = true;
+      if (dist(player.x, player.y, q.x, q.y) < 40 + F().r*0.4) rivPega(q.e, 4 + (q.e.fo || 2), 90, Math.atan2(player.y - q.y, player.x - q.x), q.c ? '#8a9cff' : '#c48aff');
+      addParticles(q.x, q.y - 14, q.c ? '#8a9cff' : '#c48aff', 3, 130);
+    }
+    if (q.t >= q.dur + 0.2) rivPunos.splice(i, 1);
+  }
+}
+function drawRivPunos(){
+  if (!rivPunos.length) return;
+  ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.lineCap = 'round';
+  for (const q of rivPunos){
+    if (!q.hit){
+      const k = clamp(q.t/q.dur, 0, 1), x = lerp(q.x0, q.x, k), y = lerp(q.y0, q.y - 18, k) - Math.sin(k*Math.PI)*16;
+      const p = S(x, y), pa = S(lerp(q.x0, q.x, Math.max(0, k - 0.35)), lerp(q.y0, q.y - 18, Math.max(0, k - 0.35)));
+      ctx.globalAlpha = 0.55; ctx.strokeStyle = q.c ? '#6a7cff' : '#a05aff'; ctx.lineWidth = 8;
+      ctx.beginPath(); ctx.moveTo(pa.x, pa.y); ctx.lineTo(p.x, p.y); ctx.stroke();
+      ctx.globalAlpha = 0.9; ctx.drawImage(borAura(), p.x - 16, p.y - 16, 32, 32);
+      ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(p.x, p.y, 3.5, 0, Math.PI*2); ctx.fill();
+    } else {
+      const k = clamp((q.t - q.dur)/0.2, 0, 1), p = S(q.x, q.y);
+      ctx.globalAlpha = 0.8*(1 - k); ctx.strokeStyle = q.c ? '#8a9cff' : '#c48aff'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.ellipse(p.x, p.y, 10 + k*30, 6 + k*16, 0, 0, Math.PI*2); ctx.stroke();
+    }
+  }
+  ctx.restore();
 }
 function rivBorTransforma(e, fo){
   e.fo = fo; e.fase = 'transforma'; e.ft = 1.3; e.invT = 1.3;
@@ -34060,8 +34230,15 @@ function rivBorPoseObj(e){
   switch (e.fase){
     case 'transforma': return e.ft > 0.4 ? P({ lean:0.38 + Math.sin(t*60)*0.03, mF:0.45, rF:0.65, mB:-0.45, rB:0.6, bF:0.2, cF:0.25, bB:0.1, cB:0.3, cab:0.2 })
                                           : P({ lean:-0.22, cab:-0.35, mF:0.4, rF:0.2, mB:-0.45, rB:0.2, bF:2.55, cF:0.25, bB:2.35, cB:0.3 });
-    case 'zAviso': return P({ lean:0.42, mF:0.75, rF:1.5, mB:-0.55, rB:1.3, bF:0.25, cF:0.5, bB:-0.4, cB:0.6 });
-    case 'z': return P({ suelo:0, alto:16, lean:-0.65, mF:1.85, rF:0, mB:-0.2, rB:0.5, bF:-0.9, cF:0.4, bB:0.5, cB:0.9 });
+    case 'zAviso': return P({ lean:-0.18, mF:0.45, rF:0.5, mB:-0.4, rB:0.4, bF:-0.85, cF:0.9, bB:0.9, cB:1.8, cab:0.1 });
+    case 'z': {                                    // los puños, como el jugable
+      const k = Math.floor(e.anim/0.062) % 2, j = Math.sin(e.anim*90)*0.15;
+      return k ? P({ lean:0.32, mF:0.55, rF:0.4, mB:-0.55, rB:0.3, bF:1.55 + j, cF:0.08, bB:0.6, cB:1.8 })
+               : P({ lean:0.32, mF:0.55, rF:0.4, mB:-0.55, rB:0.3, bF:0.6, cF:1.8, bB:1.5 - j, cB:0.1 });
+    }
+    case 'zFin':
+      if (e.ft > 0.3) return P({ lean:-0.18, mF:0.45, rF:0.5, mB:-0.4, rB:0.4, bF:-0.85, cF:0.9, bB:0.9, cB:1.8, cab:0.1 });
+      return P({ lean:0.55, mF:0.85, rF:0.2, mB:-0.75, rB:0.15, bF:1.66, cF:0, bB:0.1, cB:1.4 });
     case 'vAviso': return P({ lean:-0.18, mF:0.45, rF:0.5, mB:-0.4, rB:0.4, bF:-0.85, cF:0.9, bB:0.9, cB:1.8, cab:0.1 });
     case 'v': { const k = Math.floor(t*16) % 2, j = Math.sin(t*90)*0.15;
       return k ? P({ lean:0.32, mF:0.55, rF:0.4, mB:-0.55, rB:0.3, bF:1.55 + j, cF:0.08, bB:0.6, cB:1.8 }) : P({ lean:0.32, mF:0.55, rF:0.4, mB:-0.55, rB:0.3, bF:0.6, cF:1.8, bB:1.5 - j, cB:0.1 }); }
@@ -34089,9 +34266,20 @@ function drawRivalBoros(e){
   const o = rivBorPoseObj(e); borMezcla(e.pose, o, 1 - Math.exp(-24*dt)); e.pose.rot = 0;
   sombra(s.x, pies - 2, 22, 7, 0.85);
   // avisos: la línea de la embestida, la zona de la ráfaga y la del rayo
-  if (e.fase === 'zAviso'){
-    ctx.save(); ctx.globalAlpha = 0.35 + Math.sin(e.anim*30)*0.15; ctx.strokeStyle = '#a8b8ff'; ctx.lineWidth = 6; ctx.setLineDash([12, 8]);
-    ctx.beginPath(); ctx.moveTo(s.x, s.y - 10); ctx.lineTo(s.x + Math.cos(e.rA)*360, s.y - 10 + Math.sin(e.rA)*360); ctx.stroke(); ctx.restore();
+  if (e.fase === 'zAviso' || e.fase === 'z' || e.fase === 'zFin'){             // la franja de la ráfaga (se va llenando hasta que caen los puños)
+    const Z = RIV_BOR_Z, a = e.rA, ca = Math.cos(a), sa = Math.sin(a), nx = -sa*Z.W/2, ny = ca*Z.W/2;
+    const lleno = e.fase === 'zAviso' ? clamp(1 - e.ft/Z.aviso, 0, 1) : 1, fija = e.fase !== 'zAviso' || e.ft <= Z.fija;
+    ctx.save();
+    const franja = (L)=>{ ctx.beginPath(); ctx.moveTo(s.x + nx, s.y + ny); ctx.lineTo(s.x + nx + ca*L, s.y + ny + sa*L);
+      ctx.lineTo(s.x - nx + ca*L, s.y - ny + sa*L); ctx.lineTo(s.x - nx, s.y - ny); ctx.closePath(); };
+    ctx.globalAlpha = e.fase === 'zAviso' ? 0.22 : 0.12; ctx.fillStyle = '#7a6cff'; franja(Z.L); ctx.fill();
+    if (e.fase === 'zAviso'){ ctx.globalAlpha = 0.3; ctx.fillStyle = fija ? '#c48aff' : '#8a9cff'; franja(Z.L*lleno); ctx.fill(); }
+    ctx.globalAlpha = fija ? 0.6 + Math.sin(e.anim*30)*0.25 : 0.45; ctx.strokeStyle = fija ? '#e0c8ff' : '#a8b8ff'; ctx.lineWidth = 2.5;
+    ctx.setLineDash([12, 8]); ctx.lineDashOffset = -e.anim*60; franja(Z.L); ctx.stroke(); ctx.setLineDash([]);
+    const cx = s.x + ca*Z.L*0.6, cy = s.y + sa*Z.L*0.6;                      // donde cae el golpe final
+    ctx.globalAlpha = e.fase === 'zFin' ? 0.5 : 0.25; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.ellipse(cx, cy, Z.R, Z.R*0.72, 0, 0, Math.PI*2); ctx.stroke();
+    ctx.restore();
   }
   if (e.fase === 'vAviso' || e.fase === 'v'){
     const p = S(e.tx, e.ty);
@@ -34113,8 +34301,8 @@ function drawRivalBoros(e){
   if (e.invT > 0 && Math.floor(e.anim*20) % 2) ctx.globalAlpha = 0.7;
   _rivBorSt.pose = e.pose; _rivBorSt.cara = e.facing || 1; _rivBorSt.forma = met ? 1 : 0;
   _rivBorSt.cargaPecho = e.fase === 'bAviso' ? clamp(1 - e.ft/0.75, 0, 1) : e.fase === 'b' ? 1 : 0;
-  _rivBorSt.brilloPuno = e.fase === 'v' || e.fase === 'vAviso' ? 0.8 : 0; _rivBorSt.viento = e.fase === 'z' ? 0.5 : 0;
-  const z = e.fase === 'z' ? 14 : (e.z || 0);
+  _rivBorSt.brilloPuno = e.fase === 'v' || e.fase === 'vAviso' || e.fase === 'zFin' ? 0.8 : 0; _rivBorSt.viento = 0;
+  const z = e.z || 0;
   borFigura(ctx, _rivBorSt, s.x, pies - z, { t:e.anim, esc:RIV_BOR_ESC });
   ctx.globalAlpha = 1;
   if (e.fase === 'b'){
@@ -34422,7 +34610,9 @@ async function endGame(){
     // la lámina del ganador: el rival que te tumbó (o tú, si te retiraste invicto)
     const quien = hp <= 0 ? (ley.verdugo || ley.tipos[0]) : '';
     try { if (gimg) gimg.src = quien ? leyLamina(quien, false, 'GANADOR').toDataURL() : leyLamina(hero, true, 'TE RETIRAS').toDataURL(); } catch(e){}
-    if (gs) gs.textContent = 'Aguantaste ' + ley.ganadas + (ley.ganadas === 1 ? ' combate' : ' combates') + (ley.ganadas >= ley.rec && ley.ganadas > 0 ? ' · ¡nuevo récord!' : ' · récord: ' + ley.rec);
+    if (gs) gs.textContent = ley.salioGuardando ? 'Partida guardada: la continúas desde el combate ' + (ley.ganadas + 1) + ' (VS LEGENDARIO → CONTINUAR)'
+      : 'Aguantaste ' + ley.ganadas + (ley.ganadas === 1 ? ' combate' : ' combates') + (ley.ganadas >= ley.rec && ley.ganadas > 0 ? ' · ¡nuevo récord!' : ' · récord: ' + ley.rec);
+    ley.salioGuardando = false;
   } else if (gameMode === 'vs'){
     const alienWon = vsWinner === 'alien';
     if (gimg) gimg.src = alienWon ? IMG_VICT1 : IMG_VICT2;
@@ -34683,6 +34873,7 @@ function resumeFromQuit(){
   sfx('ui');
 }
 async function confirmQuit(){
+  if (gameMode === 'leyenda' && ley.ganadas > 0 && !Online.activo){ hide('confirmquit'); leyPreguntaGuardar('juego'); return; }
   pausedForQuit = false;
   hide('confirmquit');
   running = true;                  // endGame espera una partida en curso
@@ -36973,7 +37164,7 @@ async function loadMapa(){
 document.getElementById('btnModeInvasion').addEventListener('click', ()=> crackAndStart('btnModeInvasion', ()=> startGame('invasion')));
 document.getElementById('btnModeVs').addEventListener('click', ()=> crackAndStart('btnModeVs', ()=> startGame('vs')));
 document.getElementById('btnModeVsOnline').addEventListener('click', ()=>{ sfx('ui'); abrirSala('vs'); });
-document.getElementById('btnRetry').addEventListener('click', ()=>{ if (gameMode === 'leyenda') leyEmpieza(); else startGame(gameMode); });
+document.getElementById('btnRetry').addEventListener('click', ()=>{ if (gameMode === 'leyenda'){ if (ley.guardada) leyContinua(); else leyEmpieza(); } else startGame(gameMode); });
 document.getElementById('btnModeLeyenda').addEventListener('click', ()=>{ sfx('ui'); abreLeyenda(); });
 document.getElementById('btnLeyLucha').addEventListener('click', ()=> crackAndStart('btnLeyLucha', leyEmpieza));
 document.getElementById('btnLeyVolver').addEventListener('click', ()=>{ sfx('ui'); hide('leyenda'); show('modeselect'); startModeAnims(); });
@@ -36984,6 +37175,10 @@ document.getElementById('leyHeroeIzq').addEventListener('click', ()=> leyCambiaH
 document.getElementById('leyHeroeDer').addEventListener('click', ()=> leyCambiaHeroe(1));
 document.getElementById('btnLeySig').addEventListener('click', leySiguiente);
 document.getElementById('btnLeyRetira').addEventListener('click', leyRetira);
+document.getElementById('btnLeySigue').addEventListener('click', ()=> crackAndStart('btnLeySigue', leyContinua));
+document.getElementById('btnLeyGuardaSi').addEventListener('click', ()=> leyGuardaElige(true));
+document.getElementById('btnLeyGuardaNo').addEventListener('click', ()=> leyGuardaElige(false));
+document.getElementById('btnLeyGuardaVuelve').addEventListener('click', leyGuardaVuelve);
 document.getElementById('btnMenu').addEventListener('click', async ()=>{
   sfx('ui');
   if (Online.activo){ volverASala(); return; }
