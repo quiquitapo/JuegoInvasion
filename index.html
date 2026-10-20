@@ -31617,7 +31617,7 @@ function jefeDerrotado(e){
 // El retrato: la ficha del registro (deformada en el castigo).
 const presImg = {};
 function retratoJefe(tipo, def){
-  const k = tipo + (def ? 'D' : '');
+  const k = tipo + (def ? 'D' : '') + (JEFE_EST[tipo] && JEFE_EST[tipo].img === '@cria' && esInfierno() ? 'R' : '');
   if (presImg[k]) return presImg[k];
   const E = JEFE_EST[tipo];
   let src = null;
@@ -31625,7 +31625,7 @@ function retratoJefe(tipo, def){
   else if (E.img === '@tripode') src = tripodeIconCv();
   else if (E.img === '@refuerzos') src = refuerzosIconCv();
   else if (E.img === '@boros') src = rivalRetrato('rivalBoros');
-  else if (E.img === '@cria') src = criasIconCv();
+  else if (E.img === '@cria') src = criasIconCv(esInfierno());
   else if (E.img === '@vil') src = rivalRetrato('rivalVil');
   else { const sp = sprites[E.img]; if (sp && sp.img.complete && sp.img.naturalWidth) src = sp.img; }
   if (!src) return null;                                  // aún cargando: se reintenta
@@ -31641,7 +31641,8 @@ function retratoJefe(tipo, def){
 }
 function colsJefe(tipo, def){
   const E = JEFE_EST[tipo];
-  return def ? { barra:['#ff6a5a','#6a0a10'], borde:'#c8686a', fondo:['#1a0404','#4a0e0e'] } : E;
+  if (def || (E && E.img === '@cria' && esInfierno())) return { barra:['#ff6a5a','#6a0a10'], borde:'#c8686a', fondo:['#1a0404','#4a0e0e'] };   // las crías, rojas en Castigo Divino
+  return E;
 }
 // ---- la barra de salud, arriba ----
 function drawBarrasJefe(){
@@ -33490,8 +33491,10 @@ function updateCriaJefe(e, dt, a, ang){
   criaTentaculoIA(e, dt);
 }
 // ---- dibujo: exactamente como la cría (o el coloso), con su tentáculo largo ----
-function pintaCria(g, x, y, R, colosal, ph, tx, ty, agarra){
-  const f = FORMS[colosal ? 1 : 0], SK = skinById('verde'), gk = R/f.r;
+// En Castigo Divino las crías jefe son rojas.
+const CRIA_ROJA = { c:['#ff6a52', '#c42a1c', '#560a06'], tip:'#ffc0a8', borde:'#2a0604', humo:'#7a2a22', vida:'#ff5a44' };
+function pintaCria(g, x, y, R, colosal, ph, tx, ty, agarra, roja){
+  const f = FORMS[colosal ? 1 : 0], SK = roja ? CRIA_ROJA : skinById('verde'), gk = R/f.r;
   const colT = civMezcla(SK.c[1], 0.22), luzT = SK.c[0], n = f.tentacles;
   for (let i = 0; i < n; i++){
     const a = (i/n)*Math.PI*2 + ph*0.3, wob = Math.sin(ph*2 + i)*R*0.36, len = R*1.55 + Math.sin(ph*1.5 + i*1.3)*R*0.36;
@@ -33505,7 +33508,7 @@ function pintaCria(g, x, y, R, colosal, ph, tx, ty, agarra){
   const gr = g.createRadialGradient(x - R*0.26, y - R*0.26, R*0.13, x, y, R*1.1);
   gr.addColorStop(0, SK.c[0]); gr.addColorStop(0.6, SK.c[1]); gr.addColorStop(1, SK.c[2]);
   g.fillStyle = gr; g.beginPath(); g.arc(x, y, R, 0, Math.PI*2); g.fill();
-  g.strokeStyle = '#0b2712'; g.lineWidth = 2.4*Math.max(1, gk*0.8); g.stroke();
+  g.strokeStyle = roja ? CRIA_ROJA.borde : '#0b2712'; g.lineWidth = 2.4*Math.max(1, gk*0.8); g.stroke();
   criaBrillo(g, x, y, R);
   criaOjos(g, x, y, R, ph, ang);
 }
@@ -33513,7 +33516,7 @@ function drawCriaJefe(e){
   const s = S(e.x, e.y), k = e.nace > 0 ? clamp(1 - e.nace/0.9, 0.08, 1) : 1, R = e.R*k*(e.comeT > 0 ? 1 + Math.sin(e.comeT*30)*0.05 : 1);
   sombra(s.x, s.y + R*0.85, R*1.2, R*0.38, 0.6);
   if (e.nace > 0){                                    // la nube de humo verde de donde sale
-    ctx.save(); ctx.globalAlpha = 0.35*(1 - k*0.6); ctx.fillStyle = '#2f7a45';
+    ctx.save(); ctx.globalAlpha = 0.35*(1 - k*0.6); ctx.fillStyle = esInfierno() ? CRIA_ROJA.humo : '#2f7a45';
     for (let i = 0; i < 5; i++){ const a = e.ph*2 + i*1.26; ctx.beginPath(); ctx.arc(s.x + Math.cos(a)*e.R*0.9, s.y + Math.sin(a)*e.R*0.5, e.R*(0.7 + 0.2*Math.sin(e.ph*3 + i)), 0, Math.PI*2); ctx.fill(); }
     ctx.restore();
   }
@@ -33524,18 +33527,19 @@ function drawCriaJefe(e){
   else if (e.golpeT > 0){ const kk = Math.sin(clamp(1 - e.golpeT/0.3, 0, 1)*Math.PI); tx = s.x + Math.cos(e.golpeA)*(R*1.4 + reach*0.4*kk); ty = s.y + Math.sin(e.golpeA)*(R*1.4 + reach*0.4*kk); }
   else if (e.lanzaT > 0){ tx = s.x + Math.cos(e.lanzaA)*reach*0.55; ty = s.y + Math.sin(e.lanzaA)*reach*0.55; }
   else { const a = Math.atan2(player.y - e.y, player.x - e.x) + Math.sin(e.ph*1.3)*0.5; tx = s.x + Math.cos(a)*R*2.2*k; ty = s.y + Math.sin(a)*R*2.2*k; }
-  pintaCria(ctx, s.x, s.y, R, e.colosal, e.ph, tx, ty, e.tentFase === 'arrastra');
-  if (!e.colosal && showHpBars) hpBar(s.x, s.y - R - 14, 40, e.hp, e.maxhp, '#3fd16a');
+  pintaCria(ctx, s.x, s.y, R, e.colosal, e.ph, tx, ty, e.tentFase === 'arrastra', esInfierno());
+  if (!e.colosal && showHpBars) hpBar(s.x, s.y - R - 14, 40, e.hp, e.maxhp, esInfierno() ? CRIA_ROJA.vida : '#3fd16a');
 }
 // Retrato para la presentación y el registro: la colosal con una cría al lado.
-let _criasIco = null, _criasIcoURL = '';
-function criasIconCv(){
-  if (_criasIco) return _criasIco;
+let _criasIco = null, _criasIcoRoja = null, _criasIcoURL = '';
+function criasIconCv(roja){
+  if (roja ? _criasIcoRoja : _criasIco) return roja ? _criasIcoRoja : _criasIco;
   const c = document.createElement('canvas'); c.width = c.height = 160;
   const g = c.getContext('2d');
-  pintaCria(g, 98, 70, 38, true, 0.6, 40, 120, false);
-  pintaCria(g, 42, 118, 19, false, 1.9, 90, 150, false);
-  return (_criasIco = c);
+  pintaCria(g, 98, 70, 38, true, 0.6, 40, 120, false, roja);
+  pintaCria(g, 42, 118, 19, false, 1.9, 90, 150, false, roja);
+  if (roja) _criasIcoRoja = c; else _criasIco = c;
+  return c;
 }
 function criasIconURL(){
   if (_criasIcoURL) return _criasIcoURL;
