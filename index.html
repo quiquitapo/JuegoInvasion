@@ -11743,7 +11743,7 @@ const BIND_HEROE = {
   alien:   { grab:'Agarrar; con algo agarrado, golpear con ello', throw:'Lanzar lo que sostienes' },
   viltrum: { grab:'Agarrar lo que tengas cerca', throw:'Lanzar lo que llevas', draCola:'Presa (mantén, apunta y suelta)' },
   boros:   { grab:'Puñetazo (además del clic)', draAle:'Ráfaga de energía (mantén, apunta y suelta)',
-             draCola:'Golpe sombra: aura morada, aparece tras el enemigo y golpea en área', magFue:'Rayo del pecho (mantén, apunta y suelta; cañón en la forma meteórica)',
+             draCola:'Golpe sombra: aura morada, aparece tras el enemigo y golpea en área', magFue:'Rayo del pecho (mantén, apunta y suelta; si lo mantienes unos segundos sale más grande. Cañón en la forma meteórica)',
              magTel:'Curación: ruge y recupera vida' },
   dragon:  { grab:'Mordisco', draAle:'Aletazo', draRay:'Rayos (además del clic derecho)',
              draCola:'Coletazo (mantén, apunta y suelta)', magTel:'Rugido' },
@@ -25493,14 +25493,15 @@ const BOR_VEL = 200, BOR_CORRE = 380, BOR_CORRE_MANT = 0.8, BOR_MET_VEL = 1.25;
 const BOR_REGEN = [1.5, 5], BOR_EN_REG = [14, 24];      // vida y energía por segundo (normal, meteórica)
 const BOR_MET_DMG = 1.35;                               // la meteórica pega más
 // Daño parecido al del viltrumita (55 el puñetazo); áreas amplias.
-const BOR_GOLPES = [ { dur:0.25, imp:0.09, dmg:55, emp:190, alc:72 },
-                     { dur:0.27, imp:0.10, dmg:58, emp:210, alc:72 },
-                     { dur:0.42, imp:0.17, dmg:95, emp:560, alc:92, fuerte:true } ];
+const BOR_GOLPES = [ { dur:0.25, imp:0.09, dmg:55, emp:220, alc:98 },
+                     { dur:0.27, imp:0.10, dmg:58, emp:240, alc:98 },
+                     { dur:0.42, imp:0.17, dmg:95, emp:600, alc:128, fuerte:true } ];
 const BOR_Z_COSTE = [25, 20], BOR_Z_CD = [3.5, 3.0];   // Z: ráfaga de energía
 const BOR_C_COSTE = [25, 20], BOR_C_CD = [4.0, 3.2], BOR_C_R = 64;   // C: agarre y dos patadas
 const BOR_T_COSTE = [22, 30], BOR_T_CD = [3.0, 7.0], BOR_T_R = 620;   // C: golpe sombra (meteórica: la paliza entera)
 const BOR_CURA_T = 1.4, BOR_CURA_CD = 16, BOR_CURA = 0.45;  // R: recupera esa parte de la vida rugiendo
 const BOR_B_COSTE = [35, 60], BOR_B_CD = [5.0, 10.0];  // X: rayo del pecho / cañón
+const BOR_B_CARGA = [0.4, 2.5], BOR_B_EXTRA = 0.75;    // mantenido de 0,4 a 2,5 s, sale hasta un 75% más ancho
 const BOR_RAYO  = { carga:0.38, dura:0.62, largo:720,  ancho:26,  dmg:260 };
 const BOR_CANON = { carga:1.1,  dura:1.6,  largo:1300, ancho:110, dmg:900 };
 const BOR_CALOR_R = 40, BOR_CALOR_DMG = 7;              // la meteórica abrasa cada 0,1 s
@@ -25512,7 +25513,7 @@ const bor = { est:'', estT:0, hecho:false, pose:borPoseN({}), fase:0, mirA:0, di
               agFase:'', agT:0, saltoT:0,
               sx:0, sy:0, tx:0, ty:0, saltoD:0, saltoDur:0.3,
               tCd:0, teleN:0, teleK:0, curaCd:0, curaPulso:0,
-              rayoOn:false, rayoTick:0, rayoN:0,
+              rayoOn:false, rayoTick:0, rayoN:0, bK:1, bCarga:0, bLleno:false,
               cargaPecho:0, brilloPuno:0, fuegoT:0,
               zCd:0, cCd:0, vCd:0, bCd:0, pend:'', pendT:0, zApunta:false, zA:0, bApunta:false, bA:0 };
 let borPresa = null;                                     // a quién lleva o persigue en el agarre / el golpe sombra
@@ -25526,7 +25527,7 @@ function borForma(){ return borMet(); }
 function borMaxHp(){ return BOR_HP; }
 function borReset(){
   Object.assign(bor, { est:'', estT:0, hecho:false, z:0, corre:false, mueveT:0, invT:0, holding:false, combo:0, comboVentana:0,
-                       agFase:'', rayoOn:false, cargaPecho:0, brilloPuno:0, fuegoT:0, zCd:0, cCd:0, tCd:0, curaCd:0, bCd:0, pend:'', pendT:0, zApunta:false, bApunta:false });
+                       agFase:'', rayoOn:false, cargaPecho:0, brilloPuno:0, fuegoT:0, zCd:0, cCd:0, tCd:0, curaCd:0, bCd:0, pend:'', pendT:0, zApunta:false, bApunta:false, bK:1, bCarga:0, bLleno:false });
   bor.pose = borPoseN({});
   borPresa = null; borPaso.edif = null; borPunos.length = 0; borRastro.length = 0; borAuras.length = 0;
 }
@@ -25645,7 +25646,7 @@ function borGolpeUpdate(dt){
   player.vx *= Math.exp(-8*dt); player.vy *= Math.exp(-8*dt);
   if (bor.estT >= G.imp && !bor.hecho){
     bor.hecho = true;
-    const a = bor.dirA, px = player.x + Math.cos(a)*G.alc*0.6, py = player.y + Math.sin(a)*G.alc*0.48, R = G.alc*0.85;
+    const a = bor.dirA, px = player.x + Math.cos(a)*G.alc*0.62, py = player.y + Math.sin(a)*G.alc*0.5, R = G.alc;   // onda ancha delante del puño
     // el último del combo manda a volar al más cercano
     let lanzado = null;
     if (G.fuerte){
@@ -25661,9 +25662,10 @@ function borGolpeUpdate(dt){
     }
     const dio = borArea(px, py, R, G.dmg, G.emp, G.fuerte ? 90 : 30) || !!lanzado;
     // cada golpe deja un aura morada donde pega
-    borAuras.push({ x:px, y:py - 18, r: G.fuerte ? 62 : 40, t:0, max: G.fuerte ? 0.38 : 0.26 });
-    anilloImpacto(px, py, G.fuerte ? 110 : 66, '#a46cff', G.fuerte ? 0.34 : 0.22);
-    borChispas(px, py - 18, G.fuerte ? 18 : 8, G.fuerte ? 260 : 150);
+    borAuras.push({ x:px, y:py - 18, r: G.fuerte ? 84 : 56, t:0, max: G.fuerte ? 0.4 : 0.28 });
+    anilloImpacto(px, py, G.fuerte ? 150 : 96, '#a46cff', G.fuerte ? 0.36 : 0.24);
+    if (!G.fuerte) anilloImpacto(px, py, 60, '#e8d8ff', 0.16);
+    borChispas(px, py - 18, G.fuerte ? 22 : 11, G.fuerte ? 300 : 190);
     if (dio){
       if (G.fuerte){ hitstop(0.07); shake(9, 0.2); sfx('bigboom'); }
       else { shake(3, 0.08); sfx('hit'); }
@@ -25983,12 +25985,15 @@ function borCuraUpdate(dt){
 }
 // ---- B: rayo del pecho (cian); en la meteórica, el cañón de estrella colapsante ----
 // Mantener B apunta (la línea del rayo, o la franja del cañón); al soltar, dispara hacia ahí.
-function borBEmpieza(){ if (vil.intro || bor.bApunta) return; bor.bApunta = true; borBApunta(); }
+function borBEmpieza(){ if (vil.intro || bor.bApunta) return; bor.bApunta = true; bor.bCarga = 0; bor.bLleno = false; borBApunta(); }
+// Cuánto crece el rayo según lo que se haya mantenido la tecla (1 = normal).
+function borBCargaK(){ return 1 + BOR_B_EXTRA*clamp(((bor.bCarga || 0) - BOR_B_CARGA[0])/(BOR_B_CARGA[1] - BOR_B_CARGA[0]), 0, 1); }
 function borBApunta(){ bor.bA = apuntaHeroe(['borB'], -40*BOR_ESC, 520, 520).a; }
 function borBSuelta(cancelado){
   if (!bor.bApunta) return;
   bor.bApunta = false;
   if (cancelado) return;
+  bor.bK = borBCargaK();
   borB();
 }
 function borB(){
@@ -26003,7 +26008,13 @@ function borB(){
   else borPonEst('rayo');
   sfx('cargaM');
 }
-function borHaz(){ return bor.est === 'canon' ? BOR_CANON : BOR_RAYO; }
+function borHaz(){
+  const R = bor.est === 'canon' ? BOR_CANON : BOR_RAYO, k = bor.bK || 1;
+  if (k <= 1.001) return R;
+  if (bor._haz && bor._hazR === R && bor._hazK === k) return bor._haz;
+  bor._hazR = R; bor._hazK = k;                     // cargado: más ancho, algo más largo y más dañino
+  return (bor._haz = { carga:R.carga, dura:R.dura*(1 + (k - 1)*0.4), largo:R.largo*(1 + (k - 1)*0.3), ancho:R.ancho*k, dmg:R.dmg*(1 + (k - 1)*0.9) });
+}
 function borRayoUpdate(dt){
   const R = borHaz(), canon = bor.est === 'canon';
   player.vx = player.vy = 0;
@@ -26054,7 +26065,7 @@ function borRayoUpdate(dt){
   }
   bor.cargaPecho = Math.max(0, bor.cargaPecho - dt*3); bor.rayoOn = false;
   if (choque.bor) sueltaChoque();
-  if (bor.estT > R.carga + R.dura + (canon ? 0.45 : 0.22)){ borPonEst(''); bor.cargaPecho = 0; }
+  if (bor.estT > R.carga + R.dura + (canon ? 0.45 : 0.22)){ borPonEst(''); bor.cargaPecho = 0; bor.bK = 1; }
 }
 // ---- la meteórica abrasa lo que toca ----
 function borCalor(dt){
@@ -26153,7 +26164,11 @@ function updateBoros(dt){
     }
   }
   if (bor.zApunta) borZApunta();
-  if (bor.bApunta) borBApunta();
+  if (bor.bApunta){
+    borBApunta();
+    bor.bCarga = (bor.bCarga || 0) + dt;
+    if (!bor.bLleno && bor.bCarga >= BOR_B_CARGA[1]){ bor.bLleno = true; sfx('cargaM'); const o = borPecho(); borAuras.push({ x:o.x, y:o.y, r:60, t:0, max:0.4 }); }
+  }
   switch (bor.est){
     case 'golpe': borGolpeUpdate(dt); break;
     case 'rafaga': borRafagaUpdate(dt); break;
@@ -26415,15 +26430,23 @@ function drawBorosEfectos(){
   }
   if (bor.bApunta){                                                       // la línea del rayo (o la franja del cañón)
     const o = borPecho(), p0 = S(o.x, o.y), a = bor.bA;
+    const kc = (borBCargaK() - 1)/BOR_B_EXTRA;                            // lo cargado, de 0 a 1: el ojo del pecho se enciende
+    if (kc > 0){
+      ctx.save(); ctx.globalCompositeOperation = 'lighter';
+      const r = 10 + kc*26 + Math.sin(gameTime*30)*2*kc;
+      ctx.globalAlpha = 0.35 + 0.5*kc; ctx.drawImage(borAura(), p0.x - r, p0.y - r, r*2, r*2);
+      ctx.globalAlpha = 0.6*kc; ctx.fillStyle = borMet() ? '#e0b0ff' : '#bff8ff'; ctx.beginPath(); ctx.arc(p0.x, p0.y, 3 + kc*6, 0, Math.PI*2); ctx.fill();
+      ctx.restore();
+    }
     ctx.save(); ctx.lineCap = 'round';
     if (borMet()){
-      const L = 900, an = BOR_CANON.ancho, nx = -Math.sin(a)*an/2, ny = Math.cos(a)*an/2;
+      const L = 900*(1 + (borBCargaK() - 1)*0.3), an = BOR_CANON.ancho*borBCargaK(), nx = -Math.sin(a)*an/2, ny = Math.cos(a)*an/2;
       ctx.fillStyle = 'rgba(170,90,255,0.16)'; ctx.strokeStyle = 'rgba(200,150,255,0.7)'; ctx.lineWidth = 2; ctx.setLineDash([12, 8]); ctx.lineDashOffset = -gameTime*60;
       ctx.beginPath(); ctx.moveTo(p0.x + nx, p0.y + ny); ctx.lineTo(p0.x + nx + Math.cos(a)*L, p0.y + ny + Math.sin(a)*L);
       ctx.lineTo(p0.x - nx + Math.cos(a)*L, p0.y - ny + Math.sin(a)*L); ctx.lineTo(p0.x - nx, p0.y - ny); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.setLineDash([]);
     } else {
-      const L = 520, ex = p0.x + Math.cos(a)*L, ey = p0.y + Math.sin(a)*L;
-      ctx.strokeStyle = 'rgba(70,220,255,0.25)'; ctx.lineWidth = BOR_RAYO.ancho;
+      const L = 520*(1 + (borBCargaK() - 1)*0.3), ex = p0.x + Math.cos(a)*L, ey = p0.y + Math.sin(a)*L;
+      ctx.strokeStyle = 'rgba(70,220,255,0.25)'; ctx.lineWidth = BOR_RAYO.ancho*borBCargaK();
       ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.lineTo(ex, ey); ctx.stroke();
       ctx.strokeStyle = 'rgba(70,220,255,0.75)'; ctx.lineWidth = 3; ctx.setLineDash([10, 8]); ctx.lineDashOffset = -gameTime*60;
       ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.lineTo(ex, ey); ctx.stroke(); ctx.setLineDash([]);
@@ -30897,6 +30920,9 @@ function dlCmp(a, b){ return a.y - b.y; }
 
 function draw(){
   ctx.setTransform(ZOOM*DPR, 0, 0, ZOOM*DPR, 0, 0);   // todo el mundo se dibuja escalado
+  // lo que algún efecto dejara puesto no pasa al fotograma siguiente
+  ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'; ctx.shadowBlur = 0;
+  if (ctx.filter !== undefined && ctx.filter !== 'none') ctx.filter = 'none';
   ctx.save();
   temblorX = temblorY = 0;
   if (shakeTime>0 && temblorOn){ temblorX = rand(-shakeMag,shakeMag); temblorY = rand(-shakeMag,shakeMag); ctx.translate(temblorX, temblorY); }   // se puede apagar en Ajustes
@@ -32598,7 +32624,26 @@ function anilloPolvo(x, y, r, n, col){
 }
 // Onda de choque fina (la misma que la de las explosiones), de cualquier color.
 function anilloImpacto(x, y, R, col, dur){ booms.push({ x, y, r:6, max:R, life:dur || 0.35, maxlife:dur || 0.35, ring:true, color:col }); }
+// Si algo falla en un fotograma, el juego no se queda congelado ni con el
+// lienzo a medio pintar: se anota el error (una vez), se reinicia el estado
+// del lienzo y se sigue con el siguiente fotograma.
+const _erroresVistos = {};
+function anotaError(donde, e){
+  const k = donde + ':' + (e && e.message);
+  if (_erroresVistos[k]) return;
+  _erroresVistos[k] = 1;
+  try { console.error('[' + donde + ']', e); } catch(_){}
+}
+function reparaLienzo(){
+  try { if (ctx.reset) ctx.reset(); else canvas.width = canvas.width; } catch(_){ canvas.width = canvas.width; }
+  ctx.imageSmoothingQuality = 'low';
+}
 function loop(t){
+  try { pasoBucle(t); }
+  catch(e){ anotaError('bucle', e); reparaLienzo(); try { rivAgarre = null; } catch(_){} }
+  requestAnimationFrame(loop);
+}
+function pasoBucle(t){
   vigilaRendimiento(t - lastT);
   // Acotado también por abajo: al reanudar una pausa, la marca del fotograma
   // puede quedar un pelo por detrás de performance.now() y dar un paso negativo.
@@ -32613,13 +32658,11 @@ function loop(t){
   if (esVisorVs()){                        // no simula: dibuja lo que manda el anfitrión
     loopInvitado(dtReal);
     draw();
-    requestAnimationFrame(loop);
     return;
   }
   if (dobleInv()){                          // simula su invasor; el mundo llega del anfitrión
     loopInvitadoDoble(dt);
     draw();
-    requestAnimationFrame(loop);
     return;
   }
   Online.dtDib = dtReal;
@@ -32657,8 +32700,10 @@ function loop(t){
     }
   }
   if (menuEscenaVisible()){ drawEscenaMenu(dtReal); _congelado = false; }   // en el menú, su escena (y no el mundo de detrás)
-  else if (!mundoCongelado()) draw();
-  requestAnimationFrame(loop);
+  else if (!mundoCongelado()){
+    try { draw(); }
+    catch(e){ anotaError('dibujo', e); reparaLienzo(); }
+  }
 }
 // Con la partida parada (pausa, fin o los menús de encima) y sin presentación
 // de jefe en marcha, el mundo no se mueve: se pinta un momento (lo que tarden
@@ -35212,7 +35257,7 @@ function fichaHeroe(h){
           ['Mantén ' + K('draAle'), 'Ráfaga de energía: marcas una franja amplia y al soltar llueven puñetazos azules y morados sobre ella, con un golpe final que lo barre todo'],
           ['Click der.', 'Agarre: una patada floja lo lanza, de un salto llegas hasta él y la segunda patada lo manda volando entre chispas moradas'],
           [K('draCola'), 'Golpe sombra: te cubres de un aura morada, apareces a la espalda del enemigo y le das un golpe en área. En la forma meteórica, una paliza de golpes y patadas, lo subes por los aires y lo rematas de una patada'],
-          ['Mantén ' + K('magFue'), 'Apunta el rayo del pecho (ves su línea) y suéltalo; choca con cualquier otro rayo y lo empuja muy rápido. En la forma meteórica, el Rugiente Cañón de Estrella Colapsante'],
+          ['Mantén ' + K('magFue'), 'Apunta el rayo del pecho (ves su línea) y suéltalo; mantenido unos segundos se carga y sale más grande; choca con cualquier otro rayo y lo empuja muy rápido. En la forma meteórica, el Rugiente Cañón de Estrella Colapsante'],
           [K('magTel'), 'Curación: ruge y recupera vida rápidamente'],
           ['OVNI', 'Forma meteórica: corre más, pega más fuerte, arde en llamas azules y moradas y abrasa lo que toca']],
       m: 'GOLPE (mantén: combo), AGARRE y CURAR al tocarlos; SOMBRA al soltar (arrastra para elegir a quién); RÁFAGA y RAYO son joysticks: mantén, apunta y suelta. Joystick al tope para correr.' }
@@ -36545,8 +36590,37 @@ document.getElementById('btnMenu').addEventListener('click', async ()=>{
   });
 })();
 applyUIArt();
+// ---- lienzos perdidos ----
+// En el móvil, al salir de la app o con poca memoria, el navegador puede
+// vaciar los lienzos que el juego guarda hechos (suelo, parques, edificios):
+// se pintarían en negro. Un lienzo testigo dice si ha pasado y, si es así,
+// se rehacen.
+const _testigo = document.createElement('canvas'); _testigo.width = _testigo.height = 2;
+function marcaTestigo(){ const g = _testigo.getContext('2d'); g.fillStyle = '#ff0000'; g.fillRect(0, 0, 2, 2); }
+marcaTestigo();
+function lienzosPerdidos(){
+  try {
+    const g = _testigo.getContext('2d');
+    if (g.isContextLost && g.isContextLost()) return true;
+    return g.getImageData(0, 0, 1, 1).data[3] === 0;
+  } catch(e){ return false; }
+}
+function rehazLienzos(){
+  walkPat = walkPatAlien = walkPatInf = null;
+  for (const p of parques){ p._cv = p._cvA = p._cvI = null; }
+  for (const b of buildings){
+    b._cv = null; b._cvK = undefined; b._int = null; b._gente = null; b._win = null; b._humos = null; b._neon = null; b._rotas = null;
+    b._agCv = null; b._agBase = null; b._agN = 0; b._agFin = null;
+  }
+  _congelado = false;
+  marcaTestigo();
+}
+function revisaLienzos(){ if (lienzosPerdidos()) rehazLienzos(); }
+canvas.addEventListener('contextrestored', ()=>{ rehazLienzos(); reparaLienzo(); });
+setInterval(()=>{ if (!document.hidden) revisaLienzos(); }, 3000);
 // al cambiar de pestaña se corta el audio para que no quede un tono colgado
 document.addEventListener('visibilitychange', ()=>{
+  if (!document.hidden){ revisaLienzos(); _congelado = false; }
   if (document.hidden){
     stopMusic();
     if (audio.ctx && audio.ctx.state === 'running') audio.ctx.suspend();
