@@ -7044,7 +7044,7 @@ function updateRayosOjos(dt){
   // ojos están encendidos y se apunta con el joystick derecho, el mismo que
   // ya coloca lo que llevas agarrado.
   if (tactil() && isVil() && buffActivo('rayos') && !heldObject) rayosOn = true;
-  if (!rayosOn || !isVil() || !buffActivo('rayos')){ rayosOn = false; ojosVil.on = false; ojosVil.d = 1e9; if (!choque.dra) sueltaChoque(); return; }
+  if (!rayosOn || !isVil() || !buffActivo('rayos')){ rayosOn = false; ojosVil.on = false; ojosVil.d = 1e9; if (!choque.dra && !choque.bor) sueltaChoque(); return; }
   const o = vilCabeza(), ox = o.x, oy = o.y;
   if (!ojosVil.on){ ojosVil.on = true; sfxEn('laserOjos', ox, oy); }      // se encienden
   // en un choque de rayos el haz va derecho al que dispara y acaba en el choque
@@ -7138,12 +7138,13 @@ const CHOQUE_APUNTA = 0.42;      // rad: hay que apuntar al que dispara para tra
 const CHOQUE_SUELTA = 0.8;       // rad: apuntando más lejos, se suelta
 const CHOQUE_VIENE  = 0.6;       // rad: su rayo tiene que venir hacia ti
 const CHOQUE_DANO   = 130;       // golpe al llegar (más un 6% de su vida máxima)
-const choque = { on:false, e:null, r:null, s:0.5, t:0, px:0, py:0, a:0, dv:0, col:'#ff6a4a', f:1, dra:false };   // dra: lo libra el dragón, no los ojos
+const choque = { on:false, e:null, r:null, s:0.5, t:0, px:0, py:0, a:0, dv:0, col:'#ff6a4a', f:1, dra:false, bor:false, mult:1 };   // dra/bor: lo libra el dragón o Boros, no los ojos
 const choqueCd = new WeakMap();  // a quién se acaba de ganar un choque: un respiro
 // Fuerza y color de cada rayo (cuanto menos fuerza, más rápido gana el viltrumita).
 const CHOQUE_RIVAL = { omni:[0.9, '#ff4a3a'], kaiyin:[0.55, '#fff3a0'], desgarrador:[0.7, '#ff6a4a'],
                        hielo:[0.8, '#b8ecff'], corte:[0.75, '#ff7a5a'], cabezon:[1.6, '#9aff7a'],
-                       mbt:[1.3, '#ffe9b8'], mbtFrio:[1.3, '#cdf3ff'] };
+                       mbt:[1.3, '#ffe9b8'], mbtFrio:[1.3, '#cdf3ff'],
+                       rivalBoros:[0.8, '#58ecff'], rivalVil:[0.9, '#ff5a3a'] };
 function difAngAbs(a){ return Math.abs(Math.atan2(Math.sin(a), Math.cos(a))); }
 // El rayo que está disparando ese enemigo: de dónde sale, hacia dónde va y
 // cuánto alcanza ahora mismo (o null si no dispara uno que pueda chocar).
@@ -7163,6 +7164,8 @@ function rayoEnemigo(e){
     case 'cabezon':     if (e.fase === 'dispara' && choque.e === e) return R(bocaCabezon(e), undefined, 0, e.rA, 'cabezon'); break;
     case 'mbt': case 'mbtFrio':
       if (choque.e === e && choque.r && choque.r.t > 0) return R(choque.r, undefined, 0, choque.r.ang, e.type); break;
+    case 'rivalBoros':  if (e.fase === 'b') return { x: e.x + Math.cos(e.rA)*16, y: e.y - 8, a: e.rA, L: RIV_BOR_RAYO_LARGO, k:'rivalBoros' }; break;
+    case 'rivalVil':    if (e.fase === 'rayo') return { x: e.x + (e.facing || 1)*4, y: e.y, a: e.rA, L: 520, k:'rivalVil' }; break;
   }
   return null;
 }
@@ -7179,7 +7182,7 @@ function choqueFrente(o, r, lenV){
 }
 function empiezaChoque(e, r){
   const rv = CHOQUE_RIVAL[r.k] || [1, '#ff6a4a'];
-  choque.on = true; choque.e = e; choque.s = 0.5; choque.t = 0; choque.dra = false;
+  choque.on = true; choque.e = e; choque.s = 0.5; choque.t = 0; choque.dra = false; choque.bor = false; choque.mult = 1;
   choque.f = rv[0]*(e.deforme ? 0.85 : 1); choque.col = rv[1];
   shake(10, 0.3); sfxEn('boomD', r.x, r.y, 0.6);
 }
@@ -7187,7 +7190,15 @@ function empiezaChoque(e, r){
 // comprueba antes del disparo; si va contra los ojos, empieza el choque y el
 // disparo no llega a tocarte.
 function choqueAlDisparar(e, ox, oy, ang){
-  if (!ojosVil.on || choque.on || !puedeChocar() || (choqueCd.get(e) || 0) > gameTime) return false;
+  if (choque.on || !puedeChocar() || (choqueCd.get(e) || 0) > gameTime) return false;
+  if (isBor() && bor.rayoOn){                              // contra el rayo de Boros
+    const o = borPecho();
+    if (!borChoqueFrente(o, { x:ox, y:oy, a:ang, L:9e9 })) return false;
+    empiezaChoque(e, { x:ox, y:oy, k:e.type }); borChoqueMarca();
+    colocaChoque(o, ox, oy);
+    return true;
+  }
+  if (!ojosVil.on) return false;
   const o = vilCabeza();
   if (!choqueFrente(o, { x:ox, y:oy, a:ang, L:9e9 }, Math.min(ojosVil.d, RAYO_LARGO))) return false;
   empiezaChoque(e, { x:ox, y:oy, k:e.type });
@@ -7203,7 +7214,7 @@ function colocaChoque(o, ex, ey){
   choque.px = o.x + (ex - o.x)*k; choque.py = o.y + (ey - o.y)*k;
   choque.a = Math.atan2(ey - o.y, ex - o.x); choque.dv = D*k;
 }
-function sueltaChoque(){ choque.on = false; choque.e = null; choque.r = null; choque.dra = false; }
+function sueltaChoque(){ choque.on = false; choque.e = null; choque.r = null; choque.dra = false; choque.bor = false; }
 function updateChoqueRayos(dt, o){
   if (!puedeChocar()){ sueltaChoque(); return false; }
   if (choque.on){
@@ -7293,9 +7304,60 @@ function draChoque(dt){
   colocaChoque(o, mr.x, mr.y);
   return true;
 }
+// ---- el rayo de Boros contra todos los demás ----
+// Igual que los ojos del viltrumita, pero empuja muchísimo más rápido (el
+// cañón de la meteórica, todavía más) y se traba con cualquier rayo que
+// venga de frente. Mientras dura el choque, su rayo no se apaga.
+const BOR_CHOQUE_VEL = [620, 1000];                       // px/s: rayo, cañón
+function borChoqueFrente(o, r){
+  const R = borHaz(), dx = r.x - o.x, dy = r.y - o.y, D = Math.hypot(dx, dy);
+  if (D < 50 || D > R.largo + 420) return 0;
+  const aE = Math.atan2(dy, dx);
+  if (difAngAbs(bor.dirA - aE) > CHOQUE_APUNTA + (bor.est === 'canon' ? 0.2 : 0.08)) return 0;
+  if (difAngAbs(r.a - aE - Math.PI) > CHOQUE_VIENE) return 0;
+  if (Math.min(r.L, D) + R.largo < D*0.9) return 0;
+  return D;
+}
+function borChoqueMarca(){ choque.bor = true; choque.mult = bor.est === 'canon' ? 2.4 : 1.5; sfx('boomD'); }
+function borChoque(dt){
+  if (!isBor() || !bor.rayoOn || !puedeChocar()){ if (choque.bor) sueltaChoque(); return false; }
+  const o = borPecho();
+  if (choque.on && choque.bor){
+    const e = choque.e, r = e && enemies.includes(e) ? rayoEnemigo(e) : null;
+    if (!r){ sueltaChoque(); return false; }
+    choque.t += dt;
+    if (e.type === 'omni') e.beamT += dt;                 // su ataque no se acaba mientras dura
+    else if (choque.r) choque.r.t = Math.min(choque.r.max, choque.r.t + dt);
+    else if (e.ft !== undefined) e.ft += dt;
+    const D = Math.hypot(r.x - o.x, r.y - o.y) || 1;
+    const v = BOR_CHOQUE_VEL[bor.est === 'canon' ? 1 : 0]*choque.f*(Math.sin(choque.t*6) > -0.5 ? 1 : -0.35);
+    choque.s = clamp(choque.s + v*dt/D, 0.12, 1);
+    colocaChoque(o, r.x, r.y);
+    const aE = Math.atan2(o.y - r.y, o.x - r.x);
+    if (e.type === 'omni') e.beamA = aE;
+    if (choque.r){ choque.r.ang = aE; choque.r.L = D*(1 - choque.s); }
+    if (e.type === 'cabezon'){ e.rx = choque.px; e.ry = choque.py; }
+    if (choque.s >= 1 - 14/D) ganaChoque(e, r);
+    return choque.on;
+  }
+  if (choque.on) return false;
+  let mejor = null, mr = null, md = 1e9;
+  for (let i = 0; i < enemies.length; i++){
+    const e = enemies[i];
+    if ((choqueCd.get(e) || 0) > gameTime) continue;
+    const r = rayoEnemigo(e);
+    if (!r) continue;
+    const D = borChoqueFrente(o, r);
+    if (D && D < md){ md = D; mejor = e; mr = r; }
+  }
+  if (!mejor) return false;
+  empiezaChoque(mejor, mr); borChoqueMarca();
+  colocaChoque(o, mr.x, mr.y);
+  return true;
+}
 // El viltrumita llega al que dispara: golpe fuerte, explosión y su rayo se apaga.
 function ganaChoque(e, r){
-  const dmg = Math.round(CHOQUE_DANO + (e.maxhp || 0)*0.06);
+  const dmg = Math.round((CHOQUE_DANO + (e.maxhp || 0)*0.06)*(choque.mult || 1));
   porJugador(()=> damageEnemy(e, dmg, r.x, r.y));
   addParticles(r.x, r.y, '#ff4a3a', 22, 240); addParticles(r.x, r.y, choque.col, 14, 200); addParticles(r.x, r.y, '#fff4ec', 10, 160);
   shake(16, 0.4); sfxEn('bigboom', r.x, r.y);
@@ -7306,6 +7368,8 @@ function ganaChoque(e, r){
     case 'desgarrador': e.fase = ''; e.cd = rand(1.8, 2.6); e.rx = undefined; break;
     case 'centurion':   e.fase = ''; e.cd = rand(1.8, 2.6); e.hx2 = undefined; e.cx2 = undefined; e.dx2 = undefined; e.dN = 0; break;
     case 'cabezon':     e.fase = ''; e.cd = rand(3, 4.2); break;
+    case 'rivalBoros':  e.fase = ''; e.cd = 1; e.bCd = rand(6, 8); break;
+    case 'rivalVil':    e.fase = ''; e.cd = 0.7; e.rayoCd = rand(7, 10); break;
   }
   if (choque.r) choque.r.t = 0;
   choqueCd.set(e, gameTime + 2.5);
@@ -8016,7 +8080,7 @@ function propAbatido(pr){
 // jefes y vehículos. El mobiliario y los edificios quedan fuera.
 // Lo que sobrevive a que lo lances: pierde esa parte de su vida máxima al
 // estrellarse (si le queda más) y se levanta para seguir luchando.
-const AGUANTA_LANZADO = { acorazado: 0.4 };
+const AGUANTA_LANZADO = { acorazado: 0.4, rivalVil: 0.07, rivalBoros: 0.07 };   // el choque les quita esa parte de la vida
 function esUnidadCombo(o){
   if (!o) return false;
   // 'car' cubre auto, taxi y camión cisterna: los tres son vehículos.
@@ -25467,9 +25531,10 @@ function borGasta(coste, cd, clave){
 // El pecho, de donde sale el rayo (a la altura del ojo).
 function borPecho(){ const f = player.facing || 1; return { x: player.x + f*6, y: player.y + BOR_PIES - 40*BOR_ESC - bor.z }; }
 // ¿Se puede patear lejos? Todo menos los jefes (y lo anclado, salvo en la meteórica).
-function borLanzable(o){
+function borLanzable(o, agarre){
   if (!o || o.dead) return false;
   if (o.kind) return true;
+  if (agarre && rivalAgarrable(o)) return true;            // el viltrumita y Boros de la CPU, solo con la C
   if (!o.grabbable || JEFES[o.type]) return false;
   if ((o.type === 'siege' || o.type === 'gravitron') && !borMet()) return false;
   return true;
@@ -25694,7 +25759,7 @@ function borC(){
   if (!borGasta(BOR_C_COSTE, BOR_C_CD, 'cCd')) return;
   tutEv('agarre');
   borPresa = o; borMira(Math.atan2(o.y - player.y, o.x - player.x));
-  if (borLanzable(o) && !heldObject) borAgarra(o);
+  if (borLanzable(o, true) && !heldObject){ if (esLuchador(o)) rivalAgarrado(o); borAgarra(o); }
   borPonEst('agarre'); bor.agFase = 'sujeta'; bor.agT = 0;
   sfx('grab');
 }
@@ -25709,9 +25774,9 @@ function borAgarreUpdate(dt){
   if (bor.agFase === 'sujeta'){
     if (bor.agT >= 0.22){                              // primera patada, floja: lo manda hacia la mira
       const a = borApunta('borC'); borMira(a);
-      if (borLanzable(o)){ o.x = player.x + Math.cos(a)*30; o.y = player.y + Math.sin(a)*22; borLanza(o, a, 640, 0.5); }
+      if (borLanzable(o, true)){ o.x = player.x + Math.cos(a)*30; o.y = player.y + Math.sin(a)*22; borLanza(o, a, 640, 0.5); }
       else porJugador(()=> damageEnemy(o, 15, o.x, o.y));
-      if (o.person || o.kind === 'civ' || (!o.kind && borLanzable(o))) porJugador(()=> damageEnemy(o, 12, o.x, o.y));
+      if (o.person || o.kind === 'civ' || (!o.kind && borLanzable(o, true))) porJugador(()=> damageEnemy(o, esLuchador(o) ? 30 : 12, o.x, o.y));
       addParticles(o.x, o.y - 16, '#e8eef6', 8, 140); sfx('hit'); shake(5, 0.1);
       bor.agFase = 'patea1'; bor.agT = 0;
     }
@@ -25730,10 +25795,10 @@ function borAgarreUpdate(dt){
     if (d < 34 || bor.agT > 0.75){                    // segunda patada: lo manda volando entre partículas moradas
       const a = borApunta('borC'); borMira(a);
       const met = borMet();
-      if (borLanzable(o)){
+      if (borLanzable(o, true)){
         if (o.thrown || o.held){ o.x = player.x + Math.cos(a)*24; o.y = player.y + Math.sin(a)*18; }
         borLanza(o, a, 1450, 2.4);
-        if (!o.kind) porJugador(()=> damageEnemy(o, 30, o.x, o.y));
+        if (!o.kind) porJugador(()=> damageEnemy(o, esLuchador(o) ? (met ? 150 : 110) : 30, o.x, o.y));
       } else porJugador(()=> damageEnemy(o, met ? 190 : 140, o.x, o.y));
       for (let i = 0; i < 3; i++) addParticles(o.x, o.y - 20, i ? '#b56aff' : '#7a3cff', 14, 300);
       addParticles(o.x, o.y - 20, '#e8c8ff', 8, 200);
@@ -25860,8 +25925,11 @@ function borRayoUpdate(dt){
   }
   if (bor.estT < R.carga + R.dura){
     bor.cargaPecho = 1;
-    if (!bor.rayoOn){ bor.rayoOn = true; sfx('rayoM'); if (canon){ sfx('bigboom'); shake(18, R.dura); } else shake(6, R.dura); }
+    if (!bor.rayoOn){ bor.rayoOn = true; bor.choqueT = 0; sfx('rayoM'); if (canon){ sfx('bigboom'); shake(18, R.dura); } else shake(6, R.dura); }
     if (canon) bor.invT = Math.max(bor.invT, 0.1);
+    // trabado con otro rayo: el suyo no se apaga mientras empuja (hasta 3 s)
+    const trabado = borChoque(dt);
+    if (trabado && bor.choqueT < 3){ bor.choqueT += dt; bor.estT = Math.min(bor.estT, R.carga + R.dura*0.85); }
     const x0 = player.x, y0 = player.y;                  // retroceso
     player.x = clamp(player.x - Math.cos(bor.dirA)*(canon ? 40 : 24)*dt, 30, WORLD_W - 30);
     player.y = clamp(player.y - Math.sin(bor.dirA)*(canon ? 40 : 24)*dt, 30, WORLD_H - 30);
@@ -25869,7 +25937,8 @@ function borRayoUpdate(dt){
     bor.rayoTick -= dt;
     if (bor.rayoTick <= 0){
       bor.rayoTick += 0.1;
-      const n = Math.round(R.dura/0.1), dmg = R.dmg/n*(canon ? 1 : 1), o = borPecho(), L = R.largo, W = R.ancho;
+      const n = Math.round(R.dura/0.1), dmg = R.dmg/n*(canon ? 1 : 1), o = borPecho(), W = R.ancho;
+      const L = choque.on && choque.bor ? Math.max(20, choque.dv - 10) : R.largo;   // trabado: no pasa del choque
       for (const pool of [civilians, enemies]){
         for (let i = 0; i < pool.length; i++){ const t = pool[i];
           if (t.dead || t.held) continue;
@@ -25894,6 +25963,7 @@ function borRayoUpdate(dt){
     return;
   }
   bor.cargaPecho = Math.max(0, bor.cargaPecho - dt*3); bor.rayoOn = false;
+  if (choque.bor) sueltaChoque();
   if (bor.estT > R.carga + R.dura + (canon ? 0.45 : 0.22)){ borPonEst(''); bor.cargaPecho = 0; }
 }
 // ---- la meteórica abrasa lo que toca ----
@@ -26289,7 +26359,8 @@ function drawBorosEfectos(){
       for (let i = 0; i < cols.length; i++){ ctx.fillStyle = cols[i] + (0.3*k) + ')'; ctx.beginPath(); ctx.arc(so.x, so.y, Math.max(0.5, (6 + i*(canon ? 7 : 4))*k + Math.sin(gameTime*30 + i)*1.5), 0, Math.PI*2); ctx.fill(); }
     } else {
       const u = (bor.estT - R.carga)/R.dura, ini = clamp(u/0.08, 0, 1), fin = clamp((1 - u)/0.12, 0, 1);
-      const L = R.largo*ini, ex = so.x + ca*L, ey = so.y + sa*L;
+      const ch = choque.on && choque.bor;
+      const L = ch ? choque.dv : R.largo*ini, ex = so.x + ca*L, ey = so.y + sa*L;
       if (canon){
         borHazDib(so.x, so.y, ex, ey, R.ancho*1.1, ['rgba(110,90,255,', '#8a70ff', '#f6f0ff'], fin);
         borHazDib(so.x, so.y, ex, ey, R.ancho*0.65, ['rgba(200,90,255,', '#c87aff', '#ffffff'], fin);
@@ -26297,6 +26368,7 @@ function drawBorosEfectos(){
         for (let i = 0; i < 7; i++){ const d = (gameTime*900 + i*L/7) % Math.max(1, L);
           ctx.beginPath(); ctx.ellipse(so.x + ca*d, so.y + sa*d, R.ancho*0.12, R.ancho*0.7*fin, bor.dirA, 0, Math.PI*2); ctx.stroke(); }
       } else borHazDib(so.x, so.y, ex, ey, R.ancho, ['rgba(70,220,255,', '#5ff2ff', '#e8ffff'], Math.min(1, fin + 0.15));
+      if (ch){ ctx.restore(); ctx.save(); drawChoqueRayos(); }
     }
     ctx.restore();
   }
@@ -26510,6 +26582,7 @@ function vilPresaContacto(){
   return null;
 }
 function vilPresaAgarra(t){
+  if (esLuchador(t)) rivalAgarrado(t);
   t.held = true; t.thrown = false; t.stunT = 0; t.stunVx = 0; t.stunVy = 0; t.byEnemy = false;
   if (t.rayoFase){ t.rayoFase = 'espera'; t.rayoT = rand(MBT_ESPERA[0], MBT_ESPERA[1]); }
   if (t.person || t.kind === 'civ') gritaAgarrado(t);
@@ -26594,7 +26667,7 @@ function vilPresaUpdate(dt){
     vilAtraviesa(vilPaso, x0, y0, player.x, player.y, 32, true);
     if (Math.random() < 0.8) addParticles(player.x - vil.fx*20, player.y - vil.fy*20, '#dfe8f4', 2, 90);
     if (t){
-      if (JEFES[t.type]){                                  // a un jefe no se le agarra: choca
+      if (JEFES[t.type] && !rivalAgarrable(t)){            // a un jefe no se le agarra: choca
         porJugador(()=> damageEnemy(t, VIL_JEFE_EMBISTE*2, t.x, t.y));
         anilloImpacto(player.x, player.y, 70, '#ffffff', 0.3);
         sfx('hit'); sfx('boom'); shake(12, 0.25); hitstop(0.06);
@@ -32999,7 +33072,7 @@ function leyPreparaSiguiente(){
 // ---- al empezar cada combate (desde startGame) ----
 function leyArranca(){
   clima = ley.clima; nubeK = clima === 'sol' ? 0 : 1; lluviaK = clima === 'lluvia' ? 1 : 0; climaMostrado = null;
-  ley.fase = 'espera'; ley.t = 0; ley.empX = ley.empY = 0; ley.cartelT = 0; ley.verdugo = '';
+  ley.fase = 'espera'; ley.t = 0; ley.empX = ley.empY = 0; ley.cartelT = 0; ley.verdugo = ''; rivAgarre = null;
   ovniCd = Math.max(20, rand(55, 90) - ley.ovni*14);       // el OVNI también se deja ver por aquí
 }
 // Dónde aparece un rival: cerca, en la calle y no encima de un edificio.
@@ -33054,6 +33127,7 @@ function updateLeyenda(dt){
   if (spawnTimers.car <= 0 && cars.filter(c => !c.held && !c.thrown).length < 10){ spawnCar(); spawnTimers.car = rand(3, 5); }
   if (ley.regen > 0 && hp > 0) hp = Math.min(maxHp(), hp + ley.regen*dt);
   if (ley.cartelT < 4.2) ley.cartelT += dt;
+  rivAgarreRevisa();
   ley.t += dt;
   if (ley.fase === 'espera'){
     if (!vil.intro && ley.t > 0.8){ leySueltaRivales(); ley.fase = 'lucha'; ley.t = 0; }
@@ -33178,16 +33252,52 @@ const RIV_BOR_RAYO_DPS = [0, 0, 95, 150], RIV_BOR_RAYO_ANCHO = [0, 0, 22, 46], R
 const RIV_VIL_RAYO_DPS = 70;
 function rivalBase(type, base){
   if (type === 'rivalBoros') Object.assign(base, { hp:RIV_BOR_HP, maxhp:RIV_BOR_HP, speed:175, w:46, h:84, grabbable:false,
-    fase:'', ft:0, cd:1.2, fo:2, anim:0, pose:null, ph:0, paso:0, golpeT:0, lado:0, combo:0, zCd:3, vCd:6, bCd:5, invT:0, rA:0, vx2:0, vy2:0, tx:0, ty:0, golpeo:0 });
+    fase:'', ft:0, cd:1.2, fo:2, anim:0, pose:null, ph:0, paso:0, golpeT:0, lado:0, combo:0, zCd:3, vCd:6, bCd:5, agCd:4, invT:0, rA:0, vx2:0, vy2:0, tx:0, ty:0, golpeo:0, z:0 });
   if (type === 'rivalVil') Object.assign(base, { hp:RIV_VIL_HP, maxhp:RIV_VIL_HP, speed:230, w:30, h:52, grabbable:false,
-    fase:'', ft:0, cd:1, anim:0, vuela:0, fx:1, fy:0, punchT:0, lado:1, combo:0, embCd:2.5, rayoCd:7, aterrizaT:0, rA:0, vx2:0, vy2:0, golpeo:0, furia:0 });
+    fase:'', ft:0, cd:1, anim:0, vuela:0, fx:1, fy:0, punchT:0, lado:1, combo:0, embCd:2.5, rayoCd:7, presaCd:5, aterrizaT:0, rA:0, vx2:0, vy2:0, golpeo:0, furia:0, giro:0 });
 }
 function rivAng(e){ return Math.atan2(player.y - e.y, player.x - e.x); }
+
+// ---- agarres entre luchadores ----
+// El viltrumita y Boros (los de la CPU) se dejan agarrar por la presa del
+// viltrumita y por la C de Boros, y ellos también te agarran a ti: el
+// viltrumita se te lleva volando a puñetazos, gira y te lanza; Boros te
+// sujeta, te patea, salta tras de ti y te remata con otra patada.
+function esLuchador(t){ return !!t && (t.type === 'rivalVil' || t.type === 'rivalBoros'); }
+function rivalAgarrable(t){ return esLuchador(t) && !t.dead && t.fase !== 'transforma' && !(t.invT > 0); }
+function rivalAgarrado(t){                         // lo que hacía se corta
+  if (rivAgarre === t) rivAgarreFin();
+  t.fase = ''; t.ft = 0; t.vuela = 0; t.golpeo = 1; t.z = 0; t.aterrizaT = 0;
+  t.cd = Math.max(t.cd || 0, 0.9);
+}
+let rivAgarre = null;                              // el rival que te tiene agarrado
+const RIV_AG_FASES = { presa:1, presaGira:1, ag:1 };
+function rivAgarreEmpieza(e){
+  rivAgarre = e;
+  if (isVil()){ if (vil.presaFase) vilPresaFin(); vil.presaApunta = false; vil.flying = false; vil.joyFly = false; vil.flyDir = ''; }
+  if (isBor() && bor.est){ borPresa = null; borPonEst(''); bor.z = 0; bor.zApunta = bor.vApunta = bor.bApunta = false; }
+  if (heldObject && heldObject.ref){ const o = heldObject.ref; o.held = false; o.thrown = false; heldObject = null; }
+  ley.empX = ley.empY = 0;
+  sfx('grab'); hitstop(0.06); shake(8, 0.2);
+  addParticles(player.x, player.y - 12, '#ffe9a0', 10, 140);
+}
+function rivAgarreFin(){ rivAgarre = null; }
+// Te deja quieto en (x, y): ni un paso mientras te tiene.
+function rivSujeta(x, y){
+  player.x = clamp(x, 30, WORLD_W - 30); player.y = clamp(y, 30, WORLD_H - 30);
+  player.vx = 0; player.vy = 0;
+  paralizadoT = Math.max(paralizadoT, 0.12);
+}
+// Si el que te agarra cae, lo agarran o se queda sin hacerlo, quedas libre.
+function rivAgarreRevisa(){
+  const e = rivAgarre;
+  if (e && (e.dead || e.held || e.thrown || !RIV_AG_FASES[e.fase] || hp <= 0)) rivAgarre = null;
+}
 
 // ---- Boros de la CPU ----
 function updateRivalBoros(e, dt, a, ang){
   e.anim += dt;
-  for (const k of ['golpeT', 'zCd', 'vCd', 'bCd', 'invT']) if (e[k] > 0) e[k] = Math.max(0, e[k] - dt);
+  for (const k of ['golpeT', 'zCd', 'vCd', 'bCd', 'agCd', 'invT']) if (e[k] > 0) e[k] = Math.max(0, e[k] - dt);
   if (e.hieloT > 0) return;
   // a media vida pasa a la forma meteórica
   if (e.fo === 2 && e.hp < e.maxhp*0.45 && !e.fase) rivBorTransforma(e, 3);
@@ -33226,6 +33336,40 @@ function updateRivalBoros(e, dt, a, ang){
     if (e.ft <= 0){ e.fase = 'v'; e.ft = 0.7; e.n = 0; }
     return;
   }
+  if (e.fase === 'ag'){                            // te sujeta delante...
+    rivSujeta(e.x + (e.facing || 1)*40, e.y + 2);
+    if (e.ft <= 0){                                // ...y la primera patada te despega
+      rivAgarreFin();
+      e.rA = e.facing > 0 ? 0 : Math.PI;
+      rivPega(e, 14 + e.fo*3, 480, e.rA, '#e8eef6');
+      addParticles(player.x, player.y - 16, '#e8eef6', 10, 150); sfxEn('hit', e.x, e.y, 0.9); shake(6, 0.12);
+      e.fase = 'agSalta'; e.ft = 0.55; e.golpeo = 0; sfxEn('dash', e.x, e.y, 0.7);
+      anilloPolvo(e.x, e.y + 12, 30, 12, '#9a9288');
+    }
+    return;
+  }
+  if (e.fase === 'agSalta'){                       // salta tras de ti y te remata
+    const d = dist(e.x, e.y, player.x, player.y), v = 1250*dt;
+    if (d > 4){ e.x += (player.x - e.x)*Math.min(1, v/d); e.y += (player.y - e.y)*Math.min(1, v/d); }
+    e.facing = player.x >= e.x ? 1 : -1;
+    e.z = Math.sin(clamp((0.55 - e.ft)/0.42, 0, 1)*Math.PI)*46;
+    if (!e.golpeo && (d < 40 || e.ft <= 0.08)){
+      e.golpeo = 1; e.rA = rivAng(e);
+      rivPega(e, 38 + e.fo*8, 1250, e.rA, '#b06aff');
+      for (let i = 0; i < 3; i++) addParticles(player.x, player.y - 20, i ? '#b56aff' : '#7a3cff', 12, 280);
+      anilloImpacto(player.x, player.y - 10, e.fo === 3 ? 130 : 100, '#b06aff', 0.4);
+      morados.push({ x:player.x, y:player.y - 20, a:e.rA, t:0.5 });
+      shake(14, 0.3); hitstop(0.08); sfx('bigboom');
+      e.fase = 'agFin'; e.ft = 0.32;
+    }
+    if (e.ft <= 0 && e.fase === 'agSalta'){ e.fase = 'agFin'; e.ft = 0.2; }
+    return;
+  }
+  if (e.fase === 'agFin'){
+    e.z = Math.max(0, e.z - 180*dt);
+    if (e.ft <= 0){ e.z = 0; e.fase = ''; e.cd = 0.9; e.agCd = rand(6, 9); anilloPolvo(e.x, e.y + 14, 40, 14, '#9a9288'); sfxEn('aterriza', e.x, e.y, 0.8); }
+    return;
+  }
   if (e.fase === 'v'){
     const n = Math.floor((0.7 - e.ft)/0.07);
     while (e.n < n && e.n < 10){
@@ -33248,6 +33392,7 @@ function updateRivalBoros(e, dt, a, ang){
   if (e.fase === 'b'){
     const ox = e.x + Math.cos(e.rA)*16, oy = e.y - 38;
     const L = RIV_BOR_RAYO_LARGO, wR = RIV_BOR_RAYO_ANCHO[e.fo];
+    if (choque.on && choque.e === e) return;                   // trabado en un choque de rayos
     if (inBeam(player.x, player.y, ox, oy + 30, e.rA, L, wR + F().r*0.4)) rivPega(e, RIV_BOR_RAYO_DPS[e.fo]*dt, 0, e.rA, e.fo === 3 ? '#c48aff' : '#58ecff');
     for (let i = 0; i < buildings.length; i++){ const b = buildings[i];
       if (b.stage >= 2) continue;
@@ -33262,6 +33407,10 @@ function updateRivalBoros(e, dt, a, ang){
   const parado = vil.intro;
   if (!parado && e.cd <= 0){
     e.rA = ang;
+    if (a < 64 && e.agCd <= 0 && !rivAgarre && Math.random() < 0.5){           // te agarra
+      e.fase = 'ag'; e.ft = 0.42; e.facing = Math.cos(ang) >= 0 ? 1 : -1;
+      rivAgarreEmpieza(e); return;
+    }
     if (a < 64){ e.fase = 'golpe'; e.ft = 0.24; e.golpeo = 0; e.lado = 1 - e.lado; return; }
     if (e.fo >= 2 && e.bCd <= 0 && a > 160 && a < 560){ e.fase = 'bAviso'; e.ft = 0.75; return; }
     if (e.zCd <= 0 && a > 140 && a < 460){ e.fase = 'zAviso'; e.ft = 0.42; return; }
@@ -33295,6 +33444,9 @@ function rivBorPoseObj(e){
     case 'v': { const k = Math.floor(t*16) % 2, j = Math.sin(t*90)*0.15;
       return k ? P({ lean:0.32, mF:0.55, rF:0.4, mB:-0.55, rB:0.3, bF:1.55 + j, cF:0.08, bB:0.6, cB:1.8 }) : P({ lean:0.32, mF:0.55, rF:0.4, mB:-0.55, rB:0.3, bF:0.6, cF:1.8, bB:1.5 - j, cB:0.1 }); }
     case 'bAviso': return P({ lean:-0.18, cab:-0.15, mF:0.4, rF:0.5, mB:-0.4, rB:0.4, bF:-0.5, cF:1.2, bB:-0.7, cB:1.0 });
+    case 'ag': return P({ lean:0.05, mF:0.2, rF:0.3, mB:-0.2, rB:0.4, bF:1.6, cF:0.02, bB:0.7, cB:1.6 });
+    case 'agSalta': return P({ suelo:0, alto:16, lean:-0.35, mF:1.45, rF:0.05, mB:-0.35, rB:1.5, bF:-0.6, cF:0.6, bB:-1.0, cB:0.5, cab:0.1 });
+    case 'agFin': return P({ suelo:0, alto:16, lean:-0.65, mF:1.85, rF:0, mB:-0.2, rB:0.5, bF:-0.9, cF:0.4, bB:0.5, cB:0.9 });
     case 'b': return P({ lean:-0.38, cab:-0.25, mF:0.45, rF:0.35, mB:-0.5, rB:0.3, bF:-0.8, cF:0.4, bB:-1.0, cB:0.3 });
     case 'golpe': return e.combo >= 2 ? P({ lean:0.5, mF:0.85, rF:0.25, mB:-0.7, rB:0.2, bF:1.62, cF:0.02, bB:0.3, cB:1.9 })
                                       : e.lado ? P({ lean:0.18, mF:0.35, rF:0.35, mB:-0.35, rB:0.3, bF:0.2, cF:1.9, bB:1.58, cB:0.12 })
@@ -33340,10 +33492,15 @@ function drawRivalBoros(e){
   _rivBorSt.pose = e.pose; _rivBorSt.cara = e.facing || 1; _rivBorSt.forma = met ? 1 : 0;
   _rivBorSt.cargaPecho = e.fase === 'bAviso' ? clamp(1 - e.ft/0.75, 0, 1) : e.fase === 'b' ? 1 : 0;
   _rivBorSt.brilloPuno = e.fase === 'v' || e.fase === 'vAviso' ? 0.8 : 0; _rivBorSt.viento = e.fase === 'z' ? 0.5 : 0;
-  const z = e.fase === 'z' ? 14 : 0;
+  const z = e.fase === 'z' ? 14 : (e.z || 0);
   borFigura(ctx, _rivBorSt, s.x, pies - z, { t:e.anim, esc:RIV_BOR_ESC });
   ctx.globalAlpha = 1;
-  if (e.fase === 'b') rivRayo(s.x + Math.cos(e.rA)*10, pecho, e.rA, RIV_BOR_RAYO_LARGO, RIV_BOR_RAYO_ANCHO[e.fo], met, e.anim);
+  if (e.fase === 'b'){
+    const tr = choque.on && choque.e === e, x0 = s.x + Math.cos(e.rA)*10;
+    let a = e.rA, L = RIV_BOR_RAYO_LARGO;
+    if (tr){ const q = S(choque.px, choque.py); a = Math.atan2(q.y - pecho, q.x - x0); L = Math.hypot(q.x - x0, q.y - pecho); }
+    rivRayo(x0, pecho, a, L, RIV_BOR_RAYO_ANCHO[e.fo], met, e.anim);
+  }
 }
 // El rayo del pecho, visto desde fuera (cian; en la meteórica, azul y morado).
 function rivRayo(x, y, a, L, w, oro, t){
@@ -33365,7 +33522,7 @@ function rivRayo(x, y, a, L, w, oro, t){
 // ---- el viltrumita de la CPU ----
 function updateRivalVil(e, dt, a, ang){
   e.anim += dt;
-  for (const k of ['punchT', 'embCd', 'rayoCd', 'aterrizaT']) if (e[k] > 0) e[k] = Math.max(0, e[k] - dt);
+  for (const k of ['punchT', 'embCd', 'rayoCd', 'presaCd', 'aterrizaT']) if (e[k] > 0) e[k] = Math.max(0, e[k] - dt);
   if (e.hieloT > 0) return;
   if (!e.furia && e.hp < e.maxhp*0.4){ e.furia = 1; toast('¡EL VILTRUMITA SE ENFURECE!', 2.5); sfx('sonicboom'); }
   e.ft -= dt;
@@ -33389,11 +33546,46 @@ function updateRivalVil(e, dt, a, ang){
     e.x += e.fx*v*dt; e.y += e.fy*v*dt;
     collideBuildings(e, 18, dt, 1100);
     e.x = clamp(e.x, 50, WORLD_W - 50); e.y = clamp(e.y, 50, WORLD_H - 50);
+    if (!e.golpeo && dist(e.x, e.y, player.x, player.y) < 50 && e.presaCd <= 0 && !rivAgarre && hp > 0){
+      // te agarra al vuelo: se te lleva a puñetazos
+      e.golpeo = 1; e.fase = 'presa'; e.ft = 1.5; e.golpeT = 0.18; e.vuela = 1;
+      rivPega(e, 12, 0, e.rA, '#ffffff'); rivAgarreEmpieza(e);
+      anilloImpacto(player.x, player.y, 70, '#e6f0ff', 0.3);
+      return;
+    }
     if (!e.golpeo && dist(e.x, e.y, player.x, player.y) < 50){
       e.golpeo = 1; rivPega(e, 42 + e.furia*10, 1000, e.rA, '#ffffff');
       anilloImpacto(player.x, player.y, 100, '#e6f0ff', 0.3); hitstop(0.05); sfx('caidaGolpe');
     }
     if (e.ft <= 0){ e.fase = ''; e.vuela = 0; e.aterrizaT = 0.3; e.cd = 0.6; e.embCd = rand(3.5, 5.5) - e.furia; }
+    return;
+  }
+  if (e.fase === 'presa'){                     // vuela contigo delante, a puñetazos
+    const v = 360;
+    e.x = clamp(e.x + e.fx*v*dt, 60, WORLD_W - 60); e.y = clamp(e.y + e.fy*v*dt, 60, WORLD_H - 60);
+    vilAtraviesa(e._paso || (e._paso = { edif:null }), e.x - e.fx*v*dt, e.y - e.fy*v*dt, e.x, e.y, 18, true);
+    e.facing = e.fx >= 0 ? 1 : -1;
+    rivSujeta(e.x + e.fx*36, e.y + e.fy*36);
+    e.golpeT -= dt;
+    if (e.golpeT <= 0){
+      e.golpeT = 0.27; e.punchT = 0.12; e.lado = -e.lado || 1;
+      rivPega(e, 8 + e.furia*3, 0, e.rA, '#ffd0c0'); shake(3, 0.06);
+    }
+    if (e.ft <= 0 || hp <= 0){ e.fase = 'presaGira'; e.ft = 0.5; e.giro = 0; e.vuela = 0; sfxEn('whoosh', e.x, e.y, 0.9); }
+    return;
+  }
+  if (e.fase === 'presaGira'){                 // gira sobre sí mismo contigo y te lanza
+    e.giro += dt*22;
+    const a0 = Math.atan2(e.fy, e.fx) + e.giro;
+    rivSujeta(e.x + Math.cos(a0)*34, e.y + Math.sin(a0)*26);
+    if (e.ft <= 0){
+      rivAgarreFin();
+      const la = Math.atan2(player.y - e.y, player.x - e.x);
+      rivPega(e, 30 + e.furia*8, 1400, la, '#ffffff');
+      windRings.push({ x:e.x, y:e.y, ang:la, r:20, life:0.4, max:0.4 });
+      sfxEn('fling', e.x, e.y); sfx('throw'); shake(10, 0.2); hitstop(0.05);
+      e.fase = ''; e.cd = 0.8; e.aterrizaT = 0.3; e.presaCd = rand(7, 10) - e.furia*2; e.embCd = rand(3, 4.5);
+    }
     return;
   }
   if (e.fase === 'rayoAviso'){
@@ -33405,6 +33597,7 @@ function updateRivalVil(e, dt, a, ang){
     let d = ang - e.rA; d = Math.atan2(Math.sin(d), Math.cos(d)); e.rA += clamp(d, -dt*0.9, dt*0.9);
     e.facing = Math.cos(e.rA) >= 0 ? 1 : -1;
     const ox = e.x + e.facing*4, oy = e.y - 18;
+    if (choque.on && choque.e === e) return;                   // trabado en un choque de rayos
     if (inBeam(player.x, player.y, ox, oy + 18, e.rA, 520, 10 + F().r*0.4)) rivPega(e, RIV_VIL_RAYO_DPS*dt, 0, e.rA, '#ff5a3a');
     for (let i = 0; i < buildings.length; i++){ const b = buildings[i];
       if (b.stage < 2 && inBeam(b.x + b.w/2, b.y + b.h/2, ox, oy + 18, e.rA, 520, Math.min(b.w, b.h)/2)) damageBuilding(b, 90*dt); }
@@ -33441,10 +33634,12 @@ function drawRivalVil(e){
   ctx.save();
   ctx.translate(s.x, s.y + (vol ? 0 : Math.sin(e.anim*2.4)*2.2));
   let pose;
-  if (vol){ ctx.rotate(Math.atan2(e.fx, -e.fy)); if (e.fx < 0) ctx.scale(-1, 1); pose = 'vuelo'; }
+  if (e.fase === 'presa'){ ctx.scale(e.facing || 1, 1); pose = 'presa'; }
+  else if (e.fase === 'presaGira'){ ctx.scale(Math.cos(e.giro) >= 0 ? 1 : -1, 1); pose = 'giro'; }
+  else if (vol){ ctx.rotate(Math.atan2(e.fx, -e.fy)); if (e.fx < 0) ctx.scale(-1, 1); pose = 'vuelo'; }
   else { ctx.scale(e.facing || 1, 1); pose = e.fase === 'carga' ? 'carga' : e.fase === 'golpe' ? 'golpe' : e.aterrizaT > 0 ? 'aterriza' : 'quieto'; }
   ctx.scale(0.9, 0.9);
-  vilFigura(ctx, { t:e.anim, pose, punchT:e.fase === 'golpe' ? Math.max(0.01, e.ft) : 0, golpeLado:e.lado || 1, manos:0,
+  vilFigura(ctx, { t:e.anim, pose, punchT:e.fase === 'golpe' ? Math.max(0.01, e.ft) : e.fase === 'presa' ? e.punchT : 0, golpeLado:e.lado || 1, manos:0,
                    carga: e.fase === 'carga' ? clamp(1 - e.ft/0.45, 0, 1) : 1, la:0, agarre:null, sangre:null, pal:RIV_VIL_PAL, SK:null, cabeza:null });
   ctx.restore();
   if (e.furia){                                // aura roja de furia
@@ -33462,11 +33657,14 @@ function drawRivalVil(e){
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
     if (e.fase === 'rayoAviso'){ ctx.globalAlpha = 0.6; ctx.fillStyle = '#ff5a3a'; ctx.beginPath(); ctx.arc(ox, oy, 4 + (0.5 - e.ft)*10, 0, Math.PI*2); ctx.fill(); }
     else {
+      // trabado en un choque de rayos: acaba en el punto del choque
+      let fx = ox + Math.cos(e.rA)*520, fy = oy + Math.sin(e.rA)*520;
+      if (choque.on && choque.e === e){ const q = S(choque.px, choque.py); fx = q.x; fy = q.y; }
       for (const dy of [-1.6, 1.6]){
         ctx.globalAlpha = 0.45; ctx.strokeStyle = '#ff2a1a'; ctx.lineWidth = 7;
-        ctx.beginPath(); ctx.moveTo(ox, oy + dy); ctx.lineTo(ox + Math.cos(e.rA)*520, oy + dy + Math.sin(e.rA)*520); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(ox, oy + dy); ctx.lineTo(fx, fy + dy); ctx.stroke();
         ctx.globalAlpha = 0.9; ctx.strokeStyle = '#ffd0b0'; ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.moveTo(ox, oy + dy); ctx.lineTo(ox + Math.cos(e.rA)*520, oy + dy + Math.sin(e.rA)*520); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(ox, oy + dy); ctx.lineTo(fx, fy + dy); ctx.stroke();
       }
     }
     ctx.restore();
