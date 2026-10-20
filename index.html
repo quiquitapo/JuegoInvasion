@@ -33374,7 +33374,10 @@ const LEY_PREMIOS = [
 ];
 const ley = { rival:'rivalBoros', mapa:'ciudad', clima:'sol', r0:'rivalBoros', m0:'ciudad', c0:'sol',
               ganadas:0, vida:1, regen:0, ovni:0, dano:1, cd:0, premios:[], fase:'', t:0, tipos:[], ultimo:'',
-              empX:0, empY:0, rec:0, recHeroe:'', cartelT:0, verdugo:'' };
+              empX:0, empY:0, rec:0, recHeroe:'', cartelT:0, verdugo:'', vetos:{} };
+// El rival que derrotas no vuelve en los dos combates siguientes (también entre
+// partidas), para que vayan saliendo todos.
+const LEY_VETO = 2;
 function esLeyenda(){ return gameMode === 'leyenda'; }
 function leyNombre(t){ return JEFE_EST[t] ? JEFE_EST[t].nom : t === 'azar' ? 'AL AZAR' : String(t || '').toUpperCase(); }
 function leyClimas(m){ return m === 'infierno' ? ['sol', 'lluvia'] : ['sol', 'nube', 'lluvia']; }
@@ -33387,10 +33390,11 @@ async function loadLeyenda(){
     const v = JSON.parse(await storeGet('invasion_leyenda') || '{}');
     ley.rec = Math.max(0, v.rec | 0); ley.recHeroe = HEROES.includes(v.heroe) ? v.heroe : '';
     if (LEY_RIVALES.includes(v.rival) || v.rival === 'azar') ley.r0 = ley.rival = v.rival;
+    if (v.vetos && typeof v.vetos === 'object') for (const t in v.vetos) if (LEY_RIVALES.includes(t)) ley.vetos[t] = clamp(v.vetos[t] | 0, 0, LEY_VETO);
   } catch(e){}
   pintaRecordLeyenda();
 }
-function guardaLeyenda(){ storeSet('invasion_leyenda', JSON.stringify({ rec:ley.rec, heroe:ley.recHeroe, rival:ley.r0 })); }
+function guardaLeyenda(){ storeSet('invasion_leyenda', JSON.stringify({ rec:ley.rec, heroe:ley.recHeroe, rival:ley.r0, vetos:ley.vetos })); }
 function pintaRecordLeyenda(){
   const el = document.getElementById('leyRec'); if (!el) return;
   el.innerHTML = ley.rec > 0
@@ -33605,19 +33609,27 @@ function leyCambiaHeroe(paso){
 function leyEmpieza(){
   Object.assign(ley, { ganadas:0, vida:1, regen:0, ovni:0, dano:1, cd:0, premios:[], ultimo:'', verdugo:'' });
   ley.mapa = ley.m0; ley.clima = ley.c0;
-  ley.tipos = [leySorteaRival()];
+  ley.tipos = [leySorteaRival()]; leyCuentaVetos();
   hide('leyenda');
   leyMuestraVs(null);
 }
 function leySorteaRival(evita){
-  const L = LEY_RIVALES.filter(t => t !== ley.ultimo && !(evita && evita.includes(t)));
+  const libre = t => t !== ley.ultimo && !(evita && evita.includes(t));
+  let L = LEY_RIVALES.filter(t => libre(t) && !(ley.vetos[t] > 0));
+  if (!L.length) L = LEY_RIVALES.filter(libre);
   return L[Math.floor(Math.random()*L.length)];
+}
+// Se sortea un combate nuevo: los vetados ya cumplieron uno.
+function leyCuentaVetos(){
+  for (const t in ley.vetos){ ley.vetos[t]--; if (ley.vetos[t] <= 0) delete ley.vetos[t]; }
+  guardaLeyenda();
 }
 // Lo que viene después de ganar: rival (o dos), mapa y clima nuevos.
 function leyPreparaSiguiente(){
   const dos = ley.ganadas >= LEY_DOBLE_SIEMPRE || (ley.ganadas >= LEY_DOBLE && Math.random() < 0.5);
   const a = leySorteaRival();
   ley.tipos = dos ? [a, leySorteaRival([a])] : [a];
+  leyCuentaVetos();
   ley.mapa = MAPAS[Math.floor(Math.random()*MAPAS.length)];
   ley.clima = leySorteaClima(ley.mapa);
 }
@@ -33735,6 +33747,7 @@ function leyVictoria(){
   else ley.dano += 0.1;
   ley.premios.push(P.id);
   const vencidos = ley.tipos.map(leyNombre).join(' Y ');
+  for (const t of ley.tipos) ley.vetos[t] = LEY_VETO;                  // los vencidos descansan los dos siguientes
   leyPreparaSiguiente();
   const skin = ley.skinNueva; ley.skinNueva = false;
   if (skin) setTimeout(()=> sfx('buy'), 700);
