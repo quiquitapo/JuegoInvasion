@@ -37307,7 +37307,12 @@ async function loadMapa(){
 document.getElementById('btnModeInvasion').addEventListener('click', ()=> crackAndStart('btnModeInvasion', ()=> startGame('invasion')));
 document.getElementById('btnModeVs').addEventListener('click', ()=> crackAndStart('btnModeVs', ()=> startGame('vs')));
 document.getElementById('btnModeVsOnline').addEventListener('click', ()=>{ sfx('ui'); abrirSala('vs'); });
-document.getElementById('btnRetry').addEventListener('click', ()=>{ if (gameMode === 'leyenda'){ if (ley.guardada) leyContinua(); else leyEmpieza(); } else startGame(gameMode); });
+document.getElementById('btnRetry').addEventListener('click', ()=>{
+  if (gameMode === 'leyenda'){                     // la pantalla de derrota se cierra: debajo sale la VS
+    sfx('ui'); hide('gameover');
+    if (ley.guardada) leyContinua(); else leyEmpieza();
+  } else startGame(gameMode);
+});
 document.getElementById('btnModeLeyenda').addEventListener('click', ()=>{ sfx('ui'); abreLeyenda(); });
 document.getElementById('btnLeyLucha').addEventListener('click', ()=> crackAndStart('btnLeyLucha', leyEmpieza));
 document.getElementById('btnLeyVolver').addEventListener('click', ()=>{ sfx('ui'); hide('leyenda'); show('modeselect'); startModeAnims(); });
