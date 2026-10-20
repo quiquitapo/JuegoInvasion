@@ -1087,7 +1087,7 @@
   .maqbtn, .magbtn, .borbtn { display:none; }
   body.touch-ui #actionBtns.playing.maq .maqbtn, body.touch-ui #actionBtns.playing.mag .magbtn, body.touch-ui #actionBtns.playing.bor .borbtn { display:flex; }
   #actionBtns.bor.f1 #btnBorB { opacity:0.4; }
-  body.touch-ui #actionBtns.playing.maq #btnAction, body.touch-ui #actionBtns.playing.mag #btnAction { display:none; }
+  body.touch-ui #actionBtns.playing.maq #btnAction, body.touch-ui #actionBtns.playing.mag #btnAction, body.touch-ui #actionBtns.playing.bor #btnAction { display:none; }
   #btnDisparo  { background:radial-gradient(circle at 35% 30%, #8fb4ff, #1d3f8a); }
   #btnDisparo.on { box-shadow:0 0 0 5px rgba(255,138,43,0.65), 0 4px 12px rgba(0,0,0,0.45); }
   #btnArma     { background:radial-gradient(circle at 35% 30%, #d9e0e8, #4a525c); color:#10151b; }
@@ -1390,12 +1390,16 @@
       <span class="acthint">dos patadas</span>
     </div>
     <div class="actbtn borbtn" id="btnBorV">
-      <span class="actlabel">PATADA</span>
-      <span class="acthint">mantén, apunta, suelta</span>
+      <span class="actlabel">SOMBRA</span>
+      <span class="acthint">tras el enemigo</span>
     </div>
     <div class="actbtn borbtn" id="btnBorB">
       <span class="actlabel">RAYO</span>
       <span class="acthint">mantén y apunta</span>
+    </div>
+    <div class="actbtn borbtn" id="btnBorR">
+      <span class="actlabel">CURAR</span>
+      <span class="acthint">ruge</span>
     </div>
   </div>
 
@@ -7044,7 +7048,7 @@ function updateRayosOjos(dt){
   // ojos están encendidos y se apunta con el joystick derecho, el mismo que
   // ya coloca lo que llevas agarrado.
   if (tactil() && isVil() && buffActivo('rayos') && !heldObject) rayosOn = true;
-  if (!rayosOn || !isVil() || !buffActivo('rayos')){ rayosOn = false; ojosVil.on = false; ojosVil.d = 1e9; if (!choque.dra) sueltaChoque(); return; }
+  if (!rayosOn || !isVil() || !buffActivo('rayos')){ rayosOn = false; ojosVil.on = false; ojosVil.d = 1e9; if (!choque.dra && !choque.bor) sueltaChoque(); return; }
   const o = vilCabeza(), ox = o.x, oy = o.y;
   if (!ojosVil.on){ ojosVil.on = true; sfxEn('laserOjos', ox, oy); }      // se encienden
   // en un choque de rayos el haz va derecho al que dispara y acaba en el choque
@@ -7138,12 +7142,13 @@ const CHOQUE_APUNTA = 0.42;      // rad: hay que apuntar al que dispara para tra
 const CHOQUE_SUELTA = 0.8;       // rad: apuntando más lejos, se suelta
 const CHOQUE_VIENE  = 0.6;       // rad: su rayo tiene que venir hacia ti
 const CHOQUE_DANO   = 130;       // golpe al llegar (más un 6% de su vida máxima)
-const choque = { on:false, e:null, r:null, s:0.5, t:0, px:0, py:0, a:0, dv:0, col:'#ff6a4a', f:1, dra:false };   // dra: lo libra el dragón, no los ojos
+const choque = { on:false, e:null, r:null, s:0.5, t:0, px:0, py:0, a:0, dv:0, col:'#ff6a4a', f:1, dra:false, bor:false, mult:1 };   // dra/bor: lo libra el dragón o Boros, no los ojos
 const choqueCd = new WeakMap();  // a quién se acaba de ganar un choque: un respiro
 // Fuerza y color de cada rayo (cuanto menos fuerza, más rápido gana el viltrumita).
 const CHOQUE_RIVAL = { omni:[0.9, '#ff4a3a'], kaiyin:[0.55, '#fff3a0'], desgarrador:[0.7, '#ff6a4a'],
                        hielo:[0.8, '#b8ecff'], corte:[0.75, '#ff7a5a'], cabezon:[1.6, '#9aff7a'],
-                       mbt:[1.3, '#ffe9b8'], mbtFrio:[1.3, '#cdf3ff'] };
+                       mbt:[1.3, '#ffe9b8'], mbtFrio:[1.3, '#cdf3ff'],
+                       rivalBoros:[0.8, '#58ecff'], rivalVil:[0.9, '#ff5a3a'] };
 function difAngAbs(a){ return Math.abs(Math.atan2(Math.sin(a), Math.cos(a))); }
 // El rayo que está disparando ese enemigo: de dónde sale, hacia dónde va y
 // cuánto alcanza ahora mismo (o null si no dispara uno que pueda chocar).
@@ -7163,6 +7168,8 @@ function rayoEnemigo(e){
     case 'cabezon':     if (e.fase === 'dispara' && choque.e === e) return R(bocaCabezon(e), undefined, 0, e.rA, 'cabezon'); break;
     case 'mbt': case 'mbtFrio':
       if (choque.e === e && choque.r && choque.r.t > 0) return R(choque.r, undefined, 0, choque.r.ang, e.type); break;
+    case 'rivalBoros':  if (e.fase === 'b') return { x: e.x + Math.cos(e.rA)*16, y: e.y - 8, a: e.rA, L: RIV_BOR_RAYO_LARGO, k:'rivalBoros' }; break;
+    case 'rivalVil':    if (e.fase === 'rayo') return { x: e.x + (e.facing || 1)*4, y: e.y, a: e.rA, L: 520, k:'rivalVil' }; break;
   }
   return null;
 }
@@ -7179,7 +7186,7 @@ function choqueFrente(o, r, lenV){
 }
 function empiezaChoque(e, r){
   const rv = CHOQUE_RIVAL[r.k] || [1, '#ff6a4a'];
-  choque.on = true; choque.e = e; choque.s = 0.5; choque.t = 0; choque.dra = false;
+  choque.on = true; choque.e = e; choque.s = 0.5; choque.t = 0; choque.dra = false; choque.bor = false; choque.mult = 1;
   choque.f = rv[0]*(e.deforme ? 0.85 : 1); choque.col = rv[1];
   shake(10, 0.3); sfxEn('boomD', r.x, r.y, 0.6);
 }
@@ -7187,7 +7194,15 @@ function empiezaChoque(e, r){
 // comprueba antes del disparo; si va contra los ojos, empieza el choque y el
 // disparo no llega a tocarte.
 function choqueAlDisparar(e, ox, oy, ang){
-  if (!ojosVil.on || choque.on || !puedeChocar() || (choqueCd.get(e) || 0) > gameTime) return false;
+  if (choque.on || !puedeChocar() || (choqueCd.get(e) || 0) > gameTime) return false;
+  if (isBor() && bor.rayoOn){                              // contra el rayo de Boros
+    const o = borPecho();
+    if (!borChoqueFrente(o, { x:ox, y:oy, a:ang, L:9e9 })) return false;
+    empiezaChoque(e, { x:ox, y:oy, k:e.type }); borChoqueMarca();
+    colocaChoque(o, ox, oy);
+    return true;
+  }
+  if (!ojosVil.on) return false;
   const o = vilCabeza();
   if (!choqueFrente(o, { x:ox, y:oy, a:ang, L:9e9 }, Math.min(ojosVil.d, RAYO_LARGO))) return false;
   empiezaChoque(e, { x:ox, y:oy, k:e.type });
@@ -7203,7 +7218,7 @@ function colocaChoque(o, ex, ey){
   choque.px = o.x + (ex - o.x)*k; choque.py = o.y + (ey - o.y)*k;
   choque.a = Math.atan2(ey - o.y, ex - o.x); choque.dv = D*k;
 }
-function sueltaChoque(){ choque.on = false; choque.e = null; choque.r = null; choque.dra = false; }
+function sueltaChoque(){ choque.on = false; choque.e = null; choque.r = null; choque.dra = false; choque.bor = false; }
 function updateChoqueRayos(dt, o){
   if (!puedeChocar()){ sueltaChoque(); return false; }
   if (choque.on){
@@ -7293,9 +7308,60 @@ function draChoque(dt){
   colocaChoque(o, mr.x, mr.y);
   return true;
 }
+// ---- el rayo de Boros contra todos los demás ----
+// Igual que los ojos del viltrumita, pero empuja muchísimo más rápido (el
+// cañón de la meteórica, todavía más) y se traba con cualquier rayo que
+// venga de frente. Mientras dura el choque, su rayo no se apaga.
+const BOR_CHOQUE_VEL = [620, 1000];                       // px/s: rayo, cañón
+function borChoqueFrente(o, r){
+  const R = borHaz(), dx = r.x - o.x, dy = r.y - o.y, D = Math.hypot(dx, dy);
+  if (D < 50 || D > R.largo + 420) return 0;
+  const aE = Math.atan2(dy, dx);
+  if (difAngAbs(bor.dirA - aE) > CHOQUE_APUNTA + (bor.est === 'canon' ? 0.2 : 0.08)) return 0;
+  if (difAngAbs(r.a - aE - Math.PI) > CHOQUE_VIENE) return 0;
+  if (Math.min(r.L, D) + R.largo < D*0.9) return 0;
+  return D;
+}
+function borChoqueMarca(){ choque.bor = true; choque.mult = bor.est === 'canon' ? 2.4 : 1.5; sfx('boomD'); }
+function borChoque(dt){
+  if (!isBor() || !bor.rayoOn || !puedeChocar()){ if (choque.bor) sueltaChoque(); return false; }
+  const o = borPecho();
+  if (choque.on && choque.bor){
+    const e = choque.e, r = e && enemies.includes(e) ? rayoEnemigo(e) : null;
+    if (!r){ sueltaChoque(); return false; }
+    choque.t += dt;
+    if (e.type === 'omni') e.beamT += dt;                 // su ataque no se acaba mientras dura
+    else if (choque.r) choque.r.t = Math.min(choque.r.max, choque.r.t + dt);
+    else if (e.ft !== undefined) e.ft += dt;
+    const D = Math.hypot(r.x - o.x, r.y - o.y) || 1;
+    const v = BOR_CHOQUE_VEL[bor.est === 'canon' ? 1 : 0]*choque.f*(Math.sin(choque.t*6) > -0.5 ? 1 : -0.35);
+    choque.s = clamp(choque.s + v*dt/D, 0.12, 1);
+    colocaChoque(o, r.x, r.y);
+    const aE = Math.atan2(o.y - r.y, o.x - r.x);
+    if (e.type === 'omni') e.beamA = aE;
+    if (choque.r){ choque.r.ang = aE; choque.r.L = D*(1 - choque.s); }
+    if (e.type === 'cabezon'){ e.rx = choque.px; e.ry = choque.py; }
+    if (choque.s >= 1 - 14/D) ganaChoque(e, r);
+    return choque.on;
+  }
+  if (choque.on) return false;
+  let mejor = null, mr = null, md = 1e9;
+  for (let i = 0; i < enemies.length; i++){
+    const e = enemies[i];
+    if ((choqueCd.get(e) || 0) > gameTime) continue;
+    const r = rayoEnemigo(e);
+    if (!r) continue;
+    const D = borChoqueFrente(o, r);
+    if (D && D < md){ md = D; mejor = e; mr = r; }
+  }
+  if (!mejor) return false;
+  empiezaChoque(mejor, mr); borChoqueMarca();
+  colocaChoque(o, mr.x, mr.y);
+  return true;
+}
 // El viltrumita llega al que dispara: golpe fuerte, explosión y su rayo se apaga.
 function ganaChoque(e, r){
-  const dmg = Math.round(CHOQUE_DANO + (e.maxhp || 0)*0.06);
+  const dmg = Math.round((CHOQUE_DANO + (e.maxhp || 0)*0.06)*(choque.mult || 1));
   porJugador(()=> damageEnemy(e, dmg, r.x, r.y));
   addParticles(r.x, r.y, '#ff4a3a', 22, 240); addParticles(r.x, r.y, choque.col, 14, 200); addParticles(r.x, r.y, '#fff4ec', 10, 160);
   shake(16, 0.4); sfxEn('bigboom', r.x, r.y);
@@ -7306,6 +7372,8 @@ function ganaChoque(e, r){
     case 'desgarrador': e.fase = ''; e.cd = rand(1.8, 2.6); e.rx = undefined; break;
     case 'centurion':   e.fase = ''; e.cd = rand(1.8, 2.6); e.hx2 = undefined; e.cx2 = undefined; e.dx2 = undefined; e.dN = 0; break;
     case 'cabezon':     e.fase = ''; e.cd = rand(3, 4.2); break;
+    case 'rivalBoros':  e.fase = ''; e.cd = 1; e.bCd = rand(6, 8); break;
+    case 'rivalVil':    e.fase = ''; e.cd = 0.7; e.rayoCd = rand(7, 10); break;
   }
   if (choque.r) choque.r.t = 0;
   choqueCd.set(e, gameTime + 2.5);
@@ -8016,7 +8084,7 @@ function propAbatido(pr){
 // jefes y vehículos. El mobiliario y los edificios quedan fuera.
 // Lo que sobrevive a que lo lances: pierde esa parte de su vida máxima al
 // estrellarse (si le queda más) y se levanta para seguir luchando.
-const AGUANTA_LANZADO = { acorazado: 0.4 };
+const AGUANTA_LANZADO = { acorazado: 0.4, rivalVil: 0.07, rivalBoros: 0.07 };   // el choque les quita esa parte de la vida
 function esUnidadCombo(o){
   if (!o) return false;
   // 'car' cubre auto, taxi y camión cisterna: los tres son vehículos.
@@ -11666,7 +11734,7 @@ function dirOfKey(k){
 
 // ================= CONTROLES (rebindable) =================
 const DEFAULT_BINDS = { up:'w', down:'s', left:'a', right:'d', grab:'e', throw:'q', pausa:'p',
-                        draAle:'z', draRay:'', draCola:'c', magFue:'x', magTel:'r', borV:'v', borB:'b' };   // rayos: clic derecho (tecla opcional)
+                        draAle:'z', draRay:'', draCola:'c', magFue:'x', magTel:'r' };   // rayos: clic derecho (tecla opcional)
 const BIND_LABELS = { up:'Mover arriba', down:'Mover abajo', left:'Mover izquierda',
                       right:'Mover derecha', pausa:'Pausa (o Escape)' };
 // Lo que hace cada tecla con cada personaje. Las teclas que el personaje
@@ -11674,8 +11742,9 @@ const BIND_LABELS = { up:'Mover arriba', down:'Mover abajo', left:'Mover izquier
 const BIND_HEROE = {
   alien:   { grab:'Agarrar; con algo agarrado, golpear con ello', throw:'Lanzar lo que sostienes' },
   viltrum: { grab:'Agarrar lo que tengas cerca', throw:'Lanzar lo que llevas', draCola:'Presa (mantén, apunta y suelta)' },
-  boros:   { grab:'Puñetazo (además del clic)', throw:'Agarre (además de C)', draAle:'Ráfaga de energía (mantén, apunta y suelta)',
-             draCola:'Agarre: patada, salto hasta él y segunda patada', borV:'Patada voladora (mantén, apunta y suelta)', borB:'Rayo del pecho (mantén, apunta y suelta; cañón en la forma meteórica)' },
+  boros:   { grab:'Puñetazo (además del clic)', draAle:'Ráfaga de energía (mantén, apunta y suelta)',
+             draCola:'Golpe sombra: aura morada, aparece tras el enemigo y golpea en área', magFue:'Rayo del pecho (mantén, apunta y suelta; cañón en la forma meteórica)',
+             magTel:'Curación: ruge y recupera vida' },
   dragon:  { grab:'Mordisco', draAle:'Aletazo', draRay:'Rayos (además del clic derecho)',
              draCola:'Coletazo (mantén, apunta y suelta)', magTel:'Rugido' },
   maquina: { grab:'Usar el arma', throw:'Cambiar de arma', draAle:'Incinerar (mantén, apunta y suelta)',
@@ -11695,7 +11764,7 @@ async function loadBinds(){
 }
 function saveBinds(){ storeSet('invasion_binds', JSON.stringify(binds)); }
 
-const BIND_ORDER = ['up','left','down','right','grab','throw','draAle','draRay','draCola','magFue','magTel','borV','borB','pausa'];
+const BIND_ORDER = ['up','left','down','right','grab','throw','draAle','draRay','draCola','magFue','magTel','pausa'];
 
 // --- Jugador 2 (modo VS) ---
 const DEFAULT_BINDS_P2 = { p2Up:'arrowup', p2Down:'arrowdown', p2Left:'arrowleft',
@@ -13460,11 +13529,11 @@ window.addEventListener('keydown', e=>{
       if (k === binds.magTel)  magTeleClic();
     } else if (isVil()){                        // el viltrumita: la presa (mantener, apuntar y soltar)
       if (k === binds.draCola) vilPresaApunta();
-    } else if (isBor()){                        // Boros: embestida, agarre, ráfaga y rayo
+    } else if (isBor()){                        // Boros: ráfaga, golpe sombra, rayo y curación (el agarre, al clic derecho)
       if (k === binds.draAle)  borZEmpieza();
-      if (k === binds.draCola) borC();
-      if (k === binds.borV)    borVEmpieza();
-      if (k === binds.borB)    borBEmpieza();
+      if (k === binds.draCola) borTele();
+      if (k === binds.magFue)  borBEmpieza();
+      if (k === binds.magTel)  borCura();
     }
   }
   keys[k] = true;
@@ -13481,10 +13550,9 @@ window.addEventListener('keyup', e=>{
   }
   // el viltrumita embiste al soltar C
   if (isVil() && (k === binds.draCola || antes === binds.draCola)) vilPresaSuelta(!running);
-  // Boros suelta la ráfaga de puñetazos al soltar V
-  if (isBor() && (k === binds.borV || antes === binds.borV)) borVSuelta(!running);
+  // Boros suelta la ráfaga (Z) y el rayo (X) al soltar la tecla
   if (isBor() && (k === binds.draAle || antes === binds.draAle)) borZSuelta(!running);
-  if (isBor() && (k === binds.borB || antes === binds.borB)) borBSuelta(!running);
+  if (isBor() && (k === binds.magFue || antes === binds.magFue)) borBSuelta(!running);
   // la máquina lanza la incineración al soltar Z
   if (isMaq() && (k === binds.draAle || antes === binds.draAle)) maqIncineraSuelta(!running);
   // la máquina salta con las motosierras al soltar C
@@ -23721,8 +23789,9 @@ const UI_PIEZAS = [
   { id:'borGol', el:'btnBorGolpe', nombre:'GOLPE',   def:{ v:[0.84,0.62], h:[0.91,0.70] } },
   { id:'borZ',   el:'btnBorZ',     nombre:'RÁFAGA',  def:{ v:[0.84,0.42], h:[0.92,0.50] } },
   { id:'borC',   el:'btnBorC',     nombre:'AGARRE',  def:{ v:[0.64,0.72], h:[0.78,0.56] } },
-  { id:'borV',   el:'btnBorV',     nombre:'PATADA',  def:{ v:[0.84,0.82], h:[0.78,0.84] } },
+  { id:'borV',   el:'btnBorV',     nombre:'SOMBRA',  def:{ v:[0.84,0.82], h:[0.78,0.84] } },
   { id:'borB',   el:'btnBorB',     nombre:'RAYO',    def:{ v:[0.64,0.54], h:[0.66,0.70] } },
+  { id:'borR',   el:'btnBorR',     nombre:'CURAR',   def:{ v:[0.64,0.90], h:[0.66,0.88] } },
   // en vertical, un poco más arriba: en un móvil estrecho no caben joystick y
   // botones a la misma altura y el joystick pisaba el botón ◀
   { id:'p2joy', el:'p2JoyBase',  nombre:'MANDO J2', def:{ v:[0.16,0.79], h:[0.10,0.80] } },
@@ -24108,7 +24177,8 @@ function bindDragonBtns(){
   joystickBoton('btnBorGolpe', 'golpe', ()=>{ if (!vil.intro){ bor.holding = true; borGolpe(); } }, ()=> borSueltaGolpe(), isBor);
   joystickBoton('btnBorZ', 'borZ', ()=> borZEmpieza(), (c)=> borZSuelta(c), isBor);
   joystickBoton('btnBorC', 'borC', ()=> borC(), ()=>{}, isBor);
-  joystickBoton('btnBorV', 'borV', ()=> borVEmpieza(), (c)=> borVSuelta(c), isBor);
+  joystickBoton('btnBorV', 'borV', ()=>{}, (c)=>{ if (!c) borTele(); }, isBor);   // golpe sombra: al soltar (arrastrando, eliges a quién)
+  joystickBoton('btnBorR', 'borR', ()=> borCura(), ()=>{}, isBor);
   joystickBoton('btnBorB', 'borB', ()=> borBEmpieza(), (c)=> borBSuelta(c), isBor);
   joystickBoton('btnRayosDra', 'rayo', ()=>{ if (!dra.rayos) draAlternaRayos(); },
                                        ()=>{ dra.rayos = false; });
@@ -24402,7 +24472,7 @@ function iconosBotones(){
                          ['btnDisparo', 'rafaga'], ['btnArma', 'arma'], ['btnSierras', 'sierra'], ['btnIncinera', 'fuego'],
                          ['btnRayoMag', 'rayo'], ['btnTK', 'mente'], ['btnHielo', 'hielo'], ['btnEscudoMag', 'escudo'],
                          ['btnFuegoMag', 'fuego'], ['btnTele', 'salto'], ['btnPresa', 'presa'],
-                         ['btnBorGolpe', 'golpe'], ['btnBorZ', 'punos'], ['btnBorC', 'lanzar'], ['btnBorV', 'patada'], ['btnBorB', 'canon']]) iconoBtn(id, n);
+                         ['btnBorGolpe', 'golpe'], ['btnBorZ', 'punos'], ['btnBorC', 'lanzar'], ['btnBorV', 'salto'], ['btnBorB', 'canon'], ['btnBorR', 'rugido']]) iconoBtn(id, n);
 }
 iconosBotones();
 // ---- barra de habilidades (abajo a la izquierda) ----
@@ -24441,9 +24511,10 @@ function habilidadesDe(h){
   if (h === 'boros') return [
     { n:'Puñetazos (combo de tres)', ico:'golpe', key:()=> SK_CLIC, cd:()=> bor.golpeCd, act:()=> bor.est === 'golpe' },
     { n:'Ráfaga de energía', ico:'punos', key:()=> skTecla('draAle'), cd:()=> bor.zCd, coste:()=> BOR_Z_COSTE[borMet()], act:()=> bor.zApunta || bor.est === 'rafaga' || bor.est === 'rafagaFin' },
-    { n:'Agarre: patada, salto y patada', ico:'lanzar', key:()=> skTecla('draCola', SK_CLICD), cd:()=> bor.cCd, coste:()=> BOR_C_COSTE[borMet()], act:()=> bor.est === 'agarre' },
-    { n:'Patada voladora (mantén y apunta)', ico:'patada', key:()=> skTecla('borV'), cd:()=> bor.vCd, coste:()=> BOR_V_COSTE[borMet()], act:()=> bor.vApunta || bor.est === 'salto' || bor.est === 'patada2' },
-    { n:'Rayo del pecho / cañón meteórico', ico:'canon', key:()=> skTecla('borB'), cd:()=> bor.bCd, coste:()=> BOR_B_COSTE[borMet()], act:()=> bor.bApunta || bor.est === 'rayo' || bor.est === 'canon' },
+    { n:'Agarre: patada, salto y patada', ico:'lanzar', key:()=> SK_CLICD, cd:()=> bor.cCd, coste:()=> BOR_C_COSTE[borMet()], act:()=> bor.est === 'agarre' },
+    { n:'Golpe sombra (meteórica: la paliza)', ico:'salto', key:()=> skTecla('draCola'), cd:()=> bor.tCd, coste:()=> BOR_T_COSTE[borMet()], act:()=> !!BOR_TELE[bor.est] },
+    { n:'Rayo del pecho / cañón meteórico', ico:'canon', key:()=> skTecla('magFue'), cd:()=> bor.bCd, coste:()=> BOR_B_COSTE[borMet()], act:()=> bor.bApunta || bor.est === 'rayo' || bor.est === 'canon' },
+    { n:'Curación (ruge)', ico:'rugido', key:()=> skTecla('magTel'), cd:()=> bor.curaCd, act:()=> bor.est === 'cura' },
     { n:'Correr', ico:'vuelo', key:skVuelo, act:()=> bor.corre }
   ];
   if (h === 'mago') return [
@@ -24597,6 +24668,7 @@ function tentacleTip(){
   if (isMag()){ return { x:mag.tkX || player.x, y:mag.tkY || player.y, angle:mag.mirA, reach:MAG_TK_ALC }; }
   if (isBor()){
     // lo sujeta delante, con la mano, a la altura del pecho
+    if (bor.est === 'teleSube' || bor.est === 'teleRafaga') return { x: player.x + (player.facing || 1)*20, y: player.y - bor.z - 12, angle: bor.dirA, reach: 30 };   // en el aire, con él
     const a = bor.est === 'agarre' ? bor.dirA : bor.mirA; return { x: player.x + Math.cos(a)*26, y: player.y - 10 + Math.sin(a)*18, angle: a, reach: 30 };
   }
   const av = aimVector(), rd = av.mag * F().reach, ang = Math.atan2(av.dy, av.dx);
@@ -24767,6 +24839,9 @@ function meleeDmg(e){
   if (e.type === 'gravitron') return 65;  // ~10 golpes
   if (e.type === 'tank' || e.type === 'arana' || e.type === 'bicho') return 160;
   if (e.type === 'amalgama') return 120;
+  if (e.type === 'criaJefe') return 62;     // ~10 golpes: es de tu especie
+  if (e.type === 'criaColosal') return 60;  // ~28 golpes
+  if (e.type === 'rivalBoros' || e.type === 'rivalVil') return 58;
   return 9999;                            // el resto revienta de un tentacazo
 }
 
@@ -24920,7 +24995,7 @@ function onThrow(){
   if (vil.intro) return;
   if (running && isMaq()){ maqCambiaArma(); return; }             // Q: cambia de arma
   if (running && isMag()){ if (mag.tk.length) magSueltaTK(false); return; }   // Q: lanza lo que sostiene
-  if (running && isBor()){ borC(); return; }                                   // Q: agarra, gira y lanza
+  if (running && isBor()) return;                                              // Boros agarra con el clic derecho
   if (running && isVil() && vil.presaFase){ vilPresaGira(); return; }        // Q con la presa: gira y la lanza
   if (!running || !heldObject) return;
   if (Online.caidoYo && esDoble()) return;
@@ -25423,8 +25498,9 @@ const BOR_GOLPES = [ { dur:0.25, imp:0.09, dmg:55, emp:190, alc:72 },
                      { dur:0.42, imp:0.17, dmg:95, emp:560, alc:92, fuerte:true } ];
 const BOR_Z_COSTE = [25, 20], BOR_Z_CD = [3.5, 3.0];   // Z: ráfaga de energía
 const BOR_C_COSTE = [25, 20], BOR_C_CD = [4.0, 3.2], BOR_C_R = 64;   // C: agarre y dos patadas
-const BOR_V_COSTE = [30, 25], BOR_V_CD = [6.0, 5.0], BOR_V_MIN = 110, BOR_V_MAX = 400;   // V: patada voladora
-const BOR_B_COSTE = [35, 60], BOR_B_CD = [5.0, 10.0];  // B: rayo del pecho / cañón
+const BOR_T_COSTE = [22, 30], BOR_T_CD = [3.0, 7.0], BOR_T_R = 620;   // C: golpe sombra (meteórica: la paliza entera)
+const BOR_CURA_T = 1.4, BOR_CURA_CD = 16, BOR_CURA = 0.45;  // R: recupera esa parte de la vida rugiendo
+const BOR_B_COSTE = [35, 60], BOR_B_CD = [5.0, 10.0];  // X: rayo del pecho / cañón
 const BOR_RAYO  = { carga:0.38, dura:0.62, largo:720,  ancho:26,  dmg:260 };
 const BOR_CANON = { carga:1.1,  dura:1.6,  largo:1300, ancho:110, dmg:900 };
 const BOR_CALOR_R = 40, BOR_CALOR_DMG = 7;              // la meteórica abrasa cada 0,1 s
@@ -25435,11 +25511,12 @@ const bor = { est:'', estT:0, hecho:false, pose:borPoseN({}), fase:0, mirA:0, di
               rafN:0, rafDados:0, rafT:0,
               agFase:'', agT:0, saltoT:0,
               sx:0, sy:0, tx:0, ty:0, saltoD:0, saltoDur:0.3,
-              vApunta:false, vX:0, vY:0, vA:0, vD:0,
+              tCd:0, teleN:0, teleK:0, curaCd:0, curaPulso:0,
               rayoOn:false, rayoTick:0, rayoN:0,
               cargaPecho:0, brilloPuno:0, fuegoT:0,
               zCd:0, cCd:0, vCd:0, bCd:0, pend:'', pendT:0, zApunta:false, zA:0, bApunta:false, bA:0 };
-let borPresa = null;                                     // a quién lleva o persigue en el agarre / la patada
+let borPresa = null;                                     // a quién lleva o persigue en el agarre / el golpe sombra
+const BOR_TELE = { tele:1, teleGolpe:1, teleRafaga:1, teleSube:1, teleRemata:1 };
 const borPaso = { edif:null };                           // para atravesar edificios
 const borPunos = [];                                     // los puños de energía de la ráfaga
 const borRastro = [];                                    // estela de imágenes
@@ -25449,7 +25526,7 @@ function borForma(){ return borMet(); }
 function borMaxHp(){ return BOR_HP; }
 function borReset(){
   Object.assign(bor, { est:'', estT:0, hecho:false, z:0, corre:false, mueveT:0, invT:0, holding:false, combo:0, comboVentana:0,
-                       agFase:'', vApunta:false, rayoOn:false, cargaPecho:0, brilloPuno:0, fuegoT:0, zCd:0, cCd:0, vCd:0, bCd:0, pend:'', pendT:0, zApunta:false, bApunta:false });
+                       agFase:'', rayoOn:false, cargaPecho:0, brilloPuno:0, fuegoT:0, zCd:0, cCd:0, tCd:0, curaCd:0, bCd:0, pend:'', pendT:0, zApunta:false, bApunta:false });
   bor.pose = borPoseN({});
   borPresa = null; borPaso.edif = null; borPunos.length = 0; borRastro.length = 0; borAuras.length = 0;
 }
@@ -25467,9 +25544,10 @@ function borGasta(coste, cd, clave){
 // El pecho, de donde sale el rayo (a la altura del ojo).
 function borPecho(){ const f = player.facing || 1; return { x: player.x + f*6, y: player.y + BOR_PIES - 40*BOR_ESC - bor.z }; }
 // ¿Se puede patear lejos? Todo menos los jefes (y lo anclado, salvo en la meteórica).
-function borLanzable(o){
+function borLanzable(o, agarre){
   if (!o || o.dead) return false;
   if (o.kind) return true;
+  if (agarre && rivalAgarrable(o)) return true;            // el viltrumita y Boros de la CPU, solo con la C
   if (!o.grabbable || JEFES[o.type]) return false;
   if ((o.type === 'siege' || o.type === 'gravitron') && !borMet()) return false;
   return true;
@@ -25694,7 +25772,7 @@ function borC(){
   if (!borGasta(BOR_C_COSTE, BOR_C_CD, 'cCd')) return;
   tutEv('agarre');
   borPresa = o; borMira(Math.atan2(o.y - player.y, o.x - player.x));
-  if (borLanzable(o) && !heldObject) borAgarra(o);
+  if (borLanzable(o, true) && !heldObject){ if (esLuchador(o)) rivalAgarrado(o); borAgarra(o); }
   borPonEst('agarre'); bor.agFase = 'sujeta'; bor.agT = 0;
   sfx('grab');
 }
@@ -25709,9 +25787,9 @@ function borAgarreUpdate(dt){
   if (bor.agFase === 'sujeta'){
     if (bor.agT >= 0.22){                              // primera patada, floja: lo manda hacia la mira
       const a = borApunta('borC'); borMira(a);
-      if (borLanzable(o)){ o.x = player.x + Math.cos(a)*30; o.y = player.y + Math.sin(a)*22; borLanza(o, a, 640, 0.5); }
+      if (borLanzable(o, true)){ o.x = player.x + Math.cos(a)*30; o.y = player.y + Math.sin(a)*22; borLanza(o, a, 640, 0.5); }
       else porJugador(()=> damageEnemy(o, 15, o.x, o.y));
-      if (o.person || o.kind === 'civ' || (!o.kind && borLanzable(o))) porJugador(()=> damageEnemy(o, 12, o.x, o.y));
+      if (o.person || o.kind === 'civ' || (!o.kind && borLanzable(o, true))) porJugador(()=> damageEnemy(o, esLuchador(o) ? 30 : 12, o.x, o.y));
       addParticles(o.x, o.y - 16, '#e8eef6', 8, 140); sfx('hit'); shake(5, 0.1);
       bor.agFase = 'patea1'; bor.agT = 0;
     }
@@ -25730,10 +25808,10 @@ function borAgarreUpdate(dt){
     if (d < 34 || bor.agT > 0.75){                    // segunda patada: lo manda volando entre partículas moradas
       const a = borApunta('borC'); borMira(a);
       const met = borMet();
-      if (borLanzable(o)){
+      if (borLanzable(o, true)){
         if (o.thrown || o.held){ o.x = player.x + Math.cos(a)*24; o.y = player.y + Math.sin(a)*18; }
         borLanza(o, a, 1450, 2.4);
-        if (!o.kind) porJugador(()=> damageEnemy(o, 30, o.x, o.y));
+        if (!o.kind) porJugador(()=> damageEnemy(o, esLuchador(o) ? (met ? 150 : 110) : 30, o.x, o.y));
       } else porJugador(()=> damageEnemy(o, met ? 190 : 140, o.x, o.y));
       for (let i = 0; i < 3; i++) addParticles(o.x, o.y - 20, i ? '#b56aff' : '#7a3cff', 14, 300);
       addParticles(o.x, o.y - 20, '#e8c8ff', 8, 200);
@@ -25753,78 +25831,155 @@ function borAterriza(){
   bor.z = 0; bor.agFase = ''; borPresa = null; borPonEst('aterriza');
   anilloPolvo(player.x, player.y + 14, 40, 14, '#9a9288'); sfx('aterriza');
 }
-// ---- V: patada voladora (mantén para apuntar el salto, suelta para saltar) ----
-function borVEmpieza(){
-  if (vil.intro || !borLibre() || bor.vApunta || bor.vCd > 0) return;
-  if (vil.stam < BOR_V_COSTE[borMet()]){ sfx('ui'); return; }
-  bor.vApunta = true; borVColoca();
-}
-function borVColoca(){
-  const ap = apuntaHeroe(['borV'], 0, BOR_V_MAX, 460);
-  let a = ap.a, d = clamp(ap.d || BOR_V_MAX*0.6, BOR_V_MIN, BOR_V_MAX);
-  // ayuda de puntería: si el destino cae cerca de alguien, va a por él
-  const tx = player.x + Math.cos(a)*d, ty = player.y + Math.sin(a)*d;
-  let mejor = null, md = 110;
+// ---- C: golpe sombra ----
+// Se cubre de un aura morada, desaparece y aparece detrás del enemigo al que
+// apunta (o del más cercano) y le da un golpe que revienta en área. En la
+// forma meteórica, en vez de un golpe: miles de golpes y patadas desde todos
+// lados, lo agarra, lo sube por los aires y lo remata de una patada.
+function borTeleBlanco(){
+  const a = apuntaHeroe(['borV'], 0, BOR_T_R, BOR_T_R).a;
+  let mejor = null, mp = 1e9, cerca = null, mc = BOR_T_R;
   for (let i = 0; i < enemies.length; i++){ const e = enemies[i];
-    if (e.dead || e.held || e.pacifico || e.cielo) continue;
-    const q = dist(e.x, e.y, tx, ty); if (q < md){ md = q; mejor = e; } }
-  if (mejor){ a = Math.atan2(mejor.y - player.y, mejor.x - player.x); d = clamp(dist(mejor.x, mejor.y, player.x, player.y) + 30, BOR_V_MIN, BOR_V_MAX); }
-  bor.vA = a; bor.vD = d;
-  bor.vX = clamp(player.x + Math.cos(a)*d, 20, WORLD_W - 20); bor.vY = clamp(player.y + Math.sin(a)*d, 20, WORLD_H - 20);
-  bor.mirA = a;
+    if (e.dead || e.held || e.thrown || e.pacifico || e.cielo || e.type === 'ovni') continue;
+    const d = dist(player.x, player.y, e.x, e.y);
+    if (d > BOR_T_R) continue;
+    if (d < mc){ mc = d; cerca = e; }
+    const da = difAngAbs(Math.atan2(e.y - player.y, e.x - player.x) - a);
+    if (da < 0.6){ const pt = d*(1 + da*1.5); if (pt < mp){ mp = pt; mejor = e; } }
+  }
+  return mejor || cerca;
 }
-function borVSuelta(cancelado){
-  if (!bor.vApunta) return;
-  bor.vApunta = false;
-  if (cancelado || vil.intro || !borLibre()) return;
-  if (!borGasta(BOR_V_COSTE, BOR_V_CD, 'vCd')) return;
-  tutEv('patada');
-  borVColoca();
-  borPonEst('salto'); borMira(bor.vA);
-  bor.sx = player.x; bor.sy = player.y; bor.tx = bor.vX; bor.ty = bor.vY;
-  bor.saltoD = dist(bor.sx, bor.sy, bor.tx, bor.ty); bor.saltoDur = clamp(bor.saltoD/1150, 0.17, 0.42);
-  borPaso.edif = null;
-  sfx('dash'); anilloPolvo(player.x, player.y + 12, 40, 14, '#9a9288');
+function borTele(){
+  if (vil.intro) return;
+  if (!borLibre()){ borPide('t'); return; }
+  if (bor.tCd > 0){ sfx('ui'); return; }
+  const t = borTeleBlanco();
+  if (!t){ sfx('whoosh'); return; }
+  if (!borGasta(BOR_T_COSTE, BOR_T_CD, 'tCd')) return;
+  tutEv('sombra');
+  borPresa = t; bor.teleN = 0; bor.teleK = 0; bor.hecho = false;
+  borPonEst('tele'); bor.invT = Math.max(bor.invT, 0.35);
+  player.vx = player.vy = 0;
+  borAuras.push({ x:player.x, y:player.y - 18, r:70, t:0, max:0.35 });
+  sfx('cargaM'); sfx('whoosh');
 }
-function borSaltoUpdate(dt){
-  const u = clamp(bor.estT/bor.saltoDur, 0, 1), x0 = player.x, y0 = player.y;
-  player.x = lerp(bor.sx, bor.tx, u); player.y = lerp(bor.sy, bor.ty, u);
-  bor.z = Math.sin(u*Math.PI)*Math.min(55, bor.saltoD*0.12);
-  vilAtraviesa(borPaso, x0, y0, player.x, player.y, 22, true);            // atraviesa lo que pille por el camino
-  for (const pool of [enemies, civilians]){
-    for (let i = 0; i < pool.length; i++){ const t = pool[i];
-      if (t.dead || t.held || t.pacifico || t.cielo || distCuerpo(player.x, player.y, t) > 34) continue;
-      porJugador(()=> damageEnemy(t, 60*(borMet() ? BOR_MET_DMG : 1), t.x, t.y));
-      if (!t.dead){
-        borPresa = t; player.x = t.x - Math.cos(bor.dirA)*28; player.y = t.y - Math.sin(bor.dirA)*22;
-        borPonEst('patada2'); player.vx = player.vy = 0; hitstop(0.05); sfx('hit');
-        return;
-      }
+// Al lado contrario de donde estaba, pegado a su espalda.
+function borTeleDetras(t, sx, sy){
+  let a = Math.atan2(t.y - sy, t.x - sx);
+  if (!isFinite(a)) a = 0;
+  const r = Math.min(70, (t.w || 30)*0.5) + 26;
+  player.x = clamp(t.x + Math.cos(a)*r, 30, WORLD_W - 30); player.y = clamp(t.y + Math.sin(a)*r*0.8, 30, WORLD_H - 30);
+  borPaso.edif = edifEn(player.x, player.y);
+  borMira(Math.atan2(t.y - player.y, t.x - player.x));
+}
+// Mientras pega: el blanco no se escapa (lo que se pueda aturdir, se queda aturdido).
+function borTeleQuieto(t){ if (t && !t.dead && !t.held && !JEFES[t.type]){ t.stunT = Math.max(t.stunT || 0, 0.35); t.stunVx = 0; t.stunVy = 0; } }
+function borTeleUpdate(dt){
+  const t = borPresa, met = borMet(), M = met ? BOR_MET_DMG : 1;
+  player.vx = player.vy = 0;
+  const vivo = t && !t.dead;
+  if (bor.est === 'tele'){
+    if (Math.random() < 0.8) addParticles(player.x + rand(-14, 14), player.y - rand(0, 40), Math.random() < 0.5 ? '#b06aff' : '#7a4cff', 1, 80);
+    if (bor.estT >= 0.2){
+      if (!vivo){ borPonEst(''); borPresa = null; return; }
+      const sx = player.x, sy = player.y;
+      borAuras.push({ x:sx, y:sy - 18, r:60, t:0, max:0.4 });
+      borTeleDetras(t, sx, sy);
+      borAuras.push({ x:player.x, y:player.y - 18, r:66, t:0, max:0.4 });
+      anilloImpacto(player.x, player.y, 60, '#b06aff', 0.25); sfx('dash');
+      borPonEst(met ? 'teleRafaga' : 'teleGolpe');
     }
+    return;
   }
-  if (u >= 1){
-    bor.z = 0; player.vx = player.vy = 0;
-    borArea(player.x, player.y, 80, 30, 320, 40);
-    anilloImpacto(player.x, player.y, 90, '#dcd2be', 0.35); anilloPolvo(player.x, player.y + 12, 50, 18, '#9a9288');
-    shake(6, 0.2); sfx('caidaGolpe');
-    borPonEst('aterriza');
+  if (bor.est === 'teleGolpe'){
+    if (!bor.hecho && bor.estT >= 0.08){
+      bor.hecho = true;
+      const cx = vivo ? t.x : player.x + Math.cos(bor.dirA)*40, cy = vivo ? t.y : player.y + Math.sin(bor.dirA)*30;
+      if (vivo) porJugador(()=> damageEnemy(t, 60*M, t.x, t.y));
+      borArea(cx, cy, 120, 75*M, 460, 40);
+      borAuras.push({ x:cx, y:cy - 18, r:96, t:0, max:0.45 });
+      anilloImpacto(cx, cy, 140, '#a46cff', 0.4); anilloImpacto(cx, cy, 70, '#ffffff', 0.22);
+      borChispas(cx, cy - 16, 20, 300);
+      shake(12, 0.25); hitstop(0.07); sfx('bigboom');
+    }
+    if (bor.estT >= 0.36){ borPonEst(''); borPresa = null; }
+    return;
+  }
+  if (bor.est === 'teleRafaga'){                       // miles de golpes y patadas desde todos lados
+    if (!vivo){ borPonEst('aterriza'); borPresa = null; return; }
+    borTeleQuieto(t);
+    bor.teleK -= dt;
+    while (bor.teleK <= 0 && bor.teleN < 32){
+      bor.teleK += 0.045; bor.teleN++;
+      const a = Math.random()*Math.PI*2, r = Math.min(70, (t.w || 30)*0.5) + rand(20, 36);
+      const x0 = player.x, y0 = player.y;
+      player.x = clamp(t.x + Math.cos(a)*r, 30, WORLD_W - 30); player.y = clamp(t.y + Math.sin(a)*r*0.75, 30, WORLD_H - 30);
+      borRastro.push({ x:x0, y:y0, z:bor.z, pose:Object.assign({}, bor.pose), cara:player.facing || 1, t:gameTime });
+      if (borRastro.length > 9) borRastro.shift();
+      borMira(Math.atan2(t.y - player.y, t.x - player.x));
+      porJugador(()=> damageEnemy(t, 9*M, t.x, t.y - 10));
+      if (bor.teleN % 4 === 0) borArea(t.x, t.y, 70, 6, 0, 0);
+      addParticles(t.x + rand(-10, 10), t.y - rand(6, 30), bor.teleN % 2 ? '#b06aff' : '#ffffff', 3, 180);
+      if (bor.teleN % 3 === 0) sfxEn('hit', t.x, t.y, 0.5);
+      shake(3, 0.05);
+    }
+    if (bor.teleN >= 32){
+      if (borLanzable(t, true) && !heldObject){ if (esLuchador(t)) rivalAgarrado(t); borAgarra(t); }
+      borTeleDetras(t, t.x - (player.facing || 1), t.y);
+      borPonEst('teleSube'); sfx('grab'); anilloPolvo(player.x, player.y + 12, 40, 14, '#9a8cff');
+    }
+    return;
+  }
+  if (bor.est === 'teleSube'){                         // se lo lleva por los aires
+    const u = clamp(bor.estT/0.5, 0, 1);
+    bor.z = Math.sin(u*Math.PI/2)*130;
+    if (Math.random() < 0.6) addParticles(player.x, player.y - bor.z, '#b06aff', 2, 120);
+    if (u >= 1){ borPonEst('teleRemata'); bor.hecho = false; }
+    return;
+  }
+  if (bor.est === 'teleRemata'){                       // y lo remata de una patada
+    if (!bor.hecho && bor.estT >= 0.1){
+      bor.hecho = true;
+      const a = borApunta('borV'); borMira(a);
+      const px = vivo ? t.x : player.x, py = vivo ? t.y : player.y - bor.z;
+      if (vivo){
+        if (heldObject && heldObject.ref === t){
+          t.x = player.x + Math.cos(a)*24; t.y = player.y + Math.sin(a)*18;
+          borLanza(t, a, 1800, 3.2);
+          porJugador(()=> damageEnemy(t, esLuchador(t) ? 180 : 60, t.x, t.y));
+        } else porJugador(()=> damageEnemy(t, 420*M, t.x, t.y));
+      }
+      borArea(px, py, 140, 60*M, 600, 60);
+      for (let i = 0; i < 3; i++) addParticles(px, py - 20, i ? '#b56aff' : '#7a3cff', 16, 340);
+      addParticles(px, py - 20, '#ffffff', 12, 260);
+      anilloImpacto(px, py, 170, '#b06aff', 0.45); anilloImpacto(px, py, 90, '#ffffff', 0.3);
+      morados.push({ x:px, y:py - 20, a, t:0.6 });
+      shake(20, 0.4); hitstop(0.12); sfx('bigboom'); sfx('caidaGolpe');
+      borPresa = null;
+    }
+    bor.z = Math.max(0, bor.z - 420*dt);
+    if (bor.estT > 0.25 && bor.z <= 0) borAterriza();
+    return;
   }
 }
-function borPatada2Update(dt){
-  const o = borPresa;
-  bor.z = Math.max(0, bor.z - 120*dt);
-  if (bor.estT >= 0.16 && !bor.hecho){
-    bor.hecho = true;
-    if (!o || o.dead){ borPonEst(''); return; }
-    const a = bor.dirA;
-    if (borLanzable(o)){ borLanza(o, a, 1500, 2.6); if (!o.kind) porJugador(()=> damageEnemy(o, 40, o.x, o.y)); }
-    else porJugador(()=> damageEnemy(o, 115*(borMet() ? BOR_MET_DMG : 1), o.x, o.y));
-    borArea(o.x, o.y, 90, 50, 420, 60);
-    anilloImpacto(o.x, o.y - 14, 120, '#ffffff', 0.4); addParticles(o.x, o.y - 18, '#8af2ff', 16, 300); borChispas(o.x, o.y - 18, 10, 260);
-    shake(14, 0.3); hitstop(0.1); sfx('bigboom');
-    borPresa = null;
-  }
-  if (bor.estT > 0.5){ borPonEst(''); bor.z = 0; }
+// ---- R: se cura rugiendo (como el rugido del dragón, pero recupera vida) ----
+function borCura(){
+  if (vil.intro || bor.curaCd > 0){ if (bor.curaCd > 0) sfx('ui'); return; }
+  if (!borLibre()){ borPide('r'); return; }
+  bor.curaCd = BOR_CURA_CD; bor.curaPulso = 0;
+  borPonEst('cura'); player.vx = player.vy = 0;
+  sfx('gritoBor'); shake(8, 0.3); tutEv('cura');
+  anilloImpacto(player.x, player.y, 120, '#7bffa0', 0.4);
+}
+function borCuraUpdate(dt){
+  player.vx = player.vy = 0;
+  hp = Math.min(maxHp(), hp + maxHp()*BOR_CURA/BOR_CURA_T*dt);
+  vil.stam = Math.min(vil.maxStam, vil.stam + 18*dt);
+  if (Math.random() < 0.9) addParticles(player.x + rand(-26, 26), player.y - rand(0, 50), Math.random() < 0.5 ? '#7bffa0' : '#c8a8ff', 1, 60);
+  bor.curaPulso -= dt;
+  if (bor.curaPulso <= 0){ bor.curaPulso = 0.35; borAuras.push({ x:player.x, y:player.y - 20, r:56, t:0, max:0.4 }); windRings.push({ x:player.x, y:player.y - 30, ang:0, r:14, life:0.5, max:0.5 }); }
+  if (Math.random() < dt*8) shake(2.5, 0.1);
+  if (bor.estT >= BOR_CURA_T) borPonEst('');
 }
 // ---- B: rayo del pecho (cian); en la meteórica, el cañón de estrella colapsante ----
 // Mantener B apunta (la línea del rayo, o la franja del cañón); al soltar, dispara hacia ahí.
@@ -25860,8 +26015,11 @@ function borRayoUpdate(dt){
   }
   if (bor.estT < R.carga + R.dura){
     bor.cargaPecho = 1;
-    if (!bor.rayoOn){ bor.rayoOn = true; sfx('rayoM'); if (canon){ sfx('bigboom'); shake(18, R.dura); } else shake(6, R.dura); }
+    if (!bor.rayoOn){ bor.rayoOn = true; bor.choqueT = 0; sfx('rayoM'); if (canon){ sfx('bigboom'); shake(18, R.dura); } else shake(6, R.dura); }
     if (canon) bor.invT = Math.max(bor.invT, 0.1);
+    // trabado con otro rayo: el suyo no se apaga mientras empuja (hasta 3 s)
+    const trabado = borChoque(dt);
+    if (trabado && bor.choqueT < 3){ bor.choqueT += dt; bor.estT = Math.min(bor.estT, R.carga + R.dura*0.85); }
     const x0 = player.x, y0 = player.y;                  // retroceso
     player.x = clamp(player.x - Math.cos(bor.dirA)*(canon ? 40 : 24)*dt, 30, WORLD_W - 30);
     player.y = clamp(player.y - Math.sin(bor.dirA)*(canon ? 40 : 24)*dt, 30, WORLD_H - 30);
@@ -25869,7 +26027,8 @@ function borRayoUpdate(dt){
     bor.rayoTick -= dt;
     if (bor.rayoTick <= 0){
       bor.rayoTick += 0.1;
-      const n = Math.round(R.dura/0.1), dmg = R.dmg/n*(canon ? 1 : 1), o = borPecho(), L = R.largo, W = R.ancho;
+      const n = Math.round(R.dura/0.1), dmg = R.dmg/n*(canon ? 1 : 1), o = borPecho(), W = R.ancho;
+      const L = choque.on && choque.bor ? Math.max(20, choque.dv - 10) : R.largo;   // trabado: no pasa del choque
       for (const pool of [civilians, enemies]){
         for (let i = 0; i < pool.length; i++){ const t = pool[i];
           if (t.dead || t.held) continue;
@@ -25894,6 +26053,7 @@ function borRayoUpdate(dt){
     return;
   }
   bor.cargaPecho = Math.max(0, bor.cargaPecho - dt*3); bor.rayoOn = false;
+  if (choque.bor) sueltaChoque();
   if (bor.estT > R.carga + R.dura + (canon ? 0.45 : 0.22)){ borPonEst(''); bor.cargaPecho = 0; }
 }
 // ---- la meteórica abrasa lo que toca ----
@@ -25926,7 +26086,7 @@ function borEstallido(x, y){
 // ---- el regalo del OVNI: la forma meteórica ----
 function borDespierta(){
   if (heldObject && heldObject.ref){ heldObject.ref.held = false; heldObject = null; }
-  borPresa = null; bor.vApunta = false; bor.z = 0;
+  borPresa = null; bor.z = 0;
   borPonEst('transforma'); bor.invT = Math.max(bor.invT, BOR_TRANSF_T + 0.2);
   player.vx = player.vy = 0;
   hp = Math.min(maxHp(), hp + BOR_HP*0.5);
@@ -25973,7 +26133,7 @@ function borEntrada(dt){
 }
 function updateBoros(dt){
   vil.capa += dt; bor.anim += dt; bor.estT += dt;
-  for (const k of ['zCd', 'cCd', 'vCd', 'bCd', 'invT', 'comboVentana', 'golpeCd', 'pendT']) if (bor[k] > 0) bor[k] = Math.max(0, bor[k] - dt);
+  for (const k of ['zCd', 'cCd', 'tCd', 'curaCd', 'bCd', 'invT', 'comboVentana', 'golpeCd', 'pendT']) if (bor[k] > 0) bor[k] = Math.max(0, bor[k] - dt);
   borPunosUpdate(dt);
   for (let i = morados.length - 1; i >= 0; i--){ morados[i].t -= dt; if (morados[i].t <= 0) morados.splice(i, 1); }
   for (let i = borAuras.length - 1; i >= 0; i--){ borAuras[i].t += dt; if (borAuras[i].t >= borAuras[i].max) borAuras.splice(i, 1); }
@@ -25992,7 +26152,6 @@ function updateBoros(dt){
         borLlama(player.x + Math.cos(a)*r, player.y + Math.sin(a)*r*0.6, 0, 0, rand(60, 160), rand(6, 12)*bor.fuegoT/2.2); }
     }
   }
-  if (bor.vApunta) borVColoca();
   if (bor.zApunta) borZApunta();
   if (bor.bApunta) borBApunta();
   switch (bor.est){
@@ -26000,8 +26159,8 @@ function updateBoros(dt){
     case 'rafaga': borRafagaUpdate(dt); break;
     case 'rafagaFin': borRafagaFinUpdate(dt); break;
     case 'agarre': borAgarreUpdate(dt); break;
-    case 'salto': borSaltoUpdate(dt); break;
-    case 'patada2': borPatada2Update(dt); break;
+    case 'tele': case 'teleGolpe': case 'teleRafaga': case 'teleSube': case 'teleRemata': borTeleUpdate(dt); break;
+    case 'cura': borCuraUpdate(dt); break;
     case 'aterriza': player.vx *= Math.exp(-12*dt); player.vy *= Math.exp(-12*dt); if (bor.estT > 0.22) borPonEst(''); break;
     case 'rayo': case 'canon': borRayoUpdate(dt); break;
     case 'transforma': borTransformaUpdate(dt); break;
@@ -26009,13 +26168,13 @@ function updateBoros(dt){
   if (bor.est !== 'rafagaFin') bor.brilloPuno = Math.max(0, bor.brilloPuno - dt*3);
   if (bor.est !== 'rayo' && bor.est !== 'canon') bor.cargaPecho = Math.max(0, bor.cargaPecho - dt*3);
   // estela de imágenes en los movimientos rápidos
-  const rapido = bor.est === 'salto' || bor.est === 'patada2' || bor.est === 'rafaga' || (bor.est === 'agarre' && bor.agFase === 'salta') || (bor.corre && met);
+  const rapido = bor.est === 'teleSube' || bor.est === 'rafaga' || (bor.est === 'agarre' && bor.agFase === 'salta') || (bor.corre && met);
   if (rapido && (borRastro.length === 0 || gameTime - borRastro[borRastro.length - 1].t > 0.035)){
     borRastro.push({ x:player.x, y:player.y, z:bor.z, pose:Object.assign({}, bor.pose), cara:player.facing || 1, t:gameTime });
     if (borRastro.length > 7) borRastro.shift();
   }
   while (borRastro.length && gameTime - borRastro[0].t > 0.25) borRastro.shift();
-  if (bor.est === 'salto' || bor.est === 'patada2' || bor.est === 'agarre' || bor.est === 'transforma'){ borActualizaPose(dt); return; }
+  if (BOR_TELE[bor.est] || bor.est === 'agarre' || bor.est === 'transforma' || bor.est === 'cura'){ borActualizaPose(dt); return; }
   if (bor.est === 'golpe' || bor.est === 'rafaga' || bor.est === 'rafagaFin' || bor.est === 'aterriza' || bor.est === 'rayo' || bor.est === 'canon'){
     // se mueve lo que diga su ataque (y no atraviesa paredes)
     const x0 = player.x, y0 = player.y;
@@ -26026,7 +26185,7 @@ function updateBoros(dt){
   // ---- libre: lo pedido mientras atacaba, el clic mantenido, andar o correr ----
   if (bor.pendT > 0 && bor.pend){
     const q = bor.pend; bor.pend = ''; bor.pendT = 0;
-    if (q === 'z') borZ(); else if (q === 'c') borC(); else if (q === 'b') borB();
+    if (q === 'z') borZ(); else if (q === 'c') borC(); else if (q === 'b') borB(); else if (q === 't') borTele(); else if (q === 'r') borCura();
   }
   if (bor.holding && !vil.intro && !bor.est) borGolpe();
   if (bor.est){ borActualizaPose(dt); return; }
@@ -26041,13 +26200,13 @@ function updateBoros(dt){
     if (bor.corre){ bor.corre = false; }
     bor.mueveT = 0;
   }
-  const corre = bor.corre && mueve && !bor.vApunta;
+  const corre = bor.corre && mueve;
   let vel = (corre ? BOR_CORRE : BOR_VEL)*(met ? BOR_MET_VEL : 1);
-  if (bor.vApunta || bor.zApunta || bor.bApunta) vel *= 0.55;
+  if (bor.zApunta || bor.bApunta) vel *= 0.55;
   const len = Math.hypot(dx, dy) || 1, k = 1 - Math.exp(-14*dt);
   player.vx = lerp(player.vx, dx/len*vel*m, k);
   player.vy = lerp(player.vy, dy/len*vel*m, k);
-  if (Math.abs(player.vx) > 8 && !bor.vApunta && !bor.zApunta && !bor.bApunta) player.facing = player.vx > 0 ? 1 : -1;
+  if (Math.abs(player.vx) > 8 && !bor.zApunta && !bor.bApunta) player.facing = player.vx > 0 ? 1 : -1;
   const x0 = player.x, y0 = player.y;
   player.x = clamp(player.x + player.vx*dt, 30, WORLD_W - 30);
   player.y = clamp(player.y + player.vy*dt, 30, WORLD_H - 30);
@@ -26063,8 +26222,7 @@ function updateBoros(dt){
     }
     if (Math.random() < 0.4) addParticles(player.x - (player.facing || 1)*10, player.y + BOR_PIES, met ? '#c8b8ff' : '#b8b0a2', 1, 60);
   } else vilAtraviesa(borPaso, x0, y0, player.x, player.y, 22, false);   // andando entra en los edificios (abre boquete al pasar)
-  if (bor.vApunta) player.facing = Math.cos(bor.vA) >= 0 ? 1 : -1;
-  else if (bor.bApunta) player.facing = Math.cos(bor.bA) >= 0 ? 1 : -1;
+  if (bor.bApunta) player.facing = Math.cos(bor.bA) >= 0 ? 1 : -1;
   else if (bor.zApunta) player.facing = Math.cos(bor.zA) >= 0 ? 1 : -1;
   else {
     const a = (lastInputTouch && !aimJoy.active) ? (v > 30 ? Math.atan2(player.vy, player.vx) : bor.mirA) : borApunta('golpe');
@@ -26077,7 +26235,7 @@ function borActualizaPose(dt){
   const sp = Math.hypot(player.vx || 0, player.vy || 0);
   bor.fase += dt*(bor.corre ? 15 : 10)*clamp(sp/180, 0.4, 1.4);
   const o = borPoseObj();
-  const rapido = bor.est === 'golpe' || bor.est === 'rafaga' || bor.est === 'rafagaFin' || bor.est === 'patada2' || bor.est === 'salto' || bor.est === 'agarre';
+  const rapido = bor.est === 'golpe' || bor.est === 'rafaga' || bor.est === 'rafagaFin' || BOR_TELE[bor.est] || bor.est === 'agarre';
   borMezcla(bor.pose, o, 1 - Math.exp(-(rapido ? 34 : 18)*dt));
   bor.pose.rot = lerp(bor.pose.rot, o.rot || 0, 1 - Math.exp(-14*dt));
 }
@@ -26113,11 +26271,23 @@ function borPoseObj(){
     case 'canon':
       if (bor.estT < BOR_CANON.carga) return P({ lean:0.12, mF:0.55, rF:0.45, mB:-0.6, rB:0.35, bF:1.3, cF:0.55, bB:1.2, cB:0.65 });
       return P({ lean:0.26, mF:0.6, rF:0.35, mB:-0.7, rB:0.25, bF:1.57, cF:0.02, bB:1.5, cB:0.05 });
-    case 'salto':
+    case 'tele':                                        // se encoge envuelto en su aura
+      return P({ lean:0.38 + Math.sin(t*60)*0.03, mF:0.45, rF:0.65, mB:-0.45, rB:0.6, bF:0.2, cF:0.25, bB:0.1, cB:0.3, cab:0.2 });
+    case 'teleGolpe':
+      return P({ lean:0.5, mF:0.85, rF:0.25, mB:-0.7, rB:0.2, bF:1.62, cF:0.02, bB:0.3, cB:1.9 });
+    case 'teleRafaga': {                                // puñetazo, patada, puñetazo...
+      const k = bor.teleN % 3;
+      if (k === 0) return P({ lean:0.4, mF:0.6, rF:0.3, mB:-0.5, rB:0.3, bF:1.6, cF:0.05, bB:0.5, cB:1.8 });
+      if (k === 1) return P({ suelo:0, alto:10, lean:-0.65, mF:1.85, rF:0, mB:-0.2, rB:0.5, bF:-0.9, cF:0.4, bB:0.5, cB:0.9 });
+      return P({ lean:0.3, mF:0.35, rF:0.35, mB:-0.35, rB:0.3, bF:0.5, cF:1.9, bB:1.58, cB:0.12 });
+    }
+    case 'teleSube':
       return P({ suelo:0, alto:16, lean:-0.35, mF:1.45, rF:0.05, mB:-0.35, rB:1.5, bF:-0.6, cF:0.6, bB:-1.0, cB:0.5, cab:0.1 });
-    case 'patada2':
-      if (bor.estT < 0.16) return P({ suelo:0, alto:16, lean:-0.15, mF:1.1, rF:1.7, mB:-0.3, rB:0.6, bF:0.4, cF:1.4, bB:-0.6, cB:0.8 });
+    case 'teleRemata':
+      if (bor.estT < 0.1) return P({ suelo:0, alto:16, lean:-0.15, mF:1.1, rF:1.7, mB:-0.3, rB:0.6, bF:0.4, cF:1.4, bB:-0.6, cB:0.8 });
       return P({ suelo:0, alto:16, lean:-0.65, mF:1.85, rF:0, mB:-0.2, rB:0.5, bF:-0.9, cF:0.4, bB:0.5, cB:0.9 });
+    case 'cura':                                        // ruge con los brazos abiertos
+      return P({ lean:-0.22, cab:-0.35 + Math.sin(t*30)*0.03, mF:0.4, rF:0.2, mB:-0.45, rB:0.2, bF:2.55, cF:0.25, bB:2.35, cB:0.3 });
     case 'agarre':
       if (bor.agFase === 'sujeta') return P({ lean:0.05, mF:0.2, rF:0.3, mB:-0.2, rB:0.4, bF:1.6, cF:0.02, bB:0.7, cB:1.6 });
       if (bor.agFase === 'patea1') return P({ lean:-0.3, mF:1.5, rF:0.1, mB:-0.25, rB:0.4, bF:-0.5, cF:0.8, bB:0.4, cB:1.2 });
@@ -26131,7 +26301,6 @@ function borPoseObj(){
   }
   if (bor.bApunta) return P({ lean:-0.18, cab:-0.15, mF:0.4, rF:0.5, mB:-0.4, rB:0.4, bF:-0.5, cF:1.2, bB:-0.7, cB:1.0 });   // saca pecho
   if (bor.zApunta) return P({ lean:-0.18, mF:0.45, rF:0.5, mB:-0.4, rB:0.4, bF:-0.85, cF:0.9, bB:0.9, cB:1.8, cab:0.1 });    // puño atrás
-  if (bor.vApunta) return P({ lean:0.42, mF:0.75, rF:1.5, mB:-0.55, rB:1.3, bF:0.25, cF:0.5, bB:-0.4, cB:0.6 });   // agachado, listo para saltar
   const sp = Math.hypot(player.vx || 0, player.vy || 0);
   if (sp > 25){
     if (bor.corre) return P({ lean:0.48, mF:1.0*sn + 0.2, rF:0.3 + 1.3*Math.max(0, cs), mB:-1.0*sn + 0.2, rB:0.3 + 1.3*Math.max(0, -cs),
@@ -26174,7 +26343,7 @@ function drawBoros(){
   }
   _borSt.pose = _apCompa ? borPoseObj() : bor.pose;                      // el compañero en línea: su pose directa
   _borSt.cara = player.facing || 1; _borSt.forma = met; _borSt.cargaPecho = bor.cargaPecho; _borSt.brilloPuno = bor.brilloPuno;
-  _borSt.viento = bor.corre || bor.est === 'salto' ? 0.5 : 0;
+  _borSt.viento = bor.corre || bor.est === 'teleSube' ? 0.5 : 0;
   const parpadea = bor.invT > 0 && bor.est === 'transforma' && Math.floor(bor.anim*30) % 2 === 0;
   borFigura(ctx, _borSt, s.x, pies - z, { t:bor.anim, blanco: parpadea && bor.estT > 0.9 });
 }
@@ -26263,15 +26432,12 @@ function drawBorosEfectos(){
     }
     ctx.restore();
   }
-  if (bor.vApunta){                                                       // dónde caerá la patada voladora
-    const p0 = S(player.x, player.y), p = S(bor.vX, bor.vY);
-    ctx.save();
-    ctx.globalAlpha = 0.5; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.setLineDash([8, 7]); ctx.lineDashOffset = -gameTime*50;
-    ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.quadraticCurveTo((p0.x + p.x)/2, (p0.y + p.y)/2 - 50, p.x, p.y); ctx.stroke(); ctx.setLineDash([]);
-    ctx.globalAlpha = 0.25 + Math.sin(gameTime*10)*0.08; ctx.fillStyle = '#7c9cff';
-    ctx.beginPath(); ctx.ellipse(p.x, p.y, 34, 20, 0, 0, Math.PI*2); ctx.fill();
-    ctx.globalAlpha = 0.9; ctx.strokeStyle = '#c8b8ff'; ctx.lineWidth = 2.5;
-    ctx.beginPath(); ctx.ellipse(p.x, p.y, 34, 20, 0, 0, Math.PI*2); ctx.stroke();
+  if (bor.est === 'tele' || bor.est === 'cura'){                         // el aura morada (la de curar, con verde)
+    const p = S(player.x, player.y - 22 - bor.z), k = bor.est === 'tele' ? clamp(bor.estT/0.2, 0, 1) : 0.6 + Math.sin(gameTime*20)*0.15;
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    const cura = bor.est === 'cura';
+    ctx.globalAlpha = cura ? 0.4 : 0.55 + 0.45*k; const r = 40 + 30*k; ctx.drawImage(borAura(), p.x - r, p.y - r*1.2, r*2, r*2.4);
+    if (cura){ ctx.globalAlpha = 0.14; ctx.fillStyle = '#7bffa0'; ctx.beginPath(); ctx.ellipse(p.x, p.y, 28, 40, 0, 0, Math.PI*2); ctx.fill(); }
     ctx.restore();
   }
   if ((bor.est === 'agarre' && (bor.agFase === 'sujeta')) && borPresa && !borPresa.dead){   // hacia dónde irá la patada
@@ -26289,7 +26455,8 @@ function drawBorosEfectos(){
       for (let i = 0; i < cols.length; i++){ ctx.fillStyle = cols[i] + (0.3*k) + ')'; ctx.beginPath(); ctx.arc(so.x, so.y, Math.max(0.5, (6 + i*(canon ? 7 : 4))*k + Math.sin(gameTime*30 + i)*1.5), 0, Math.PI*2); ctx.fill(); }
     } else {
       const u = (bor.estT - R.carga)/R.dura, ini = clamp(u/0.08, 0, 1), fin = clamp((1 - u)/0.12, 0, 1);
-      const L = R.largo*ini, ex = so.x + ca*L, ey = so.y + sa*L;
+      const ch = choque.on && choque.bor;
+      const L = ch ? choque.dv : R.largo*ini, ex = so.x + ca*L, ey = so.y + sa*L;
       if (canon){
         borHazDib(so.x, so.y, ex, ey, R.ancho*1.1, ['rgba(110,90,255,', '#8a70ff', '#f6f0ff'], fin);
         borHazDib(so.x, so.y, ex, ey, R.ancho*0.65, ['rgba(200,90,255,', '#c87aff', '#ffffff'], fin);
@@ -26297,6 +26464,7 @@ function drawBorosEfectos(){
         for (let i = 0; i < 7; i++){ const d = (gameTime*900 + i*L/7) % Math.max(1, L);
           ctx.beginPath(); ctx.ellipse(so.x + ca*d, so.y + sa*d, R.ancho*0.12, R.ancho*0.7*fin, bor.dirA, 0, Math.PI*2); ctx.stroke(); }
       } else borHazDib(so.x, so.y, ex, ey, R.ancho, ['rgba(70,220,255,', '#5ff2ff', '#e8ffff'], Math.min(1, fin + 0.15));
+      if (ch){ ctx.restore(); ctx.save(); drawChoqueRayos(); }
     }
     ctx.restore();
   }
@@ -26510,6 +26678,7 @@ function vilPresaContacto(){
   return null;
 }
 function vilPresaAgarra(t){
+  if (esLuchador(t)) rivalAgarrado(t);
   t.held = true; t.thrown = false; t.stunT = 0; t.stunVx = 0; t.stunVy = 0; t.byEnemy = false;
   if (t.rayoFase){ t.rayoFase = 'espera'; t.rayoT = rand(MBT_ESPERA[0], MBT_ESPERA[1]); }
   if (t.person || t.kind === 'civ') gritaAgarrado(t);
@@ -26594,7 +26763,7 @@ function vilPresaUpdate(dt){
     vilAtraviesa(vilPaso, x0, y0, player.x, player.y, 32, true);
     if (Math.random() < 0.8) addParticles(player.x - vil.fx*20, player.y - vil.fy*20, '#dfe8f4', 2, 90);
     if (t){
-      if (JEFES[t.type]){                                  // a un jefe no se le agarra: choca
+      if (JEFES[t.type] && !rivalAgarrable(t)){            // a un jefe no se le agarra: choca
         porJugador(()=> damageEnemy(t, VIL_JEFE_EMBISTE*2, t.x, t.y));
         anilloImpacto(player.x, player.y, 70, '#ffffff', 0.3);
         sfx('hit'); sfx('boom'); shake(12, 0.25); hitstop(0.06);
@@ -31904,13 +32073,15 @@ function pasosTutorial(h){
       ok: ()=> (TUT.ev.golpe || 0) >= 3 || vivos(TUT.lista) === 0, cuenta: ()=> Math.min(3, TUT.ev.golpe || 0) + '/3' },
     { tit:'RÁFAGA DE ENERGÍA', t:'Mantén ' + K_('draAle') + ' y apunta: se ve la franja. Al soltar, una lluvia de puñetazos azules y morados cae sobre toda la franja y acaba con un golpe que lo barre todo.', m:'Mantén RÁFAGA, apunta a los soldados y suelta.',
       prep(){ TUT.lista = [0, 1].map(i=> tutEnemigo('military', 130, i*0.5)); TUT.marca = TUT.lista[0]; }, ok: ()=> (TUT.ev.rafaga || 0) >= 1 },
-    { tit:'AGARRE Y DOS PATADAS', t:'Junto al soldado pulsa ' + K_('draCola') + ' (o clic derecho): lo agarras, una patada floja lo lanza hacia la mira, de un salto llegas hasta él y la segunda patada lo manda volando.', m:'Toca AGARRE junto al soldado.',
+    { tit:'AGARRE Y DOS PATADAS', t:'Junto al soldado haz clic derecho: lo agarras, una patada floja lo lanza hacia la mira, de un salto llegas hasta él y la segunda patada lo manda volando.', m:'Toca AGARRE junto al soldado.',
       prep(){ TUT.lista = [tutEnemigo('military', 80, 0)]; TUT.marca = TUT.lista[0]; },
       cada(){ if (bor.est !== 'agarre' && vivos(TUT.lista) === 0 && !(TUT.ev.agarre >= 1)){ TUT.lista = [tutEnemigo('military', 80, 0)]; TUT.marca = TUT.lista[0]; } },
       ok: ()=> (TUT.ev.agarre || 0) >= 1 && bor.est !== 'agarre' },
-    { tit:'PATADA VOLADORA', t:'Mantén ' + K_('borV') + ': apuntas el salto (si cae cerca de alguien, va a por él). Al soltar, saltas atravesando lo que haya y lo pateas.', m:'Mantén PATADA, apunta al tanque y suelta.',
-      prep(){ TUT.lista = [tutEnemigo('tank', 260, 0)]; TUT.marca = TUT.lista[0]; }, ok: ()=> (TUT.ev.patada || 0) >= 1 },
-    { tit:'EL RAYO DEL PECHO', t:'Mantén ' + K_('borB') + ' para apuntar (ves la línea del rayo) y suéltalo: sale del ojo de tu pecho. En la forma meteórica (regalo del OVNI) se convierte en un cañón colosal.', m:'Mantén RAYO, apunta y suelta.',
+    { tit:'GOLPE SOMBRA', t:'Pulsa ' + K_('draCola') + ' apuntando a un enemigo: te cubres de un aura morada, apareces a su espalda y le das un golpe que revienta en área. En la forma meteórica le das una paliza de golpes y patadas, lo subes por los aires y lo rematas de una patada.', m:'Toca SOMBRA (arrastra para elegir a quién).',
+      prep(){ TUT.lista = [tutEnemigo('tank', 260, 0)]; TUT.marca = TUT.lista[0]; }, ok: ()=> (TUT.ev.sombra || 0) >= 1 },
+    { tit:'CURACIÓN', t:'Pulsa ' + K_('magTel') + ': Boros ruge y recupera vida rápidamente (y algo de energía). Mientras ruge no se mueve.', m:'Toca CURAR.',
+      prep(){ hp = Math.max(1, maxHp()*0.5); }, ok: ()=> (TUT.ev.cura || 0) >= 1 },
+    { tit:'EL RAYO DEL PECHO', t:'Mantén ' + K_('magFue') + ' para apuntar (ves la línea del rayo) y suéltalo: sale del ojo de tu pecho. En la forma meteórica (regalo del OVNI) se convierte en un cañón colosal.', m:'Mantén RAYO, apunta y suelta.',
       prep(){ TUT.lista = [tutEnemigo('tank', 280, 0)]; TUT.marca = TUT.lista[0]; }, ok: ()=> (TUT.ev.rayo || 0) >= 1 }
   ];
   if (h === 'mago') return [
@@ -32999,7 +33170,7 @@ function leyPreparaSiguiente(){
 // ---- al empezar cada combate (desde startGame) ----
 function leyArranca(){
   clima = ley.clima; nubeK = clima === 'sol' ? 0 : 1; lluviaK = clima === 'lluvia' ? 1 : 0; climaMostrado = null;
-  ley.fase = 'espera'; ley.t = 0; ley.empX = ley.empY = 0; ley.cartelT = 0; ley.verdugo = '';
+  ley.fase = 'espera'; ley.t = 0; ley.empX = ley.empY = 0; ley.cartelT = 0; ley.verdugo = ''; rivAgarre = null;
   ovniCd = Math.max(20, rand(55, 90) - ley.ovni*14);       // el OVNI también se deja ver por aquí
 }
 // Dónde aparece un rival: cerca, en la calle y no encima de un edificio.
@@ -33054,6 +33225,7 @@ function updateLeyenda(dt){
   if (spawnTimers.car <= 0 && cars.filter(c => !c.held && !c.thrown).length < 10){ spawnCar(); spawnTimers.car = rand(3, 5); }
   if (ley.regen > 0 && hp > 0) hp = Math.min(maxHp(), hp + ley.regen*dt);
   if (ley.cartelT < 4.2) ley.cartelT += dt;
+  rivAgarreRevisa();
   ley.t += dt;
   if (ley.fase === 'espera'){
     if (!vil.intro && ley.t > 0.8){ leySueltaRivales(); ley.fase = 'lucha'; ley.t = 0; }
@@ -33178,16 +33350,52 @@ const RIV_BOR_RAYO_DPS = [0, 0, 95, 150], RIV_BOR_RAYO_ANCHO = [0, 0, 22, 46], R
 const RIV_VIL_RAYO_DPS = 70;
 function rivalBase(type, base){
   if (type === 'rivalBoros') Object.assign(base, { hp:RIV_BOR_HP, maxhp:RIV_BOR_HP, speed:175, w:46, h:84, grabbable:false,
-    fase:'', ft:0, cd:1.2, fo:2, anim:0, pose:null, ph:0, paso:0, golpeT:0, lado:0, combo:0, zCd:3, vCd:6, bCd:5, invT:0, rA:0, vx2:0, vy2:0, tx:0, ty:0, golpeo:0 });
+    fase:'', ft:0, cd:1.2, fo:2, anim:0, pose:null, ph:0, paso:0, golpeT:0, lado:0, combo:0, zCd:3, vCd:6, bCd:5, agCd:4, invT:0, rA:0, vx2:0, vy2:0, tx:0, ty:0, golpeo:0, z:0 });
   if (type === 'rivalVil') Object.assign(base, { hp:RIV_VIL_HP, maxhp:RIV_VIL_HP, speed:230, w:30, h:52, grabbable:false,
-    fase:'', ft:0, cd:1, anim:0, vuela:0, fx:1, fy:0, punchT:0, lado:1, combo:0, embCd:2.5, rayoCd:7, aterrizaT:0, rA:0, vx2:0, vy2:0, golpeo:0, furia:0 });
+    fase:'', ft:0, cd:1, anim:0, vuela:0, fx:1, fy:0, punchT:0, lado:1, combo:0, embCd:2.5, rayoCd:7, presaCd:5, aterrizaT:0, rA:0, vx2:0, vy2:0, golpeo:0, furia:0, giro:0 });
 }
 function rivAng(e){ return Math.atan2(player.y - e.y, player.x - e.x); }
+
+// ---- agarres entre luchadores ----
+// El viltrumita y Boros (los de la CPU) se dejan agarrar por la presa del
+// viltrumita y por la C de Boros, y ellos también te agarran a ti: el
+// viltrumita se te lleva volando a puñetazos, gira y te lanza; Boros te
+// sujeta, te patea, salta tras de ti y te remata con otra patada.
+function esLuchador(t){ return !!t && (t.type === 'rivalVil' || t.type === 'rivalBoros'); }
+function rivalAgarrable(t){ return esLuchador(t) && !t.dead && t.fase !== 'transforma' && !(t.invT > 0); }
+function rivalAgarrado(t){                         // lo que hacía se corta
+  if (rivAgarre === t) rivAgarreFin();
+  t.fase = ''; t.ft = 0; t.vuela = 0; t.golpeo = 1; t.z = 0; t.aterrizaT = 0;
+  t.cd = Math.max(t.cd || 0, 0.9);
+}
+let rivAgarre = null;                              // el rival que te tiene agarrado
+const RIV_AG_FASES = { presa:1, presaGira:1, ag:1 };
+function rivAgarreEmpieza(e){
+  rivAgarre = e;
+  if (isVil()){ if (vil.presaFase) vilPresaFin(); vil.presaApunta = false; vil.flying = false; vil.joyFly = false; vil.flyDir = ''; }
+  if (isBor() && bor.est){ borPresa = null; borPonEst(''); bor.z = 0; bor.zApunta = bor.bApunta = false; }
+  if (heldObject && heldObject.ref){ const o = heldObject.ref; o.held = false; o.thrown = false; heldObject = null; }
+  ley.empX = ley.empY = 0;
+  sfx('grab'); hitstop(0.06); shake(8, 0.2);
+  addParticles(player.x, player.y - 12, '#ffe9a0', 10, 140);
+}
+function rivAgarreFin(){ rivAgarre = null; }
+// Te deja quieto en (x, y): ni un paso mientras te tiene.
+function rivSujeta(x, y){
+  player.x = clamp(x, 30, WORLD_W - 30); player.y = clamp(y, 30, WORLD_H - 30);
+  player.vx = 0; player.vy = 0;
+  paralizadoT = Math.max(paralizadoT, 0.12);
+}
+// Si el que te agarra cae, lo agarran o se queda sin hacerlo, quedas libre.
+function rivAgarreRevisa(){
+  const e = rivAgarre;
+  if (e && (e.dead || e.held || e.thrown || !RIV_AG_FASES[e.fase] || hp <= 0)) rivAgarre = null;
+}
 
 // ---- Boros de la CPU ----
 function updateRivalBoros(e, dt, a, ang){
   e.anim += dt;
-  for (const k of ['golpeT', 'zCd', 'vCd', 'bCd', 'invT']) if (e[k] > 0) e[k] = Math.max(0, e[k] - dt);
+  for (const k of ['golpeT', 'zCd', 'vCd', 'bCd', 'agCd', 'invT']) if (e[k] > 0) e[k] = Math.max(0, e[k] - dt);
   if (e.hieloT > 0) return;
   // a media vida pasa a la forma meteórica
   if (e.fo === 2 && e.hp < e.maxhp*0.45 && !e.fase) rivBorTransforma(e, 3);
@@ -33226,6 +33434,40 @@ function updateRivalBoros(e, dt, a, ang){
     if (e.ft <= 0){ e.fase = 'v'; e.ft = 0.7; e.n = 0; }
     return;
   }
+  if (e.fase === 'ag'){                            // te sujeta delante...
+    rivSujeta(e.x + (e.facing || 1)*40, e.y + 2);
+    if (e.ft <= 0){                                // ...y la primera patada te despega
+      rivAgarreFin();
+      e.rA = e.facing > 0 ? 0 : Math.PI;
+      rivPega(e, 14 + e.fo*3, 480, e.rA, '#e8eef6');
+      addParticles(player.x, player.y - 16, '#e8eef6', 10, 150); sfxEn('hit', e.x, e.y, 0.9); shake(6, 0.12);
+      e.fase = 'agSalta'; e.ft = 0.55; e.golpeo = 0; sfxEn('dash', e.x, e.y, 0.7);
+      anilloPolvo(e.x, e.y + 12, 30, 12, '#9a9288');
+    }
+    return;
+  }
+  if (e.fase === 'agSalta'){                       // salta tras de ti y te remata
+    const d = dist(e.x, e.y, player.x, player.y), v = 1250*dt;
+    if (d > 4){ e.x += (player.x - e.x)*Math.min(1, v/d); e.y += (player.y - e.y)*Math.min(1, v/d); }
+    e.facing = player.x >= e.x ? 1 : -1;
+    e.z = Math.sin(clamp((0.55 - e.ft)/0.42, 0, 1)*Math.PI)*46;
+    if (!e.golpeo && (d < 40 || e.ft <= 0.08)){
+      e.golpeo = 1; e.rA = rivAng(e);
+      rivPega(e, 38 + e.fo*8, 1250, e.rA, '#b06aff');
+      for (let i = 0; i < 3; i++) addParticles(player.x, player.y - 20, i ? '#b56aff' : '#7a3cff', 12, 280);
+      anilloImpacto(player.x, player.y - 10, e.fo === 3 ? 130 : 100, '#b06aff', 0.4);
+      morados.push({ x:player.x, y:player.y - 20, a:e.rA, t:0.5 });
+      shake(14, 0.3); hitstop(0.08); sfx('bigboom');
+      e.fase = 'agFin'; e.ft = 0.32;
+    }
+    if (e.ft <= 0 && e.fase === 'agSalta'){ e.fase = 'agFin'; e.ft = 0.2; }
+    return;
+  }
+  if (e.fase === 'agFin'){
+    e.z = Math.max(0, e.z - 180*dt);
+    if (e.ft <= 0){ e.z = 0; e.fase = ''; e.cd = 0.9; e.agCd = rand(6, 9); anilloPolvo(e.x, e.y + 14, 40, 14, '#9a9288'); sfxEn('aterriza', e.x, e.y, 0.8); }
+    return;
+  }
   if (e.fase === 'v'){
     const n = Math.floor((0.7 - e.ft)/0.07);
     while (e.n < n && e.n < 10){
@@ -33248,6 +33490,7 @@ function updateRivalBoros(e, dt, a, ang){
   if (e.fase === 'b'){
     const ox = e.x + Math.cos(e.rA)*16, oy = e.y - 38;
     const L = RIV_BOR_RAYO_LARGO, wR = RIV_BOR_RAYO_ANCHO[e.fo];
+    if (choque.on && choque.e === e) return;                   // trabado en un choque de rayos
     if (inBeam(player.x, player.y, ox, oy + 30, e.rA, L, wR + F().r*0.4)) rivPega(e, RIV_BOR_RAYO_DPS[e.fo]*dt, 0, e.rA, e.fo === 3 ? '#c48aff' : '#58ecff');
     for (let i = 0; i < buildings.length; i++){ const b = buildings[i];
       if (b.stage >= 2) continue;
@@ -33262,6 +33505,10 @@ function updateRivalBoros(e, dt, a, ang){
   const parado = vil.intro;
   if (!parado && e.cd <= 0){
     e.rA = ang;
+    if (a < 64 && e.agCd <= 0 && !rivAgarre && Math.random() < 0.5){           // te agarra
+      e.fase = 'ag'; e.ft = 0.42; e.facing = Math.cos(ang) >= 0 ? 1 : -1;
+      rivAgarreEmpieza(e); return;
+    }
     if (a < 64){ e.fase = 'golpe'; e.ft = 0.24; e.golpeo = 0; e.lado = 1 - e.lado; return; }
     if (e.fo >= 2 && e.bCd <= 0 && a > 160 && a < 560){ e.fase = 'bAviso'; e.ft = 0.75; return; }
     if (e.zCd <= 0 && a > 140 && a < 460){ e.fase = 'zAviso'; e.ft = 0.42; return; }
@@ -33295,6 +33542,9 @@ function rivBorPoseObj(e){
     case 'v': { const k = Math.floor(t*16) % 2, j = Math.sin(t*90)*0.15;
       return k ? P({ lean:0.32, mF:0.55, rF:0.4, mB:-0.55, rB:0.3, bF:1.55 + j, cF:0.08, bB:0.6, cB:1.8 }) : P({ lean:0.32, mF:0.55, rF:0.4, mB:-0.55, rB:0.3, bF:0.6, cF:1.8, bB:1.5 - j, cB:0.1 }); }
     case 'bAviso': return P({ lean:-0.18, cab:-0.15, mF:0.4, rF:0.5, mB:-0.4, rB:0.4, bF:-0.5, cF:1.2, bB:-0.7, cB:1.0 });
+    case 'ag': return P({ lean:0.05, mF:0.2, rF:0.3, mB:-0.2, rB:0.4, bF:1.6, cF:0.02, bB:0.7, cB:1.6 });
+    case 'agSalta': return P({ suelo:0, alto:16, lean:-0.35, mF:1.45, rF:0.05, mB:-0.35, rB:1.5, bF:-0.6, cF:0.6, bB:-1.0, cB:0.5, cab:0.1 });
+    case 'agFin': return P({ suelo:0, alto:16, lean:-0.65, mF:1.85, rF:0, mB:-0.2, rB:0.5, bF:-0.9, cF:0.4, bB:0.5, cB:0.9 });
     case 'b': return P({ lean:-0.38, cab:-0.25, mF:0.45, rF:0.35, mB:-0.5, rB:0.3, bF:-0.8, cF:0.4, bB:-1.0, cB:0.3 });
     case 'golpe': return e.combo >= 2 ? P({ lean:0.5, mF:0.85, rF:0.25, mB:-0.7, rB:0.2, bF:1.62, cF:0.02, bB:0.3, cB:1.9 })
                                       : e.lado ? P({ lean:0.18, mF:0.35, rF:0.35, mB:-0.35, rB:0.3, bF:0.2, cF:1.9, bB:1.58, cB:0.12 })
@@ -33340,10 +33590,15 @@ function drawRivalBoros(e){
   _rivBorSt.pose = e.pose; _rivBorSt.cara = e.facing || 1; _rivBorSt.forma = met ? 1 : 0;
   _rivBorSt.cargaPecho = e.fase === 'bAviso' ? clamp(1 - e.ft/0.75, 0, 1) : e.fase === 'b' ? 1 : 0;
   _rivBorSt.brilloPuno = e.fase === 'v' || e.fase === 'vAviso' ? 0.8 : 0; _rivBorSt.viento = e.fase === 'z' ? 0.5 : 0;
-  const z = e.fase === 'z' ? 14 : 0;
+  const z = e.fase === 'z' ? 14 : (e.z || 0);
   borFigura(ctx, _rivBorSt, s.x, pies - z, { t:e.anim, esc:RIV_BOR_ESC });
   ctx.globalAlpha = 1;
-  if (e.fase === 'b') rivRayo(s.x + Math.cos(e.rA)*10, pecho, e.rA, RIV_BOR_RAYO_LARGO, RIV_BOR_RAYO_ANCHO[e.fo], met, e.anim);
+  if (e.fase === 'b'){
+    const tr = choque.on && choque.e === e, x0 = s.x + Math.cos(e.rA)*10;
+    let a = e.rA, L = RIV_BOR_RAYO_LARGO;
+    if (tr){ const q = S(choque.px, choque.py); a = Math.atan2(q.y - pecho, q.x - x0); L = Math.hypot(q.x - x0, q.y - pecho); }
+    rivRayo(x0, pecho, a, L, RIV_BOR_RAYO_ANCHO[e.fo], met, e.anim);
+  }
 }
 // El rayo del pecho, visto desde fuera (cian; en la meteórica, azul y morado).
 function rivRayo(x, y, a, L, w, oro, t){
@@ -33365,7 +33620,7 @@ function rivRayo(x, y, a, L, w, oro, t){
 // ---- el viltrumita de la CPU ----
 function updateRivalVil(e, dt, a, ang){
   e.anim += dt;
-  for (const k of ['punchT', 'embCd', 'rayoCd', 'aterrizaT']) if (e[k] > 0) e[k] = Math.max(0, e[k] - dt);
+  for (const k of ['punchT', 'embCd', 'rayoCd', 'presaCd', 'aterrizaT']) if (e[k] > 0) e[k] = Math.max(0, e[k] - dt);
   if (e.hieloT > 0) return;
   if (!e.furia && e.hp < e.maxhp*0.4){ e.furia = 1; toast('¡EL VILTRUMITA SE ENFURECE!', 2.5); sfx('sonicboom'); }
   e.ft -= dt;
@@ -33389,11 +33644,46 @@ function updateRivalVil(e, dt, a, ang){
     e.x += e.fx*v*dt; e.y += e.fy*v*dt;
     collideBuildings(e, 18, dt, 1100);
     e.x = clamp(e.x, 50, WORLD_W - 50); e.y = clamp(e.y, 50, WORLD_H - 50);
+    if (!e.golpeo && dist(e.x, e.y, player.x, player.y) < 50 && e.presaCd <= 0 && !rivAgarre && hp > 0){
+      // te agarra al vuelo: se te lleva a puñetazos
+      e.golpeo = 1; e.fase = 'presa'; e.ft = 1.5; e.golpeT = 0.18; e.vuela = 1;
+      rivPega(e, 12, 0, e.rA, '#ffffff'); rivAgarreEmpieza(e);
+      anilloImpacto(player.x, player.y, 70, '#e6f0ff', 0.3);
+      return;
+    }
     if (!e.golpeo && dist(e.x, e.y, player.x, player.y) < 50){
       e.golpeo = 1; rivPega(e, 42 + e.furia*10, 1000, e.rA, '#ffffff');
       anilloImpacto(player.x, player.y, 100, '#e6f0ff', 0.3); hitstop(0.05); sfx('caidaGolpe');
     }
     if (e.ft <= 0){ e.fase = ''; e.vuela = 0; e.aterrizaT = 0.3; e.cd = 0.6; e.embCd = rand(3.5, 5.5) - e.furia; }
+    return;
+  }
+  if (e.fase === 'presa'){                     // vuela contigo delante, a puñetazos
+    const v = 360;
+    e.x = clamp(e.x + e.fx*v*dt, 60, WORLD_W - 60); e.y = clamp(e.y + e.fy*v*dt, 60, WORLD_H - 60);
+    vilAtraviesa(e._paso || (e._paso = { edif:null }), e.x - e.fx*v*dt, e.y - e.fy*v*dt, e.x, e.y, 18, true);
+    e.facing = e.fx >= 0 ? 1 : -1;
+    rivSujeta(e.x + e.fx*36, e.y + e.fy*36);
+    e.golpeT -= dt;
+    if (e.golpeT <= 0){
+      e.golpeT = 0.27; e.punchT = 0.12; e.lado = -e.lado || 1;
+      rivPega(e, 8 + e.furia*3, 0, e.rA, '#ffd0c0'); shake(3, 0.06);
+    }
+    if (e.ft <= 0 || hp <= 0){ e.fase = 'presaGira'; e.ft = 0.5; e.giro = 0; e.vuela = 0; sfxEn('whoosh', e.x, e.y, 0.9); }
+    return;
+  }
+  if (e.fase === 'presaGira'){                 // gira sobre sí mismo contigo y te lanza
+    e.giro += dt*22;
+    const a0 = Math.atan2(e.fy, e.fx) + e.giro;
+    rivSujeta(e.x + Math.cos(a0)*34, e.y + Math.sin(a0)*26);
+    if (e.ft <= 0){
+      rivAgarreFin();
+      const la = Math.atan2(player.y - e.y, player.x - e.x);
+      rivPega(e, 30 + e.furia*8, 1400, la, '#ffffff');
+      windRings.push({ x:e.x, y:e.y, ang:la, r:20, life:0.4, max:0.4 });
+      sfxEn('fling', e.x, e.y); sfx('throw'); shake(10, 0.2); hitstop(0.05);
+      e.fase = ''; e.cd = 0.8; e.aterrizaT = 0.3; e.presaCd = rand(7, 10) - e.furia*2; e.embCd = rand(3, 4.5);
+    }
     return;
   }
   if (e.fase === 'rayoAviso'){
@@ -33405,6 +33695,7 @@ function updateRivalVil(e, dt, a, ang){
     let d = ang - e.rA; d = Math.atan2(Math.sin(d), Math.cos(d)); e.rA += clamp(d, -dt*0.9, dt*0.9);
     e.facing = Math.cos(e.rA) >= 0 ? 1 : -1;
     const ox = e.x + e.facing*4, oy = e.y - 18;
+    if (choque.on && choque.e === e) return;                   // trabado en un choque de rayos
     if (inBeam(player.x, player.y, ox, oy + 18, e.rA, 520, 10 + F().r*0.4)) rivPega(e, RIV_VIL_RAYO_DPS*dt, 0, e.rA, '#ff5a3a');
     for (let i = 0; i < buildings.length; i++){ const b = buildings[i];
       if (b.stage < 2 && inBeam(b.x + b.w/2, b.y + b.h/2, ox, oy + 18, e.rA, 520, Math.min(b.w, b.h)/2)) damageBuilding(b, 90*dt); }
@@ -33441,10 +33732,12 @@ function drawRivalVil(e){
   ctx.save();
   ctx.translate(s.x, s.y + (vol ? 0 : Math.sin(e.anim*2.4)*2.2));
   let pose;
-  if (vol){ ctx.rotate(Math.atan2(e.fx, -e.fy)); if (e.fx < 0) ctx.scale(-1, 1); pose = 'vuelo'; }
+  if (e.fase === 'presa'){ ctx.scale(e.facing || 1, 1); pose = 'presa'; }
+  else if (e.fase === 'presaGira'){ ctx.scale(Math.cos(e.giro) >= 0 ? 1 : -1, 1); pose = 'giro'; }
+  else if (vol){ ctx.rotate(Math.atan2(e.fx, -e.fy)); if (e.fx < 0) ctx.scale(-1, 1); pose = 'vuelo'; }
   else { ctx.scale(e.facing || 1, 1); pose = e.fase === 'carga' ? 'carga' : e.fase === 'golpe' ? 'golpe' : e.aterrizaT > 0 ? 'aterriza' : 'quieto'; }
   ctx.scale(0.9, 0.9);
-  vilFigura(ctx, { t:e.anim, pose, punchT:e.fase === 'golpe' ? Math.max(0.01, e.ft) : 0, golpeLado:e.lado || 1, manos:0,
+  vilFigura(ctx, { t:e.anim, pose, punchT:e.fase === 'golpe' ? Math.max(0.01, e.ft) : e.fase === 'presa' ? e.punchT : 0, golpeLado:e.lado || 1, manos:0,
                    carga: e.fase === 'carga' ? clamp(1 - e.ft/0.45, 0, 1) : 1, la:0, agarre:null, sangre:null, pal:RIV_VIL_PAL, SK:null, cabeza:null });
   ctx.restore();
   if (e.furia){                                // aura roja de furia
@@ -33462,11 +33755,14 @@ function drawRivalVil(e){
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
     if (e.fase === 'rayoAviso'){ ctx.globalAlpha = 0.6; ctx.fillStyle = '#ff5a3a'; ctx.beginPath(); ctx.arc(ox, oy, 4 + (0.5 - e.ft)*10, 0, Math.PI*2); ctx.fill(); }
     else {
+      // trabado en un choque de rayos: acaba en el punto del choque
+      let fx = ox + Math.cos(e.rA)*520, fy = oy + Math.sin(e.rA)*520;
+      if (choque.on && choque.e === e){ const q = S(choque.px, choque.py); fx = q.x; fy = q.y; }
       for (const dy of [-1.6, 1.6]){
         ctx.globalAlpha = 0.45; ctx.strokeStyle = '#ff2a1a'; ctx.lineWidth = 7;
-        ctx.beginPath(); ctx.moveTo(ox, oy + dy); ctx.lineTo(ox + Math.cos(e.rA)*520, oy + dy + Math.sin(e.rA)*520); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(ox, oy + dy); ctx.lineTo(fx, fy + dy); ctx.stroke();
         ctx.globalAlpha = 0.9; ctx.strokeStyle = '#ffd0b0'; ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.moveTo(ox, oy + dy); ctx.lineTo(ox + Math.cos(e.rA)*520, oy + dy + Math.sin(e.rA)*520); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(ox, oy + dy); ctx.lineTo(fx, fy + dy); ctx.stroke();
       }
     }
     ctx.restore();
@@ -33550,7 +33846,7 @@ function textoControles(h){
   if (h === 'viltrum') return mov + ' moverte · <b>Clic</b> golpeas (se puede mantener para cargar) · <b>Doble toque</b> a ' + mov + ': vuelo hipersónico · <b>Clic derecho</b> agarras y lanzas · <b>Mantén</b> ' + K('draCola') + ' presa';
   if (h === 'dragon')  return mov + ' moverte · <b>Clic</b> mordisco · <b>Clic derecho</b> rayos · ' + K('draAle') + ' aletazo · <b>Mantén</b> ' + K('draCola') + ' embestida · ' + K('magTel') + ' rugido (recupera estamina) · <b>Doble toque</b> a ' + mov + ': volar';
   if (h === 'maquina') return mov + ' moverte (mantén una dirección para acelerar) · <b>Clic</b> atacas (se puede mantener) · <b>Clic derecho</b> cambias de arma · <b>Mantén</b> ' + K('draAle') + ' apuntas la incineración y al soltar la lanzas · <b>Mantén</b> ' + K('draCola') + ' motosierras';
-  if (h === 'boros')   return mov + ' moverte (doble toque o mantener: correr) · <b>Clic</b> combo de puñetazos · ' + '<b>Mantén</b> ' + K('draAle') + ' ráfaga de energía · ' + K('draCola') + ' agarre y dos patadas · <b>Mantén</b> ' + K('borV') + ' patada voladora · <b>Mantén</b> ' + K('borB') + ' rayo del pecho';
+  if (h === 'boros')   return mov + ' moverte (doble toque o mantener: correr) · <b>Clic</b> combo de puñetazos · ' + '<b>Mantén</b> ' + K('draAle') + ' ráfaga de energía · <b>Clic der.</b> agarre y dos patadas · ' + K('draCola') + ' golpe sombra · <b>Mantén</b> ' + K('magFue') + ' rayo del pecho · ' + K('magTel') + ' curación';
   if (h === 'mago')    return mov + ' flotar · <b>Clic</b> rayo · <b>Mantén clic derecho</b> telequinesis · ' + K('draAle') + ' hielo · ' + K('draCola') + ' escudo · ' + K('magFue') + ' fuego · ' + K('magTel') + ' teletransporte';
   return mov + ' moverte · <b>Clic</b> agarras (' + K('grab') + ') y, con algo agarrado, golpeas · <b>Clic derecho</b> lanzas (' + K('throw') + ') · Devora para evolucionar a <b>COLOSO</b>';
 }
@@ -34459,7 +34755,7 @@ const MODO_TEXTOS = {
   mago:    ['Eres el <b>Mago Aberrante</b>: rayos del cielo, telequinesis, hielo y escudo. Cada hechizo gasta maná.',
             '<b>WASD</b> · <b>Click</b> rayos · <b>Click der.</b> telequinesis · <b>Z</b> congelar · <b>C</b> escudo'],
   boros:   ['Eres <b>Boros</b>, el dominador del universo: combos de puñetazos, lluvia de golpes y su <b>forma meteórica</b>.',
-            '<b>WASD</b> · <b>Click</b> combo · <b>Z</b> lluvia de puñetazos · <b>C</b> agarre · <b>V</b> patada · <b>B</b> rayo']
+            '<b>WASD</b> · <b>Click</b> combo · <b>Click der.</b> agarre · <b>Z</b> lluvia de puñetazos · <b>C</b> golpe sombra · <b>X</b> rayo · <b>R</b> curar']
 };
 function refreshModeText(){
   const d = document.getElementById('descInvasion'), c = document.getElementById('ctlInvasion');
@@ -34914,11 +35210,12 @@ function fichaHeroe(h){
       t: [[mover, 'Moverse (doble toque o mantener la dirección: correr atravesando edificios y arrollando a la gente)'],
           ['Click izq. / ' + K('grab'), 'Combo de tres puñetazos; el tercero manda a volar (mantén para encadenarlos)'],
           ['Mantén ' + K('draAle'), 'Ráfaga de energía: marcas una franja amplia y al soltar llueven puñetazos azules y morados sobre ella, con un golpe final que lo barre todo'],
-          [K('draCola') + ' / click der.', 'Agarre: una patada floja lo lanza, de un salto llegas hasta él y la segunda patada lo manda volando entre chispas moradas'],
-          ['Mantén ' + K('borV'), 'Patada voladora: apunta el salto y suelta; atraviesa edificios y patea a quien pille'],
-          ['Mantén ' + K('borB'), 'Apunta el rayo del pecho (ves su línea) y suéltalo; en la forma meteórica, el Rugiente Cañón de Estrella Colapsante'],
+          ['Click der.', 'Agarre: una patada floja lo lanza, de un salto llegas hasta él y la segunda patada lo manda volando entre chispas moradas'],
+          [K('draCola'), 'Golpe sombra: te cubres de un aura morada, apareces a la espalda del enemigo y le das un golpe en área. En la forma meteórica, una paliza de golpes y patadas, lo subes por los aires y lo rematas de una patada'],
+          ['Mantén ' + K('magFue'), 'Apunta el rayo del pecho (ves su línea) y suéltalo; choca con cualquier otro rayo y lo empuja muy rápido. En la forma meteórica, el Rugiente Cañón de Estrella Colapsante'],
+          [K('magTel'), 'Curación: ruge y recupera vida rápidamente'],
           ['OVNI', 'Forma meteórica: corre más, pega más fuerte, arde en llamas azules y moradas y abrasa lo que toca']],
-      m: 'GOLPE (mantén: combo) y AGARRE al tocarlos; RÁFAGA, PATADA y RAYO son joysticks: mantén, apunta y suelta. Joystick al tope para correr.' }
+      m: 'GOLPE (mantén: combo), AGARRE y CURAR al tocarlos; SOMBRA al soltar (arrastra para elegir a quién); RÁFAGA y RAYO son joysticks: mantén, apunta y suelta. Joystick al tope para correr.' }
   };
   return f[normHeroe(h)];
 }
