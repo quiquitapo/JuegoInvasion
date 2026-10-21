@@ -2029,10 +2029,6 @@
         <button type="button" class="togglebtn" id="tgTemblor">ON</button>
       </div>
       <div class="bindrow">
-        <span class="bindname">Modo rendimiento <small id="rendEstado" style="color:#8fbfa2"></small></span>
-        <button type="button" class="togglebtn" id="tgRend">AUTO</button>
-      </div>
-      <div class="bindrow">
         <span class="bindname">Tamaño de los mandos <b id="uiSizeWho" style="color:#8fd7ff"></b></span>
         <span style="display:flex; gap:6px; align-items:center">
           <button type="button" class="togglebtn" id="tgUiAuto">AUTO</button>
@@ -4721,7 +4717,7 @@ let VW = CW / ZOOM, VH = CH / ZOOM;                    // mundo visible (unidade
 // Retina…) el navegador estiraba el lienzo y todo se veía borroso; ahora se
 // dibuja a la densidad de la pantalla, con un tope de 2×. Si el equipo no
 // aguanta el ritmo, vigilaRendimiento() lo devuelve a 1× para que no haya lag.
-let DPR = 1, dprTope = 2;
+let DPR = 1, dprTope = 1.5;                  // en pantallas muy densas basta 1,5x: no se nota y pinta casi la mitad
 let _congelado = false;            // partida parada y ya pintada (ver mundoCongelado)
 function resize(){
   _congelado = false;                            // el tamaño cambió: hay que repintar
@@ -6524,7 +6520,7 @@ function drawFlameCone(e){
 // cada fotograma se reconstruía el array entero con filter: mucha basura para
 // el recolector. Ahora se reciclan y se compactan intercambiando posiciones.
 const PART_MAX = 520;                 // el depósito de partículas
-let partN = 0, partMax = PART_MAX;
+let partN = 0, partMax = 400;               // tope en uso (el depósito es algo mayor)
 (function initParticles(){
   for (let i=0;i<PART_MAX;i++)
     particles.push({x:0,y:0,vx:0,vy:0,life:0,maxlife:1,color:'#fff',r:3,drag:0.9,grow:0});
@@ -24148,41 +24144,15 @@ function refreshOvniVsUI(){
 
 // Temblor de pantalla (Ajustes > Pantalla y sonido): apagado, los golpes y
 // explosiones ya no sacuden la cámara (lo demás del impacto sigue igual).
-// ---- MODO RENDIMIENTO ----
-// Para equipos flojos (p. ej. un Celeron de dos núcleos con 4 GB): menos
-// píxeles, luz nocturna a menor resolución, menos partículas y sin los
-// detalles del suelo que más rellenan. En AUTO se activa solo si el equipo es
-// de dos núcleos o menos, o si en partida va muy mal; en AJUSTES se puede
-// forzar (SÍ) o apagar (NO).
-let rendPref = 'auto', rendAuto = false;
-const REND_DPR = 0.6;
+// ---- CALIDAD ----
+// Un solo modo, ligero sin que se note: la resolución baja sola (y se
+// recuerda) si el equipo no da abasto, y en equipos de dos núcleos o menos
+// (p. ej. un Celeron con 4 GB) ya empieza algo más baja.
 const equipoFlojo = (navigator.hardwareConcurrency || 4) <= 2 || (navigator.deviceMemory > 0 && navigator.deviceMemory <= 2);
-if (equipoFlojo) rendAuto = true;
-function modoRend(){ return rendPref === 'on' || (rendPref === 'auto' && rendAuto); }
-function aplicaRend(){
-  const on = modoRend();
-  partMax = on ? PART_MAX >> 1 : PART_MAX;
-  LIGHT_DS = on ? 8 : 4;
-  if (on) dprTope = Math.min(dprTope, REND_DPR);
-  else if (rendPref === 'off' || dprTope < 1) dprTope = 2;       // vuelve a la resolución normal
-  perf.t = 0; perf.n = 0; perf.lento = 0;
-  resize(); refreshRendUI();
-}
-async function loadRend(){
-  const v = await storeGet('invasion_rend'); rendPref = v === 'on' || v === 'off' ? v : 'auto';
-  if (await storeGet('invasion_rend_auto') === '1') rendAuto = true;   // ya se vio que este equipo va lento
-  aplicaRend();
-}
-function saveRend(){ storeSet('invasion_rend', rendPref); }
-function refreshRendUI(){
-  const b = document.getElementById('tgRend'), e = document.getElementById('rendEstado'); if (!b) return;
-  b.textContent = rendPref === 'on' ? 'SÍ' : rendPref === 'off' ? 'NO' : 'AUTO';
-  b.classList.toggle('off', rendPref === 'off');
-  if (e) e.textContent = rendPref === 'auto' ? (rendAuto ? '· activo: este equipo va lento' : '· se activa solo si va lento') : rendPref === 'on' ? '· siempre activo' : '· apagado';
-}
-function cambiaRend(){
-  rendPref = rendPref === 'auto' ? 'on' : rendPref === 'on' ? 'off' : 'auto';
-  saveRend(); aplicaRend(); sfx('ui');
+async function loadCalidad(){
+  let d = parseFloat(await storeGet('invasion_dpr'));
+  if (!(d > 0.5 && d < 1)) d = equipoFlojo ? 0.8 : dprTope;
+  dprTope = Math.min(dprTope, d); resize();
 }
 let temblorOn = true;
 async function loadTemblor(){ const v = await storeGet('invasion_temblor'); temblorOn = v !== 'off'; refreshTemblorUI(); }
@@ -29663,7 +29633,7 @@ function drawClima(){
   if (lluviaK > 0.01){
     const roja = esInfierno() ? 1 : 0;
     pintaGotas(gotasLluvia(0, roja), -(gameTime*900*0.28), gameTime*900, lluviaK*0.75);
-    if (!modoRend()) pintaGotas(gotasLluvia(1, roja), -(gameTime*1250*0.3 + 37), gameTime*1250 - 11, lluviaK*0.6);
+    pintaGotas(gotasLluvia(1, roja), -(gameTime*1250*0.3 + 37), gameTime*1250 - 11, lluviaK*0.6);
   }
   // 4) salpicaduras en el suelo: un puñado fijo que se recicla, nunca crece
   if (lluviaK > 0.25) drawSalpicaduras();
@@ -29718,7 +29688,7 @@ function drawLampProp(l){
 // Antes se hacía a pantalla completa con 'lighter' y un halo por farola.
 // Ahora todo se resuelve en un búfer a 1/3 de resolución (9x menos píxeles)
 // y se vuelca al lienzo con un único drawImage.
-let LIGHT_DS = 4;                         // factor de reducción del búfer de luz (8 en el modo rendimiento)
+const LIGHT_DS = 4;                       // factor de reducción del búfer de luz (el mismo que el de la viñeta)
 let lightCv = null, lightCtx = null, lightW = 0, lightH = 0;
 let holeSprite = null, warmSprite = null, cianSprite = null;
 let focoHazM = null, luzAzul = null, luzFuego = null, luzBlanca = null, luzRoja = null, luzAmarilla = null;
@@ -30116,16 +30086,6 @@ function overlayFase(){
 function drawLighting(){
   const p = phase();
   const oscuro = oscuridadAhora();
-  if (modoRend()){                                   // modo rendimiento: la noche es un velo de una sola pasada
-    if (oscuro > 0.004){
-      ctx.fillStyle = esAlien() ? `rgba(16,8,34,${oscuro*0.93})` : esInfierno() ? `rgba(30,4,4,${oscuro*0.93})` : `rgba(5,10,32,${oscuro*0.93})`;
-      ctx.fillRect(0, 0, CW, CH);
-      drawVentanasNoche(oscuro); drawBombillas(oscuro);
-    }
-    drawClima();
-    if (esInfierno() && running) drawCenizas();
-    return;
-  }
   if (oscuro > 0.004){
     ensureLightBuf();
     const L = lightCtx, k = ZOOM/LIGHT_DS;
@@ -30201,11 +30161,14 @@ function drawLighting(){
       lucesJefes(L, k, mx, Mx, my, My, true);
       L.globalCompositeOperation = 'source-over';
     }
+    // la graduación y la viñeta van dentro del mismo búfer (misma resolución):
+    // un volcado a pantalla completa menos cada fotograma de noche
+    L.globalCompositeOperation = 'source-over';
+    L.drawImage(overlayFase(), 0, 0, lightW, lightH);
     ctx.drawImage(lightCv, 0, 0, CW, CH);          // un solo volcado a pantalla
     drawVentanasNoche(oscuro);
     drawBombillas(oscuro);
-  }
-  ctx.drawImage(overlayFase(), 0, 0, CW, CH);   // graduación + viñeta, de una vez
+  } else ctx.drawImage(overlayFase(), 0, 0, CW, CH);   // de día: graduación + viñeta, de una vez
   drawClima();                                   // nubes y lluvia por encima
   if (esInfierno() && running) drawCenizas();
 }
@@ -30393,7 +30356,7 @@ function actualizaSol(){
 function sombra(sx, sy, w, h, fuerza){
   const sp = sombraSp();
   const a = (fuerza === undefined ? 1 : fuerza) * solFuerza;
-  if (a <= (modoRend() ? 0.25 : 0.02)) return;      // modo rendimiento: sin las sombras tenues (noche, atardecer)
+  if (a <= 0.1) return;                             // las casi invisibles no se pintan
   const ww = w * solLargo, hh = h;
   ctx.globalAlpha = a;
   ctx.drawImage(sp, sx - ww/2 + w*solX, sy - hh/2 + h*solY, ww, hh);
@@ -30701,8 +30664,7 @@ function updateHumoEdif(dt){
   }
 }
 function drawHumoEdif(){
-  const salta = modoRend() ? 2 : 1;                 // en el modo rendimiento, la mitad de las bocanadas
-  for (let i = 0; i < humoEdif.length; i += salta){ const p = humoEdif[i];
+  for (const p of humoEdif){
     const k = p.t/p.max;
     const s = S(p.x, p.y);
     if (s.x < -40 || s.y < -40 || s.x > VW + 40 || s.y > VH + 40) continue;
@@ -30806,12 +30768,10 @@ function drawBuildings(){
     const alto = 0.55 + edifPisos(b)*0.16;          // los altos proyectan más sombra
     const desX = 7 + solX * 26 * solLargo * alto;
     const desY = 9 + solY * 26 * solLargo * alto;
-    if (!modoRend()){                              // en el modo rendimiento, sin la sombra del edificio
-      ctx.globalAlpha = 0.26 * solFuerza;
-      ctx.fillStyle = '#000';
-      ctx.fillRect(s2.x + desX, s2.y + desY, b.w, b.h);
-      ctx.globalAlpha = 1;
-    }
+    ctx.globalAlpha = 0.26 * solFuerza;
+    ctx.fillStyle = '#000';
+    ctx.fillRect(s2.x + desX, s2.y + desY, b.w, b.h);
+    ctx.globalAlpha = 1;
 
     const cv0 = edifCanvas(b, b.stage);
     const cv = cv0 && b._aguj && b._aguj.length ? edifAgujereado(b, cv0) : cv0;   // con los boquetes del viltrumita
@@ -31501,8 +31461,8 @@ function draw(){
   actualizaSol();
   preparaHuecosSuelo();
   drawBackground(); drawRoads();
-  if (esInfierno()){ drawRestosJefes(); drawCraterInf(); drawCharcosLava(); } else if (!modoRend()) drawCharcosAgua();
-  if (!modoRend()) drawManchasLuz();   // profundidad del suelo, un solo relleno (fuera en el modo rendimiento)
+  if (esInfierno()){ drawRestosJefes(); drawCraterInf(); drawCharcosLava(); } else drawCharcosAgua();
+  drawManchasLuz();                    // profundidad del suelo, un solo relleno
   drawBuildings(); drawPlanters(); drawLamps();
   // Las zonas marcadas del Artillero van DESPUÉS de los edificios: si no, los
   // escombros las tapaban justo donde más falta hace verlas.
@@ -33176,23 +33136,19 @@ const perf = { t:0, n:0, lento:0 };
 // extra de las pantallas densas y, si aún no alcanza, a una resolución algo
 // menor (el navegador la estira a pantalla completa). Solo baja, nunca sube
 // sola: así no da tirones yendo y viniendo.
-const DPR_PASOS = [1, 0.8, 0.67];
+const DPR_PASOS = [1, 0.8, 0.67, 0.6];
 function vigilaRendimiento(ms){
   if (!running || document.hidden || ms <= 0 || ms > 250) return;
-  const minimo = rendPref === 'off' ? 1 : DPR_PASOS[DPR_PASOS.length - 1];   // con el modo apagado no baja de la resolución normal
-  const alFondo = DPR <= minimo + 0.001;
-  if (alFondo && (rendPref !== 'auto' || rendAuto)) return;
+  if (DPR <= DPR_PASOS[DPR_PASOS.length - 1] + 0.001) return;
   perf.t += ms; perf.n++;
   if (perf.t < 2000) return;
   const media = perf.t / perf.n;
   perf.t = 0; perf.n = 0;
-  // ya en lo mínimo: si sigue muy por debajo de 30 fps, entra el modo rendimiento
-  const umbral = alFondo ? 1000/28 : 1000/(DPR > 1 ? 45 : 40);
-  if (media > umbral){
+  if (media > 1000/(DPR > 1 ? 45 : 40)){
     if (++perf.lento >= 2){
       perf.lento = 0;
-      if (alFondo){ rendAuto = true; storeSet('invasion_rend_auto', '1'); aplicaRend(); toast('MODO RENDIMIENTO ACTIVADO · puedes cambiarlo en AJUSTES', 3.5); }
-      else { dprTope = DPR > 1 ? 1 : DPR_PASOS.find(d => d < DPR - 0.001) || DPR; resize(); }
+      dprTope = DPR > 1 ? 1 : DPR_PASOS.find(d => d < DPR - 0.001) || DPR; resize();
+      if (dprTope < 1) storeSet('invasion_dpr', String(dprTope));   // la próxima vez ya empieza así
     }
   } else perf.lento = 0;
 }
@@ -34956,7 +34912,7 @@ document.getElementById('importFile').addEventListener('change', e=>{
       SaveIO.data = obj;
       SaveIO.flush();
       await loadDex(); await loadBinds(); await loadShop(); await loadAudioPrefs();
-      await loadTouchPref(); await loadBindsP2(); await loadMenuAnim(); await loadHpBars(); await loadNumeros(); await loadTemblor(); await loadRend(); await loadMapa();
+      await loadTouchPref(); await loadBindsP2(); await loadMenuAnim(); await loadHpBars(); await loadNumeros(); await loadTemblor(); await loadCalidad(); await loadMapa();
       sanitizeBinds(); renderBinds(); renderBindsP2();
       refreshCoinLabels(); refreshAudioUI(); refreshTouchUI(); refreshAnimUI(); refreshHpUI(); refreshNumUI();
       applyAudioVolumes(); await renderScoreList();
@@ -35530,7 +35486,6 @@ const _edB = document.getElementById('uiEdBack');
 if (_edB) _edB.addEventListener('click', ()=>{ hide('uieditor'); show('controles'); sfx('ui'); });
 
 document.getElementById('tgTemblor').addEventListener('click', ()=>{ temblorOn = !temblorOn; saveTemblor(); refreshTemblorUI(); sfx('ui'); });
-document.getElementById('tgRend').addEventListener('click', cambiaRend);
 document.getElementById('tgHp').addEventListener('click', ()=>{
   showHpBars = !showHpBars;
   saveHpBars(); refreshHpUI(); sfx('ui');
@@ -37418,7 +37373,7 @@ document.getElementById('btnMenu').addEventListener('click', async ()=>{
     ['Cargando controles',        async ()=>{ await loadBinds(); await loadBindsP2(); }],
     ['Cargando monedas y tienda', async ()=>{ await loadShop(); await loadImgSkins(); }],
     ['Cargando preferencias',     async ()=>{ await loadAudioPrefs(); await loadTouchPref();
-                                              await loadMenuAnim(); await loadHpBars(); await loadNumeros(); await loadTemblor(); await loadRend(); await loadHero(); await loadMapa(); await loadLeyenda();
+                                              await loadMenuAnim(); await loadHpBars(); await loadNumeros(); await loadTemblor(); await loadCalidad(); await loadHero(); await loadMapa(); await loadLeyenda();
                                               await loadOvniVs(); refreshOvniVsUI();
                                               await loadOnlinePrefs(); refreshOnlineUI();
                                               await loadUICfg(); }],
