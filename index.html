@@ -1649,8 +1649,7 @@
       <div class="modecard" id="cardInvasion">
         <div class="modename">INVASIÓN</div>
         <div class="modetag">Supervivencia · el modo principal</div>
-        <div class="modedesc" id="descInvasion">Devora civiles, evoluciona de <b>CRÍA</b> a <b>COLOSO</b> y aguanta oleadas cada vez más duras. ¡Consigue el mayor puntaje!</div>
-        <div class="modectl" id="ctlInvasion"><b>WASD</b> moverse · <b>Click</b> agarrar · <b>Click der.</b> lanzar</div>
+        <div class="modedesc" id="descInvasion">Tú contra el <b>ejército</b> y sus <b>jefes</b>.</div>
         <div class="playrow">
           <canvas class="modeanim" id="animInvasion" width="230" height="130"></canvas>
           <span class="btnwrap">
@@ -1663,7 +1662,7 @@
       <div class="modecard" id="cardLeyenda">
         <div class="modename">VS LEGENDARIO</div>
         <div class="modetag">Duelos contra la CPU</div>
-        <div class="modedesc">El rival es una sorpresa: un jefe, <b>Boros</b> o el <b>viltrumita</b>. Cada victoria te da una ventaja y el siguiente es más duro. ¿Cuántos aguantas?</div>
+        <div class="modedesc">Tú contra los <b>jefes</b>, uno tras otro.</div>
         <div class="modectl" id="leyRec">RÉCORD: <b>0</b> COMBATES</div>
         <div class="playrow">
           <canvas class="modeanim" id="animLeyenda" width="230" height="130"></canvas>
@@ -1678,8 +1677,7 @@
       <div class="modecard" id="cardVs">
         <div class="modename">CONTRA OTRO JUGADOR</div>
         <div class="modetag">Duelo · 2:30</div>
-        <div class="modedesc" id="descVs">Uno es el <b>invasor</b> y debe aguantar <b>2:30</b>. El otro dirige al <b>ejército</b>: despliega tropas donde quiera para detenerlo.</div>
-        <div class="modectl"><b class="tipmovil">Se disfruta más en ordenador.</b><b>LOCAL</b>: los dos en este dispositivo · <b>EN LÍNEA</b>: cada uno en el suyo</div>
+        <div class="modedesc" id="descVs">Tú contra un <b>amigo</b>: uno invade y el otro manda al ejército.</div>
         <div class="playrow">
           <canvas class="modeanim" id="animVs" width="230" height="130"></canvas>
           <div class="btncol">
@@ -1695,8 +1693,7 @@
       <div class="modecard" id="cardDoble">
         <div class="modename">DOBLE INVASIÓN</div>
         <div class="modetag">Cooperativo · en línea</div>
-        <div class="modedesc">Invadid la ciudad <b>juntos</b>, cada uno desde su teléfono u ordenador. Uno crea la sala y comparte el <b>código</b>.</div>
-        <div class="modectl">Necesita conexión a internet</div>
+        <div class="modedesc">Tú y un <b>amigo</b> contra el <b>ejército</b> y sus <b>jefes</b>.</div>
         <div class="playrow">
           <canvas class="modeanim" id="animDoble" width="230" height="130"></canvas>
           <span class="btnwrap">
@@ -4684,7 +4681,9 @@ function drawTropa(e, sx, dy, pose){
 
 // ================= CANVAS =================
 const canvas = document.getElementById('game');
-const ctx = canvas.getContext('2d');
+// Opaco: el juego pinta siempre la pantalla entera, así el navegador no tiene
+// que mezclar el lienzo con lo que hay detrás (menos trabajo en cada fotograma).
+const ctx = canvas.getContext('2d', { alpha:false });
 // La cámara se abre un poco al evolucionar: el COLOSO ocupa más y necesita ver más.
 const ZOOM_CRIA = 1.30, ZOOM_COLOSO = 1.12;
 let ZOOM = ZOOM_CRIA;
@@ -4707,7 +4706,7 @@ function resize(){
   _congelado = false;                            // el tamaño cambió: hay que repintar
   CW = window.innerWidth; CH = window.innerHeight;
   const dprPant = window.devicePixelRatio || 1;
-  DPR = Math.max(1, Math.min(dprTope, dprPant));
+  DPR = Math.min(dprTope, Math.max(1, dprPant));    // por debajo de 1 solo si el juego va lento (ver vigilaRendimiento)
   canvas.width = Math.round(CW*DPR); canvas.height = Math.round(CH*DPR);
   ctx.imageSmoothingQuality = 'low';                 // al cambiar el tamaño se pierde
   canvas.style.width = CW + 'px'; canvas.style.height = CH + 'px';
@@ -33103,16 +33102,22 @@ lastT = performance.now();
 // Mide el ritmo real durante la partida. Si con alta resolución no se llega a
 // ~45 fps, se renuncia a ella (una sola vez) antes de que se note el tirón.
 const perf = { t:0, n:0, lento:0 };
+// Si el juego va lento, se pinta con menos píxeles: primero sin la nitidez
+// extra de las pantallas densas y, si aún no alcanza, a una resolución algo
+// menor (el navegador la estira a pantalla completa). Solo baja, nunca sube
+// sola: así no da tirones yendo y viniendo.
+const DPR_PASOS = [1, 0.8, 0.67];
 function vigilaRendimiento(ms){
-  if (DPR <= 1 || !running || document.hidden || ms <= 0 || ms > 250) return;
+  if (!running || document.hidden || ms <= 0 || ms > 250) return;
+  if (DPR <= DPR_PASOS[DPR_PASOS.length - 1] + 0.001) return;
   perf.t += ms; perf.n++;
   if (perf.t < 2000) return;
   const media = perf.t / perf.n;
   perf.t = 0; perf.n = 0;
-  if (media > 1000/45){
+  if (media > 1000/(DPR > 1 ? 45 : 40)){
     if (++perf.lento >= 2){
       perf.lento = 0;
-      dprTope = 1; resize();
+      dprTope = DPR > 1 ? 1 : DPR_PASOS.find(d => d < DPR - 0.001) || DPR; resize();
     }
   } else perf.lento = 0;
 }
@@ -35599,28 +35604,6 @@ document.getElementById('btnResetBinds').addEventListener('click', ()=>{
   saveBinds(); renderBinds();
 });
 
-// Los textos del modo invasión cambian según el personaje elegido: una
-// línea de qué se hace y otra con los controles básicos.
-const MODO_TEXTOS = {
-  alien:   ['Devora civiles, evoluciona de <b>CRÍA</b> a <b>COLOSO</b> y aguanta oleadas cada vez más duras. ¡Consigue el mayor puntaje!',
-            '<b>WASD</b> moverse · <b>Click</b> agarrar · <b>Click der.</b> lanzar'],
-  viltrum: ['Eres un <b>soldado viltrumita</b>: vuela a velocidad sónica, revienta muros con el cuerpo y reparte puñetazos.',
-            '<b>WASD</b> moverse · <b>doble toque</b> volar · <b>Click</b> golpear · <b>Click der.</b> agarrar'],
-  dragon:  ['Eres el <b>dragón de tres cabezas</b>: vuela sobre los tejados, muerde y escupe rayos por tres bocas.',
-            '<b>WASD</b> · <b>doble toque</b> volar · <b>Click</b> morder · <b>Z</b> aletear · <b>Click der.</b> rayos'],
-  maquina: ['Eres la <b>Máquina Aberrante</b>: poca vida, pero se recompone con cada víctima. ¡No te pares nunca!',
-            '<b>WASD</b> · <b>Click</b> disparar · <b>Click der.</b> cambiar arma · <b>Z</b> llamarada · <b>C</b> salto'],
-  mago:    ['Eres el <b>Mago Aberrante</b>: rayos del cielo, telequinesis, hielo y escudo. Cada hechizo gasta maná.',
-            '<b>WASD</b> · <b>Click</b> rayos · <b>Click der.</b> telequinesis · <b>Z</b> congelar · <b>C</b> escudo'],
-  boros:   ['Eres <b>Boros</b>, el dominador del universo: combos de puñetazos, lluvia de golpes y su <b>forma meteórica</b>.',
-            '<b>WASD</b> · <b>Click</b> combo (mantén: cargado) · <b>Click der.</b> agarre (mantén, apunta y suelta) · <b>Z</b> lluvia de puñetazos · <b>C</b> golpe sombra (mantén, apunta y suelta) · <b>X</b> rayo · <b>R</b> curar']
-};
-function refreshModeText(){
-  const d = document.getElementById('descInvasion'), c = document.getElementById('ctlInvasion');
-  const T = MODO_TEXTOS[hero] || MODO_TEXTOS.alien;
-  if (d) d.innerHTML = T[0];
-  if (c) c.innerHTML = T[1];
-}
 // Pestañas del selector: 1 JUGADOR / 2 JUGADORES. Al cambiar, las tarjetas
 // entran deslizándose como al abrir la pantalla.
 let modoTab = '1';
@@ -36099,7 +36082,7 @@ async function cambiaHeroe(paso){
   hero = HEROES[(HEROES.indexOf(hero) + paso + n) % n];
   if (!document.getElementById('heroAyuda').classList.contains('hidden')) pintaFichaHeroe();
   saveHero(); refreshHeroUI(); sfx('holo'); holoCambia();
-  refreshModeText(); refreshBtnFx(); refreshLogos();
+  refreshBtnFx(); refreshLogos();
   layoutUI(); refreshUiSize();          // cada personaje tiene sus mandos
   if (scoreTab === 'global') showGlobal(false);   // el global también es suyo
   await renderScoreList();
@@ -36109,7 +36092,7 @@ document.getElementById('btnHeroNext').addEventListener('click', ()=> cambiaHero
 pintaMiniMapas(); holoArranca();
 
 document.getElementById('btnInvadir').addEventListener('click', ()=>{
-  sfx('ui'); hide('menu'); show('modeselect'); refreshModeText(); playModeIntro(); startModeAnims();
+  sfx('ui'); hide('menu'); show('modeselect'); playModeIntro(); startModeAnims();
 });
 
 // ================= MULTIJUGADOR EN LÍNEA =================
