@@ -2244,6 +2244,77 @@ const TRASH_TINTES = [
 ];
 // Dibuja un sprite con la variante de color indicada; si por lo que sea no
 // se pudo teñir, cae en el original y no se nota.
+// ---- VOLCADO 1:1 ----
+// Sin tarjeta gráfica (equipos modestos) una imagen escalada o en posición
+// fraccionaria cuesta unas 10 veces más que una copia píxel a píxel. dibujaImg()
+// guarda la imagen ya escalada al tamaño del lienzo y la copia en un píxel
+// entero. Solo con la escala del mundo estable y sin giro; si no, como siempre.
+// Una imagen que se repinta en el sitio debe subir su img._ver.
+const ESC_MAX_PX = 5e6;                                // memoria de las copias (unos 20 MB)
+const _esc = new Map();
+let _escPx = 0, _escNuevos = 0, _escId = 0, _escF = 0;
+let escK = 0;                                          // escala del mundo si este fotograma vale el volcado 1:1 (0 = no)
+function escVacia(){ for (const v of _esc.values()) v.muerta = true; _esc.clear(); _escPx = 0; }
+function dibujaImg(img, a, b, c, d, e, f, g, h){
+  let sx = 0, sy = 0, sw, sh, dx, dy, dw, dh;
+  if (e === undefined){ dx = a; dy = b; sw = img.naturalWidth || img.width; sh = img.naturalHeight || img.height; dw = c === undefined ? sw : c; dh = c === undefined ? sh : d; }
+  else { sx = a; sy = b; sw = c; sh = d; dx = e; dy = f; dw = g; dh = h; }
+  if (escK && img.complete !== false && dw > 0 && dh > 0){
+    const m = ctx.getTransform();
+    if (!m.b && !m.c && Math.abs(m.d - escK) < 1e-6 && Math.abs(Math.abs(m.a) - escK) < 1e-6){
+      const DW = Math.round(dw*escK), DH = Math.round(dh*escK), flip = m.a < 0, ver = img._ver | 0;
+      // primero la última copia usada de esta imagen (lo normal: mismo tamaño que el fotograma anterior)
+      let q = img._escQ;
+      if (!q || q.muerta || q.DW !== DW || q.DH !== DH || q.sx !== sx || q.sy !== sy || q.sw !== sw || q.sh !== sh || q.flip !== flip || q.ver !== ver){
+        q = null;
+        if (DW > 0 && DH > 0 && DW*DH < 400000){
+          if (!img._escId) img._escId = ++_escId;
+          const key = img._escId + '|' + sx + '|' + sy + '|' + sw + '|' + sh + '|' + DW + '|' + DH + (flip ? '|f' : '') + '|' + ver;
+          q = _esc.get(key);
+          if (!q && _escNuevos < 10){
+            _escNuevos++;
+            const cv = document.createElement('canvas'); cv.width = DW; cv.height = DH;
+            const gg = cv.getContext('2d');
+            if (flip){ gg.translate(DW, 0); gg.scale(-1, 1); }
+            gg.drawImage(img, sx, sy, sw, sh, 0, 0, DW, DH);
+            q = { cv, f: _escF, DW, DH, sx, sy, sw, sh, flip, ver, muerta: false };
+            _esc.set(key, q); _escPx += DW*DH;
+            if (_escPx > ESC_MAX_PX) escRecorta();
+          }
+          if (q) img._escQ = q;
+        }
+      }
+      if (q){
+        q.f = _escF;
+        const X = flip ? m.a*(dx + dw) + m.e : m.a*dx + m.e, Y = m.d*dy + m.f;
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.drawImage(q.cv, Math.round(X), Math.round(Y));
+        ctx.setTransform(m.a, m.b, m.c, m.d, m.e, m.f);     // con números: con la matriz cuesta varias veces más
+        return;
+      }
+    }
+  }
+  ctx.drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh);
+}
+// Una imagen redonda y difusa (luz, fogonazo) centrada en x, y con radio r. El
+// radio va en pasos de 1/12 de octava (~6 %, no se nota en algo difuso) para
+// que las que crecen o laten reutilicen copias ya escaladas.
+function dibujaRedonda(img, x, y, r){
+  if (!(r > 0.5)) return;
+  const q = Math.pow(2, Math.round(Math.log2(r)*12)/12);
+  dibujaImg(img, x - q, y - q, q*2, q*2);
+}
+// Libera las copias que llevan más tiempo sin usarse (por orden de creación).
+function escRecorta(){
+  for (const [k, v] of _esc){
+    if (_escPx <= ESC_MAX_PX*0.8) return;
+    if (v.f < _escF - 30){ _esc.delete(k); _escPx -= v.DW*v.DH; v.muerta = true; }
+  }
+  for (const [k, v] of _esc){
+    if (_escPx <= ESC_MAX_PX*0.8 || _esc.size <= 1) return;
+    _esc.delete(k); _escPx -= v.DW*v.DH; v.muerta = true;
+  }
+}
 function drawSpriteTint(key, tinteIdx, tintes, sx, sy, w, h, facing, rot){
   const t = tintes[tinteIdx | 0];
   if (t){
@@ -2254,7 +2325,7 @@ function drawSpriteTint(key, tinteIdx, tintes, sx, sy, w, h, facing, rot){
       ctx.translate(sx, sy);
       if (rot) ctx.rotate(rot);
       if (facing !== sp.face) ctx.scale(-1, 1);
-      ctx.drawImage(cv, -w/2, -h/2, w, h);
+      dibujaImg(cv, -w/2, -h/2, w, h);
       ctx.restore();
       return true;
     }
@@ -2267,9 +2338,9 @@ function drawSprite(key, sx, sy, w, h, facing, rot){
   if (!s || !s.img.complete || !s.img.naturalWidth) return false;
   const im = pintaDeforme ? deformCv(s.img) : s.img;
   if (!rot){                                     // lo más común: sin guardar ni restaurar el estado del lienzo
-    if (facing === s.face){ ctx.drawImage(im, sx - w/2, sy - h/2, w, h); return true; }
+    if (facing === s.face){ dibujaImg(im, sx - w/2, sy - h/2, w, h); return true; }
     ctx.translate(sx, sy); ctx.scale(-1, 1);
-    ctx.drawImage(im, -w/2, -h/2, w, h);
+    dibujaImg(im, -w/2, -h/2, w, h);
     ctx.scale(-1, 1); ctx.translate(-sx, -sy);
     return true;
   }
@@ -3918,10 +3989,12 @@ function alienFachada(g, b, P, R, rh, fh, ventanas){
 }
 
 // ---------- calles, aceras y parques ----------
-function drawRoadsAlien(){
+// parte: 'base' (lo fijo, va al búfer del suelo), 'lineas' (la línea de guía animada) o todo
+function drawRoadsAlien(parte){
   for (let __i67 = 0, __a67 = roads; __i67 < __a67.length; __i67++){ const r = __a67[__i67];
     if (r.x + r.w < camX || r.x > camX + VW || r.y + r.h < camY || r.y > camY + VH) continue;
     const s = S(r.x, r.y);
+    if (parte !== 'lineas'){
     ctx.fillStyle = '#1b2130'; ctx.fillRect(s.x, s.y, r.w, r.h);
     ctx.fillStyle = 'rgba(90,232,255,0.38)';
     if (r.dir === 'v'){ ctx.fillRect(s.x + 2, s.y, 2, r.h); ctx.fillRect(s.x + r.w - 4, s.y, 2, r.h); }
@@ -3929,6 +4002,8 @@ function drawRoadsAlien(){
     ctx.fillStyle = 'rgba(176,122,255,0.12)';
     if (r.dir === 'v'){ ctx.fillRect(s.x + r.w*0.25, s.y, 1, r.h); ctx.fillRect(s.x + r.w*0.75, s.y, 1, r.h); }
     else { ctx.fillRect(s.x, s.y + r.h*0.25, r.w, 1); ctx.fillRect(s.x, s.y + r.h*0.75, r.w, 1); }
+    }
+    if (parte === 'base') continue;
     ctx.strokeStyle = 'rgba(90,232,255,0.6)'; ctx.setLineDash([22, 12]); ctx.lineWidth = 2;
     ctx.lineDashOffset = -gameTime*30;                 // la línea de guía avanza
     ctx.beginPath();
@@ -4007,7 +4082,7 @@ function cristalCv(){
 }
 function dibujaCristal(sx, sy, w, h, rot){
   ctx.save(); ctx.translate(sx, sy); if (rot) ctx.rotate(rot);
-  ctx.drawImage(cristalCv(), -w/2, -h/2, w, h);
+  dibujaImg(cristalCv(), -w/2, -h/2, w, h);
   ctx.restore();
   return true;
 }
@@ -4341,7 +4416,7 @@ function arbolMuertoCv(){
 }
 function dibujaArbolMuerto(sx, sy, w, h, rot){
   ctx.save(); ctx.translate(sx, sy); if (rot) ctx.rotate(rot);
-  ctx.drawImage(arbolMuertoCv(), -w/2, -h/2, w, h);
+  dibujaImg(arbolMuertoCv(), -w/2, -h/2, w, h);
   ctx.restore();
   return true;
 }
@@ -4700,7 +4775,7 @@ function drawTropa(e, sx, dy, pose){
 const canvas = document.getElementById('game');
 // Opaco: el juego pinta siempre la pantalla entera, así el navegador no tiene
 // que mezclar el lienzo con lo que hay detrás (menos trabajo en cada fotograma).
-const ctx = canvas.getContext('2d', { alpha:false });
+let ctx = canvas.getContext('2d', { alpha:false });   // 'let': el búfer del suelo lo cambia un momento para pintar en él
 // La cámara se abre un poco al evolucionar: el COLOSO ocupa más y necesita ver más.
 const ZOOM_CRIA = 1.30, ZOOM_COLOSO = 1.12;
 let ZOOM = ZOOM_CRIA;
@@ -6759,7 +6834,7 @@ function drawRestosSuelo(){
     if (a <= 0) continue;
     const s = S(m.x, m.y);
     ctx.globalAlpha = 0.75*a;
-    ctx.drawImage(qs, s.x - m.r, s.y - m.r*0.62, m.r*2, m.r*1.24);
+    dibujaImg(qs, s.x - m.r, s.y - m.r*0.62, m.r*2, m.r*1.24);
   }
   ctx.globalAlpha = 1;
   for (const r of restosAuto){
@@ -27493,7 +27568,7 @@ function edifConBoquetes(b, cv){
   g.globalCompositeOperation = 'source-over';
   g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(0, 0, c.width, c.height);
   g.drawImage(cv, 0, 0);
-  b._agFinN = b._agN; b._agFinB = cv;
+  b._agFinN = b._agN; b._agFinB = cv; c._ver = (c._ver | 0) + 1;      // repintado en el sitio
   return c;
 }
 // Pisada del coloso: el techo se hunde bajo su peso. Sin canto claro ni
@@ -29772,14 +29847,40 @@ function bombillaSp(alien){
 }
 function drawBombillas(oscuro){
   if (esInfierno() || !lucesEncendidas()) return;
-  const halo = bombillaSp(esAlien()), a = Math.min(1, oscuro*1.5)*0.85, Z = ZOOM;
-  ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = a;
+  const halo = bombillaSp(esAlien()), a = Math.min(1, oscuro*1.5)*0.85, Z = ZOOM, k = ZOOM*DPR;
+  const hs = spEsc(halo, 24*k), r = hs.width/2;     // ya a su tamaño en el lienzo: se copia en un píxel entero
+  ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = a; ctx.setTransform(1, 0, 0, 1, 0, 0);
   for (let __i40 = 0, __a40 = lamps; __i40 < __a40.length; __i40++){ const l = __a40[__i40];
     if (l.dead || l.held || l.thrown || l.presa) continue;
     if (l.x < camX - 40 || l.x > camX + VW + 40 || l.y < camY - 20 || l.y > camY + VH + 60) continue;
-    const hx = (l.x + 7.6 - camX + temblorX)*Z, hy = (l.y - 41 - camY + temblorY)*Z;
-    ctx.drawImage(halo, hx - 12*Z, hy - 12*Z, 24*Z, 24*Z);
+    const hx = (l.x + 7.6 - camX + temblorX)*k, hy = (l.y - 41 - camY + temblorY)*k;
+    ctx.drawImage(hs, Math.round(hx - r), Math.round(hy - r));
   }
+  ctx.restore();
+}
+// Un degradado radial ya escalado a d píxeles (las luces de las farolas).
+function spEsc(sp, d){
+  d = Math.max(1, Math.round(d));
+  if (sp._e && sp._e.width === d) return sp._e;
+  const c = sp._e || document.createElement('canvas'); c.width = c.height = d;
+  c.getContext('2d').drawImage(sp, 0, 0, d, d); sp._e = c;
+  return c;
+}
+// Ampliar el búfer de luz a pantalla completa con filtrado es lo más caro de
+// la noche sin tarjeta gráfica. Se amplía en dos pasos: con filtrado hasta la
+// mitad de la resolución del lienzo (la cuarta parte de píxeles) y de ahí, sin
+// filtrar, al doble. La luz es un degradado suave: no se nota.
+let luzMedCv = null;
+// fx, fy: la fracción de píxel del búfer que hay que desplazarlo (ver drawLighting)
+function vuelcaLuz(fx, fy){
+  const W = canvas.width, H = canvas.height, mw = Math.ceil(W/2), mh = Math.ceil(H/2);
+  if (!luzMedCv) luzMedCv = document.createElement('canvas');
+  if (luzMedCv.width !== mw || luzMedCv.height !== mh){ luzMedCv.width = mw; luzMedCv.height = mh; }
+  const g = luzMedCv.getContext('2d');
+  const ex = W/2/lightW, ey = H/2/lightH;           // el búfer (sin la fila y columna de más) cubre el lienzo entero
+  g.globalCompositeOperation = 'copy'; g.drawImage(lightCv, -fx*ex, -fy*ey, (lightW + 1)*ex, (lightH + 1)*ey);
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(luzMedCv, 0, 0, mw*2, mh*2);
   ctx.restore();
 }
 function ensureLightBuf(){
@@ -29788,7 +29889,8 @@ function ensureLightBuf(){
     lightCv = document.createElement('canvas');
     lightCtx = lightCv.getContext('2d');
   }
-  if (lightW !== w || lightH !== h){ lightCv.width = w; lightCv.height = h; lightW = w; lightH = h; }
+  // una columna y una fila de más: al volcarlo se desplaza la fracción de píxel de la cámara (ver drawLighting)
+  if (lightW !== w || lightH !== h){ lightCv.width = w + 1; lightCv.height = h + 1; lightW = w; lightH = h; }
   if (!holeSprite){
     // recorta oscuridad (se usa con destination-out)
     holeSprite = makeRadial(128, [[0,'rgba(0,0,0,0.72)'],[0.5,'rgba(0,0,0,0.34)'],[1,'rgba(0,0,0,0)']]);
@@ -30040,6 +30142,7 @@ function veloClima(){
   if (!(velo > 0.004)) return null;
   return { a: velo, col: esInfierno() ? '#4a0c08' : noche ? '#14213d' : '#39465a' };
 }
+const _ovGr = { cv: document.createElement('canvas'), src: null, key: '' };     // la superposición ya ampliada al lienzo
 function overlayFase(){
   const a = phase(), b = faseSiguiente(), m = Math.round(mezclaFase()*8)/8, vel = veloClima();
   const key = a.id + '|' + b.id + '|' + m + '|' + CW + 'x' + CH + '|' + mapa + (vel ? '|' + vel.col + vel.a : '');
@@ -30089,12 +30192,17 @@ function drawLighting(){
   if (oscuro > 0.004){
     ensureLightBuf();
     const L = lightCtx, k = ZOOM/LIGHT_DS;
+    // La cámara del búfer va en su rejilla: así las farolas (fijas) caen siempre
+    // en el mismo píxel y se copian ya escaladas, sin filtrar (mucho más barato).
+    // La fracción que sobra se compensa al ampliar el búfer, que ya filtra.
+    const cx0 = camX, cy0 = camY, fxL = camX*k - Math.floor(camX*k), fyL = camY*k - Math.floor(camY*k);
+    camX = Math.floor(camX*k)/k; camY = Math.floor(camY*k)/k;
     L.setTransform(1,0,0,1,0,0);
     L.globalCompositeOperation = 'source-over';
-    L.clearRect(0,0,lightW,lightH);
+    L.clearRect(0,0,lightW + 1,lightH + 1);
     // la noche de la ciudad, de un azul algo más hondo (misma oscuridad)
     L.fillStyle = esAlien() ? `rgba(16,8,34,${oscuro})` : esInfierno() ? `rgba(30,4,4,${oscuro})` : `rgba(5,10,32,${oscuro})`;
-    L.fillRect(0,0,lightW,lightH);
+    L.fillRect(0,0,lightW + 1,lightH + 1);
 
     if (lucesEncendidas()){
       const r = LAMP_R*k, pr = PLAYER_R*k, infOscuro = esInfierno();
@@ -30106,7 +30214,7 @@ function drawLighting(){
         if (l.dead || infOscuro) continue;          // farola destruida = calle a oscuras (en el infierno, todas)
         if (l.x < mx || l.x > Mx || l.y < my || l.y > My) continue;
         const sx = (l.x - camX)*k, sy = (l.y + 20 - camY)*k;
-        L.drawImage(holeSprite, sx - r, sy - r, r*2, r*2);
+        L.drawImage(spEsc(holeSprite, r*2), Math.round(sx - r), Math.round(sy - r));
       }
       const px2 = (player.x - camX)*k, py2 = (player.y - camY)*k;
       L.drawImage(holeSprite, px2 - pr, py2 - pr, pr*2, pr*2);
@@ -30137,7 +30245,7 @@ function drawLighting(){
         if (l.dead || infOscuro) continue;
         if (l.x < mx || l.x > Mx || l.y < my || l.y > My) continue;
         const sx = (l.x - camX)*k, sy = (l.y + 20 - camY)*k;
-        L.drawImage(esAlien() ? cianSprite : warmSprite, sx - r, sy - r, r*2, r*2);
+        L.drawImage(spEsc(esAlien() ? cianSprite : warmSprite, r*2), Math.round(sx - r), Math.round(sy - r));
       }
       // y un tinte cálido muy leve dentro del haz, sin deslumbrar
       for (let __i32 = 0, __a32 = cars; __i32 < __a32.length; __i32++){ const c = __a32[__i32];
@@ -30164,11 +30272,24 @@ function drawLighting(){
     // la graduación y la viñeta van dentro del mismo búfer (misma resolución):
     // un volcado a pantalla completa menos cada fotograma de noche
     L.globalCompositeOperation = 'source-over';
-    L.drawImage(overlayFase(), 0, 0, lightW, lightH);
-    ctx.drawImage(lightCv, 0, 0, CW, CH);          // un solo volcado a pantalla
+    const ov = overlayFase();
+    L.drawImage(ov, 0, 0, lightW, lightH);
+    // la columna y la fila de más repiten el borde
+    L.drawImage(ov, lightW - 1, 0, 1, lightH, lightW, 0, 1, lightH); L.drawImage(ov, 0, lightH - 1, lightW, 1, 0, lightH, lightW, 1);
+    L.drawImage(ov, lightW - 1, lightH - 1, 1, 1, lightW, lightH, 1, 1);
+    camX = cx0; camY = cy0;
+    vuelcaLuz(fxL, fyL);                           // un solo volcado a pantalla
     drawVentanasNoche(oscuro);
     drawBombillas(oscuro);
-  } else ctx.drawImage(overlayFase(), 0, 0, CW, CH);   // de día: graduación + viñeta, de una vez
+  } else {                                       // de día: graduación + viñeta, de una vez, ya ampliada (copia 1:1)
+    const q = overlayFase();
+    if (_ovGr.src !== q || _ovGr.key !== _ovKey || _ovGr.cv.width !== canvas.width || _ovGr.cv.height !== canvas.height){
+      const c = _ovGr.cv; c.width = canvas.width; c.height = canvas.height;
+      c.getContext('2d').drawImage(q, 0, 0, c.width, c.height);
+      _ovGr.src = q; _ovGr.key = _ovKey;
+    }
+    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(_ovGr.cv, 0, 0); ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  }
   drawClima();                                   // nubes y lluvia por encima
   if (esInfierno() && running) drawCenizas();
 }
@@ -30359,7 +30480,7 @@ function sombra(sx, sy, w, h, fuerza){
   if (a <= 0.1) return;                             // las casi invisibles no se pintan
   const ww = w * solLargo, hh = h;
   ctx.globalAlpha = a;
-  ctx.drawImage(sp, sx - ww/2 + w*solX, sy - hh/2 + h*solY, ww, hh);
+  dibujaImg(sp, sx - ww/2 + w*solX, sy - hh/2 + h*solY, ww, hh);
   ctx.globalAlpha = 1;
 }
 
@@ -30374,6 +30495,67 @@ function drawBackground(){
   ctx.translate(ox, oy);
   ctx.fillStyle = (esAlien() ? walkPatAlien : esInfierno() ? walkPatInf : walkPat) || '#a7a5aa';
   rellenaSuelo(ox, oy, VW + T, VH + T);   // un poco de más para tapar el desfase (y nada bajo los edificios)
+  ctx.restore();
+}
+
+// ---- BÚFER DEL SUELO ----
+// Baldosas, calles y manchas de luz no cambian: se pintan una vez en un búfer
+// algo mayor que la pantalla que se desplaza con la cámara (solo se pinta la
+// franja que entra) y se vuelca de una vez, píxel a píxel, sin reescalar.
+// Mientras el zoom se mueve se pinta como siempre, directamente.
+const SB_M = 128;                                 // margen alrededor de la pantalla, en píxeles del lienzo
+const sb = { a:null, b:null, w:0, h:0, ox:0, oy:0, k:0, mapa:'', ok:false, ultK:0 };
+function sbInvalida(){ sb.ok = false; }
+// Pinta el suelo del rectángulo (en píxeles del búfer) x0, y0, w, h en el lienzo g.
+function sbPinta(g, x0, y0, w, h){
+  if (w <= 0 || h <= 0) return;
+  const k = sb.k, c0 = ctx, cx = camX, cy = camY, vw = VW, vh = VH, tx = temblorX, ty = temblorY, nh = nHuecos;
+  ctx = g;
+  try {
+    g.save();
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.beginPath(); g.rect(x0, y0, w, h); g.clip();
+    g.setTransform(k, 0, 0, k, x0, y0);
+    camX = (sb.ox + x0)/k; camY = (sb.oy + y0)/k; VW = w/k; VH = h/k; temblorX = temblorY = 0; nHuecos = 0;
+    drawBackground();
+    if (esAlien()) drawRoadsAlien('base'); else drawRoads();
+    drawManchasLuz();
+    g.restore();
+  } finally { ctx = c0; camX = cx; camY = cy; VW = vw; VH = vh; temblorX = tx; temblorY = ty; nHuecos = nh; }
+}
+// Deja el búfer cubriendo la pantalla. Devuelve false si este fotograma hay que pintar directo.
+function sbActualiza(){
+  const k = ZOOM*DPR;
+  if (k !== sb.ultK){ sb.ultK = k; sb.ok = false; return false; }     // el zoom se está moviendo
+  const W = canvas.width + 2*SB_M, H = canvas.height + 2*SB_M;
+  if (!sb.a || sb.w !== W || sb.h !== H){
+    sb.a = document.createElement('canvas'); sb.b = document.createElement('canvas');
+    sb.a.width = sb.b.width = W; sb.a.height = sb.b.height = H; sb.w = W; sb.h = H; sb.ok = false;
+  }
+  const cx = Math.round(camX*k), cy = Math.round(camY*k);
+  if (!sb.ok || sb.k !== k || sb.mapa !== mapa){
+    sb.k = k; sb.mapa = mapa; sb.ox = cx - SB_M; sb.oy = cy - SB_M;
+    sbPinta(sb.a.getContext('2d'), 0, 0, W, H);
+    sb.ok = true; return true;
+  }
+  if (cx >= sb.ox && cy >= sb.oy && cx + canvas.width <= sb.ox + W && cy + canvas.height <= sb.oy + H) return true;
+  // se recoloca alrededor de la cámara: se copia lo que ya estaba y se pintan las franjas nuevas
+  const nox = cx - SB_M, noy = cy - SB_M, dx = sb.ox - nox, dy = sb.oy - noy;
+  const g = sb.b.getContext('2d');
+  g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'copy';
+  g.drawImage(sb.a, dx, dy);
+  g.globalCompositeOperation = 'source-over';
+  sb.ox = nox; sb.oy = noy;
+  if (dx > 0) sbPinta(g, 0, 0, Math.min(W, dx), H); else if (dx < 0) sbPinta(g, Math.max(0, W + dx), 0, Math.min(W, -dx), H);
+  if (dy > 0) sbPinta(g, 0, 0, W, Math.min(H, dy)); else if (dy < 0) sbPinta(g, 0, Math.max(0, H + dy), W, Math.min(H, -dy));
+  const t = sb.a; sb.a = sb.b; sb.b = t;
+  return true;
+}
+// Vuelca el búfer en pantalla (la transformación del mundo ya está puesta).
+function sbVuelca(){
+  const k = ZOOM*DPR;
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.drawImage(sb.a, sb.ox - Math.round((camX - temblorX)*k), sb.oy - Math.round((camY - temblorY)*k));
   ctx.restore();
 }
 
@@ -30448,9 +30630,9 @@ function parqueCanvas(p){
 }
 function drawParque(p){
   const s = S(p.x, p.y);
-  if (esAlien()){ ctx.drawImage(parqueAlienCanvas(p), s.x, s.y); drawOrbeParque(p, s); return; }
-  if (esInfierno()){ ctx.drawImage(parqueInfCanvas(p), s.x, s.y); drawPozoLava(p, s); return; }
-  ctx.drawImage(parqueCanvas(p), s.x, s.y);
+  if (esAlien()){ dibujaImg(parqueAlienCanvas(p), s.x, s.y); drawOrbeParque(p, s); return; }
+  if (esInfierno()){ dibujaImg(parqueInfCanvas(p), s.x, s.y); drawPozoLava(p, s); return; }
+  dibujaImg(parqueCanvas(p), s.x, s.y);
   // el agua de la fuente brilla y salpica
   const cx = s.x + p.w/2, cy = s.y + p.h/2, t = gameTime*3;
   ctx.fillStyle = 'rgba(220,240,255,0.7)';
@@ -30570,10 +30752,45 @@ function llamasVentanas(b, s2){
 // Colores de las ventanas: fijos, para no componer un texto por ventana y
 // fotograma (la transparencia va en globalAlpha).
 const VENT_TONOS = ['rgb(255,214,140)', 'rgb(255,236,190)', 'rgb(190,220,255)'], VENT_TONOS_INF = ['rgb(255,150,60)', 'rgb(255,110,40)'];
+// Las ventanas encendidas de un edificio, ya a la escala del lienzo y con
+// intensidad 1: solo cambian cuando alguna se enciende o se apaga (cada 14 s).
+// Se vuelcan con mezcla aditiva y la oscuridad como opacidad, que da lo mismo
+// que pintar cada halo y cada cristal por separado.
+const VENT_M = 6;                                  // margen para el halo, en unidades del mundo
+const _ventCv = [];                                // lienzos de ventanas en uso (los últimos edificios vistos)
+function ventanasCv(b, k, cambio, inf, tope){
+  let q = b._vn;
+  if (q && q.k === k && q.cambio === cambio && q.inf === inf) return q;
+  if (!q){
+    if (_ventCv.length >= 28){ const v = _ventCv.shift(); q = v._vn; v._vn = null; } else q = { cv: document.createElement('canvas') };
+    b._vn = q; _ventCv.push(b);
+  }
+  const W = Math.ceil((b.w + 2*VENT_M)*k), H = Math.ceil((b.h + 2*VENT_M)*k), c = q.cv;
+  if (c.width !== W || c.height !== H){ c.width = W; c.height = H; }
+  const g = c.getContext('2d'), sd = (b.seed|0);
+  g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'source-over'; g.clearRect(0, 0, W, H);
+  g.setTransform(k, 0, 0, k, VENT_M*k, VENT_M*k); g.globalCompositeOperation = 'lighter';
+  let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;     // la caja de lo pintado: solo eso se vuelca
+  for (let i = 0; i < b._win.length; i++){
+    const v = b._win[i];
+    let n = ((sd*131 + i*977) % 100 + 100) % 100;
+    if (n < 12 && ((cambio + i) % 3 === 0)) n = 99 - n;          // se encienden y apagan
+    if (n > tope) continue;
+    g.fillStyle = inf ? VENT_TONOS_INF[n % 2] : VENT_TONOS[n % 3];
+    // un halo que se derrama por la fachada y el cristal encendido
+    g.globalAlpha = 0.11; g.fillRect(v[0] - 5, v[1] - 4, v[2] + 10, v[3] + 9);
+    g.globalAlpha = 0.7;  g.fillRect(v[0], v[1], v[2], v[3]);
+    x0 = Math.min(x0, v[0] - 5); y0 = Math.min(y0, v[1] - 4); x1 = Math.max(x1, v[0] + v[2] + 5); y1 = Math.max(y1, v[1] + v[3] + 5);
+  }
+  q.k = k; q.cambio = cambio; q.inf = inf;
+  q.x = Math.max(0, Math.floor((x0 + VENT_M)*k)); q.y = Math.max(0, Math.floor((y0 + VENT_M)*k));
+  q.w = Math.min(W, Math.ceil((x1 + VENT_M)*k) + 1) - q.x; q.h = Math.min(H, Math.ceil((y1 + VENT_M)*k) + 1) - q.y;
+  return q;
+}
 function drawVentanasNoche(oscuro){
   if (oscuro < 0.08 || !lucesEncendidas()) return;
   const Z = ZOOM, a = Math.min(1, oscuro*1.4), inf = esInfierno(), tope = inf ? 16 : 44;
-  const aHalo = a*0.11, aVid = a*0.7;
+  const aHalo = a*0.11, aVid = a*0.7, k = ZOOM*DPR;
   const x0 = camX - 10, x1 = camX + VW + 10, y0 = camY - 10, y1 = camY + VH + 10;
   const cambio = Math.floor(gameTime/14);
   ctx.save();
@@ -30581,7 +30798,15 @@ function drawVentanasNoche(oscuro){
   for (let __i49 = 0, __a49 = buildings; __i49 < __a49.length; __i49++){ const b = __a49[__i49];
     if (b.stage >= 2 || !b._win || b.x > x1 || b.x + b.w < x0 || b.y > y1 || b.y + b.h < y0) continue;
     const bx = (b.x - camX + temblorX)*Z, by = (b.y - camY + temblorY)*Z, sd = (b.seed|0);
-    for (let i = 0; i < b._win.length; i++){
+    if (sb.ok && sb.ultK === k){                   // con la escala quieta: el lienzo de ventanas ya hecho, píxel a píxel
+      const q = ventanasCv(b, k, cambio, inf, tope);
+      if (q.w > 0 && q.h > 0){
+        ctx.globalAlpha = a; ctx.setTransform(1, 0, 0, 1, 0, 0);
+        const X = Math.round((b.x - VENT_M - camX + temblorX)*k) + q.x, Y = Math.round((b.y - VENT_M - camY + temblorY)*k) + q.y;
+        ctx.drawImage(q.cv, q.x, q.y, q.w, q.h, X, Y, q.w, q.h);
+        ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+      }
+    } else for (let i = 0; i < b._win.length; i++){
       const v = b._win[i];
       let n = ((sd*131 + i*977) % 100 + 100) % 100;
       if (n < 12 && ((cambio + i) % 3 === 0)) n = 99 - n;          // se encienden y apagan
@@ -30712,6 +30937,16 @@ function drawDerrumbe(b, s2){
   ctx.globalAlpha = 1;
 }
 
+// La sombra de un rectángulo opaco desplazada (dx, dy): solo las dos franjas
+// que quedan fuera de él (el resto lo tapa el edificio, que se pinta encima).
+function sombraVisible(x, y, w, h, dx, dy){
+  if (Math.abs(dx) >= w || Math.abs(dy) >= h){ ctx.fillRect(x + dx, y + dy, w, h); return; }
+  // franja lateral, a todo lo alto de la sombra
+  if (dx > 0) ctx.fillRect(x + w, y + dy, dx, h); else if (dx < 0) ctx.fillRect(x + dx, y + dy, -dx, h);
+  // franja de arriba o abajo, sin repetir la esquina de la lateral
+  const x0 = Math.max(x, x + dx), x1 = Math.min(x + w, x + w + dx);
+  if (dy > 0) ctx.fillRect(x0, y + h, x1 - x0, dy); else if (dy < 0) ctx.fillRect(x0, y + dy, x1 - x0, -dy);
+}
 function drawBuildings(){
   getWalkPats();
   for (let __i42 = 0, __a42 = parques; __i42 < __a42.length; __i42++){ const p = __a42[__i42];
@@ -30756,7 +30991,7 @@ function drawBuildings(){
       // escombros: transitable
       if (b._arrancado){ drawCimientos(b, s2); continue; }
       const cvR = edifCanvas(b, 2);
-      if (cvR) ctx.drawImage(cvR, s2.x, s2.y);
+      if (cvR) dibujaImg(cvR, s2.x, s2.y);
       else { ctx.fillStyle = '#4a4f52'; ctx.fillRect(s2.x, s2.y, b.w, b.h); }
       if (b.caeT !== undefined && gameTime - b.caeT < EDIF_CAE) drawDerrumbe(b, s2);
       continue;
@@ -30770,7 +31005,8 @@ function drawBuildings(){
     const desY = 9 + solY * 26 * solLargo * alto;
     ctx.globalAlpha = 0.26 * solFuerza;
     ctx.fillStyle = '#000';
-    ctx.fillRect(s2.x + desX, s2.y + desY, b.w, b.h);
+    if (edifTapa(b)) sombraVisible(s2.x, s2.y, b.w, b.h, desX, desY);      // lo que tapa el propio edificio no se pinta
+    else ctx.fillRect(s2.x + desX, s2.y + desY, b.w, b.h);
     ctx.globalAlpha = 1;
 
     const cv0 = edifCanvas(b, b.stage);
@@ -30779,10 +31015,10 @@ function drawBuildings(){
     if (cv){
       // con boquetes: interior en penumbra + fachada agujereada, ya juntos en
       // un solo lienzo (una copia por fotograma en vez de tres capas)
-      if (cv !== cv0) ctx.drawImage(edifConBoquetes(b, cv), s2.x, s2.y);
+      if (cv !== cv0) dibujaImg(edifConBoquetes(b, cv), s2.x, s2.y);
       else {
-        if (ruina) ctx.drawImage(edifInterior(b), s2.x, s2.y);              // asoma por los agujeros
-        ctx.drawImage(cv, s2.x, s2.y);
+        if (ruina) dibujaImg(edifInterior(b), s2.x, s2.y);              // asoma por los agujeros
+        dibujaImg(cv, s2.x, s2.y);
       }
       if (ruina && b._rotas) llamasVentanas(b, s2);
       // Rayos X solo para el viltrumita: la cría (coloso) no los tiene; de ella
@@ -30916,7 +31152,7 @@ function drawPlanters(){
       if (p.cesped === undefined) p.cesped = parques.some(q => p.x > q.x && p.x < q.x + q.w && p.y > q.y && p.y < q.y + q.h);
       // en la acera, cuadrado y del ancho de la acera; en el césped, un hoyo más ancho
       const w = p.cesped ? p.w*1.1 : 27, h = p.cesped ? p.h*1.2 : 22;
-      ctx.drawImage(alcorqueCv(p.cesped), s2.x - w/2, s2.y + 4 - h/2, w, h);
+      dibujaImg(alcorqueCv(p.cesped), s2.x - w/2, s2.y + 4 - h/2, w, h);
       continue;
     }
     if (!drawSpriteTint('planter', esAlien() || esInfierno() ? 1 : 0, esInfierno() ? TINTE_INF_METAL : TINTE_AL_METAL, s2.x, s2.y+6, p.w, p.h, 1, 0)){
@@ -31288,23 +31524,52 @@ function drawBalaGiro(b, s){
   ctx.strokeStyle = '#ff9a6a'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(s.x - ux*8, y - uy*8); ctx.lineTo(s.x, y); ctx.stroke();
   ctx.fillStyle = '#fff3ea'; ctx.beginPath(); ctx.arc(s.x, y, 2, 0, Math.PI*2); ctx.fill();
 }
+// El núcleo de una bala (contorno oscuro, color y punto blanco), pintado una
+// vez por tamaño y color al doble de resolución: en partida es una copia.
+const _nucleos = new Map();
+function nucleoBala(r, color, shell){
+  const key = r + '|' + color + (shell ? '|s' : '');
+  let c = _nucleos.get(key);
+  if (c) return c;
+  const R = (shell ? r + 3.5 : r + 1.6) + 1, d = R*2, E = 2;
+  c = document.createElement('canvas'); c.width = c.height = Math.ceil(d*E); c._d = c.width/E;
+  const g = c.getContext('2d'); g.scale(E, E);
+  const m = c._d/2;
+  g.fillStyle = '#0a0606'; g.beginPath(); g.arc(m, m, r + 1.6, 0, Math.PI*2); g.fill();
+  g.fillStyle = color; g.beginPath(); g.arc(m, m, r, 0, Math.PI*2); g.fill();
+  g.fillStyle = '#ffffff'; g.beginPath(); g.arc(m, m, r*0.45, 0, Math.PI*2); g.fill();
+  if (shell){ g.strokeStyle = 'rgba(255,180,80,0.8)'; g.lineWidth = 2; g.beginPath(); g.arc(m, m, r + 2.5, 0, Math.PI*2); g.stroke(); }
+  if (_nucleos.size > 200) _nucleos.clear();
+  _nucleos.set(key, c);
+  return c;
+}
+// La diana del obús (círculo, círculo discontinuo y cruz), pintada una vez por
+// tamaño al doble de resolución: el trazo discontinuo de un arco es caro.
+const _marcasObus = new Map();
+function marcaObus(blast){
+  let c = _marcasObus.get(blast);
+  if (c) return c;
+  const R = blast*0.82 + 2.5, E = 2;
+  c = document.createElement('canvas'); c.width = c.height = Math.ceil(R*2*E); c._d = c.width/E;
+  const g = c.getContext('2d'), m = c._d/2; g.scale(E, E);
+  g.strokeStyle = 'rgb(255,70,60)'; g.lineWidth = 3;
+  g.beginPath(); g.arc(m, m, blast*0.5, 0, Math.PI*2); g.stroke();
+  g.setLineDash([7,7]);
+  g.beginPath(); g.arc(m, m, blast*0.82, 0, Math.PI*2); g.stroke();
+  g.setLineDash([]);
+  g.beginPath(); g.moveTo(m - 14, m); g.lineTo(m + 14, m); g.moveTo(m, m - 14); g.lineTo(m, m + 14); g.stroke();
+  if (_marcasObus.size > 30) _marcasObus.clear();
+  _marcasObus.set(blast, c);
+  return c;
+}
 function drawBullets(){
   // marcador del punto de impacto del obús
   for (let __i263 = 0, __a263 = bullets; __i263 < __a263.length; __i263++){ const b = __a263[__i263];
     if (!b.artillery || b.delay>0) continue;
     const m = S(b.tx, b.ty);
     const pulse = 0.55 + Math.sin(gameTime*11)*0.35;
-    ctx.save();
-    ctx.strokeStyle = `rgba(255,70,60,${pulse})`; ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.arc(m.x, m.y, b.blast*0.5, 0, Math.PI*2); ctx.stroke();
-    ctx.setLineDash([7,7]);
-    ctx.beginPath(); ctx.arc(m.x, m.y, b.blast*0.82, 0, Math.PI*2); ctx.stroke();
-    ctx.setLineDash([]);
-    ctx.beginPath();
-    ctx.moveTo(m.x-14,m.y); ctx.lineTo(m.x+14,m.y);
-    ctx.moveTo(m.x,m.y-14); ctx.lineTo(m.x,m.y+14);
-    ctx.stroke();
-    ctx.restore();
+    const mk = marcaObus(b.blast), d = mk._d;
+    ctx.globalAlpha = pulse; dibujaImg(mk, m.x - d/2, m.y - d/2, d, d); ctx.globalAlpha = 1;
   }
   for (let __i264 = 0, __a264 = bullets; __i264 < __a264.length; __i264++){ const b = __a264[__i264];
     if (b.delay>0) continue;
@@ -31317,17 +31582,41 @@ function drawBullets(){
     if (b.laser){ drawRayoLaser(b, s); continue; }                        // arquero fantasma
     if (b.sprite && sprites[b.sprite] &&
         drawSprite(b.sprite, s.x, s.y, 34, 12, sprites[b.sprite].face, b.rot||0)) continue;
-    // se leen sobre cualquier fondo: estela, contorno oscuro y núcleo blanco
-    const v = Math.hypot(b.vx, b.vy) || 1, ux = b.vx/v, uy = b.vy/v, r = b.size;
-    ctx.lineCap = 'round';
-    ctx.strokeStyle = 'rgba(0,0,0,0.55)'; ctx.lineWidth = r*1.9;
-    ctx.beginPath(); ctx.moveTo(s.x - ux*r*3.2, s.y - uy*r*3.2); ctx.lineTo(s.x, s.y); ctx.stroke();
-    ctx.strokeStyle = b.color; ctx.globalAlpha = 0.55; ctx.lineWidth = r*1.1;
-    ctx.beginPath(); ctx.moveTo(s.x - ux*r*3, s.y - uy*r*3); ctx.lineTo(s.x, s.y); ctx.stroke(); ctx.globalAlpha = 1;
-    ctx.fillStyle = '#0a0606'; ctx.beginPath(); ctx.arc(s.x, s.y, r + 1.6, 0, Math.PI*2); ctx.fill();
-    ctx.fillStyle = b.color; ctx.beginPath(); ctx.arc(s.x, s.y, r, 0, Math.PI*2); ctx.fill();
-    ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(s.x, s.y, r*0.45, 0, Math.PI*2); ctx.fill();
-    if (b.shell){ ctx.strokeStyle='rgba(255,180,80,0.8)'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(s.x, s.y, r + 2.5, 0, Math.PI*2); ctx.stroke(); }
+    _balasG.push(b);                     // las corrientes, al final y agrupadas
+  }
+  if (_balasG.length) pintaBalasG(_balasG);
+  _balasG.length = 0;
+}
+// Las balas corrientes se leen sobre cualquier fondo: estela con contorno
+// oscuro y núcleo blanco. Las estelas van agrupadas por grosor y color (un
+// trazo por grupo en vez de dos por bala) y debajo de todos los núcleos.
+const _balasG = [];
+function ordenBalas(a, b){ return a.size - b.size || (a.color < b.color ? -1 : a.color > b.color ? 1 : 0); }
+function pintaBalasG(L){
+  L.sort(ordenBalas);
+  ctx.lineCap = 'round';
+  for (let pasada = 0; pasada < 2; pasada++){
+    const k = pasada ? 3 : 3.2;
+    if (pasada){ ctx.globalAlpha = 0.55; } else ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+    let r = -1, col = '';
+    for (let i = 0; i < L.length; i++){
+      const b = L[i];
+      if (b.size !== r || (pasada && b.color !== col)){
+        if (r >= 0) ctx.stroke();
+        r = b.size; col = b.color;
+        ctx.lineWidth = pasada ? r*1.1 : r*1.9;
+        if (pasada) ctx.strokeStyle = col;
+        ctx.beginPath();
+      }
+      const v = Math.hypot(b.vx, b.vy) || 1, x = b.x - camX, y = b.y - camY;
+      ctx.moveTo(x - b.vx/v*r*k, y - b.vy/v*r*k); ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  for (let i = 0; i < L.length; i++){
+    const b = L[i], nb = nucleoBala(b.size, b.color, b.shell), d = nb._d;
+    dibujaImg(nb, b.x - camX - d/2, b.y - camY - d/2, d, d);
   }
 }
 // Estampa de la bola de fuego, generada una vez.
@@ -31409,14 +31698,14 @@ function drawFX(){
     }
     if (b.flash){                                  // fogonazo inicial
       ctx.globalAlpha = a*0.9;
-      ctx.drawImage(bs, bx-r*1.4, by-r*1.4, r*2.8, r*2.8);
+      dibujaRedonda(bs, bx, by, r*1.4);
       ctx.globalAlpha = 1;
       continue;
     }
     ctx.globalAlpha = a*0.8;
-    ctx.drawImage(bs, bx-r, by-r, r*2, r*2);
+    dibujaRedonda(bs, bx, by, r);
     ctx.globalAlpha = a*0.5;                       // núcleo blanco que se apaga
-    ctx.drawImage(bs, bx-r*0.45, by-r*0.45, r*0.9, r*0.9);
+    dibujaRedonda(bs, bx, by, r*0.45);
     ctx.globalAlpha = 1;
   }
   // Las chispas se agrupan por color y por franja de transparencia, de modo
@@ -31433,8 +31722,10 @@ function drawFX(){
       col = p.color; alfa = a;
     }
     const x = p.x - camX, y = p.y - camY;
-    ctx.moveTo(x + p.r, y);
-    ctx.arc(x, y, p.r, 0, Math.PI*2);
+    // las chispas pequeñas (2-4 px en pantalla), como cuadrados de la misma
+    // área: no se distinguen de un círculo y no hay que teselar un arco
+    if (p.r < 4){ const h = p.r*0.886; ctx.rect(x - h, y - h, h*2, h*2); }
+    else { ctx.moveTo(x + p.r, y); ctx.arc(x, y, p.r, 0, Math.PI*2); }
   }
   if (abierto) ctx.fill();
   ctx.globalAlpha = 1;
@@ -31459,10 +31750,13 @@ function draw(){
   temblorX = temblorY = 0;
   if (shakeTime>0 && temblorOn){ temblorX = rand(-shakeMag,shakeMag); temblorY = rand(-shakeMag,shakeMag); ctx.translate(temblorX, temblorY); }   // se puede apagar en Ajustes
   actualizaSol();
-  preparaHuecosSuelo();
-  drawBackground(); drawRoads();
+  { const k = ZOOM*DPR; camX = Math.round(camX*k)/k; camY = Math.round(camY*k)/k; }   // la cámara, en la rejilla de píxeles del lienzo
+  const conBufer = sbActualiza();
+  escK = conBufer ? ZOOM*DPR : 0; _escNuevos = 0; _escF++;      // volcado 1:1 de imágenes (solo con la escala quieta)
+  if (conBufer){ sbVuelca(); if (esAlien()) drawRoadsAlien('lineas'); }
+  else { preparaHuecosSuelo(); drawBackground(); drawRoads(); }
   if (esInfierno()){ drawRestosJefes(); drawCraterInf(); drawCharcosLava(); } else drawCharcosAgua();
-  drawManchasLuz();                    // profundidad del suelo, un solo relleno
+  if (!conBufer) drawManchasLuz();     // profundidad del suelo, un solo relleno (con el búfer, ya va en él)
   drawBuildings(); drawPlanters(); drawLamps();
   // Las zonas marcadas del Artillero van DESPUÉS de los edificios: si no, los
   // escombros las tapaban justo donde más falta hace verlas.
@@ -31533,6 +31827,7 @@ function draw(){
   drawNubesEntrada();
   drawRelampagos(); drawHumos(); drawHumoEdif(); drawSonic(); drawWind(); drawRayosOjos(); drawRestosAire(); drawFX(); drawLucesDia(); drawBocadillos(); drawNumeros(); drawMarcaTutorial(); drawAura(); drawPortalCelestial(); if (vil.caida) drawCaidaJugador(); drawP2Cursor();
   ctx.restore();
+  escK = 0;
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   drawLighting();                                  // en píxeles del lienzo
   drawFlechasJefe();                               // encima de la oscuridad
@@ -32268,7 +32563,7 @@ function drawLucesDia(){
     n++;
     const s = S(x, y);
     ctx.globalAlpha = clamp(fuerza*0.55*k0, 0, 1);
-    ctx.drawImage(sp, s.x - r, s.y - r, r*2, r*2);
+    dibujaRedonda(sp, s.x, s.y, r);
   };
   lucesDinamicas(luz);
   for (let __i268 = 0, __a268 = fuegos; __i268 < __a268.length; __i268++){ const f = __a268[__i268]; luz(f.x, f.y, f.r*1.6, luzFuego, clamp(f.t/f.max, 0, 1)*(0.55 + Math.random()*0.15)); }
@@ -37442,7 +37737,7 @@ function lienzosPerdidos(){
   } catch(e){ return false; }
 }
 function rehazLienzos(){
-  walkPat = walkPatAlien = walkPatInf = null;
+  walkPat = walkPatAlien = walkPatInf = null; sbInvalida(); escVacia();
   for (const p of parques){ p._cv = p._cvA = p._cvI = null; }
   for (const b of buildings){
     b._cv = null; b._cvK = undefined; b._int = null; b._gente = null; b._win = null; b._humos = null; b._neon = null; b._rotas = null;
