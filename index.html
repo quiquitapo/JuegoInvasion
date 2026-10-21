@@ -2296,6 +2296,14 @@ function dibujaImg(img, a, b, c, d, e, f, g, h){
   }
   ctx.drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh);
 }
+// Una imagen redonda y difusa (luz, fogonazo) centrada en x, y con radio r. El
+// radio va en pasos de 1/12 de octava (~6 %, no se nota en algo difuso) para
+// que las que crecen o laten reutilicen copias ya escaladas.
+function dibujaRedonda(img, x, y, r){
+  if (!(r > 0.5)) return;
+  const q = Math.pow(2, Math.round(Math.log2(r)*12)/12);
+  dibujaImg(img, x - q, y - q, q*2, q*2);
+}
 // Libera las copias que llevan más tiempo sin usarse (por orden de creación).
 function escRecorta(){
   for (const [k, v] of _esc){
@@ -31516,23 +31524,52 @@ function drawBalaGiro(b, s){
   ctx.strokeStyle = '#ff9a6a'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(s.x - ux*8, y - uy*8); ctx.lineTo(s.x, y); ctx.stroke();
   ctx.fillStyle = '#fff3ea'; ctx.beginPath(); ctx.arc(s.x, y, 2, 0, Math.PI*2); ctx.fill();
 }
+// El núcleo de una bala (contorno oscuro, color y punto blanco), pintado una
+// vez por tamaño y color al doble de resolución: en partida es una copia.
+const _nucleos = new Map();
+function nucleoBala(r, color, shell){
+  const key = r + '|' + color + (shell ? '|s' : '');
+  let c = _nucleos.get(key);
+  if (c) return c;
+  const R = (shell ? r + 3.5 : r + 1.6) + 1, d = R*2, E = 2;
+  c = document.createElement('canvas'); c.width = c.height = Math.ceil(d*E); c._d = c.width/E;
+  const g = c.getContext('2d'); g.scale(E, E);
+  const m = c._d/2;
+  g.fillStyle = '#0a0606'; g.beginPath(); g.arc(m, m, r + 1.6, 0, Math.PI*2); g.fill();
+  g.fillStyle = color; g.beginPath(); g.arc(m, m, r, 0, Math.PI*2); g.fill();
+  g.fillStyle = '#ffffff'; g.beginPath(); g.arc(m, m, r*0.45, 0, Math.PI*2); g.fill();
+  if (shell){ g.strokeStyle = 'rgba(255,180,80,0.8)'; g.lineWidth = 2; g.beginPath(); g.arc(m, m, r + 2.5, 0, Math.PI*2); g.stroke(); }
+  if (_nucleos.size > 200) _nucleos.clear();
+  _nucleos.set(key, c);
+  return c;
+}
+// La diana del obús (círculo, círculo discontinuo y cruz), pintada una vez por
+// tamaño al doble de resolución: el trazo discontinuo de un arco es caro.
+const _marcasObus = new Map();
+function marcaObus(blast){
+  let c = _marcasObus.get(blast);
+  if (c) return c;
+  const R = blast*0.82 + 2.5, E = 2;
+  c = document.createElement('canvas'); c.width = c.height = Math.ceil(R*2*E); c._d = c.width/E;
+  const g = c.getContext('2d'), m = c._d/2; g.scale(E, E);
+  g.strokeStyle = 'rgb(255,70,60)'; g.lineWidth = 3;
+  g.beginPath(); g.arc(m, m, blast*0.5, 0, Math.PI*2); g.stroke();
+  g.setLineDash([7,7]);
+  g.beginPath(); g.arc(m, m, blast*0.82, 0, Math.PI*2); g.stroke();
+  g.setLineDash([]);
+  g.beginPath(); g.moveTo(m - 14, m); g.lineTo(m + 14, m); g.moveTo(m, m - 14); g.lineTo(m, m + 14); g.stroke();
+  if (_marcasObus.size > 30) _marcasObus.clear();
+  _marcasObus.set(blast, c);
+  return c;
+}
 function drawBullets(){
   // marcador del punto de impacto del obús
   for (let __i263 = 0, __a263 = bullets; __i263 < __a263.length; __i263++){ const b = __a263[__i263];
     if (!b.artillery || b.delay>0) continue;
     const m = S(b.tx, b.ty);
     const pulse = 0.55 + Math.sin(gameTime*11)*0.35;
-    ctx.save();
-    ctx.strokeStyle = `rgba(255,70,60,${pulse})`; ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.arc(m.x, m.y, b.blast*0.5, 0, Math.PI*2); ctx.stroke();
-    ctx.setLineDash([7,7]);
-    ctx.beginPath(); ctx.arc(m.x, m.y, b.blast*0.82, 0, Math.PI*2); ctx.stroke();
-    ctx.setLineDash([]);
-    ctx.beginPath();
-    ctx.moveTo(m.x-14,m.y); ctx.lineTo(m.x+14,m.y);
-    ctx.moveTo(m.x,m.y-14); ctx.lineTo(m.x,m.y+14);
-    ctx.stroke();
-    ctx.restore();
+    const mk = marcaObus(b.blast), d = mk._d;
+    ctx.globalAlpha = pulse; dibujaImg(mk, m.x - d/2, m.y - d/2, d, d); ctx.globalAlpha = 1;
   }
   for (let __i264 = 0, __a264 = bullets; __i264 < __a264.length; __i264++){ const b = __a264[__i264];
     if (b.delay>0) continue;
@@ -31545,17 +31582,41 @@ function drawBullets(){
     if (b.laser){ drawRayoLaser(b, s); continue; }                        // arquero fantasma
     if (b.sprite && sprites[b.sprite] &&
         drawSprite(b.sprite, s.x, s.y, 34, 12, sprites[b.sprite].face, b.rot||0)) continue;
-    // se leen sobre cualquier fondo: estela, contorno oscuro y núcleo blanco
-    const v = Math.hypot(b.vx, b.vy) || 1, ux = b.vx/v, uy = b.vy/v, r = b.size;
-    ctx.lineCap = 'round';
-    ctx.strokeStyle = 'rgba(0,0,0,0.55)'; ctx.lineWidth = r*1.9;
-    ctx.beginPath(); ctx.moveTo(s.x - ux*r*3.2, s.y - uy*r*3.2); ctx.lineTo(s.x, s.y); ctx.stroke();
-    ctx.strokeStyle = b.color; ctx.globalAlpha = 0.55; ctx.lineWidth = r*1.1;
-    ctx.beginPath(); ctx.moveTo(s.x - ux*r*3, s.y - uy*r*3); ctx.lineTo(s.x, s.y); ctx.stroke(); ctx.globalAlpha = 1;
-    ctx.fillStyle = '#0a0606'; ctx.beginPath(); ctx.arc(s.x, s.y, r + 1.6, 0, Math.PI*2); ctx.fill();
-    ctx.fillStyle = b.color; ctx.beginPath(); ctx.arc(s.x, s.y, r, 0, Math.PI*2); ctx.fill();
-    ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(s.x, s.y, r*0.45, 0, Math.PI*2); ctx.fill();
-    if (b.shell){ ctx.strokeStyle='rgba(255,180,80,0.8)'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(s.x, s.y, r + 2.5, 0, Math.PI*2); ctx.stroke(); }
+    _balasG.push(b);                     // las corrientes, al final y agrupadas
+  }
+  if (_balasG.length) pintaBalasG(_balasG);
+  _balasG.length = 0;
+}
+// Las balas corrientes se leen sobre cualquier fondo: estela con contorno
+// oscuro y núcleo blanco. Las estelas van agrupadas por grosor y color (un
+// trazo por grupo en vez de dos por bala) y debajo de todos los núcleos.
+const _balasG = [];
+function ordenBalas(a, b){ return a.size - b.size || (a.color < b.color ? -1 : a.color > b.color ? 1 : 0); }
+function pintaBalasG(L){
+  L.sort(ordenBalas);
+  ctx.lineCap = 'round';
+  for (let pasada = 0; pasada < 2; pasada++){
+    const k = pasada ? 3 : 3.2;
+    if (pasada){ ctx.globalAlpha = 0.55; } else ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+    let r = -1, col = '';
+    for (let i = 0; i < L.length; i++){
+      const b = L[i];
+      if (b.size !== r || (pasada && b.color !== col)){
+        if (r >= 0) ctx.stroke();
+        r = b.size; col = b.color;
+        ctx.lineWidth = pasada ? r*1.1 : r*1.9;
+        if (pasada) ctx.strokeStyle = col;
+        ctx.beginPath();
+      }
+      const v = Math.hypot(b.vx, b.vy) || 1, x = b.x - camX, y = b.y - camY;
+      ctx.moveTo(x - b.vx/v*r*k, y - b.vy/v*r*k); ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  for (let i = 0; i < L.length; i++){
+    const b = L[i], nb = nucleoBala(b.size, b.color, b.shell), d = nb._d;
+    dibujaImg(nb, b.x - camX - d/2, b.y - camY - d/2, d, d);
   }
 }
 // Estampa de la bola de fuego, generada una vez.
@@ -31637,14 +31698,14 @@ function drawFX(){
     }
     if (b.flash){                                  // fogonazo inicial
       ctx.globalAlpha = a*0.9;
-      ctx.drawImage(bs, bx-r*1.4, by-r*1.4, r*2.8, r*2.8);
+      dibujaRedonda(bs, bx, by, r*1.4);
       ctx.globalAlpha = 1;
       continue;
     }
     ctx.globalAlpha = a*0.8;
-    ctx.drawImage(bs, bx-r, by-r, r*2, r*2);
+    dibujaRedonda(bs, bx, by, r);
     ctx.globalAlpha = a*0.5;                       // núcleo blanco que se apaga
-    ctx.drawImage(bs, bx-r*0.45, by-r*0.45, r*0.9, r*0.9);
+    dibujaRedonda(bs, bx, by, r*0.45);
     ctx.globalAlpha = 1;
   }
   // Las chispas se agrupan por color y por franja de transparencia, de modo
@@ -31661,8 +31722,10 @@ function drawFX(){
       col = p.color; alfa = a;
     }
     const x = p.x - camX, y = p.y - camY;
-    ctx.moveTo(x + p.r, y);
-    ctx.arc(x, y, p.r, 0, Math.PI*2);
+    // las chispas pequeñas (2-4 px en pantalla), como cuadrados de la misma
+    // área: no se distinguen de un círculo y no hay que teselar un arco
+    if (p.r < 4){ const h = p.r*0.886; ctx.rect(x - h, y - h, h*2, h*2); }
+    else { ctx.moveTo(x + p.r, y); ctx.arc(x, y, p.r, 0, Math.PI*2); }
   }
   if (abierto) ctx.fill();
   ctx.globalAlpha = 1;
@@ -32500,7 +32563,7 @@ function drawLucesDia(){
     n++;
     const s = S(x, y);
     ctx.globalAlpha = clamp(fuerza*0.55*k0, 0, 1);
-    ctx.drawImage(sp, s.x - r, s.y - r, r*2, r*2);
+    dibujaRedonda(sp, s.x, s.y, r);
   };
   lucesDinamicas(luz);
   for (let __i268 = 0, __a268 = fuegos; __i268 < __a268.length; __i268++){ const f = __a268[__i268]; luz(f.x, f.y, f.r*1.6, luzFuego, clamp(f.t/f.max, 0, 1)*(0.55 + Math.random()*0.15)); }
