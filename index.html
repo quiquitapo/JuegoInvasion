@@ -2148,6 +2148,13 @@
     </div>
 
     <div class="panel" style="min-width:min(340px,92vw)">
+      <h3>Descargar el juego</h3>
+      <div class="p2note" style="margin:0 0 8px">Instálalo como app para jugar sin internet (el modo en línea y la tabla global necesitan conexión).</div>
+      <button class="small" id="btnDescargar" style="margin-top:0">&#11015; DESCARGAR</button>
+      <div id="descmsg" class="shopmsg"></div>
+    </div>
+
+    <div class="panel" style="min-width:min(340px,92vw)">
       <h3>Datos guardados</h3>
       <div class="datarow"><span class="vollbl">Guardando en</span><b id="savemode" class="savemode">…</b></div>
       <div id="savewarn" class="savewarn hidden">
@@ -2337,7 +2344,7 @@ function dibujaImg(img, a, b, c, d, e, f, g, h){
             const gg = cv.getContext('2d');
             if (flip){ gg.translate(DW + 2*pad, 0); gg.scale(-1, 1); }
             gg.drawImage(img, sx, sy, sw, sh, pad, pad, DW, DH);
-            if (pad) contornea(cv);
+            if (pad) contornea(cv, 1, img._contorno);
             q = { cv, f: _escF, DW, DH, sx, sy, sw, sh, flip, ver, muerta: false, pad };
             _esc.set(key, q); _escPx += DW*DH;
             if (_escPx > ESC_MAX_PX) escRecorta();
@@ -2355,6 +2362,12 @@ function dibujaImg(img, a, b, c, d, e, f, g, h){
       }
     }
   }
+  if (img._contorno && sx === 0 && sy === 0 && sw === (img.naturalWidth || img.width) && sh === (img.naturalHeight || img.height) && img.complete !== false && sw > 0){
+    // sin copia escalada: la imagen con contorno a su resolución, con el margen en proporción
+    const gr = Math.max(1, Math.round(sw/dw)), o = imgConContorno(img, gr), ex = dw/sw*gr, ey = dh/sh*gr;
+    ctx.drawImage(o, dx - ex, dy - ey, dw + 2*ex, dh + 2*ey);
+    return;
+  }
   ctx.drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh);
 }
 // Una imagen redonda y difusa (luz, fogonazo) centrada en x, y con radio r. El
@@ -2368,21 +2381,50 @@ function dibujaRedonda(img, x, y, r){
 // Un trazo para todo: el mobiliario (árboles, farolas, bancos...) lleva el
 // mismo contorno oscuro de un píxel que la gente, la tropa y los autos. Se
 // pinta una vez, al hacer la copia escalada: en partida no cuesta nada.
-const CONTORNO_COL = 'rgba(14,16,22,0.88)', CONTORNO_SPR = { tree:1, lamp:1, bench:1, trash:1, planter:1 };
+const CONTORNO_COL = 'rgba(14,16,22,0.88)', CONTORNO_EDIF = 'rgba(10,12,16,0.62)', CONTORNO_SPR = { tree:1, lamp:1, bench:1, trash:1, planter:1 };
 let _contTmp = null;
-function contornea(cv){
+// Contorno de 'gr' píxeles alrededor de lo pintado en cv (que tiene ese margen).
+// Los edificios (img._contorno === 'edif') llevan uno más suave y un bisel:
+// filo claro arriba y a la izquierda, oscuro abajo y a la derecha.
+function contornea(cv, gr, tipo){
+  gr = gr || 1;
   const W = cv.width, H = cv.height;
   if (!_contTmp) _contTmp = document.createElement('canvas');
   if (_contTmp.width < W || _contTmp.height < H){ _contTmp.width = Math.max(W, _contTmp.width); _contTmp.height = Math.max(H, _contTmp.height); }
   const t = _contTmp.getContext('2d');
   t.globalCompositeOperation = 'copy'; t.drawImage(cv, 0, 0);
-  t.globalCompositeOperation = 'source-in'; t.fillStyle = CONTORNO_COL; t.fillRect(0, 0, W, H);
+  t.globalCompositeOperation = 'source-in'; t.fillStyle = tipo === 'edif' ? CONTORNO_EDIF : CONTORNO_COL; t.fillRect(0, 0, W, H);
   t.globalCompositeOperation = 'source-over';
   const g = cv.getContext('2d');
-  g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'destination-over';
-  g.drawImage(_contTmp, 0, 0, W, H, -1, 0, W, H); g.drawImage(_contTmp, 0, 0, W, H, 1, 0, W, H);
-  g.drawImage(_contTmp, 0, 0, W, H, 0, -1, W, H); g.drawImage(_contTmp, 0, 0, W, H, 0, 1, W, H);
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  if (tipo === 'edif'){                                   // bisel, solo sobre lo ya pintado
+    g.globalCompositeOperation = 'source-atop';
+    g.fillStyle = 'rgba(255,255,255,0.16)'; g.fillRect(gr, gr, W - 2*gr, 1); g.fillRect(gr, gr, 1, H - 2*gr);
+    g.fillStyle = 'rgba(0,0,0,0.24)'; g.fillRect(gr, H - gr - 1, W - 2*gr, 1); g.fillRect(W - gr - 1, gr, 1, H - 2*gr);
+  }
+  g.globalCompositeOperation = 'destination-over';
+  for (let d = 1; d <= gr; d++){
+    g.drawImage(_contTmp, 0, 0, W, H, -d, 0, W, H); g.drawImage(_contTmp, 0, 0, W, H, d, 0, W, H);
+    g.drawImage(_contTmp, 0, 0, W, H, 0, -d, W, H); g.drawImage(_contTmp, 0, 0, W, H, 0, d, W, H);
+  }
   g.globalCompositeOperation = 'source-over';
+}
+// La imagen con su contorno a su propia resolución, para cuando no se puede
+// usar la copia escalada (girada por el viento o al volar, con el zoom
+// moviéndose, o mientras aún no está hecha): así el contorno nunca falta.
+// 'gr' en píxeles de la imagen: ~1 píxel de pantalla a la escala a la que se pinta.
+function imgConContorno(img, gr){
+  const ver = img._ver | 0;
+  let c = img._cc && img._cc[gr];
+  if (c && c._v === ver) return c;
+  const W = (img.naturalWidth || img.width), H = (img.naturalHeight || img.height);
+  c = c || document.createElement('canvas'); c.width = W + 2*gr; c.height = H + 2*gr;
+  const g = c.getContext('2d'); g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, c.width, c.height);
+  g.drawImage(img, gr, gr);
+  contornea(c, gr, img._contorno);
+  c._v = ver; c._p = gr;
+  (img._cc || (img._cc = {}))[gr] = c;
+  return c;
 }
 // Libera las copias que llevan más tiempo sin usarse (por orden de creación).
 function escRecorta(){
@@ -2430,7 +2472,7 @@ function drawSprite(key, sx, sy, w, h, facing, rot){
   ctx.translate(sx, sy);
   ctx.rotate(rot);
   if (facing !== s.face) ctx.scale(-1, 1);
-  ctx.drawImage(im, -w/2, -h/2, w, h);
+  dibujaImg(im, -w/2, -h/2, w, h);
   ctx.restore();
   return true;
 }
@@ -31741,7 +31783,7 @@ function drawBuildings(){
       // escombros: transitable
       if (b._arrancado){ drawCimientos(b, s2); continue; }
       const cvR = edifCanvas(b, 2);
-      if (cvR) dibujaImg(cvR, s2.x, s2.y);
+      if (cvR){ cvR._contorno = 'edif'; dibujaImg(cvR, s2.x, s2.y); }
       else { ctx.fillStyle = '#4a4f52'; ctx.fillRect(s2.x, s2.y, b.w, b.h); }
       if (b.caeT !== undefined && gameTime - b.caeT < EDIF_CAE) drawDerrumbe(b, s2);
       continue;
@@ -31765,9 +31807,10 @@ function drawBuildings(){
     if (cv){
       // con boquetes: interior en penumbra + fachada agujereada, ya juntos en
       // un solo lienzo (una copia por fotograma en vez de tres capas)
-      if (cv !== cv0) dibujaImg(edifConBoquetes(b, cv), s2.x, s2.y);
+      if (cv !== cv0){ const cb = edifConBoquetes(b, cv); cb._contorno = 'edif'; dibujaImg(cb, s2.x, s2.y); }
       else {
         if (ruina) dibujaImg(edifInterior(b), s2.x, s2.y);              // asoma por los agujeros
+        cv._contorno = 'edif';                                          // contorno suave y bisel
         dibujaImg(cv, s2.x, s2.y);
       }
       if (ruina && b._rotas) llamasVentanas(b, s2);
@@ -32585,11 +32628,13 @@ function draw(){
   if (dobleAnf() && Online.av && Online.av.pj) drawProyJ(Online.av.pj);
   drawMaquinaEfectos(); drawMagoEfectos();
   drawNubesEntrada();
-  drawRelampagos(); drawHumos(); drawHumoEdif(); drawSonic(); drawWind(); drawRayosOjos(); drawRestosAire(); drawFX(); drawPolvo(); drawAvesVuelo(); drawLucesDia(); drawBocadillos(); drawNumeros(); drawMarcaTutorial(); drawAura(); drawPortalCelestial(); if (vil.caida) drawCaidaJugador(); drawP2Cursor();
+  drawRelampagos(); drawHumos(); drawHumoEdif(); drawSonic(); drawWind(); drawRayosOjos(); drawRestosAire(); drawFX(); drawPolvo(); drawAvesVuelo(); drawLucesDia(); drawNumeros(); drawMarcaTutorial(); drawAura(); drawPortalCelestial(); if (vil.caida) drawCaidaJugador(); drawP2Cursor();
   ctx.restore();
   escK = 0;
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   drawLighting();                                  // en píxeles del lienzo
+  // los bocadillos, encima de la noche (si no, la oscuridad los apagaba)
+  if (bocadillos.length){ const k = ZOOM*DPR; ctx.save(); ctx.setTransform(k, 0, 0, k, temblorX*k, temblorY*k); drawBocadillos(); ctx.restore(); }
   drawFlechasJefe();                               // encima de la oscuridad
   drawTelaAviso();
   if (flashPant > 0){ ctx.globalAlpha = flashPant*0.6; ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, CW, CH); ctx.globalAlpha = 1; }
@@ -33244,19 +33289,26 @@ function updateBocadillos(dt){
 }
 function drawBocadillos(){
   if (!bocadillos.length) return;
-  ctx.save(); ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  // Bocadillo grande y legible: letra gruesa de 12 px, globo blanco con borde
+  // negro de 2 px, sombra y la colita hacia quien habla.
+  ctx.save(); ctx.font = '900 12px "Trebuchet MS", Verdana, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.lineJoin = 'round';
   for (const b of bocadillos){
     const o = b.o, alt = o.alt ? alturaVisible(o) : 0;
-    const s = S(o.x, o.y - (o.h || 30)*0.9 - alt - 10);
+    const s = S(o.x, o.y - (o.h || 30)*0.9 - alt - 12);
     const a = Math.min(1, b.t/0.1, (b.max - b.t)/0.3), sube = Math.min(1, b.t/0.15)*4;
-    const w = ctx.measureText(b.txt).width + 10, h = 15, y = s.y - sube;
+    const pop = 1 + Math.max(0, 0.12 - b.t)*2.2;                       // aparece con un pequeño salto
+    const w = (ctx.measureText(b.txt).width + 14)*pop, h = 19*pop, y = s.y - sube, x0 = s.x - w/2, y0 = y - h/2;
     ctx.globalAlpha = a;
-    ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fillRect(s.x - w/2 + 1, y - h/2 + 2, w, h);
-    ctx.fillStyle = '#fbfbf2'; ctx.fillRect(s.x - w/2, y - h/2, w, h);
-    ctx.beginPath(); ctx.moveTo(s.x - 3, y + h/2); ctx.lineTo(s.x, y + h/2 + 5); ctx.lineTo(s.x + 3, y + h/2); ctx.fill();   // la colita
-    ctx.strokeStyle = '#2a2a2a'; ctx.lineWidth = 1; ctx.strokeRect(s.x - w/2 + 0.5, y - h/2 + 0.5, w - 1, h - 1);
-    ctx.fillStyle = o.alma ? '#4a5a8a' : o.kind === 'civ' ? '#1a1a1a' : '#8a1a12';
-    ctx.fillText(b.txt, s.x, y + 0.5);
+    const globo = ()=>{ ctx.beginPath(); ctx.moveTo(x0 + 5, y0); ctx.lineTo(x0 + w - 5, y0); ctx.quadraticCurveTo(x0 + w, y0, x0 + w, y0 + 5); ctx.lineTo(x0 + w, y0 + h - 5);
+                        ctx.quadraticCurveTo(x0 + w, y0 + h, x0 + w - 5, y0 + h); ctx.lineTo(s.x + 4, y0 + h); ctx.lineTo(s.x, y0 + h + 6); ctx.lineTo(s.x - 4, y0 + h);
+                        ctx.lineTo(x0 + 5, y0 + h); ctx.quadraticCurveTo(x0, y0 + h, x0, y0 + h - 5); ctx.lineTo(x0, y0 + 5); ctx.quadraticCurveTo(x0, y0, x0 + 5, y0); ctx.closePath(); };
+    ctx.save(); ctx.translate(1.5, 2.5); globo(); ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fill(); ctx.restore();   // sombra
+    globo(); ctx.fillStyle = o.alma ? '#e8eeff' : '#ffffff'; ctx.fill();
+    ctx.strokeStyle = '#111'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.fillStyle = o.alma ? '#2a3a7a' : o.kind === 'civ' ? '#0a0a0a' : '#9a1208';
+    if (pop !== 1){ ctx.save(); ctx.translate(s.x, y); ctx.scale(pop, pop); ctx.fillText(b.txt, 0, 0.5); ctx.restore(); }
+    else ctx.fillText(b.txt, s.x, y + 0.5);
   }
   ctx.restore(); ctx.globalAlpha = 1;
 }
@@ -35950,6 +36002,34 @@ window.addEventListener('beforeinstallprompt', e=>{
   document.getElementById('btnInstalar').classList.remove('nohay');
 });
 window.addEventListener('appinstalled', ()=>{ instalarEv = null; document.getElementById('btnInstalar').classList.add('nohay'); });
+// Descargar: si el navegador deja instalar la app, se instala; si no (iPhone,
+// otros navegadores), se explica cómo o se baja el juego como un archivo.
+document.getElementById('btnDescargar').addEventListener('click', async ()=>{
+  const msg = document.getElementById('descmsg');
+  sfx('ui');
+  if (window.matchMedia && matchMedia('(display-mode: standalone)').matches){ msg.textContent = 'Ya lo tienes instalado como app.'; return; }
+  if (instalarEv){
+    instalarEv.prompt();
+    let ok = false; try { ok = (await instalarEv.userChoice).outcome === 'accepted'; } catch(e){}
+    instalarEv = null; document.getElementById('btnInstalar').classList.add('nohay');
+    msg.textContent = ok ? '¡Instalado! Ábrelo desde tu pantalla de inicio o escritorio.' : 'Instalación cancelada.';
+    return;
+  }
+  if (/iphone|ipad|ipod/i.test(navigator.userAgent)){
+    msg.textContent = 'En iPhone/iPad: pulsa Compartir y luego «Añadir a pantalla de inicio».';
+    return;
+  }
+  // sin instalación disponible: el juego entero en un solo archivo
+  try {
+    const r = await fetch(location.pathname || '/', { cache:'force-cache' });
+    const html = await r.text();
+    const url = URL.createObjectURL(new Blob([html], { type:'text/html' }));
+    const a = document.createElement('a'); a.href = url; a.download = 'Invasion.html';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=> URL.revokeObjectURL(url), 4000);
+    msg.textContent = 'Descargado «Invasion.html»: ábrelo para jugar sin internet.';
+  } catch(e){ msg.textContent = 'No se pudo descargar. Usa el menú del navegador: «Instalar app» o «Añadir a pantalla de inicio».'; }
+});
 document.getElementById('btnInstalar').addEventListener('click', async ()=>{
   if (!instalarEv) return;
   instalarEv.prompt();
