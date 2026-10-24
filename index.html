@@ -2,6 +2,12 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#0b120d">
+<link rel="icon" type="image/png" sizes="192x192" href="/iconos/icono-192.png">
+<link rel="apple-touch-icon" href="/iconos/icono-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>SUPER INVASORES</title>
 <style>
@@ -224,6 +230,11 @@
   .btnfull .ico-cerrar, .btnfull.on .ico-abrir { display:none; }
   .btnfull.on .ico-cerrar { display:block; }
   .btnfull.nohay { display:none; }
+  .btninst { right:60px; }
+  /* lo que tiene el foco del mando */
+  .mandofoco { outline:3px solid #ffe066 !important; outline-offset:3px; box-shadow:0 0 16px rgba(255,224,102,0.7) !important; }
+  .btncomp { background:linear-gradient(180deg, #3a7aff, #1f4ab8) !important; border-color:#8fb4ff !important; color:#fff !important; }
+  #compmsg { min-height:1.1em; margin-top:4px; font-size:0.62rem; color:#bfe0ff; letter-spacing:1px; }
   .coinbar b { color:#ffe066; font-size:0.95rem; }
   .coinbar.big { margin:0 0 10px; font-size:0.8rem; }
   .shopmsg { color:#ffe066; font-size:0.7rem; min-height:16px; opacity:0; transition:opacity .3s ease; letter-spacing:1px; }
@@ -1012,11 +1023,54 @@
   #combo.f1 { --cc:#7bffa0; }
   #combo.f2 { --cc:#8fd7ff; }
   #combo.f3 { --cc:#ff9d5c; }
+  #combo.f4 { --cc:#ff4a5a; }
+  #combo.f5 { --cc:#d98bff; }
+  /* Placa inclinada, número grande con brillo de su color, la fase en una
+     cinta y el multiplicador en una insignia. El número salta con cada baja
+     (dos animaciones iguales que se alternan para poder repetirla). */
+  #combo .combobox { transform:skewX(-9deg); border-width:0 0 0 5px; border-radius:6px; padding:6px 16px 6px 12px;
+                     background:linear-gradient(100deg, rgba(8,12,10,0.92), rgba(8,12,10,0.7) 70%, rgba(8,12,10,0.25)); }
+  #combo .combobox > * { transform:skewX(9deg); }
+  #combo .comborule { display:none; }
+  #combo .comboleft b { display:inline-block; font-weight:900; font-size:clamp(1.9rem,6.4vw,3rem);
+                        text-shadow:0 0 14px var(--cc), 3px 3px 0 #000, -1px -1px 0 #000; }
+  #combo .combox { color:#d8e6dc; opacity:0.75; }
+  #combo .combofase { font-size:0.74rem; font-weight:900; font-style:italic; letter-spacing:3px; color:var(--cc);
+                      text-shadow:0 0 8px var(--cc), 2px 2px 0 #000; margin:0 0 3px; }
+  #combo .combomult { display:inline-block; padding:1px 8px; border-radius:5px; background:var(--cc); color:#081008;
+                      font-weight:900; text-shadow:none; box-shadow:0 0 10px var(--cc); }
+  #combo .combobar { height:5px; border-width:1px; margin-top:4px; transform:skewX(-9deg); }
+  #combofill { background:linear-gradient(90deg, #fff, var(--cc) 35%); }
+  #combo.urge #combofill { animation:comboUrge 0.22s steps(2) infinite; }
+  #combo.ga .comboleft b { animation:comboNumA 0.2s ease-out; }
+  #combo.gb .comboleft b { animation:comboNumB 0.2s ease-out; }
+  #combo.f4 .combobox, #combo.f5 .combobox { animation:comboTiembla 0.09s steps(2) infinite; }
   #combo.sube .combobox { animation:comboPop 0.42s ease-out; }
+  #combo.fin { animation:comboFin 1.5s ease-in forwards; }
   @keyframes comboPop {
-    0%   { transform:scale(1.22); box-shadow:0 0 26px var(--cc); }
-    100% { transform:scale(1);    box-shadow:0 0 14px rgba(0,0,0,0.5); }
+    0%   { transform:skewX(-9deg) scale(1.3); box-shadow:0 0 30px var(--cc); }
+    100% { transform:skewX(-9deg) scale(1);   box-shadow:0 0 14px rgba(0,0,0,0.5); }
   }
+  @keyframes comboNumA { 0% { transform:scale(1.45); } 100% { transform:scale(1); } }
+  @keyframes comboNumB { 0% { transform:scale(1.45); } 100% { transform:scale(1); } }
+  @keyframes comboTiembla { 0% { transform:skewX(-9deg) translate(1px,0); } 100% { transform:skewX(-9deg) translate(-1px,1px); } }
+  @keyframes comboUrge { 0% { opacity:1; } 100% { opacity:0.25; } }
+  @keyframes comboFin { 0% { opacity:1; transform:translateX(-50%) scale(1.08); } 25% { opacity:1; transform:translateX(-50%) scale(1); }
+                        100% { opacity:0; transform:translateX(-50%) translateY(-14px); } }
+  /* El HUD toma el color del mapa: verde en la ciudad, violeta y cian en el
+     planeta marciano, rojo brasa en el castigo divino. */
+  body[data-mapa="alien"] .hp-wrap { border-color:#4a3a9a; background:rgba(10,6,22,0.66); }
+  body[data-mapa="alien"] .hp-label { color:#9fe8ff; }
+  body[data-mapa="alien"] .score-hud { border-color:#6a4ad0; background:linear-gradient(180deg, rgba(16,10,34,0.82), rgba(8,4,18,0.74));
+                                        box-shadow:0 2px 0 rgba(0,0,0,0.45), inset 0 1px 0 rgba(190,160,255,0.2); }
+  body[data-mapa="alien"] .score-hud .lbl { color:#c8b8ff; }
+  body[data-mapa="alien"] #wavebadge { border-color:#5a3aa8; color:#7fe8ff; }
+  body[data-mapa="infierno"] .hp-wrap { border-color:#7a2a1a; background:rgba(22,6,4,0.68); }
+  body[data-mapa="infierno"] .hp-label { color:#ffb08a; }
+  body[data-mapa="infierno"] .score-hud { border-color:#a83a1a; background:linear-gradient(180deg, rgba(30,8,4,0.84), rgba(14,4,2,0.76));
+                                           box-shadow:0 2px 0 rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,150,100,0.18); }
+  body[data-mapa="infierno"] .score-hud .lbl { color:#ff9a6a; }
+  body[data-mapa="infierno"] #wavebadge { border-color:#8a1a0a; color:#ffb03b; }
   /* el título de los avisos y, debajo, la explicación del regalo del OVNI:
      van en una columna para que la explicación quede siempre bajo el título */
   #toastCaja { position:absolute; top:34%; left:50%; transform:translateX(-50%); z-index:9; pointer-events:none;
@@ -1550,6 +1604,9 @@
   </div>
 
   <div id="menu" class="overlay hidden">
+    <button type="button" class="btnfull btninst nohay" id="btnInstalar" aria-label="Instalar como app" title="Instalar como app (se juega sin conexión)">
+      <svg viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M4 20h16"/></svg>
+    </button>
     <button type="button" class="btnfull" id="btnMenuFull" aria-label="Pantalla completa" title="Pantalla completa">
       <svg class="ico-abrir" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9V3h6M15 3h6v6M21 15v6h-6M9 21H3v-6"/></svg>
       <svg class="ico-cerrar" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3v6H3M21 9h-6V3M15 21v-6h6M3 15h6v6"/></svg>
@@ -2141,6 +2198,8 @@
         <div id="globalaskmsg" class="globalmsg"></div>
       </div>
     </div>
+    <button class="small btncomp" id="btnCompartir">&#128227; COMPARTIR PUNTAJE</button>
+    <div id="compmsg"></div>
     <button class="big" id="btnRetry">REINTENTAR</button>
     <button class="small" id="btnMenu">Volver al menú</button>
   </div>
@@ -2265,19 +2324,21 @@ function dibujaImg(img, a, b, c, d, e, f, g, h){
       const DW = Math.round(dw*escK), DH = Math.round(dh*escK), flip = m.a < 0, ver = img._ver | 0;
       // primero la última copia usada de esta imagen (lo normal: mismo tamaño que el fotograma anterior)
       let q = img._escQ;
-      if (!q || q.muerta || q.DW !== DW || q.DH !== DH || q.sx !== sx || q.sy !== sy || q.sw !== sw || q.sh !== sh || q.flip !== flip || q.ver !== ver){
+      if (!q || q.muerta || q.DW !== DW || q.DH !== DH || q.sx !== sx || q.sy !== sy || q.sw !== sw || q.sh !== sh || q.flip !== flip || q.ver !== ver || q.pad !== (img._contorno ? 1 : 0)){
         q = null;
         if (DW > 0 && DH > 0 && DW*DH < 400000){
           if (!img._escId) img._escId = ++_escId;
-          const key = img._escId + '|' + sx + '|' + sy + '|' + sw + '|' + sh + '|' + DW + '|' + DH + (flip ? '|f' : '') + '|' + ver;
+          const key = img._escId + '|' + sx + '|' + sy + '|' + sw + '|' + sh + '|' + DW + '|' + DH + (flip ? '|f' : '') + '|' + ver + (img._contorno ? '|o' : '');
           q = _esc.get(key);
           if (!q && _escNuevos < 10){
             _escNuevos++;
-            const cv = document.createElement('canvas'); cv.width = DW; cv.height = DH;
+            const pad = img._contorno ? 1 : 0;           // con contorno: un píxel de margen alrededor
+            const cv = document.createElement('canvas'); cv.width = DW + 2*pad; cv.height = DH + 2*pad;
             const gg = cv.getContext('2d');
-            if (flip){ gg.translate(DW, 0); gg.scale(-1, 1); }
-            gg.drawImage(img, sx, sy, sw, sh, 0, 0, DW, DH);
-            q = { cv, f: _escF, DW, DH, sx, sy, sw, sh, flip, ver, muerta: false };
+            if (flip){ gg.translate(DW + 2*pad, 0); gg.scale(-1, 1); }
+            gg.drawImage(img, sx, sy, sw, sh, pad, pad, DW, DH);
+            if (pad) contornea(cv);
+            q = { cv, f: _escF, DW, DH, sx, sy, sw, sh, flip, ver, muerta: false, pad };
             _esc.set(key, q); _escPx += DW*DH;
             if (_escPx > ESC_MAX_PX) escRecorta();
           }
@@ -2288,7 +2349,7 @@ function dibujaImg(img, a, b, c, d, e, f, g, h){
         q.f = _escF;
         const X = flip ? m.a*(dx + dw) + m.e : m.a*dx + m.e, Y = m.d*dy + m.f;
         ctx.setTransform(1, 0, 0, 1, 0, 0);
-        ctx.drawImage(q.cv, Math.round(X), Math.round(Y));
+        ctx.drawImage(q.cv, Math.round(X) - q.pad, Math.round(Y) - q.pad);
         ctx.setTransform(m.a, m.b, m.c, m.d, m.e, m.f);     // con números: con la matriz cuesta varias veces más
         return;
       }
@@ -2303,6 +2364,25 @@ function dibujaRedonda(img, x, y, r){
   if (!(r > 0.5)) return;
   const q = Math.pow(2, Math.round(Math.log2(r)*12)/12);
   dibujaImg(img, x - q, y - q, q*2, q*2);
+}
+// Un trazo para todo: el mobiliario (árboles, farolas, bancos...) lleva el
+// mismo contorno oscuro de un píxel que la gente, la tropa y los autos. Se
+// pinta una vez, al hacer la copia escalada: en partida no cuesta nada.
+const CONTORNO_COL = 'rgba(14,16,22,0.88)', CONTORNO_SPR = { tree:1, lamp:1, bench:1, trash:1, planter:1 };
+let _contTmp = null;
+function contornea(cv){
+  const W = cv.width, H = cv.height;
+  if (!_contTmp) _contTmp = document.createElement('canvas');
+  if (_contTmp.width < W || _contTmp.height < H){ _contTmp.width = Math.max(W, _contTmp.width); _contTmp.height = Math.max(H, _contTmp.height); }
+  const t = _contTmp.getContext('2d');
+  t.globalCompositeOperation = 'copy'; t.drawImage(cv, 0, 0);
+  t.globalCompositeOperation = 'source-in'; t.fillStyle = CONTORNO_COL; t.fillRect(0, 0, W, H);
+  t.globalCompositeOperation = 'source-over';
+  const g = cv.getContext('2d');
+  g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'destination-over';
+  g.drawImage(_contTmp, 0, 0, W, H, -1, 0, W, H); g.drawImage(_contTmp, 0, 0, W, H, 1, 0, W, H);
+  g.drawImage(_contTmp, 0, 0, W, H, 0, -1, W, H); g.drawImage(_contTmp, 0, 0, W, H, 0, 1, W, H);
+  g.globalCompositeOperation = 'source-over';
 }
 // Libera las copias que llevan más tiempo sin usarse (por orden de creación).
 function escRecorta(){
@@ -2320,6 +2400,7 @@ function drawSpriteTint(key, tinteIdx, tintes, sx, sy, w, h, facing, rot){
   if (t){
     const cv = spriteTenido(key, t);
     if (cv){
+      if (CONTORNO_SPR[key]) cv._contorno = true;
       const sp = sprites[key];
       ctx.save();
       ctx.translate(sx, sy);
@@ -2337,6 +2418,7 @@ function drawSprite(key, sx, sy, w, h, facing, rot){
   const s = sprites[key];
   if (!s || !s.img.complete || !s.img.naturalWidth) return false;
   const im = pintaDeforme ? deformCv(s.img) : s.img;
+  if (CONTORNO_SPR[key] && !im._contorno) im._contorno = true;
   if (!rot){                                     // lo más común: sin guardar ni restaurar el estado del lienzo
     if (facing === s.face){ dibujaImg(im, sx - w/2, sy - h/2, w, h); return true; }
     ctx.translate(sx, sy); ctx.scale(-1, 1);
@@ -3801,6 +3883,7 @@ function alienSet(cat, R){
 }
 // Al empezar la partida, cada solar toma el edificio del mapa elegido.
 function aplicaMapa(){
+  try { document.body.dataset.mapa = mapa; } catch(e){}      // el HUD toma el color del mapa
   for (let __i66 = 0, __a66 = buildings; __i66 < __a66.length; __i66++){ const b = __a66[__i66];
     if (b.setCiudad === undefined) b.setCiudad = b.set;
     b.set = esAlien() ? alienSet(b.cat || 'medio', mulberry32(((b.seed || 1)*7 + 3) | 0))
@@ -4082,7 +4165,8 @@ function cristalCv(){
 }
 function dibujaCristal(sx, sy, w, h, rot){
   ctx.save(); ctx.translate(sx, sy); if (rot) ctx.rotate(rot);
-  dibujaImg(cristalCv(), -w/2, -h/2, w, h);
+  const cc = cristalCv(); cc._contorno = true;
+  dibujaImg(cc, -w/2, -h/2, w, h);
   ctx.restore();
   return true;
 }
@@ -4416,7 +4500,8 @@ function arbolMuertoCv(){
 }
 function dibujaArbolMuerto(sx, sy, w, h, rot){
   ctx.save(); ctx.translate(sx, sy); if (rot) ctx.rotate(rot);
-  dibujaImg(arbolMuertoCv(), -w/2, -h/2, w, h);
+  const am = arbolMuertoCv(); am._contorno = true;
+  dibujaImg(am, -w/2, -h/2, w, h);
   ctx.restore();
   return true;
 }
@@ -5141,7 +5226,7 @@ function finalWave(){ return form >= 1 && (gameTime > 140 || score >= 1500); }
 function resetGame(){
   player = { x: WORLD_W/2, y: WORLD_H/2, vx:0, vy:0, tentaclePhase:0 };
   civilians=[]; enemies=[]; cars=[]; trees=[]; planters=[]; trash=[]; benches=[]; bullets=[]; booms=[]; heldObject=null;
-  partN = 0;                       // el depósito de chispas se reutiliza, no se tira
+  partN = 0; polvos.length = 0; avesVuelo.length = 0;                       // el depósito de chispas se reutiliza, no se tira
   sonicRings.length = 0; windRings.length = 0; fuegos.length = 0; rayos.length = 0; bossTrack = null;
   limpiaPresentacion(); charcosAgua.length = 0; evoT = 0; numsDano.length = 0; bocadillos.length = 0;
   humosNegros.length = 0;
@@ -5208,7 +5293,8 @@ function resetGame(){
     vil.intro = 1; vil.introY = player.y; vil.introT = 0; vil.flying = false;
   }
   if (typeof vil === 'object'){ vil.caida = 0; if (esInfierno()) empiezaCaida(); }   // al infierno se llega cayendo
-  for (let i=0;i<10;i++) spawnCar();
+  avenidas = eligeAvenidas();
+  for (let i=0;i<16;i++) spawnCar();
   for (let i=0;i<8;i++) spawnCivilian();
 }
 
@@ -5217,13 +5303,14 @@ function resetGame(){
 const CIV_PIELES = ['#f2d3b3','#e8c39e','#d9a877','#c68642','#a9683c','#8d5524','#6b4227','#4a2f1d'];
 const CIV_PELOS  = ['#1b1410','#2b1d12','#4a2f1d','#6b4423','#8d5524','#b07d3a','#d9b370','#8a8a8a','#e8e4de','#7a2f1e'];
 
-function spawnCivilian(){
+function spawnCivilian(x0, y0){
   const r = roads[Math.floor(rand(0,roads.length))];
   // niños, adultos y ancianos, cada uno con su ropa y lo que lleve encima
   const tirada = Math.random(), edad = tirada < 0.14 ? 1 : tirada < 0.27 ? 2 : 0;
   const tono = Math.floor(rand(0, CIV_ROPA_COL.length));
   let x,y;
-  if (r.dir==='h'){ x = rand(r.x+20, r.x+r.w-20); y = r.y + (Math.random()<0.5 ? -16 : r.h+16); }
+  if (x0 !== undefined){ x = clamp(x0, 16, WORLD_W - 16); y = clamp(y0, 16, WORLD_H - 16); }      // al bajarse de un auto
+  else if (r.dir==='h'){ x = rand(r.x+20, r.x+r.w-20); y = r.y + (Math.random()<0.5 ? -16 : r.h+16); }
   else { y = rand(r.y+20, r.y+r.h-20); x = r.x + (Math.random()<0.5 ? -16 : r.w+16); }
   civilians.push({ kind:'civ', x, y, vx:0, vy:0, hp:15, maxhp:15, dir:rand(0,Math.PI*2),
     speed: edad === 2 ? rand(22,32) : edad === 1 ? rand(40,58) : rand(30,52), color: CIV_ROPA_COL[tono],
@@ -5254,8 +5341,189 @@ function sobreCarretera(x, y){
 }
 const WRECK_FUSE = 4.5;      // segundos humeando antes de reventar
 
+// ---- AUTOS GOLPEADOS ----
+// Cualquier golpe salta la alarma, raja el cristal y el conductor frena y sale
+// corriendo. Los golpes cuerpo a cuerpo además lo mandan derrapando: choca con
+// otros autos (que también salen despedidos), arrolla a la gente y tumba el
+// mobiliario. Se queda donde para, abollado; revienta si choca fuerte contra un
+// edificio o si ya iba destrozado.
+const AUTO_ALARMA_T = 7;          // segundos sonando
+const AUTO_ROCE = 2.4;            // frenado del derrape
+const AUTO_VUELA = 380;           // a partir de esta velocidad, uno destrozado sigue volando y revienta al chocar
+function autoMasa(c){
+  const m = c.type === 'truck' ? 'cisterna' : c.modelo;
+  return m === 'cisterna' || m === 'autobus' ? 2.3 : m === 'reparto' ? 1.8 : m === 'furgoneta' || m === 'pickup' ? 1.35 : 1;
+}
+// El conductor (y en el autobús, algún pasajero) abre la puerta y huye.
+function autoDesaloja(c){
+  if (c.vacio || c.calcinado || c.dead) return;
+  c.vacio = true;
+  if (civilians.length >= 30 || score >= CIVIL_STOP_SCORE) return;
+  const n = c.modelo === 'autobus' ? 3 : c.type === 'taxi' && Math.random() < 0.5 ? 2 : 1;
+  for (let i = 0; i < n; i++){
+    const a = rand(0, Math.PI*2);
+    spawnCivilian(c.x + Math.cos(a)*(c.w*0.4), c.y + Math.sin(a)*(c.h*0.6 + 6));
+    const p = civilians[civilians.length - 1];
+    if (p){ p.panicoT = 5; p.panX = c.x; p.panY = c.y; }
+  }
+}
+function autoDetiene(c){
+  if (!c.parado){ c.parado = true; c.vx = 0; c.vy = 0; }
+  autoDesaloja(c);
+}
+// Lo lanza derrapando en la dirección a, con velocidad vel (los pesados, menos).
+function autoEmpuja(c, a, vel){
+  if (c.dead || c.held || c.thrown || enPresa(c)) return;
+  const v = vel/autoMasa(c);
+  if (v < 40) return;
+  if (!c.patina){ c.kbx = 0; c.kby = 0; c._choques = []; }
+  c.kbx = c.kbx*0.3 + Math.cos(a)*v; c.kby = c.kby*0.3 + Math.sin(a)*v;
+  c.patina = true; c._choques.length = 0;
+  c.giro = (Math.random() < 0.5 ? -1 : 1)*Math.min(5, v/160);      // se balancea (el dibujo es de perfil: girarlo mucho lo vuelca)
+  c.onRoad = undefined; c.fuse = 0;
+  autoDetiene(c);
+}
+// Golpe de un héroe a un auto desde (ox, oy). Con vel > 0 sale despedido.
+function golpeaAuto(c, dmg, ox, oy, vel){
+  if (c.dead) return;
+  // Un golpe que empuja no revienta en el acto a un auto sano: lo deja tocado
+  // (y revienta si choca contra un edificio). Los golpes enormes, sí.
+  if (vel > 0 && !dobleInv() && c.hp >= c.maxhp*0.5 && dmg < c.maxhp*2.2) dmg = Math.min(dmg, c.hp - c.maxhp*0.3);
+  c.hp -= dmg;
+  if (vel > 0 && !dobleInv()){
+    autoEmpuja(c, Math.atan2(c.y - oy, c.x - ox), vel);
+    if (c.patina){
+      c.porJug = true;
+      // destrozado pero aún volando: revienta al chocar o al pararse
+      if (c.hp <= 0 && Math.hypot(c.kbx, c.kby) >= AUTO_VUELA){ c.hp = 0.5; c.condenado = true; return; }
+    }
+  }
+  if (c.hp <= 0) porJugador(()=> autoAbatido(c));
+}
+function autoRevienta(c){
+  c.patina = false; c.condenado = false;
+  if (c.dead) return;
+  c.hp = 0;
+  if (c.porJug) porJugador(()=> autoAbatido(c)); else autoAbatido(c);
+}
+// Cada fotograma: si perdió vida (por lo que sea), alarma, cristales y conductor fuera.
+function autoReacciona(c, dt){
+  if (c._hpAnt === undefined) c._hpAnt = c.hp;
+  const d = c._hpAnt - c.hp;
+  c._hpAnt = c.hp;
+  if (d > 0.5){
+    if (!c.calcinado) c.alarmaT = AUTO_ALARMA_T;
+    if (!c.rajado && d >= 5){
+      c.rajado = true;
+      addParticles(c.x, c.y - 6, esAlien() ? '#bff4ff' : '#d6ecf8', 7, 110);
+      sfxEn('cristal', c.x, c.y, 0.5);
+    }
+    autoDetiene(c);
+  }
+  if (c.alarmaT > 0){
+    c.alarmaT -= dt;
+    c.alarmaS = (c.alarmaS || 0) - dt;
+    if (c.alarmaS <= 0){ c.alarmaS = 0.6; sfxEn('alarmaAuto', c.x, c.y, 0.5); }
+  }
+}
+// El derrape: avanza, frena, gira y choca con lo que encuentra.
+function autoPatina(c, dt){
+  const v = Math.hypot(c.kbx, c.kby);
+  c.x += c.kbx*dt; c.y += c.kby*dt;
+  const f = Math.exp(-AUTO_ROCE*dt); c.kbx *= f; c.kby *= f;
+  // balanceo amortiguado: se ladea con el golpe y vuelve a quedar sobre las ruedas
+  c.rot = clamp((c.rot || 0) + c.giro*dt, -0.45, 0.45); c.giro += (-c.rot*40 - c.giro*5)*dt;
+  if (v > 170 && Math.random() < dt*14) addParticles(c.x, c.y + c.h*0.3, '#8f8a84', 1, 30);   // polvo de las ruedas
+  if (c.x < 30 || c.x > WORLD_W - 30){ c.x = clamp(c.x, 30, WORLD_W - 30); c.kbx *= -0.3; }
+  if (c.y < 30 || c.y > WORLD_H - 30){ c.y = clamp(c.y, 30, WORLD_H - 30); c.kby *= -0.3; }
+  const rr = Math.max(c.w, c.h)*0.42;
+  // contra un edificio
+  for (let i = 0; i < buildings.length; i++){ const b = buildings[i];
+    if (b.stage >= 2) continue;
+    const cx = clamp(c.x, b.x, b.x + b.w), cy = clamp(c.y, b.y, b.y + b.h);
+    if (Math.abs(c.x - cx) >= rr || Math.abs(c.y - cy) >= rr) continue;
+    const hacer = ()=> damageBuilding(b, 20 + v*0.08);
+    if (c.porJug) porJugador(hacer); else hacer();
+    if (c.condenado || v > 560 || c.hp < c.maxhp*0.45){ autoRevienta(c); return; }
+    // rebota y queda abollado
+    if (cx === c.x) c.kby *= -0.25; else c.kbx *= -0.25;
+    if (cx === c.x) c.kbx *= 0.4; else c.kby *= 0.4;
+    c.x += cx === c.x ? 0 : (c.x < cx ? -1 : 1)*(rr - Math.abs(c.x - cx));
+    c.y += cy === c.y ? 0 : (c.y < cy ? -1 : 1)*(rr - Math.abs(c.y - cy));
+    c.hp -= c.maxhp*0.25*Math.min(1, v/420);
+    addParticles(c.x, c.y, '#ffd27b', 8, 150); sfxEn('metal', c.x, c.y); shake(3 + v/120, 0.12);
+    if (c.hp <= 0){ autoRevienta(c); return; }
+    break;
+  }
+  // contra otros autos: les pasa parte del golpe
+  if (v > 60) for (let i = 0; i < cars.length; i++){ const o = cars[i];
+    if (o === c || o.dead || o.held || o.thrown || c._choques.indexOf(o) >= 0) continue;
+    const ro = Math.max(o.w, o.h)*0.42;
+    if (Math.abs(o.x - c.x) > rr + ro || Math.abs(o.y - c.y) > (c.h + o.h)*0.55) continue;
+    c._choques.push(o);
+    const a = Math.atan2(o.y - c.y, o.x - c.x);
+    o.porJug = o.porJug || c.porJug;
+    const sanoO = o.hp >= o.maxhp*0.5;
+    o.hp -= o.maxhp*Math.min(0.45, 0.1 + v/2000); if (sanoO) o.hp = Math.max(o.hp, o.maxhp*0.3);
+    c.hp -= c.maxhp*0.05;
+    autoEmpuja(o, a, v*0.75*autoMasa(c));
+    if (o._choques && o._choques.indexOf(c) < 0) o._choques.push(c);   // que no se devuelvan el golpe
+    c.kbx *= 0.4; c.kby *= 0.4;
+    addParticles((c.x + o.x)/2, (c.y + o.y)/2, '#ffd27b', 9, 160); addParticles((c.x + o.x)/2, (c.y + o.y)/2, '#d6ecf8', 5, 120);
+    sfxEn('metal', o.x, o.y); shake(3 + v/160, 0.12);
+    if (o.hp <= 0){ if (o.patina && Math.hypot(o.kbx, o.kby) >= AUTO_VUELA*0.6){ o.hp = 0.5; o.condenado = true; } else autoRevienta(o); }
+    if (c.dead) return;                          // lo alcanzó la explosión del otro
+    if (c.hp <= 0){ autoRevienta(c); return; }
+  }
+  // arrolla a la gente y tumba el mobiliario
+  if (v > 150){
+    for (const pool of [civilians, enemies]) for (let i = 0; i < pool.length; i++){ const e = pool[i];
+      if (e.dead || e.held || e.thrown || e.cielo || c._choques.indexOf(e) >= 0) continue;
+      if (distCuerpo(c.x, c.y, e) > rr + 8) continue;
+      c._choques.push(e);
+      const dmg = Math.min(90, v*0.12), hacer = ()=> damageEnemy(e, dmg, e.x, e.y);
+      if (c.porJug) porJugador(hacer); else hacer();
+      if (!e.dead && (e.person || e.kind === 'civ')){
+        const a = Math.atan2(c.kby, c.kbx);
+        e.stunT = Math.max(e.stunT || 0, 0.8); e.stunVx = Math.cos(a)*v*0.6; e.stunVy = Math.sin(a)*v*0.6;
+      }
+    }
+    for (const pool of [trees, lamps, trash, benches]) for (let i = 0; i < pool.length; i++){ const pr = pool[i];
+      if (pr.dead || pr.held || pr.thrown) continue;
+      if (Math.abs(pr.x - c.x) > rr + 8 || Math.abs(pr.y - c.y) > rr + 8) continue;
+      if (c.porJug) porJugador(()=> propAbatido(pr)); else propAbatido(pr);
+      addParticles(pr.x, pr.y, pr.kind === 'tree' ? '#5c8a3a' : '#9fa4a8', 10, 120);
+      c.kbx *= 0.8; c.kby *= 0.8;
+    }
+  }
+  if (v < 28){
+    c.patina = false; c.kbx = c.kby = 0; c.rot = 0; c.giro = 0;
+    if (c.condenado) autoRevienta(c);
+  }
+}
+// El auto de delante en el mismo carril y sentido (para frenar detrás), o null.
+function autoDelante(c){
+  let best = null, bd = 64;
+  for (let i = 0; i < cars.length; i++){ const o = cars[i];
+    if (o === c || o.dead || o.held || o.thrown) continue;
+    let d;
+    if (c.vy === 0){ if (Math.abs(o.y - c.y) > 14) continue; d = (o.x - c.x)*Math.sign(c.vx); }
+    else { if (Math.abs(o.x - c.x) > 14) continue; d = (o.y - c.y)*Math.sign(c.vy); }
+    if (d > 0 && d < bd){ bd = d; best = o; }
+  }
+  return best;
+}
+
+// Unas pocas calles (las del centro) son avenidas con mucho más tráfico.
+let avenidas = [];
+function eligeAvenidas(){
+  const dentro = roads.filter(r => r.dir === 'h' ? r.y > 100 && r.y < WORLD_H - 100 : r.x > 100 && r.x < WORLD_W - 100);
+  dentro.sort((a, b)=> dist(a.x + a.w/2, a.y + a.h/2, WORLD_W/2, WORLD_H/2) - dist(b.x + b.w/2, b.y + b.h/2, WORLD_W/2, WORLD_H/2));
+  return dentro.slice(0, 3);
+}
+function autosCirculando(){ let n = 0; for (let i = 0; i < cars.length; i++){ const c = cars[i]; if (!c.dead && !c.held && !c.thrown && !c.parado) n++; } return n; }
 function spawnCar(){
-  const r = roads[Math.floor(rand(0,roads.length))];
+  const r = avenidas.length && Math.random() < 0.55 ? avenidas[Math.floor(Math.random()*avenidas.length)] : roads[Math.floor(rand(0,roads.length))];
   // the tanker is a rare sight - and a walking bomb
   const roll = Math.random();
   const type = roll < 0.07 ? 'truck' : roll < 0.8 ? 'car' : 'taxi';
@@ -6642,7 +6910,7 @@ function addSmoke(x, y){
   p.drag = 0.985;                                   // apenas frena: se eleva
   p.grow = 5.5;                                     // se expande al subir
 }
-function shake(mag,t){ if (_fxRed) _fxRed.push(['k', mag, t]); shakeMag = Math.max(shakeMag,mag); shakeTime = Math.max(shakeTime,t); }
+function shake(mag,t){ if (_fxRed) _fxRed.push(['k', mag, t]); shakeMag = Math.max(shakeMag,mag); shakeTime = Math.max(shakeTime,t); if (mag >= 6) vibraMando(mag/22, Math.min(0.4, t)); }
 
 let chainDepth = 0;
 // Mientras > 0, la explosión viene de un proyectil (suena con boomD).
@@ -6709,7 +6977,14 @@ function explode(x, y, radius, dmg, big, hurtPlayer){
   }
   for (let __i97 = 0, __a97 = cars; __i97 < __a97.length; __i97++){ const c = __a97[__i97];
     if (c.dead || c.held) continue;
-    if (dist(x,y,c.x,c.y) < radius*0.8){
+    const dE = dist(x,y,c.x,c.y);
+    if (dE >= radius*0.8 && dE < radius*1.5 && !dobleInv() && !c.thrown){   // al borde de la onda: sale despedido
+      c.hp -= c.maxhp*0.3;
+      autoEmpuja(c, Math.atan2(c.y - y, c.x - x), 260 + radius*2.2);
+      if (c.patina){ c.porJug = c.porJug || culpaJug > 0; if (c.hp <= 0){ c.hp = 0.5; c.condenado = true; } }
+      else if (c.hp <= 0){ c.hp = 0.5; }
+    }
+    if (dE < radius*0.8){
       c.dead = true;
       discoverObj(c); restoAuto(c);
       // Un vehículo que revienta por tu explosión cuenta igual que cualquiera.
@@ -7759,6 +8034,118 @@ function arbIndexa(){
 // Sacude los árboles alrededor de un punto: lo usa la explosión de la
 // cisterna. Se apoya en la misma rejilla, así que solo mira las celdas
 // vecinas y no recorre la ciudad entera.
+// ---- PÁJAROS ----
+// Algunos árboles tienen pájaros posados (palomas en la ciudad, bichos
+// voladores en el planeta marciano, cuervos en el castigo). Al acercarte o con
+// una explosión cerca salen volando; vuelven cuando ya no hay nadie cerca.
+const AVES_R = 165;                     // a esta distancia del invasor se espantan
+const avesVuelo = [];                   // los que van volando
+const _aveCv = {};
+function aveTipo(){ return esAlien() ? 'a' : esInfierno() ? 'i' : 'c'; }
+// Hojas de 3 dibujos (posado, alas arriba, alas abajo) de 12x10, con contorno.
+function aveHoja(tp){
+  if (_aveCv[tp]) return _aveCv[tp];
+  const c = document.createElement('canvas'); c.width = 36; c.height = 10;
+  const g = c.getContext('2d');
+  const P = tp === 'a' ? { cuerpo:'#6a3aa8', ala:'#9a6ae0', pico:'#7affe0', ojo:'#7affe0' }
+          : tp === 'i' ? { cuerpo:'#141012', ala:'#2a2226', pico:'#3a3030', ojo:'#ff3a2a' }
+          : { cuerpo:'#6a707c', ala:'#9aa2b0', pico:'#e0a04a', ojo:'#1a1a1a' };
+  const px = (x, y, w, h, col)=>{ g.fillStyle = col; g.fillRect(x, y, w, h); };
+  // posado (de perfil, mirando a la derecha)
+  px(2, 4, 7, 4, '#0c0c10'); px(3, 3, 5, 5, P.cuerpo); px(7, 2, 3, 3, '#0c0c10'); px(7, 2, 2, 2, P.cuerpo);
+  px(9, 3, 2, 1, P.pico); px(8, 2, 1, 1, P.ojo); px(1, 5, 2, 2, P.ala); px(4, 4, 3, 2, P.ala); px(4, 8, 1, 2, '#2a2420'); px(6, 8, 1, 2, '#2a2420');
+  // en vuelo, alas arriba
+  g.save(); g.translate(12, 0);
+  px(3, 5, 6, 3, '#0c0c10'); px(4, 5, 4, 2, P.cuerpo); px(8, 4, 2, 2, P.cuerpo); px(10, 5, 1, 1, P.pico);
+  px(1, 1, 3, 4, P.ala); px(6, 0, 3, 5, P.ala); px(1, 1, 1, 1, '#0c0c10'); px(8, 0, 1, 1, '#0c0c10');
+  g.restore();
+  // en vuelo, alas abajo
+  g.save(); g.translate(24, 0);
+  px(3, 3, 6, 3, '#0c0c10'); px(4, 3, 4, 2, P.cuerpo); px(8, 2, 2, 2, P.cuerpo); px(10, 3, 1, 1, P.pico);
+  px(1, 5, 3, 4, P.ala); px(6, 5, 3, 4, P.ala); px(1, 8, 1, 1, '#0c0c10'); px(8, 8, 1, 1, '#0c0c10');
+  g.restore();
+  return (_aveCv[tp] = c);
+}
+// Dónde se posan en el árbol (se decide una vez por árbol).
+function avesDe(t){
+  if (t.aves === undefined){
+    t.aves = Math.random() < 0.42 ? 1 + Math.floor(Math.random()*3) : 0;
+    t._avs = [];
+    for (let i = 0; i < 3; i++) t._avs.push([rand(-0.3, 0.3), rand(-0.32, 0.05), Math.random() < 0.5 ? 1 : -1, Math.random()*6]);
+  }
+  return t.aves;
+}
+// Los posados de un árbol, pintados juntos una vez (al doble de resolución): en
+// partida es una sola copia por árbol en vez de una por pájaro.
+function avesGrupoCv(t){
+  const tp = aveTipo();
+  if (t._avG && t._avGn === t.aves && t._avGt === tp) return t._avG;
+  const E = 2, x0 = -0.3*t.w - 9, y0 = -0.32*t.h - 13, W = Math.ceil(0.6*t.w + 18), H = Math.ceil(0.37*t.h + 15);
+  const c = t._avG || document.createElement('canvas'); c.width = W*E; c.height = H*E;
+  const g = c.getContext('2d'), h = aveHoja(tp);
+  g.imageSmoothingEnabled = false;
+  for (let i = 0; i < t.aves; i++){
+    const a = t._avs[i], x = (a[0]*t.w - x0)*E, y = (a[1]*t.h - y0)*E;
+    g.setTransform(a[2] < 0 ? -E : E, 0, 0, E, x, y);
+    g.drawImage(h, 0, 0, 12, 10, -8, -12, 16, 13);
+  }
+  c._ox = x0; c._oy = y0; c._w = W; c._h = H; c._ver = (c._ver | 0) + 1;
+  t._avG = c; t._avGn = t.aves; t._avGt = tp;
+  return c;
+}
+function drawAvesPosadas(t, sx, cy){
+  if (t.held || t.thrown || !avesDe(t)) return;
+  const c = avesGrupoCv(t);
+  dibujaImg(c, sx + c._ox, cy + c._oy, c._w, c._h);
+}
+// Los pájaros de este árbol salen volando, apartándose de (ox, oy).
+function espantaArbol(t, ox, oy){
+  if (!t.aves || t.held || t.thrown) return;
+  const cy = t.y - t.h*0.42, tp = aveTipo();
+  for (let i = 0; i < t.aves; i++){
+    const a = t._avs[i], x = t.x + a[0]*t.w, y = cy + a[1]*t.h;
+    const ang = Math.atan2(y - oy, x - ox) + rand(-0.7, 0.7), v = rand(150, 230);
+    if (avesVuelo.length < 40) avesVuelo.push({ x, y, z: 0, vx: Math.cos(ang)*v, vy: Math.sin(ang)*v*0.6 - 30, vz: rand(50, 110), t: 0, fase: Math.random()*6, tp });
+  }
+  t.aves = 0; t.avesT = gameTime + rand(30, 55);
+  sfxEn(tp === 'i' ? 'cuervo' : 'aves', t.x, t.y, 0.8);
+}
+function updateAves(dt){
+  // espanta los del entorno del invasor (por la rejilla de árboles: pocos que mirar)
+  if (!arbGrid) arbIndexa();
+  const c0 = Math.floor((player.x - AVES_R)/ARB_CELDA), c1 = Math.floor((player.x + AVES_R)/ARB_CELDA);
+  const f0 = Math.floor((player.y - AVES_R)/ARB_CELDA), f1 = Math.floor((player.y + AVES_R)/ARB_CELDA);
+  for (let f = Math.max(0, f0); f <= f1; f++) for (let c = Math.max(0, c0); c <= c1 && c < arbCols; c++){
+    const celda = arbGrid[f*arbCols + c]; if (!celda) continue;
+    for (let i = 0; i < celda.length; i++){ const t = celda[i];
+      if (!t.dead && t.aves && dist(t.x, t.y, player.x, player.y) < AVES_R) espantaArbol(t, player.x, player.y);
+    }
+  }
+  // vuelven a posarse en los árboles lejanos (de uno en uno)
+  if (Math.random() < dt*0.6 && trees.length){
+    const t = trees[Math.floor(Math.random()*trees.length)];
+    if (!t.dead && !t.held && !t.thrown && t.aves === 0 && gameTime > (t.avesT || 0) && dist(t.x, t.y, player.x, player.y) > 650) t.aves = 1 + Math.floor(Math.random()*3);
+  }
+  for (let i = avesVuelo.length - 1; i >= 0; i--){
+    const a = avesVuelo[i];
+    a.t += dt; a.fase += dt*(14 + a.t*2);
+    a.x += a.vx*dt; a.y += a.vy*dt; a.z += a.vz*dt; a.vz *= Math.exp(-0.5*dt);
+    a.vx *= 1 + dt*0.25; a.vy *= 1 + dt*0.25;                      // cogen velocidad
+    if (a.t > 6) avesVuelo.splice(i, 1);
+  }
+}
+function drawAvesVuelo(){
+  if (!avesVuelo.length) return;
+  for (let i = 0; i < avesVuelo.length; i++){
+    const a = avesVuelo[i], x = a.x - camX, y = a.y - a.z - camY;
+    if (x < -20 || x > VW + 20 || y < -20 || y > VH + 20) continue;
+    const h = aveHoja(a.tp), fr = Math.sin(a.fase) > 0 ? 12 : 24, esc = 1.35 + Math.min(0.6, a.z/240);   // más grandes cuanto más alto
+    ctx.globalAlpha = Math.min(1, (6 - a.t)/0.8);
+    if (a.vx < 0){ ctx.translate(x, y); ctx.scale(-1, 1); dibujaImg(h, fr, 0, 12, 10, -6*esc, -5*esc, 12*esc, 10*esc); ctx.scale(-1, 1); ctx.translate(-x, -y); }
+    else dibujaImg(h, fr, 0, 12, 10, x - 6*esc, y - 5*esc, 12*esc, 10*esc);
+  }
+  ctx.globalAlpha = 1;
+}
 function sacudeArboles(cx, cy, radio, fuerza){
   if (!arbGrid) arbIndexa();
   const c0 = Math.floor((cx - radio) / ARB_CELDA), c1 = Math.floor((cx + radio) / ARB_CELDA);
@@ -7776,6 +8163,7 @@ function sacudeArboles(cx, cy, radio, fuerza){
         const dx = t.x - cx, dy = t.y - cy;
         const d2 = dx*dx + dy*dy;
         if (d2 > r2) continue;
+        if (t.aves) espantaArbol(t, cx, cy);
         // se inclina apartándose del estallido, más cuanto más cerca
         const f2 = 1 - Math.sqrt(d2) / radio;
         t.viento = (dx >= 0 ? 1 : -1) * fuerza * f2;
@@ -8280,7 +8668,7 @@ function ocupantes(){
 // Reparte las bajas de un vehículo destruido según quién iba dentro.
 // Lo usan todas las vías: golpe directo, lanzamiento y explosión en cadena.
 function bajasDeAuto(c){
-  if (culpaJug <= 0) return;
+  if (culpaJug <= 0 || c.vacio) return;           // ya se bajaron: no queda nadie dentro
   const n = ocupantes();
   if (Online.culpaInv) Online.premioInv.kills += n; else kills += n;
   for (let i = 0; i < n; i++) comboHit();
@@ -9136,11 +9524,14 @@ const IMG_VICT2   = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAASwAAAEsCAMAA
 // Cada baja encadena. Cuanto más largo el combo, más corta la ventana para
 // mantenerlo y mayor el multiplicador de puntaje y monedas.
 const COMBO_FASES = [
-  { bajas:1,  ventana:7.0,  mult:1.1 },
-  { bajas:5,  ventana:5.0,  mult:1.2 },
-  { bajas:10, ventana:3.5,  mult:1.3 }
+  { bajas:1,  ventana:7.0,  mult:1.1, nom:'CADENA',      col:'#7bffa0' },
+  { bajas:5,  ventana:5.0,  mult:1.2, nom:'RACHA',       col:'#8fd7ff' },
+  { bajas:10, ventana:3.5,  mult:1.3, nom:'FURIA',       col:'#ff9d5c' },
+  { bajas:25, ventana:3.0,  mult:1.4, nom:'MASACRE',     col:'#ff4a5a' },
+  { bajas:50, ventana:2.6,  mult:1.5, nom:'APOCALIPSIS', col:'#d98bff' }
 ];
 let comboN = 0, comboT = 0, comboFase = -1, comboBonus = 0, comboFlash = 0;
+let comboBonusIni = 0, comboFin = null;   // al cerrar una racha larga: { n, pts, t }
 
 function comboVentana(){
   return comboFase >= 0 ? COMBO_FASES[comboFase].ventana : COMBO_FASES[0].ventana;
@@ -9156,43 +9547,67 @@ function faseDe(n){
 }
 // Una baja más: sube el contador, reinicia el reloj y puede subir de fase.
 function comboHit(){
+  if (comboN <= 0){ comboBonusIni = comboBonus; comboFin = null; }
   comboN++;
   const nueva = faseDe(comboN);
-  if (nueva > comboFase){ comboFase = nueva; comboFlash = 0.6; sfx('ui'); }
+  if (nueva > comboFase){
+    comboFase = nueva; comboFlash = 0.6;
+    if (nueva >= 1){                                   // sube de fase: remate, destello y un anillo de su color
+      sfx('comboSube'); hitstop(0.04 + nueva*0.01);
+      if (running && !esVisorVs()) anilloImpacto(player.x, player.y, 90 + nueva*25, COMBO_FASES[nueva].col, 0.35);
+    } else sfx('ui');
+  }
   comboT = comboVentana();
 }
 function comboUpdate(dt){
   if (comboFlash > 0) comboFlash -= dt;
+  if (comboFin){ comboFin.t -= dt; if (comboFin.t <= 0) comboFin = null; }
   if (comboN <= 0) return;
   comboT -= dt;
-  if (comboT <= 0) comboReset();
+  if (comboT <= 0){
+    if (comboN >= 5) comboFin = { n: comboN, pts: comboBonus - comboBonusIni, t: 1.5, f: comboFase };   // resumen de la racha
+    comboReset();
+  }
 }
 function comboReset(){ comboN = 0; comboT = 0; comboFase = -1; }
 
 // Pinta el indicador. Solo toca el DOM cuando algo cambia de verdad, salvo
 // la barra, que se mueve cada fotograma pero es un único estilo.
-let _cbN = -1, _cbF = -2;
+let _cbN = -1, _cbF = -2, _cbPar = false, _cbClase = '', _cbFin = null;
 function refreshCombo(){
   const el = document.getElementById('combo');
   if (!el) return;
   if (comboN <= 0){
-    if (_cbN !== 0){ el.classList.add('hidden'); _cbN = 0; _cbF = -2; }
+    if (comboFin){                                     // la racha se cerró: su resumen, que se desvanece
+      if (_cbFin !== comboFin){
+        _cbFin = comboFin; _cbN = -1; _cbF = -2;
+        el.classList.remove('hidden');
+        document.getElementById('combon').textContent = comboFin.n;
+        document.getElementById('combofase').textContent = 'RACHA CERRADA';
+        document.getElementById('combomult').textContent = comboFin.pts > 0 ? '+' + comboFin.pts : 'x' + COMBO_FASES[comboFin.f].mult.toFixed(1);
+        _cbClase = 'f' + (comboFin.f + 1) + ' fin'; el.className = _cbClase;
+      }
+      return;
+    }
+    if (_cbN !== 0){ el.classList.add('hidden'); _cbN = 0; _cbF = -2; _cbFin = null; }
     return;
   }
+  _cbFin = null;
   if (_cbN !== comboN){
-    _cbN = comboN;
+    _cbN = comboN; _cbPar = !_cbPar;                   // alterna la animación del número: salta con cada baja
     el.classList.remove('hidden');
     document.getElementById('combon').textContent = comboN;
   }
   if (_cbF !== comboFase){
     _cbF = comboFase;
-    el.className = 'f' + (comboFase + 1);
     document.getElementById('combomult').textContent = 'x' + comboMult().toFixed(1);
     const fz = document.getElementById('combofase');
-    if (fz) fz.textContent = ['CADENA','RACHA','FURIA'][comboFase] || 'CADENA';
+    if (fz) fz.textContent = (COMBO_FASES[comboFase] || COMBO_FASES[0]).nom;
   }
-  el.classList.toggle('sube', comboFlash > 0);
-  hudCss('combofill', 'width', pctCss(comboT / comboVentana()));
+  const resta = comboT / comboVentana();
+  const cl = 'f' + (comboFase + 1) + (_cbPar ? ' ga' : ' gb') + (comboFlash > 0 ? ' sube' : '') + (resta < 0.3 ? ' urge' : '');
+  if (cl !== _cbClase){ _cbClase = cl; el.className = cl; }
+  hudCss('combofill', 'width', pctCss(resta));
 }
 // Puntos con el multiplicador aplicado. El extra se guarda aparte para
 // poder mostrarlo y para que cuente también en monedas.
@@ -9643,6 +10058,7 @@ function pararMuestraMusica(){
 function applyAudioVolumes(){
   if (!audio.ctx) return;
   audio.sfxGain.gain.value = audio.sfxOn ? audio.sfxVol : 0;
+  audio.musGain.gain.cancelScheduledValues(audio.ctx.currentTime);       // por si había un fundido en curso
   audio.musGain.gain.value = audio.musOn ? audio.musVol * 0.5 : 0;
 }
 
@@ -9744,6 +10160,11 @@ function suenaMuestra(buf, vol){
 // según dónde ocurre) o, si no hay, la de efectos; más la reverberación si el
 // efecto la pide.
 let _sfxDest = null, _sfxRev = 0;
+// Golpes y disparos suenan cada vez un pelo distintos (±5 % de tono) para que
+// no se repitan como una ametralladora de clones.
+let _sfxTono = 1;
+const SFX_TONO = { hit:1, kill:1, shoot:1, crack:1, metal:1, madera:1, cristal:1, whoosh:1, grab:1, throw:1, hurt:1, escopeta:1, rafaga:1,
+                   plasma:1, laserE:1, mordisco:1, hachazo:1, espada:1, coletazo:1, aleteo:1, sierra:1, boom:1, boomD:1, demolish:1, crumble:1 };
 function sfxSalida(g){
   g.connect(_sfxDest || audio.sfxGain);
   if (_sfxRev > 0 && audio.rev){ const s = audio.ctx.createGain(); s.gain.value = _sfxRev; g.connect(s); s.connect(audio.rev); }
@@ -9753,6 +10174,7 @@ function sfxSalida(g){
 function oscA(type, f0, f1, dur, vol, delay, att){
   if (!audio.ctx || !audio.sfxOn || !(f0 > 0)) return;
   const c = audio.ctx, t = c.currentTime + (delay || 0), o = c.createOscillator(), g = c.createGain();
+  f0 *= _sfxTono; if (f1) f1 *= _sfxTono;
   o.type = type; o.frequency.setValueAtTime(f0, t);
   if (f1 && f1 !== f0) o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur);
   g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(Math.max(0.0002, vol), t + (att || 0.004));
@@ -9765,6 +10187,7 @@ function ruidoA(dur, ftype, f0, f1, q, vol, delay, att){
   if (!audio.ctx || !audio.sfxOn) return;
   const c = audio.ctx, t = c.currentTime + (delay || 0), s = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain();
   s.buffer = getNoiseBuf(); s.loop = true;
+  f0 *= _sfxTono; if (f1) f1 *= _sfxTono;
   f.type = ftype; f.frequency.setValueAtTime(f0, t);
   if (f1 && f1 !== f0) f.frequency.exponentialRampToValueAtTime(Math.max(30, f1), t + dur);
   f.Q.value = q || 0.8;
@@ -9781,6 +10204,7 @@ function tone(freq, dur, type, vol, slideTo){
   // Red de seguridad: una frecuencia inválida rompía el nodo de audio.
   if (!isFinite(freq) || freq <= 0) return;
   if (slideTo != null && (!isFinite(slideTo) || slideTo <= 0)) slideTo = null;
+  freq *= _sfxTono; if (slideTo) slideTo *= _sfxTono;
   const t0 = audio.ctx.currentTime;
   const osc = audio.ctx.createOscillator();
   const g   = audio.ctx.createGain();
@@ -9822,8 +10246,9 @@ function noise(dur, vol, freq, q){
   src.playbackRate.value = 0.85 + Math.random()*0.3;   // pequeña variación
   const off = Math.random() * 1.5;                     // arranca en otro punto
   const flt = audio.ctx.createBiquadFilter();
-  flt.type='lowpass'; flt.frequency.setValueAtTime(freq||900, t0);
-  flt.frequency.exponentialRampToValueAtTime(Math.max(80,(freq||900)*0.45), t0+dur);
+  const fq = (freq || 900)*_sfxTono;
+  flt.type='lowpass'; flt.frequency.setValueAtTime(fq, t0);
+  flt.frequency.exponentialRampToValueAtTime(Math.max(80, fq*0.45), t0+dur);
   flt.Q.value = q||1;
   const g = audio.ctx.createGain();
   g.gain.setValueAtTime(0.0001, t0);
@@ -9961,6 +10386,17 @@ const SFX = {
   vengativos:()=> { noise(0.5, 0.07, 1500, 0.6); tone(240, 0.5, 'sawtooth', 0.04, 90); tone(330, 0.4, 'square', 0.02, 140); },
   portalSanto:()=> { [523.25, 659.25, 783.99, 1046.5].forEach((f, i)=> setTimeout(()=> tone(f, 1.4, 'sine', 0.045, f*1.01), i*90)); noise(1.2, 0.04, 6000); },
   caidaGolpe:()=> { noise(0.7, 0.3, 160, 1.4); tone(90, 0.7, 'sawtooth', 0.14, 36); },
+  // el combo sube de fase: arpegio que sube y un golpe brillante
+  comboSube: ()=> { [523, 659, 784, 1047].forEach((f, i)=> oscA('square', f, f, 0.09, 0.05, i*0.045, 0.003)); oscA('sine', 2093, 1568, 0.25, 0.04, 0.18); ruidoA(0.18, 'highpass', 5000, 5000, 0.7, 0.05, 0.18); },
+  // pájaros que salen volando: aleteo y un par de trinos
+  aves:   ()=> { for (let i = 0; i < 4; i++) ruidoA(0.05, 'bandpass', 1800 + Math.random()*900, 0, 1.4, 0.07, i*0.045, 0.004);
+                 const f = 2600 + Math.random()*900; oscA('sine', f, f*1.35, 0.07, 0.035, 0.02); oscA('sine', f*1.1, f*0.9, 0.06, 0.03, 0.14); },
+  cuervo: ()=> { for (let i = 0; i < 4; i++) ruidoA(0.05, 'bandpass', 1300 + Math.random()*600, 0, 1.4, 0.07, i*0.05, 0.004);
+                 oscA('sawtooth', 620, 420, 0.16, 0.05, 0.03); oscA('sawtooth', 600, 400, 0.14, 0.04, 0.24); },
+  gota:   ()=> { const f = 1800 + Math.random()*2200; oscA('sine', f, f*0.55, 0.05, 0.02); },
+  // alarma de auto: el clásico gorjeo que sube y baja
+  alarmaAuto: ()=> { oscA('square', 1250, 1250, 0.13, 0.035, 0, 0.004); oscA('square', 880, 880, 0.13, 0.035, 0.15, 0.004);
+                     oscA('square', 1250, 1250, 0.13, 0.035, 0.3, 0.004); oscA('square', 880, 880, 0.13, 0.035, 0.45, 0.004); },
   alarma: ()=> { tone(660, 0.18, 'square', 0.06, 660); setTimeout(()=> tone(880, 0.18, 'square', 0.06, 880), 200); },
   meteoro:()=> { noise(1.2, 0.12, 400, 0.8); tone(220, 1.2, 'sawtooth', 0.06, 60); },
   plasma: ()=> { tone(640, 0.16, 'sawtooth', 0.04, 180); tone(1280, 0.1, 'sine', 0.03, 400); },
@@ -9997,7 +10433,7 @@ const SFX = {
 const SFX_REV = { boomD:0.3, bigboomD:0.45, laserOmni:0.25, boom:0.34, bigboom:0.5, shoot:0.1, caeAero:0.15, rugido3:0.18, metal:0.08, demolish:0.4, colapso:0.5, caidaGolpe:0.4, trueno:0.35, incineraZ:0.3, aterriza:0.25, cohete:0.15, portalRojo:0.3 };
 // Cortafuegos: un mismo efecto no puede repetirse más rápido que su cooldown,
 // y limitamos las voces simultáneas para que nunca se acumule un zumbido.
-const SFX_GAP = { boomD:0.07, bigboomD:0.12, sonicboom:0.30, dash:0.10, crack:0.20, caeAero:0.4, rugido3:3,
+const SFX_GAP = { alarmaAuto:0.55, aves:0.25, cuervo:0.4, gota:0.06, boomD:0.07, bigboomD:0.12, sonicboom:0.30, dash:0.10, crack:0.20, caeAero:0.4, rugido3:3,
                   shoot:0.09, hit:0.05, hurt:0.12, kill:0.06, boom:0.07, bigboom:0.12,
                   demolish:0.15, grab:0.06, throw:0.06, ui:0.05, coin:0.10,
                   ulla:1.2, cargaM:0.25, rayoM:0.12, escudoM:0.2, comeM:0.15,
@@ -10028,12 +10464,13 @@ function sfxEn(name, x, y, vol){
   if (k < 0.05) return;
   sfxLast[name] = now;
   const rev = SFX_REV[name] || 0;
-  if (k > 0.995 && Math.abs(pan) < 0.02 && !rev){ SFX[name](); return; }
+  _sfxTono = SFX_TONO[name] ? 1 + (Math.random()*2 - 1)*0.05 : 1;
+  if (k > 0.995 && Math.abs(pan) < 0.02 && !rev){ try { SFX[name](); } finally { _sfxTono = 1; } return; }
   const c = audio.ctx, g = c.createGain(); g.gain.value = k;
   if (Math.abs(pan) >= 0.02 && c.createStereoPanner){ const pn = c.createStereoPanner(); pn.pan.value = pan; g.connect(pn); pn.connect(audio.sfxGain); }
   else g.connect(audio.sfxGain);
   _sfxDest = g; _sfxRev = rev;
-  try { SFX[name](); } finally { _sfxDest = null; _sfxRev = 0; }
+  try { SFX[name](); } finally { _sfxDest = null; _sfxRev = 0; _sfxTono = 1; }
 }
 // Sonido sostenido de la telequinesis: un zumbido brillante con trémolo que
 // sube con lo que se sostiene. Se crea al empezar y se apaga al soltar.
@@ -13884,6 +14321,140 @@ canvas.addEventListener('mouseup', e=>{
 });
 canvas.addEventListener('contextmenu', e=> e.preventDefault());
 
+// ---- MANDO (Gamepad) ----
+// Se traduce a lo que ya entiende el juego: el stick izquierdo y la cruceta son
+// las teclas de moverse, el stick derecho mueve la mira, los gatillos son los
+// clics y los botones las teclas de cada personaje. Así vale para todos los
+// héroes sin tocar su lógica. En los menús la cruceta mueve el foco entre
+// botones, A pulsa y B vuelve.
+// Botones del mando estándar: 0 A, 1 B, 2 X, 3 Y, 4 LB, 5 RB, 6 LT, 7 RT, 8 Select, 9 Start, 10 L3, 11 R3, 12-15 cruceta
+const MANDO_TECLA = { 0:'draAle', 1:'draCola', 2:'magFue', 3:'magTel', 4:'grab', 5:'throw', 8:'draRay' };
+const mando = { idx:-1, prev:[], dir:{ up:false, down:false, left:false, right:false }, gat:[false, false], navT:0, navDir:'', foco:null, vibT:0 };
+window.addEventListener('gamepadconnected', e=>{ mando.idx = e.gamepad.index; if (running) toast('MANDO CONECTADO', 1); });
+window.addEventListener('gamepaddisconnected', e=>{ if (e.gamepad.index === mando.idx){ mandoSuelta(); mando.idx = -1; } });
+function teclaMando(accion, abajo){
+  const k = accion === 'escape' ? 'escape' : binds[accion];
+  if (!k) return;
+  window.dispatchEvent(new KeyboardEvent(abajo ? 'keydown' : 'keyup', { key: k, code: 'Mando_' + accion, bubbles: true }));
+  if (accion === 'escape' && abajo) window.dispatchEvent(new KeyboardEvent('keyup', { key: k, code: 'Mando_escape', bubbles: true }));   // se suelta enseguida
+}
+function ratonMando(boton, abajo){
+  const r = canvas.getBoundingClientRect();
+  canvas.dispatchEvent(new MouseEvent(abajo ? 'mousedown' : 'mouseup', { button: boton, clientX: r.left + mouse.x, clientY: r.top + mouse.y, bubbles: true }));
+}
+function mandoSuelta(){
+  for (const d in mando.dir) if (mando.dir[d]){ mando.dir[d] = false; teclaMando(d, false); }
+  if (mando.gat[0]) ratonMando(0, false); if (mando.gat[1]) ratonMando(2, false);
+  mando.gat[0] = mando.gat[1] = false;
+}
+function enPartidaMando(){
+  return running && !pausedForQuit && document.getElementById('gameover').classList.contains('hidden');
+}
+// Lo pulsable que se ve ahora mismo (para moverse por los menús).
+function pulsablesVisibles(){
+  const L = [];
+  for (const el of document.querySelectorAll('button, .mapcard, .modecard, .skincard, input[type=range], select')){
+    if (el.disabled || !el.offsetParent) continue;
+    const r = el.getBoundingClientRect();
+    if (r.width < 4 || r.height < 4 || r.bottom < 0 || r.top > innerHeight || r.right < 0 || r.left > innerWidth) continue;
+    const st = getComputedStyle(el);
+    if (st.visibility === 'hidden' || st.pointerEvents === 'none' || +st.opacity === 0) continue;
+    // que no esté tapado por otra capa (un menú debajo de otro)
+    const cx = r.left + r.width/2, cy = r.top + r.height/2, top = document.elementFromPoint(cx, cy);
+    if (top && top !== el && !el.contains(top) && !top.contains(el)) continue;
+    L.push(el);
+  }
+  return L;
+}
+function mandoFoco(el){
+  if (mando.foco) mando.foco.classList.remove('mandofoco');
+  mando.foco = el;
+  if (el){ el.classList.add('mandofoco'); try { el.focus({ preventScroll:false }); } catch(e){} el.scrollIntoView && el.scrollIntoView({ block:'nearest' }); }
+}
+function mandoNavega(dir){
+  const L = pulsablesVisibles();
+  if (!L.length) return;
+  const cur = mando.foco && L.indexOf(mando.foco) >= 0 ? mando.foco : null;
+  if (!cur){ mandoFoco(L.find(e=> e.id === 'btnInvadir') || L[0]); return; }
+  const a = cur.getBoundingClientRect(), ax = a.left + a.width/2, ay = a.top + a.height/2;
+  const v = { up:[0,-1], down:[0,1], left:[-1,0], right:[1,0] }[dir];
+  let best = null, bs = 1e9;
+  for (const el of L){
+    if (el === cur) continue;
+    const r = el.getBoundingClientRect(), dx = r.left + r.width/2 - ax, dy = r.top + r.height/2 - ay;
+    const fr = dx*v[0] + dy*v[1];                        // lo que avanza en esa dirección
+    if (fr <= 4) continue;
+    const lado = Math.abs(dx*v[1] - dy*v[0]);            // lo que se desvía
+    const sc = fr + lado*2.2;
+    if (sc < bs){ bs = sc; best = el; }
+  }
+  if (best){ mandoFoco(best); sfx('ui'); }
+}
+function mandoPulsa(){
+  const boot = document.getElementById('booting');
+  if (boot && !boot.classList.contains('hidden')){ boot.click(); return; }
+  const L = pulsablesVisibles();
+  if (!mando.foco || L.indexOf(mando.foco) < 0){ mandoNavega('down'); return; }
+  if (mando.foco.type === 'range') return;
+  mando.foco.click();
+}
+function mandoVuelve(){
+  // la tecla Escape cierra pausas y diálogos; si no hay nada que cerrar, el botón de volver que se vea
+  const L = pulsablesVisibles();
+  const volver = L.find(el => /back|volver|cerrar|cancel/i.test(el.id + ' ' + el.className) || /^(volver|cerrar|cancelar|atrás)/i.test((el.textContent || '').trim()));
+  if (volver) volver.click(); else teclaMando('escape', true);
+}
+// Vibración con los golpes fuertes (si el mando la tiene).
+function vibraMando(fuerza, dur){
+  if (mando.idx < 0 || mando.vibT > 0) return;
+  const gp = navigator.getGamepads && navigator.getGamepads()[mando.idx];
+  const va = gp && gp.vibrationActuator;
+  if (!va || !va.playEffect) return;
+  mando.vibT = 0.12;
+  try { va.playEffect('dual-rumble', { duration: Math.round(dur*1000), strongMagnitude: clamp(fuerza, 0, 1), weakMagnitude: clamp(fuerza*0.7, 0, 1) }); } catch(e){}
+}
+function leeMando(dt){
+  if (mando.idx < 0 || !navigator.getGamepads) return;
+  const gp = navigator.getGamepads()[mando.idx];
+  if (!gp){ mando.idx = -1; return; }
+  if (mando.vibT > 0) mando.vibT -= dt;
+  const B = i => !!(gp.buttons[i] && (gp.buttons[i].pressed || gp.buttons[i].value > 0.5));
+  const ant = i => !!mando.prev[i];
+  const baja = i => B(i) && !ant(i), sube = i => !B(i) && ant(i);
+  const ax = gp.axes[0] || 0, ay = gp.axes[1] || 0, rx = gp.axes[2] || 0, ry = gp.axes[3] || 0;
+  const algo = gp.buttons.some(b => b && b.pressed) || Math.abs(ax) > 0.4 || Math.abs(ay) > 0.4 || Math.abs(rx) > 0.4 || Math.abs(ry) > 0.4;
+  if (algo && lastInputTouch) noteInput(false);           // con mando se juega como con teclado y ratón
+  if (enPartidaMando()){
+    if (mando.foco){ mando.foco.classList.remove('mandofoco'); mando.foco = null; }
+    // moverse: stick izquierdo o cruceta
+    const want = { up: ay < -0.45 || B(12), down: ay > 0.45 || B(13), left: ax < -0.45 || B(14), right: ax > 0.45 || B(15) };
+    for (const d in want) if (want[d] !== mando.dir[d]){ mando.dir[d] = want[d]; teclaMando(d, want[d]); }
+    // apuntar: stick derecho; si no se toca, hacia donde se mueve
+    const sx = (player.x - camX)*ZOOM, sy = (player.y - 18 - camY)*ZOOM;
+    if (Math.hypot(rx, ry) > 0.28){ const m = Math.hypot(rx, ry); mouse.x = sx + rx/m*230; mouse.y = sy + ry/m*230; }
+    else if (Math.hypot(ax, ay) > 0.3){ const m = Math.hypot(ax, ay); mouse.x = sx + ax/m*170; mouse.y = sy + ay/m*170; }
+    // gatillos: clic izquierdo (RT) y derecho (LT)
+    const rt = B(7) || (gp.buttons[7] && gp.buttons[7].value > 0.3), lt = B(6) || (gp.buttons[6] && gp.buttons[6].value > 0.3);
+    if (rt !== mando.gat[0]){ mando.gat[0] = rt; ratonMando(0, rt); }
+    if (lt !== mando.gat[1]){ mando.gat[1] = lt; ratonMando(2, lt); }
+    for (const i in MANDO_TECLA){ if (baja(+i)) teclaMando(MANDO_TECLA[i], true); else if (sube(+i)) teclaMando(MANDO_TECLA[i], false); }
+    // L3: correr / volar (un doble toque en la dirección en la que vas)
+    if (baja(10)){ const d = ['up','down','left','right'].find(k => mando.dir[k]); if (d){ teclaMando(d, false); teclaMando(d, true); teclaMando(d, false); teclaMando(d, true); } }
+    if (baja(9)) teclaMando('escape', true);
+  } else {
+    mandoSuelta();
+    // menús: cruceta o stick para moverse (con repetición), A pulsa, B vuelve, Start pausa/sigue
+    const d = B(12) || ay < -0.5 ? 'up' : B(13) || ay > 0.5 ? 'down' : B(14) || ax < -0.5 ? 'left' : B(15) || ax > 0.5 ? 'right' : '';
+    if (d && (d !== mando.navDir || (mando.navT -= dt) <= 0)){ mandoNavega(d); mando.navT = d !== mando.navDir ? 0.38 : 0.16; }
+    mando.navDir = d;
+    if (mando.foco && mando.foco.type === 'range' && (B(14) || B(15)) && (mando.navT <= 0.01)){ /* el deslizador se mueve con la cruceta */ }
+    if (baja(0)) mandoPulsa();
+    if (baja(1)) mandoVuelve();
+    if (baja(9)){ if (pausedForQuit) teclaMando('escape', true); else mandoPulsa(); }
+  }
+  for (let i = 0; i < gp.buttons.length; i++) mando.prev[i] = B(i);
+}
+
 const moveJoy = { active:false, id:null, baseX:0, baseY:0, dx:0, dy:0 };
 const aimJoy  = { active:false, id:null, baseX:0, baseY:0, dx:0, dy:0 };
 // Los mandos se escalan con el tamaño real de la ventana (y por tanto con el
@@ -14068,8 +14639,7 @@ function ondaDeViento(ang){
     if (c.dead || c.held) continue;
     const d = dist(c.x, c.y, player.x, player.y);
     if (d > VIL_ONDA_R) continue;
-    c.hp -= VIL_ONDA_DMG * 0.7;
-    if (c.hp <= 0) autoAbatido(c);
+    golpeaAuto(c, VIL_ONDA_DMG * 0.7, player.x, player.y, 420);
   }
   for (const pool of [trees, lamps, trash, benches]){
     for (let __i284 = 0, __a284 = pool; __i284 < __a284.length; __i284++){ const o = __a284[__i284];
@@ -14398,10 +14968,7 @@ function draDanaArea(x, y, R, dmg, empuje, aturde){
     if (c.dead || c.held) continue;
     const d = dist(c.x, c.y, x, y);
     if (d > R) continue;
-    c.hp -= dmg*0.8;
-    const a2 = Math.atan2(c.y - y, c.x - x);
-    c.x += Math.cos(a2)*empuje*0.12; c.y += Math.sin(a2)*empuje*0.12;
-    if (c.hp <= 0) porJugador(()=> autoAbatido(c));
+    golpeaAuto(c, dmg*0.8, x, y, empuje ? 200 + empuje*0.9 : 0);
     dio = true;
   }
   return dio;
@@ -14428,8 +14995,7 @@ function draMordisco(){
   }
   for (let __i117 = 0, __a117 = cars; __i117 < __a117.length; __i117++){ const c = __a117[__i117];
     if (c.dead || c.held || dist(c.x, c.y, px2, py2) > DRA_MORD_ALC + 10) continue;
-    c.hp -= DRA_MORD_DMG;
-    if (c.hp <= 0) porJugador(()=> autoAbatido(c));
+    golpeaAuto(c, DRA_MORD_DMG, player.x, player.y, 300);
     dio = true;
   }
   for (let __i118 = 0, __a118 = buildings; __i118 < __a118.length; __i118++){ const b = __a118[__i118];
@@ -14639,8 +15205,7 @@ function updateDragon(dt){
     }
     for (let __i120 = 0, __a120 = cars; __i120 < __a120.length; __i120++){ const c = __a120[__i120];
       if (c.dead || c.held || draGolpeados.has(c) || dist(c.x, c.y, player.x, player.y) > DRA_R + 26) continue;
-      draGolpeados.add(c); c.hp -= DRA_COLA_PASO;
-      if (c.hp <= 0) porJugador(()=> autoAbatido(c));
+      draGolpeados.add(c); golpeaAuto(c, DRA_COLA_PASO, player.x, player.y, 650);
     }
     for (let __i121 = 0, __a121 = buildings; __i121 < __a121.length; __i121++){ const b = __a121[__i121];
       if (b.stage >= 2 || draMuros.has(b)) continue;
@@ -14746,8 +15311,7 @@ function draPisoton(){
   }
   for (let __i122 = 0, __a122 = cars; __i122 < __a122.length; __i122++){ const c = __a122[__i122];
     if (c.dead || c.held || c.thrown || dist(c.x, c.y, x, y) > R + 20) continue;
-    c.hp -= DRA_PISA_DMG;
-    if (c.hp <= 0) porJugador(()=> autoAbatido(c));
+    golpeaAuto(c, DRA_PISA_DMG, x, y, 520);
     dio = true;
   }
   if (!vuela && Math.random() < 0.5) addParticles(x + rand(-10, 10), y + 6, '#9a8f78', 2, 40);  // polvo
@@ -22020,7 +22584,7 @@ function maqTajo(ap){
   }
   for (let __i209 = 0, __a209 = cars; __i209 < __a209.length; __i209++){ const c = __a209[__i209];
     if (c.dead || c.held || c.thrown || !enArco(c.x, c.y, 18)) continue;
-    danaAuto(c, dmg); dio = true; tocados.add(c);
+    golpeaAuto(c, dmg, player.x, player.y, 380); dio = true; tocados.add(c);
     addParticles(c.x, c.y, '#ffb07a', 6, 110);
   }
   for (const pool of [trees, benches, trash, lamps]){
@@ -22241,7 +22805,7 @@ function maqArrolla(){
   }
   for (let __i213 = 0, __a213 = cars; __i213 < __a213.length; __i213++){ const c = __a213[__i213];
     if (c.dead || c.held || c.thrown || maqGolpeados.has(c) || dist(c.x, c.y, player.x, player.y) > R + 10) continue;
-    maqGolpeados.add(c); danaAuto(c, dmg);
+    maqGolpeados.add(c); golpeaAuto(c, dmg, player.x, player.y, 700);
     addParticles(c.x, c.y, '#ffe07a', 8, 140);
   }
   for (const pool of [trees, benches, trash, lamps]){
@@ -25904,8 +26468,8 @@ function borArea(x, y, R, dmg, empuje, edif, cono){
   }
   for (let i = 0; i < cars.length; i++){ const c = cars[i];
     if (c.dead || c.held || dist(c.x, c.y, x, y) > R + 10 || !borDentroCono(cono, x, y, c.x, c.y)) continue;
-    c.hp -= dmg; dio = true;
-    if (c.hp <= 0) porJugador(()=> autoAbatido(c));
+    // hasta el puñetazo suave lo manda derrapando hacia atrás
+    golpeaAuto(c, dmg, player.x, player.y, empuje ? Math.min(1300, 450 + empuje*1.6) : 0); dio = true;
   }
   if (edif){
     for (let i = 0; i < buildings.length; i++){ const b = buildings[i];
@@ -28515,8 +29079,7 @@ function vilPunch(carga, modo){
   for (let __i251 = 0, __a251 = cars; __i251 < __a251.length; __i251++){ const c = __a251[__i251];
     if (c.dead || c.held) continue;
     if (dist(c.x,c.y,px2,py2) > alcance+4) continue;
-    c.hp -= dmg;
-    if (c.hp <= 0) porJugador(()=> autoAbatido(c));
+    golpeaAuto(c, dmg, player.x, player.y, 320 + 700*carga);
     dio = true;
   }
   if (vilInquilinos(px2, py2, alcance)) dio = true;   // vecinos dentro de los edificios
@@ -28542,11 +29105,13 @@ function updateCivilians(dt){
     if (enPresa(c)) continue;                    // en el tentáculo de un trípode
     if (c.hieloT > 0) continue;                  // congelado por el mago
     const dP = dist(c.x,c.y,player.x,player.y);
-    const huye = dP < 280;
+    if (c.panicoT > 0) c.panicoT -= dt;
+    const huye = dP < 280 || c.panicoT > 0;
     if (huye && !c._huye) gritaCiv(c);             // al echar a correr, alguno grita
     c._huye = huye;
     if (huye){
-      const a = Math.atan2(c.y-player.y, c.x-player.x);
+      // huye del alien o, si aún está lejos, de su auto
+      const a = dP < 280 ? Math.atan2(c.y-player.y, c.x-player.x) : Math.atan2(c.y-c.panY, c.x-c.panX);
       c.vx = Math.cos(a)*c.speed*1.7; c.vy = Math.sin(a)*c.speed*1.7;
     } else {
       c.vx = Math.cos(c.dir)*c.speed*0.4; c.vy = Math.sin(c.dir)*c.speed*0.4;
@@ -28567,6 +29132,8 @@ function updateCars(dt){
     if (c.thrown) continue;
     if (enPresa(c)) continue;                    // en el tentáculo de un trípode
     if (c.hieloT > 0) continue;                  // congelado por el mago
+    autoReacciona(c, dt);
+    if (c.patina){ autoPatina(c, dt); continue; }
     if (isWreck(c)){
       c.vx = 0; c.vy = 0;
       // Chatarra abandonada en plena calzada: echa humo y acaba estallando.
@@ -28593,6 +29160,19 @@ function updateCars(dt){
       c.humo = (c.humo || 0) + dt;
       if (c.humo >= 0.3){ c.humo = 0; addSmoke(c.x + (c.vy ? 0 : (c.facing || 1)*c.w*0.32), c.y - c.h*0.3); }
     }
+    if (c.parado) continue;                      // abandonado donde quedó
+    // en caravana: frena detrás del de delante; si el de delante no se mueve, da la vuelta
+    const del = autoDelante(c);
+    if (del){
+      const vd = del.parado || del.patina || isWreck(del) ? 0 : Math.hypot(del.vx, del.vy);
+      c.espera = vd < 5 ? (c.espera || 0) + dt : 0;
+      if (c.espera > 1.4){ c.vx = -c.vx; c.vy = -c.vy; c.espera = 0; c.fleeCd = 2; }
+      else {
+        const v0 = c.v0 || (c.v0 = Math.hypot(c.vx, c.vy)), v = Math.min(v0, vd), sx = Math.sign(c.vx), sy = Math.sign(c.vy);
+        c.x += sx*v*dt; c.y += sy*v*dt;
+        continue;
+      }
+    } else c.espera = 0;
     // Al ver de cerca al alien, el conductor da media vuelta y huye.
     if (c.fleeCd > 0) c.fleeCd -= dt;
     else if (dist(c.x, c.y, player.x, player.y) < 190){
@@ -28687,11 +29267,8 @@ function updateThrown(dt){
         if (Math.abs(o.x-c.x) > hw || Math.abs(o.y-c.y) > hh) continue;
         impact = { x:o.x, y:o.y, target:null, car:c };
         c.hp -= o.throwDmg;
-        // el impacto lo desplaza en la dirección del lanzamiento
-        const push = Math.min(1, o.throwDmg/90);
-        const ang = Math.atan2(o.vy, o.vx);
-        c.x += Math.cos(ang)*26*push;
-        c.y += Math.sin(ang)*26*push;
+        // el impacto lo manda derrapando en la dirección del lanzamiento
+        if (!dobleInv() && c.hp > 0){ autoEmpuja(c, Math.atan2(o.vy, o.vx), 180 + Math.min(700, o.throwDmg*4)); if (c.patina && !o.byEnemy) c.porJug = true; }
         addParticles(o.x, o.y, '#dfe4e8', 14, 150);
         shake(6, 0.14);
         if (c.hp <= 0){
@@ -28930,6 +29507,52 @@ function chocaDerribado(e){
   }
 }
 
+// ---- Cobertura ----
+// Policías, soldados y miniguneros se parapetan tras un auto parado o la
+// esquina de un edificio, del lado contrario al invasor, y disparan desde ahí.
+// Si se les echa encima, salen corriendo de la cobertura.
+const COBERTURA = { police:1, military:1, minigun:1, centinela:1 };
+function coberturaValida(o){
+  if (!o) return false;
+  if (o.kind === 'car') return !o.dead && !o.held && !o.thrown && !o.patina && (o.parado || o.calcinado || isWreck(o));
+  return o.stage < 2;                            // la esquina de un edificio en pie
+}
+function buscaCobertura(e, dJug, dt){
+  if (dJug < 95){ e.cub = null; e.cubCd = 2.5; e.cubierto = false; return null; }   // demasiado cerca: a correr
+  if (e.cubCd > 0){ e.cubCd -= dt; return null; }
+  e.cubT = (e.cubT || 0) - dt;
+  if (e.cub && (!coberturaValida(e.cub.o) || dist(e.cub.x, e.cub.y, player.x, player.y) > 560)) e.cub = null;
+  if (e.cub && e.cubT > 0) return e.cub;
+  e.cubT = 0.8;
+  // la posición tras el obstáculo, vista desde el invasor
+  const tras = (ox, oy, R)=>{ const a = Math.atan2(oy - player.y, ox - player.x); return { x: ox + Math.cos(a)*R, y: oy + Math.sin(a)*R }; };
+  let best = null, bs = 1e9;
+  const prueba = (o, p)=>{
+    const dj = dist(p.x, p.y, player.x, player.y), de = dist(e.x, e.y, p.x, p.y);
+    if (dj < 130 || dj > 520 || de > 260) return;
+    if (p.x < 30 || p.x > WORLD_W - 30 || p.y < 30 || p.y > WORLD_H - 30 || dentroDeEdificio(p.x, p.y, 6)) return;
+    for (let i = 0; i < enemies.length; i++){ const q = enemies[i]; if (q !== e && q.cub && dist(q.cub.x, q.cub.y, p.x, p.y) < 22) return; }   // ya ocupada
+    const sc = de + Math.abs(dj - 260)*0.4;
+    if (sc < bs){ bs = sc; best = { x: p.x, y: p.y, o }; }
+  };
+  for (let i = 0; i < cars.length; i++){ const c = cars[i];
+    if (!coberturaValida(c) || Math.abs(c.x - e.x) > 280 || Math.abs(c.y - e.y) > 280) continue;
+    prueba(c, tras(c.x, c.y, Math.max(c.w, c.h)*0.5 + 12));
+  }
+  for (let i = 0; i < buildings.length; i++){ const b = buildings[i];
+    if (b.stage >= 2 || b.x > e.x + 280 || b.x + b.w < e.x - 280 || b.y > e.y + 280 || b.y + b.h < e.y - 280) continue;
+    for (let k = 0; k < 4; k++){
+      const cx = k & 1 ? b.x + b.w : b.x, cy = k & 2 ? b.y + b.h : b.y;
+      // la esquina tiene que tapar: el invasor, del otro lado del edificio
+      const p = tras(cx, cy, 16);
+      if ((player.x - cx)*((k & 1) ? -1 : 1) < 0 && (player.y - cy)*((k & 2) ? -1 : 1) < 0) continue;
+      prueba(b, p);
+    }
+  }
+  e.cub = best;
+  if (!best) e.cubT = 1.6;                       // no hay nada cerca: lo vuelve a mirar más tarde
+  return best;
+}
 function updateEnemies(dt){
   const tip = tentacleTip();
   for (let __i63 = 0, __a63 = enemies; __i63 < __a63.length; __i63++){ const e = __a63[__i63];
@@ -29064,7 +29687,12 @@ function updateEnemies(dt){
     if (e.type==='droide') keepDist = blanco !== player ? 220 : 420;      // disparan desde lejos
     if (e.type==='siege'){ keepDist = 430; r = 44; }
 
-    if (a > keepDist){
+    const cub = COBERTURA[e.type] && blanco === player && !e.pacifico ? buscaCobertura(e, a, dt) : null;
+    if (cub){                                    // corre a cubrirse y dispara desde ahí
+      const dc = dist(e.x, e.y, cub.x, cub.y);
+      e.cubierto = dc < 8;
+      if (!e.cubierto){ const ac = Math.atan2(cub.y - e.y, cub.x - e.x), v = Math.min(dc, e.speed*1.25*dt); e.x += Math.cos(ac)*v; e.y += Math.sin(ac)*v; }
+    } else if (a > keepDist){
       e.x += Math.cos(ang)*e.speed*dt;
       e.y += Math.sin(ang)*e.speed*dt;
     } else if (e.type === 'centElite' && blanco === player && a < CENT_ELITE_RETRO){
@@ -29388,7 +30016,7 @@ function updateSpawns(dt){
     spawnTimers.civ -= dt;
     if (spawnTimers.civ<=0 && civilians.length<12){ spawnCivilian(); spawnTimers.civ = rand(1.6,2.6); }
     spawnTimers.car -= dt;
-    if (spawnTimers.car<=0 && cars.filter(c=>!c.held&&!c.thrown).length<10){ spawnCar(); spawnTimers.car = rand(3,5); }
+    if (spawnTimers.car<=0 && autosCirculando() < 12 && cars.length < 26){ spawnCar(); spawnTimers.car = rand(1.6,3); }
     updateMiniOleada(dt);
     return;
   }
@@ -29405,7 +30033,7 @@ function updateSpawns(dt){
     spawnTimers.civ -= dt;
     if (spawnTimers.civ<=0 && civilians.length<14){ spawnCivilian(); spawnTimers.civ = rand(1.4,2.4); }
     spawnTimers.car -= dt;
-    if (spawnTimers.car<=0 && cars.filter(c=>!c.held&&!c.thrown).length<12){ spawnCar(); spawnTimers.car = rand(3,5); }
+    if (spawnTimers.car<=0 && autosCirculando() < 16 && cars.length < 28){ spawnCar(); spawnTimers.car = rand(1.2,2.4); }
   }
 
   const count = t => enemies.filter(e=>e.type===t && !e.dead).length;
@@ -29711,7 +30339,7 @@ function drawClima(){
     pintaGotas(gotasLluvia(1, roja), -(gameTime*1250*0.3 + 37), gameTime*1250 - 11, lluviaK*0.6);
   }
   // 4) salpicaduras en el suelo: un puñado fijo que se recicla, nunca crece
-  if (lluviaK > 0.25) drawSalpicaduras();
+  if (lluviaK > 0.25){ drawSalpicaduras(); drawLluviaTechos(); }
   ctx.globalAlpha = 1;
 }
 
@@ -29737,6 +30365,86 @@ function drawSalpicaduras(){
   }
 }
 
+// Sobre los tejados la lluvia rebota más (gotitas que saltan) y gotea por el
+// alero sobre la fachada. Un puñado fijo de marcas que se recicla.
+const TECHO_N = 46, techoSalp = [];
+let _techosVis = [], _techosT = -1;
+function techosVisibles(){
+  if (_techosT === gameTime) return _techosVis;
+  _techosT = gameTime; _techosVis.length = 0;
+  for (let i = 0; i < buildings.length; i++){ const b = buildings[i];
+    if (b.stage >= 2 || b.x + b.w < camX || b.x > camX + VW || b.y + b.h < camY || b.y > camY + VH) continue;
+    _techosVis.push(b);
+  }
+  return _techosVis;
+}
+function drawLluviaTechos(){
+  const L = techosVisibles();
+  if (!L.length) return;
+  const Z = ZOOM, roja = esInfierno();
+  ctx.lineWidth = 1;
+  for (let i = 0; i < TECHO_N; i++){
+    let p = techoSalp[i];
+    if (!p) p = techoSalp[i] = { b:null, u:0, v:0, t: Math.random(), goteo:false };
+    p.t += 1/60*(p.goteo ? 1.5 : 2.6);
+    if (p.t >= 1 || !p.b || p.b.stage >= 2 || L.indexOf(p.b) < 0){
+      p.t = 0; p.b = L[Math.floor(Math.random()*L.length)];
+      p.goteo = Math.random() < 0.3; p.u = Math.random(); p.v = Math.random();
+    }
+    const b = p.b, rh = b.h - edifFachada(b);
+    if (p.goteo){                                   // gota que cae del alero por la fachada
+      const x = (b.x + 4 + p.u*(b.w - 8) - camX + temblorX)*Z, y0 = (b.y + rh - camY + temblorY)*Z;
+      const y = y0 + p.t*p.t*(b.h - rh)*0.7*Z;
+      ctx.globalAlpha = lluviaK*(1 - p.t)*0.7; ctx.fillStyle = roja ? '#ff7a5a' : '#dcecff';
+      ctx.fillRect(x, y, 1.2, 3 + p.t*4);
+    } else {                                        // impacto en el tejado: anillo y dos gotitas que saltan
+      const x = (b.x + p.u*b.w - camX + temblorX)*Z, y = (b.y + p.v*rh - camY + temblorY)*Z, r = 1 + p.t*5;
+      ctx.globalAlpha = lluviaK*(1 - p.t)*0.85; ctx.strokeStyle = roja ? 'rgba(255,110,80,0.8)' : 'rgba(230,242,255,0.8)';
+      ctx.beginPath(); ctx.ellipse(x, y, r, r*0.45, 0, 0, Math.PI*2); ctx.stroke();
+      const sb = Math.sin(p.t*Math.PI)*5;
+      ctx.fillStyle = roja ? '#ff9a7a' : '#f0f6ff';
+      ctx.fillRect(x - 2 - p.t*3, y - sb, 1.2, 1.2); ctx.fillRect(x + 2 + p.t*3, y - sb*0.8, 1.2, 1.2);
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+// Sonido de la lluvia: un rumor continuo y, cuantos más tejados hay en
+// pantalla, más tamborileo y alguna gota en las canaletas. Se apaga solo.
+const lluviaSon = { nodos:null, g:null, gT:null, techoK:0, t:0 };
+function sonidoLluvia(dt){
+  const on = audio.ctx && audio.sfxOn && running && !pausedForQuit && !mundoCongelado() && lluviaK > 0.02;
+  if (!on){
+    if (lluviaSon.nodos){
+      const t = audio.ctx.currentTime;
+      lluviaSon.g.gain.setTargetAtTime(0.0001, t, 0.3); lluviaSon.gT.gain.setTargetAtTime(0.0001, t, 0.3);
+      lluviaSon.t += dt;
+      if (lluviaSon.t > 1.5){ for (const n of lluviaSon.nodos){ try { n.stop && n.stop(); n.disconnect(); } catch(e){} } lluviaSon.nodos = null; }
+    }
+    return;
+  }
+  const c = audio.ctx, t = c.currentTime;
+  lluviaSon.t = 0;
+  if (!lluviaSon.nodos){
+    const s1 = c.createBufferSource(); s1.buffer = getNoiseBuf(); s1.loop = true;
+    const f1 = c.createBiquadFilter(); f1.type = 'bandpass'; f1.frequency.value = 2600; f1.Q.value = 0.45;
+    const g = c.createGain(); g.gain.value = 0.0001;
+    s1.connect(f1); f1.connect(g); g.connect(audio.sfxGain);
+    const s2 = c.createBufferSource(); s2.buffer = getNoiseBuf(); s2.loop = true; s2.playbackRate.value = 0.6;
+    const f2 = c.createBiquadFilter(); f2.type = 'peaking'; f2.frequency.value = 900; f2.Q.value = 1.2; f2.gain.value = 9;
+    const f3 = c.createBiquadFilter(); f3.type = 'highpass'; f3.frequency.value = 420;
+    const gT = c.createGain(); gT.gain.value = 0.0001;
+    s2.connect(f2); f2.connect(f3); f3.connect(gT); gT.connect(audio.sfxGain);
+    s1.start(t, Math.random()); s2.start(t, Math.random());
+    lluviaSon.nodos = [s1, f1, g, s2, f2, f3, gT]; lluviaSon.g = g; lluviaSon.gT = gT;
+  }
+  // cuánto tejado hay a la vista (0..1)
+  let area = 0; const L = techosVisibles();
+  for (let i = 0; i < L.length; i++) area += L[i].w*L[i].h;
+  lluviaSon.techoK += (clamp(area/(VW*VH)*1.6, 0, 1) - lluviaSon.techoK)*Math.min(1, dt*2);
+  lluviaSon.g.gain.setTargetAtTime(0.05*lluviaK, t, 0.4);
+  lluviaSon.gT.gain.setTargetAtTime(0.045*lluviaK*lluviaSon.techoK, t, 0.4);
+  if (Math.random() < dt*5*lluviaK*lluviaSon.techoK) sfxEn('gota', camX + Math.random()*VW, camY + Math.random()*VH, 0.7);
+}
 
 // farolas: colocadas en veredas validadas, encendidas solo de noche
 let lamps = [];   // se rellena en resetGame a partir de lampSpots
@@ -30164,16 +30872,15 @@ function overlayFase(){
     lg.addColorStop(1,   rgba(0.70, c[3]*0.7));    // suelo más frío
     g.fillStyle = lg; g.fillRect(0,0,cv.width,cv.height);
   }
-  if (esInfierno()){                                 // el cielo arde arriba; abajo, rojo oscuro
-    const ig = g.createLinearGradient(0, 0, 0, cv.height);
-    ig.addColorStop(0, 'rgba(200,40,10,0.1)'); ig.addColorStop(1, 'rgba(60,0,0,0.08)');
-    g.fillStyle = ig; g.fillRect(0, 0, cv.width, cv.height);
-  }
-  if (esAlien()){                                    // luz violeta arriba y verdosa abajo
-    const ag = g.createLinearGradient(0, 0, 0, cv.height);
-    ag.addColorStop(0, 'rgba(120,60,190,0.13)'); ag.addColorStop(1, 'rgba(30,150,130,0.08)');
-    g.fillStyle = ag; g.fillRect(0, 0, cv.width, cv.height);
-  }
+  // Cada mapa con su paleta, bien marcada: la ciudad con luces cálidas arriba
+  // y sombras frías abajo; el planeta marciano, violeta y verde azulado; el
+  // castigo, brasa arriba y rojo sangre abajo.
+  const pal = esInfierno() ? ['rgba(215,50,12,0.17)', 'rgba(70,0,4,0.15)']
+            : esAlien()    ? ['rgba(130,60,210,0.19)', 'rgba(20,160,140,0.13)']
+            :                ['rgba(255,190,110,0.06)', 'rgba(40,70,120,0.08)'];
+  const mg = g.createLinearGradient(0, 0, 0, cv.height);
+  mg.addColorStop(0, pal[0]); mg.addColorStop(1, pal[1]);
+  g.fillStyle = mg; g.fillRect(0, 0, cv.width, cv.height);
   // viñeta encima, en el mismo lienzo
   const r = Math.max(cv.width, cv.height) * 0.74;
   const vg = g.createRadialGradient(cv.width/2, cv.height/2, r*0.44, cv.width/2, cv.height/2, r);
@@ -30916,6 +31623,49 @@ function drawCimientos(b, s2){
 }
 // ---------- derrumbe ----------
 const EDIF_CAE = 0.9;
+// Polvo del derrumbe: nubes grandes que tapan la vista unos segundos, crecen
+// y se las lleva el viento (hacia donde van las sombras de las nubes).
+const POLVO_MAX = 30, polvos = [];
+const _polvoSp = {};
+function polvoSp(){
+  const k = esAlien() ? 'a' : esInfierno() ? 'i' : 'c';
+  if (!_polvoSp[k]){
+    const c = k === 'a' ? '150,160,182' : k === 'i' ? '92,74,66' : '196,186,166';
+    _polvoSp[k] = makeRadial(64, [[0, `rgba(${c},0.95)`], [0.55, `rgba(${c},0.55)`], [1, `rgba(${c},0)`]]);
+  }
+  return _polvoSp[k];
+}
+function polvoDerrumbe(b){
+  const n = Math.min(7, 4 + Math.round(b.w*b.h/16000));
+  for (let i = 0; i < n; i++){
+    if (polvos.length >= POLVO_MAX) polvos.shift();
+    polvos.push({ x: b.x + b.w*rand(0.08, 0.92), y: b.y + b.h*rand(0.35, 1.05), r0: rand(18, 30), r1: rand(58, 92) + b.w*0.14,
+                  t: -rand(0, 0.35), max: rand(3.6, 5.6), vx: 26 + rand(-14, 14), vy: 10 + rand(-9, 9) });
+  }
+}
+function updatePolvo(dt){
+  for (let i = polvos.length - 1; i >= 0; i--){
+    const p = polvos[i];
+    p.t += dt;
+    if (p.t >= p.max){ polvos.splice(i, 1); continue; }
+    if (p.t > 0){ const f = 0.35 + p.t/p.max; p.x += p.vx*f*dt; p.y += p.vy*f*dt; }
+  }
+}
+function drawPolvo(){
+  if (!polvos.length) return;
+  const sp = polvoSp();
+  for (let i = 0; i < polvos.length; i++){
+    const p = polvos[i];
+    if (p.t <= 0) continue;
+    const k = p.t/p.max, r = p.r0 + (p.r1 - p.r0)*(1 - (1 - k)*(1 - k));
+    if (p.x + r < camX || p.x - r > camX + VW || p.y + r < camY || p.y - r > camY + VH) continue;
+    const a = Math.min(1, p.t/0.35)*Math.pow(1 - k, 1.4)*0.66;
+    if (a < 0.03) continue;                              // ya casi no se ve: no se pinta
+    ctx.globalAlpha = a;
+    dibujaRedonda(sp, p.x - camX, p.y - camY, r);
+  }
+  ctx.globalAlpha = 1;
+}
 function drawDerrumbe(b, s2){
   const t = clamp((gameTime - b.caeT)/EDIF_CAE, 0, 1);
   const cv = (b._cv && (b._cv[1] || b._cv[0]));
@@ -30959,7 +31709,7 @@ function drawBuildings(){
       // Si en ese momento hay un trozo suyo en un tentáculo es que lo han
       // arrancado (también le llega así al invitado): no se derrumba.
       if (trash.some(t=> t.kind === 'edificio' && !t.dead && t.set === b.set && t.w === b.w && t.h === b.h)) b._arrancado = true;
-      else b.caeT = gameTime;
+      else { b.caeT = gameTime; polvoDerrumbe(b); }
     }
     if (b.stage < 2) b._arrancado = false;
     b._etAnt = b.stage;
@@ -31178,6 +31928,7 @@ function drawTree(t){
     ctx.fillStyle='#5c8a3a';
     ctx.beginPath(); ctx.arc(s2.x, cy, t.w*0.42, 0, Math.PI*2); ctx.fill();
   }
+  if (t.aves && running) drawAvesPosadas(t, s2.x, cy);
   if (t.viento) ctx.restore();
 }
 
@@ -31235,7 +31986,7 @@ function drawCarBase(c){
   if (c.hover){ drawHoverCar(c, s, vertical); return; }
   const m = autoModelo(c), M = AUTO_MODELOS[m], col = autoColor(c, m);
   // Solo cuando está prácticamente destruido pasa a chatarra; antes, abollado.
-  const estado = c.calcinado || c.hp <= c.maxhp * WRECK_HP ? 2 : c.hp < c.maxhp*0.6 ? 1 : 0;
+  const estado = c.calcinado || c.hp <= c.maxhp * WRECK_HP ? 2 : c.hp < c.maxhp*0.85 ? 1 : 0;   // abollado desde el primer golpe
   // las ruedas giran con lo recorrido
   if (c._lx === undefined){ c._lx = c.x; c._ly = c.y; c._rueda = 0; }
   const d = Math.hypot(c.x - c._lx, c.y - c._ly);
@@ -31260,6 +32011,15 @@ function drawCarBase(c){
     ctx.restore();
   }
   ctx.imageSmoothingEnabled = suave;
+  // con la alarma sonando parpadean los intermitentes
+  if (c.alarmaT > 0 && estado < 2 && !c.held && !c.thrown && Math.floor(gameTime*4) % 2){
+    const ls = vertical ? [s.x - M.an/2 + 1, s.x + M.an/2 - 1] : [s.x - M.L/2 + 1, s.x + M.L/2 - 1], ly = vertical ? s.y + M.L*0.3 - 5 : s.y;
+    ctx.fillStyle = '#ffb02a';
+    for (const lx of ls){
+      ctx.globalAlpha = 0.3; ctx.beginPath(); ctx.arc(lx, ly, 6, 0, Math.PI*2); ctx.fill();
+      ctx.globalAlpha = 1; ctx.fillRect(lx - 1.5, ly - 1.5, 3, 3);
+    }
+  }
   // la ambulancia lleva la sirena encendida
   if (m === 'ambulancia' && estado < 2 && !c.held && !c.thrown){
     const on = Math.floor(gameTime*6) % 2;
@@ -31825,13 +32585,14 @@ function draw(){
   if (dobleAnf() && Online.av && Online.av.pj) drawProyJ(Online.av.pj);
   drawMaquinaEfectos(); drawMagoEfectos();
   drawNubesEntrada();
-  drawRelampagos(); drawHumos(); drawHumoEdif(); drawSonic(); drawWind(); drawRayosOjos(); drawRestosAire(); drawFX(); drawLucesDia(); drawBocadillos(); drawNumeros(); drawMarcaTutorial(); drawAura(); drawPortalCelestial(); if (vil.caida) drawCaidaJugador(); drawP2Cursor();
+  drawRelampagos(); drawHumos(); drawHumoEdif(); drawSonic(); drawWind(); drawRayosOjos(); drawRestosAire(); drawFX(); drawPolvo(); drawAvesVuelo(); drawLucesDia(); drawBocadillos(); drawNumeros(); drawMarcaTutorial(); drawAura(); drawPortalCelestial(); if (vil.caida) drawCaidaJugador(); drawP2Cursor();
   ctx.restore();
   escK = 0;
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   drawLighting();                                  // en píxeles del lienzo
   drawFlechasJefe();                               // encima de la oscuridad
   drawTelaAviso();
+  if (flashPant > 0){ ctx.globalAlpha = flashPant*0.6; ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, CW, CH); ctx.globalAlpha = 1; }
   drawVinetaVida(); drawBarrasJefe(); drawJefeCaido(); drawPresentacion(); drawCartelLeyenda();
 }
 
@@ -31904,7 +32665,18 @@ const JEFE_EST = {
   rivalBoros: { nom:'BOROS',             tit:'El dominador del universo',   img:'@boros',      barra:['#ffd257','#a8121e'], borde:'#ffe9a0', fondo:['#14060a','#4a1424'], deco:'' },
   rivalVil:   { nom:'EL REGENTE',        tit:'El conquistador',             img:'@vil',        barra:['#ff5a4a','#5a0a10'], borde:'#ececec', fondo:['#08080c','#2a2a34'], deco:'' }
 };
-const PRES_T = 2.0, CONGELA_T = 1.55, LENTA_T = 1.6, CAIDO_T = 2.4;
+const PRES_T = 2.0, CONGELA_T = 1.55, LENTA_T = 2.3, CAIDO_T = 2.4;
+// Rampa de tiempo al derribar a un jefe: un instante casi congelado con un
+// destello, cámara muy lenta en silencio y, al llegar el impacto, estallido,
+// onda, la fanfarria y la música que vuelve; luego el tiempo recupera su ritmo.
+const RAMPA_CONGELA = 0.12, RAMPA_IMPACTO = 0.9;
+let rampa = null;               // { x, y, imp }
+let flashPant = 0;              // destello blanco de pantalla (0..1)
+function musAgacha(k, tau){
+  if (!audio.ctx || !audio.musGain) return;
+  const g = audio.musGain.gain, t = audio.ctx.currentTime, base = audio.musOn ? audio.musVol*0.5 : 0;
+  g.cancelScheduledValues(t); g.setValueAtTime(g.value, t); g.setTargetAtTime(base*k, t, tau);
+}
 let jefePres = null;            // { tipo, def, t }
 let congelaT = 0;               // el mundo, detenido por la presentación
 let camLentaT = 0;              // cámara lenta tras derrotar a un jefe
@@ -31914,15 +32686,28 @@ function mundoQuieto(){ return congelaT > 0; }
 function escalaMundo(){
   const b = borApuntaLento() ? BOR_LENTA : 1;
   if (camLentaT <= 0) return b;
-  const k = 1 - camLentaT/LENTA_T; return Math.min(b, 0.22 + 0.78*k*k);
+  const tr = LENTA_T - camLentaT;
+  if (tr < RAMPA_CONGELA) return 0.03;
+  if (tr < RAMPA_IMPACTO) return Math.min(b, 0.13);
+  const k = (tr - RAMPA_IMPACTO)/(LENTA_T - RAMPA_IMPACTO); return Math.min(b, 0.13 + 0.87*k*k);
 }
 function avanzaPresentacion(dt){
   if (congelaT > 0) congelaT = Math.max(0, congelaT - dt);
   if (camLentaT > 0) camLentaT = Math.max(0, camLentaT - dt);
+  if (flashPant > 0) flashPant = Math.max(0, flashPant - dt*3.2);
+  if (rampa && !rampa.imp && (camLentaT <= 0 || LENTA_T - camLentaT >= RAMPA_IMPACTO)){
+    rampa.imp = true;
+    sfxEn('bigboom', rampa.x, rampa.y); fanfarria('victoria');
+    shake(16, 0.55); flashPant = Math.max(flashPant, 0.55);
+    anilloImpacto(rampa.x, rampa.y, 280, '#ffffff', 0.6); anilloImpacto(rampa.x, rampa.y, 170, '#ffe9a8', 0.45);
+    addParticles(rampa.x, rampa.y, '#ffffff', 22, 320); addParticles(rampa.x, rampa.y, '#ffd257', 16, 260);
+    musAgacha(1, 0.3);                                     // vuelve la música
+  }
+  if (rampa && rampa.imp && camLentaT <= 0) rampa = null;
   if (jefePres){ jefePres.t += dt; if (jefePres.t >= PRES_T) jefePres = null; }
   if (jefeCaido){ jefeCaido.t += dt; if (jefeCaido.t >= CAIDO_T) jefeCaido = null; }
 }
-function limpiaPresentacion(){ jefePres = null; jefeCaido = null; congelaT = 0; camLentaT = 0; }
+function limpiaPresentacion(){ jefePres = null; jefeCaido = null; congelaT = 0; camLentaT = 0; if (rampa && !rampa.imp) musAgacha(1, 0.05); rampa = null; flashPant = 0; }
 function presentaJefe(e, sinPausa){
   if (!e || !JEFE_EST[e.type] || e.normal) return;
   jefePres = { tipo:e.type, def: e.deforme ? 1 : 0, t:0 };
@@ -31935,7 +32720,10 @@ function jefeDerrotado(e){
   if (!e || !JEFE_EST[e.type] || e.normal) return;
   jefeCaido = { tipo:e.type, def: e.deforme ? 1 : 0, t:0 };
   camLentaT = LENTA_T;
-  fanfarria('victoria');
+  // el golpe final: silencio, destello y el impacto (la fanfarria llega con él)
+  rampa = { x: e.x !== undefined ? e.x : player.x, y: e.y !== undefined ? e.y : player.y, imp:false };
+  flashPant = 0.85; musAgacha(0.06, 0.04);
+  sfx('crack');
   if (_fxRed) _fxRed.push(['v', e.type, jefeCaido.def]);
 }
 // El retrato: la ficha del registro (deformada en el castigo).
@@ -33072,7 +33860,7 @@ function limpiaRestosPartida(){
   const ts = document.getElementById('toast'); if (ts){ ts.style.opacity = '0'; ts.textContent = ''; }
   quitaAvisoRegalo();
   const im = document.getElementById('introMapa'); if (im) im.classList.add('hidden');
-  limpiaPresentacion(); numsDano.length = 0; bocadillos.length = 0; charcosAgua.length = 0;
+  limpiaPresentacion(); numsDano.length = 0; bocadillos.length = 0; charcosAgua.length = 0; polvos.length = 0;
   const tp = document.getElementById('tutPanel');
   refz = null; refzRed = null; tela = null; electroT = 0; gravT = 0; if (tp && !TUT.activo) tp.classList.add('hidden');
 }
@@ -33485,6 +34273,7 @@ function loop(t){
 }
 function pasoBucle(t){
   vigilaRendimiento(t - lastT);
+  try { leeMando(clamp((t - lastT)/1000, 0, 0.1)); } catch(e){ anotaError('mando', e); }
   // Acotado también por abajo: al reanudar una pausa, la marca del fotograma
   // puede quedar un pelo por detrás de performance.now() y dar un paso negativo.
   const dtReal = clamp((t-lastT)/1000, 0, 0.05); lastT = t;
@@ -33494,7 +34283,7 @@ function pasoBucle(t){
   const dt = mundoQuieto() || hitstopT > 0 ? 0 : dtReal*escalaMundo();
   // la telequinesis del mago solo suena mientras se sostiene algo de verdad
   if (mente.nodos && !(running && isMag() && mag.tkOn && !pausedForQuit)) menteCalla();
-  revisaBucles();
+  revisaBucles(); sonidoLluvia(dtReal);
   if (esVisorVs()){                        // no simula: dibuja lo que manda el anfitrión
     loopInvitado(dtReal);
     draw();
@@ -33519,7 +34308,7 @@ function pasoBucle(t){
     updateCivilians(dt); updateCars(dt); updateTrees(dt); updateRam(dt); updateThrown(dt);
     Online.culpaInv = false;
     updateVS(dt);
-    updateEnemiesDoble(dt); updateTela(dt); updateGravedad(dt); updateZombis(dt); updateBullets(dt); updateFX(dt); updateSpawns(dt); updateNumeros(dt); updateBocadillos(dt); updateTutorial(dt);
+    updateEnemiesDoble(dt); updateTela(dt); updateGravedad(dt); updateZombis(dt); updateBullets(dt); updateFX(dt); updatePolvo(dt); updateAves(dt); updateSpawns(dt); updateNumeros(dt); updateBocadillos(dt); updateTutorial(dt);
     if (vidaIntro >= 0) hp = vidaIntro;      // intocable mientras aterriza
   }
   if (running){
@@ -34277,7 +35066,7 @@ function updateLeyenda(dt){
   spawnTimers.civ -= dt;
   if (spawnTimers.civ <= 0 && civilians.length < 10){ spawnCivilian(); spawnTimers.civ = rand(1.8, 3); }
   spawnTimers.car -= dt;
-  if (spawnTimers.car <= 0 && cars.filter(c => !c.held && !c.thrown).length < 10){ spawnCar(); spawnTimers.car = rand(3, 5); }
+  if (spawnTimers.car<=0 && autosCirculando() < 12 && cars.length < 26){ spawnCar(); spawnTimers.car = rand(1.6,3); }
   if (ley.regen > 0 && hp > 0) hp = Math.min(maxHp(), hp + ley.regen*dt);
   leyEnfria(dt);
   if (ley.cartelT < 4.2) ley.cartelT += dt;
@@ -35076,7 +35865,7 @@ async function endGame(){
   const gs = q('#gameover .subtitle');
   // Cada desenlace tiene su lámina: derrota, victoria del alien o del J2.
   const gimg = document.getElementById('derrotaimg');
-  limpiaPresentacion(); numsDano.length = 0; bocadillos.length = 0; charcosAgua.length = 0; evoT = 0;
+  limpiaPresentacion(); numsDano.length = 0; bocadillos.length = 0; charcosAgua.length = 0; polvos.length = 0; evoT = 0;
   fanfarria(gameMode === 'vs' ? 'victoria' : 'derrota');
   if (gameMode === 'leyenda'){
     hide('leyVs');
@@ -35122,11 +35911,53 @@ async function endGame(){
     await setupNameBox();                  // el jugador elige nombre y luego se registra
   }
   SaveIO.flush();
+  document.getElementById('btnCompartir').style.display = (gameMode === 'vs' || enLinea) ? 'none' : '';
+  document.getElementById('compmsg').textContent = '';
+  compartirDatos = { score, hero, modo: gameMode, ganadas: gameMode === 'leyenda' ? ley.ganadas : 0, mapa };
   if (enLinea){                    // en línea no hay reintento inmediato: se vuelve a la sala
     document.getElementById('btnRetry').style.display = 'none';
     document.getElementById('btnMenu').textContent = 'Volver a la sala';
   }
   document.getElementById('gameover').classList.remove('hidden');
+}
+
+// ---- Compartir el puntaje ----
+let compartirDatos = null;
+function textoCompartir(d){
+  const quien = heroName(d.hero), pts = Number(d.score || 0).toLocaleString('es');
+  const mapaTxt = d.mapa === 'alien' ? ' en el planeta marciano' : d.mapa === 'infierno' ? ' en el Castigo Divino' : '';
+  if (d.modo === 'leyenda') return '¡Aguanté ' + d.ganadas + (d.ganadas === 1 ? ' combate' : ' combates') + ' en el VS LEGENDARIO de INVASIÓN usando ' + quien + '! ¿Puedes superarme?';
+  return '¡Llegué a ' + pts + ' puntos usando ' + quien + mapaTxt + ' en INVASIÓN! ¿Puedes superarme?';
+}
+async function compartePuntaje(){
+  if (!compartirDatos) return;
+  const msg = document.getElementById('compmsg'), txt = textoCompartir(compartirDatos);
+  const url = /^https?:$/.test(location.protocol) ? location.origin + location.pathname : '';
+  if (navigator.share){
+    try { await navigator.share(url ? { title:'Invasión', text: txt, url } : { title:'Invasión', text: txt }); msg.textContent = '¡Compartido!'; return; }
+    catch(e){ if (e && e.name === 'AbortError') return; }
+  }
+  try { await navigator.clipboard.writeText(txt + (url ? ' ' + url : '')); msg.textContent = 'Copiado: pégalo donde quieras'; }
+  catch(e){ msg.textContent = txt + (url ? ' ' + url : ''); }        // sin portapapeles: el texto, a la vista
+  sfx('ui');
+}
+document.getElementById('btnCompartir').addEventListener('click', compartePuntaje);
+
+// ---- Instalar como app (se juega sin conexión) ----
+let instalarEv = null;
+window.addEventListener('beforeinstallprompt', e=>{
+  e.preventDefault(); instalarEv = e;
+  document.getElementById('btnInstalar').classList.remove('nohay');
+});
+window.addEventListener('appinstalled', ()=>{ instalarEv = null; document.getElementById('btnInstalar').classList.add('nohay'); });
+document.getElementById('btnInstalar').addEventListener('click', async ()=>{
+  if (!instalarEv) return;
+  instalarEv.prompt();
+  try { await instalarEv.userChoice; } catch(e){}
+  instalarEv = null; document.getElementById('btnInstalar').classList.add('nohay');
+});
+if ('serviceWorker' in navigator && location.protocol === 'https:'){
+  window.addEventListener('load', ()=>{ navigator.serviceWorker.register('/sw.js').catch(()=>{}); });
 }
 
 function show(id){ document.getElementById(id).classList.remove('hidden'); scrollTop(id); revisaMenu(); }
