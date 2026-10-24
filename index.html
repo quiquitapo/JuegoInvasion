@@ -45,9 +45,93 @@
     padding:16px 24px; margin-bottom:20px; min-width:250px; border-radius:4px;
   }
   .panel h3 { color:#23ff6b; font-size:0.8rem; letter-spacing:3px; margin-bottom:10px; text-transform:uppercase; }
-  #derrotaimg { width:min(280px,58vw); border-radius:12px; margin-bottom:8px;
-                border:3px solid #7a2020; box-shadow:0 6px 22px rgba(0,0,0,0.6);
-                image-rendering:auto; }
+  /* ---- Fin de partida ----
+     Dos columnas (lámina | datos) en PC y en el móvil apaisado; una sola,
+     compacta, en vertical. El acento cambia: rojo al perder, dorado al ganar. */
+  #gameover { --goac:#ff5a4a; --goacs:rgba(255,90,74,0.35);
+              background:radial-gradient(ellipse at 30% 40%, rgba(60,10,8,0.55), transparent 60%),
+                         radial-gradient(ellipse at center, rgba(10,20,15,0.93) 0%, rgba(2,4,3,0.98) 100%); }
+  #gameover.gana { --goac:#ffd257; --goacs:rgba(255,210,87,0.35);
+                   background:radial-gradient(ellipse at 30% 40%, rgba(70,52,8,0.5), transparent 60%),
+                              radial-gradient(ellipse at center, rgba(10,20,15,0.93) 0%, rgba(2,4,3,0.98) 100%); }
+  .gocaja { margin:auto; display:grid; grid-template-columns:auto minmax(300px, 400px); gap:clamp(18px, 4vw, 44px);
+            align-items:center; padding:20px 16px calc(20px + env(safe-area-inset-bottom,0px)); max-width:100%; box-sizing:border-box; }
+  .goarte { display:flex; flex-direction:column; align-items:center; }
+  #derrotaimg { width:min(300px, 34vw, 58vh); border-radius:14px; margin-bottom:10px; display:block;
+                border:3px solid var(--goac); box-shadow:0 0 0 4px rgba(0,0,0,0.45), 0 0 34px var(--goacs), 0 10px 26px rgba(0,0,0,0.6);
+                image-rendering:auto; transform:rotate(-2deg); }
+  #gameover .subtitle { margin:4px 0 0; max-width:min(320px, 80vw); line-height:1.6; color:#d8efe0; letter-spacing:2px; }
+  .godatos { display:flex; flex-direction:column; align-items:stretch; gap:10px; min-width:0; }
+  .gochip { align-self:center; display:flex; gap:0; border-radius:20px; overflow:hidden; font-size:0.56rem; letter-spacing:2px;
+            border:1px solid rgba(255,255,255,0.16); box-shadow:0 2px 8px rgba(0,0,0,0.4); }
+  .gochip b { background:var(--goac); color:#1a0806; padding:5px 12px; }
+  .gochip span { background:rgba(8,16,11,0.85); color:#bfe9cd; padding:5px 12px; }
+  .gopunt { position:relative; text-align:center; padding:10px 12px 12px; border-radius:10px;
+            background:linear-gradient(180deg, rgba(30,24,8,0.75), rgba(10,8,4,0.75)); border:2px solid rgba(255,210,87,0.55);
+            box-shadow:inset 0 1px 0 rgba(255,240,180,0.18), 0 0 22px rgba(255,190,60,0.14); }
+  .gopunt small { display:block; color:#e9d8a0; font-size:0.52rem; letter-spacing:4px; }
+  .gopunt b { display:block; color:#ffe066; font-size:clamp(2rem, 6vw, 2.9rem); font-weight:900; letter-spacing:2px; line-height:1.15;
+              text-shadow:0 0 16px rgba(255,200,60,0.55), 3px 3px 0 #3a2404; font-variant-numeric:tabular-nums; }
+  .gorec { display:inline-block; margin-top:2px; padding:3px 10px; border-radius:12px; font-size:0.5rem; letter-spacing:2px; font-weight:900;
+           color:#2a1804; background:linear-gradient(180deg, #ffe9a0, #ffb22b); animation:goRec 1s ease-in-out infinite alternate; }
+  @keyframes goRec { from { transform:scale(1); } to { transform:scale(1.07); box-shadow:0 0 14px rgba(255,200,60,0.7); } }
+  .gostats { display:grid; grid-template-columns:repeat(4, 1fr); gap:6px; }
+  .gostat { display:flex; flex-direction:column; align-items:center; gap:2px; padding:8px 4px 7px; border-radius:8px; min-width:0;
+            background:rgba(8,18,12,0.82); border:1px solid #1f5c37; }
+  .gostat svg { width:20px; height:20px; fill:none; stroke:#7bffa0; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+  .gostat.oro svg { stroke:#ffd257; }
+  .gostat b { color:#e8fff0; font-size:0.95rem; font-variant-numeric:tabular-nums; }
+  .gostat.oro b { color:#ffe066; }
+  .gostat small { color:#6fa382; font-size:0.44rem; letter-spacing:2px; }
+  #gameover #namebox { margin:0; padding:10px 14px 12px; min-width:0; border-radius:10px; }
+  #gameover #namebox h3 { margin-bottom:8px; font-size:0.66rem; }
+  .gobtns { display:flex; flex-direction:column; align-items:stretch; gap:8px; }
+  .gobtns button.big { padding:13px 20px; font-size:1.2rem; width:100%; }
+  .gofila { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .gofila button.small { margin-top:0; padding:10px 6px; font-size:0.64rem; letter-spacing:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .gofila.solo { grid-template-columns:1fr; }
+  #gameover #compmsg { margin-top:0; text-align:center; }
+  #gameover #namemsg { min-height:0; }
+  /* entrada: la lámina cae girando y los datos suben uno tras otro */
+  #gameover:not(.hidden) .goarte { animation:goArte .5s cubic-bezier(.2,1.3,.4,1) both; }
+  #gameover:not(.hidden) .godatos > * { animation:goSube .38s ease-out both; }
+  #gameover:not(.hidden) .godatos > :nth-child(2){ animation-delay:.08s; }
+  #gameover:not(.hidden) .godatos > :nth-child(3){ animation-delay:.16s; }
+  #gameover:not(.hidden) .godatos > :nth-child(4){ animation-delay:.24s; }
+  #gameover:not(.hidden) .godatos > :nth-child(5){ animation-delay:.32s; }
+  @keyframes goArte { from { opacity:0; transform:translateY(-30px) scale(1.15) rotate(-6deg); } to { opacity:1; transform:none; } }
+  @keyframes goSube { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:none; } }
+  body.no-anim #gameover .goarte, body.no-anim #gameover .godatos > *, body.no-anim .gorec { animation:none !important; }
+  /* vertical estrecho: una columna, lámina más pequeña y datos 2x2 */
+  @media (max-width: 700px) and (orientation: portrait){
+    .gocaja { grid-template-columns:minmax(0, 420px); gap:12px; justify-content:center; width:100%; padding-top:16px; }
+    #derrotaimg { width:min(200px, 50vw, 30vh); margin-bottom:6px; }
+    #gameover .subtitle { font-size:0.62rem; }
+    .gostats { grid-template-columns:repeat(4, 1fr); gap:5px; }
+    .gostat { padding:7px 2px 6px; }
+    .gostat b { font-size:0.82rem; }
+    .gostat small { font-size:0.38rem; letter-spacing:1px; }
+  }
+  @media (max-width: 360px) and (orientation: portrait){ .gostats { grid-template-columns:repeat(2, 1fr); } }
+  /* apaisado bajo (móvil girado): todo más compacto para que quepa sin desplazarse */
+  @media (max-height: 520px) and (orientation: landscape){
+    .gocaja { grid-template-columns:auto minmax(300px, 380px); gap:22px; padding:10px 14px calc(10px + env(safe-area-inset-bottom,0px)); }
+    #derrotaimg { width:min(230px, 30vw, 62vh); margin-bottom:4px; }
+    #gameover .subtitle { font-size:0.52rem; }
+    .godatos { gap:6px; }
+    .gopunt { padding:5px 10px 7px; }
+    .gopunt b { font-size:1.8rem; }
+    .gostat { padding:4px 2px; flex-direction:row; justify-content:center; gap:5px; flex-wrap:wrap; }
+    .gostat svg { width:15px; height:15px; }
+    .gostat b { font-size:0.78rem; }
+    .gostat small { display:none; }
+    #gameover #namebox { padding:6px 10px 8px; }
+    #gameover #namebox h3 { margin-bottom:4px; font-size:0.56rem; }
+    #gameover .nameprev { margin-bottom:4px; }
+    .gobtns { gap:5px; }
+    .gobtns button.big { padding:9px 16px; font-size:1rem; }
+    .gofila button.small { padding:7px 6px; }
+  }
   .globalask { margin-top:9px; padding-top:9px; border-top:1px dashed #1f4a2c; }
   .globalask.hidden { display:none; }
   .globalq { font-size:0.5rem; letter-spacing:1px; color:#cfe8d8; margin-bottom:7px; }
@@ -383,10 +467,7 @@
   body.no-anim #modeselect.anim .logo2,
   body.no-anim #modeselect .modecard { animation:none !important; }
 
-  /* tentáculos que asoman alrededor del botón JUGAR */
   .btnwrap { position:relative; display:inline-flex; align-items:center; justify-content:center; }
-  .btntent { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
-             pointer-events:none; z-index:0; background:transparent; border:0; }
   .btnwrap .modebtn { position:relative; z-index:1; }
 
   /* pasos: 1 mapa, 2 cómo jugar */
@@ -734,45 +815,59 @@
                  font-family:inherit; font-size:0.7rem; line-height:1; color:#7bffa0; background:rgba(10,22,14,0.9); border:1px solid #2f7a4a; }
   .tablacerrar:hover { border-color:#7bffa0; }
   #tablaPanel .scoretop { padding:0 30px; }              /* hueco para la ✕ sin pisar GLOBAL */
-  @media (orientation: portrait) and (max-width: 640px){
-    #menu > .overlay-inner { display:grid; grid-template-columns:1fr auto; column-gap:8px; row-gap:4px;
-      grid-template-areas:". ." "logo full" "logo holo" "sub holo" "tabla holo" ". ." "inv inv" "row row" "coin coin" ". .";
-      grid-template-rows:minmax(0,1fr) auto auto auto auto minmax(0,3.2fr) auto auto auto minmax(0,1.4fr);
-      align-items:center; justify-items:center; padding:14px 12px calc(14px + env(safe-area-inset-bottom,0px)); }
-    #menu #gamelogo { grid-area:logo; width:min(200px, 46vw); margin:0; }
-    #menu #menuLema { grid-area:sub; margin:4px 0 8px; font-size:0.56rem; letter-spacing:2px; line-height:1.5; }
-    #menu .tablabtn { grid-area:tabla; margin:0 0 8px; }
-    #menu #btnInvadir { grid-area:inv; }
-    #menu .menu-row { grid-area:row; flex-wrap:nowrap; gap:5px; margin-top:6px; }
-    #menu .menu-row .imgbtn { width:22vw; height:14vw; }
-    #menu .coinbar { grid-area:coin; margin-top:8px; }
-    #menu .charcol { grid-area:holo; margin:0; align-self:center; }
-    #menu .tutbtn { max-width:150px; white-space:normal; padding:6px 8px; letter-spacing:1px; }
-    #menu .holo { width:150px; }
-    #menu #holoCv { width:130px; height:121px; }
-    #menu .btnfull { justify-self:end; }
-  }
-  /* en las cuadrículas, pantalla completa ocupa su propio hueco: fija en la
-     esquina tapaba el botón del tutorial */
+  /* En el teléfono, el mismo orden que en PC: el logo arriba al centro con
+     el lema y los puntajes, la escena a la vista en medio, abajo INVADIR con
+     sus cuatro botones y las monedas, y el holograma en la esquina de abajo a
+     la izquierda. Pantalla completa (e instalar), arriba a la derecha. */
   @media (orientation: portrait) and (max-width: 640px), (orientation: landscape) and (max-height: 640px){
-    #menu .btnfull { position:static; grid-area:full; margin:0 0 4px; }
     #menu > .overlay-inner::before, #menu > .overlay-inner::after, #menu .menuhueco { display:none; }
+    #menu > .overlay-inner { display:grid; grid-template-columns:minmax(0,1fr) auto minmax(0,1fr); column-gap:10px; row-gap:0;
+      align-items:center; justify-items:center; }
+    #menu #gamelogo { grid-area:logo; margin:0; }
+    #menu #menuLema { grid-area:sub; letter-spacing:3px; line-height:1.5; text-align:center; }
+    #menu .tablabtn { grid-area:tabla; }
+    #menu #btnInvadir { grid-area:inv; }
+    #menu .menu-row { grid-area:row; flex-wrap:nowrap; }
+    #menu .coinbar { grid-area:coin; }
+    #menu .charcol { grid-area:holo; margin:0; justify-self:start; align-self:end; }
+    #menu .btnfull { position:static; grid-area:full; justify-self:end; align-self:start; margin:0; }
+    #menu .btnfull.btninst { margin-right:48px; }
+    #menu .tutbtn { white-space:normal; padding:6px 8px; letter-spacing:1px; }
+  }
+  @media (orientation: portrait) and (max-width: 640px){
+    #menu > .overlay-inner {
+      grid-template-areas:". . ." ". logo full" ". sub ." ". tabla ." ". . ." "holo holo holo" "inv inv inv" "row row row" "coin coin coin" ". . .";
+      grid-template-rows:minmax(0,0.5fr) auto auto auto minmax(0,2fr) auto auto auto auto minmax(0,0.7fr);
+      padding:14px 12px calc(14px + env(safe-area-inset-bottom,0px)); }
+    #menu #gamelogo { width:min(230px, 56vw); }
+    #menu #menuLema { margin:6px 0 10px; font-size:0.56rem; }
+    #menu .tablabtn { margin:0; }
+    #menu .charcol { margin:0 0 12px 2px; gap:6px; align-items:stretch; }
+    #menu .tutbtn { max-width:none; font-size:0.5rem; }
+    #menu .holo { width:auto; }
+    #menu .holoflecha { min-width:42px; }
+    #menu #holoCv { width:min(124px, 15vh); height:min(116px, 14vh); }
+    #menu .menu-row { gap:5px; margin-top:6px; }
+    #menu .menu-row .imgbtn { width:22vw; height:14vw; }
+    #menu .coinbar { margin-top:8px; }
   }
   @media (orientation: landscape) and (max-height: 640px){
-    #menu > .overlay-inner { display:grid; width:max-content; max-width:none; column-gap:16px; row-gap:4px; align-content:center;
-      grid-template-columns:auto auto auto; grid-template-rows:auto auto auto auto;
-      grid-template-areas:"full inv holo" "logo inv holo" "sub row holo" "tabla coin holo";
-      align-items:center; justify-items:center; padding:10px 14px calc(10px + env(safe-area-inset-bottom,0px)); }
-    #menu #gamelogo { grid-area:logo; width:min(200px, 20vw, 42vh); margin:0; align-self:end; }
-    #menu #menuLema { grid-area:sub; margin:6px 0 0; font-size:0.5rem; letter-spacing:2px; line-height:1.5;
-                      max-width:min(210px, 22vw); align-self:start; }
-    #menu .tablabtn { grid-area:tabla; margin:6px 0 0; align-self:start; }
-    #menu #btnInvadir { grid-area:inv; width:min(240px, 26vw); height:min(97px, 10.5vw); align-self:end; }
-    #menu .menu-row { grid-area:row; display:grid; grid-template-columns:auto auto; gap:4px; margin-top:4px; }
-    #menu .menu-row .imgbtn { width:min(118px, 12.5vw); height:min(76px, 8vw); }
-    #menu .coinbar { grid-area:coin; margin-top:6px; align-self:start; }
-    #menu .charcol { grid-area:holo; margin:0; }
-    #menu .btnfull { justify-self:start; }
+    #menu > .overlay-inner { width:100%; max-width:none; align-content:center;
+      grid-template-areas:". logo full" ". sub ." ". tabla ." "holo inv ." "holo row ." "holo coin .";
+      grid-template-rows:auto auto auto auto auto auto;
+      padding:8px 14px calc(8px + env(safe-area-inset-bottom,0px)); }
+    #menu #gamelogo { width:min(150px, 17vw, 31vh); }
+    #menu #menuLema { margin:3px 0 5px; font-size:0.48rem; }
+    #menu .tablabtn { margin:0 0 6px; padding:5px 12px 5px 9px; }
+    #menu #btnInvadir { width:min(240px, 26vw, 52vh); height:min(97px, 10.5vw, 21vh); }
+    #menu .menu-row { gap:5px; margin-top:4px; }
+    #menu .menu-row .imgbtn { width:min(118px, 12.5vw, 26vh); height:min(76px, 8vw, 17vh); }
+    #menu .coinbar { margin-top:4px; }
+    #menu .charcol { gap:5px; }
+    #menu .tutbtn { font-size:0.46rem; max-width:132px; padding:4px 6px; }
+    #menu .holo { width:132px; padding:4px 6px 6px; gap:2px; }
+    #menu #holoCv { width:min(112px, 24vh); height:min(104px, 22vh); }
+    #menu .holoflecha, #menu .charhelp { height:30px; min-width:36px; }
   }
   .tutbtn { cursor:pointer; border-radius:10px; padding:7px 11px; font-family:inherit; font-size:0.56rem; letter-spacing:2px;
             background:linear-gradient(180deg, rgba(40,90,40,0.92), rgba(12,40,18,0.92)); border:2px solid #7bffa0; color:#e8ffe8;
@@ -1710,7 +1805,6 @@
         <div class="playrow">
           <canvas class="modeanim" id="animInvasion" width="230" height="130"></canvas>
           <span class="btnwrap">
-            <canvas class="btntent" id="tentInvasion" width="168" height="88"></canvas>
             <button class="big modebtn" id="btnModeInvasion">JUGAR</button>
           </span>
         </div>
@@ -1739,7 +1833,6 @@
           <canvas class="modeanim" id="animVs" width="230" height="130"></canvas>
           <div class="btncol">
             <span class="btnwrap">
-              <canvas class="btntent" id="tentVs" width="168" height="88"></canvas>
               <button class="big modebtn" id="btnModeVs">LOCAL</button>
             </span>
             <button class="small modebtn2" id="btnModeVsOnline">EN LÍNEA</button>
@@ -2082,6 +2175,10 @@
         <button type="button" class="togglebtn" id="tgNums">ON</button>
       </div>
       <div class="bindrow">
+        <span class="bindname">Calidad ULTRA <small style="color:#8fbfa2">(más resolución)</small></span>
+        <button type="button" class="togglebtn off" id="tgUltra">OFF</button>
+      </div>
+      <div class="bindrow">
         <span class="bindname">Temblor de pantalla</span>
         <button type="button" class="togglebtn" id="tgTemblor">ON</button>
       </div>
@@ -2174,41 +2271,55 @@
   </div>
 
   <div id="gameover" class="overlay hidden">
-    <img id="derrotaimg" alt="">
-    <div class="subtitle">La invasión ha terminado</div>
-    <div class="panel">
-      <div class="score-row"><span>Puntaje final</span><span id="finalscore">0</span></div>
-      <div class="score-row"><span>Tiempo sobrevivido</span><span id="finaltime">0s</span></div>
-      <div class="score-row"><span>Bajas</span><span id="finalkills">0</span></div>
-      <div class="score-row"><span>Edificios demolidos</span><span id="finaldemo">0</span></div>
-      <div class="score-row"><span>Monedas ganadas</span><span id="finalcoins">+0</span></div>
-    </div>
-
-    <div id="namebox" class="panel hidden" style="min-width:min(340px,92vw)">
-      <h3>Registra tu puntaje</h3>
-      <div id="nameprev" class="nameprev hidden">
-        <div class="vollbl" style="text-align:left;margin-bottom:5px">Nombres usados antes</div>
-        <div id="namechips" class="namechips"></div>
+    <div class="gocaja">
+      <div class="goarte">
+        <img id="derrotaimg" alt="">
+        <div class="subtitle">La invasión ha terminado</div>
       </div>
-      <div class="namerow">
-        <input type="text" id="nameinput" maxlength="14" placeholder="TU NOMBRE" autocomplete="off" spellcheck="false">
-        <button class="small" id="btnSaveName" style="margin-top:0">Guardar</button>
-      </div>
-      <div id="namemsg" class="shopmsg"></div>
-      <button class="small ghost hidden" id="btnCambiarNombre" style="margin-top:6px">CAMBIAR NOMBRE</button>
-      <div id="globalask" class="globalask hidden">
-        <div class="globalq">¿Quieres subir este puntaje al ranking global?</div>
-        <div class="globalbtns">
-          <button class="small" id="btnSubirGlobal" style="margin-top:0">SUBIR AL GLOBAL</button>
-          <button class="small ghost" id="btnSoloLocal" style="margin-top:0">NO, SOLO LOCAL</button>
+      <div class="godatos">
+        <div class="gochip"><b id="goHeroe">CRÍA</b><span id="goMapa">CIUDAD</span></div>
+        <div class="gopunt">
+          <small>PUNTAJE FINAL</small>
+          <b id="finalscore">0</b>
+          <span class="gorec hidden" id="goRecord">&#9733; NUEVO RÉCORD &#9733;</span>
         </div>
-        <div id="globalaskmsg" class="globalmsg"></div>
+        <div class="gostats">
+          <div class="gostat"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M9 2h6"/></svg><b id="finaltime">0s</b><small>TIEMPO</small></div>
+          <div class="gostat"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 11a7 7 0 0 1 14 0v4l-2 1v3h-3v-2h-4v2H7v-3l-2-1z"/><circle cx="9" cy="11" r="1.6"/><circle cx="15" cy="11" r="1.6"/></svg><b id="finalkills">0</b><small>BAJAS</small></div>
+          <div class="gostat"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21h18M5 21V8l5-3v16M10 21V3h9v18M13 7h3M13 11h3M13 15h3"/></svg><b id="finaldemo">0</b><small>EDIFICIOS</small></div>
+          <div class="gostat oro"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 7v10M9.5 9.5c0-1 1-1.6 2.5-1.6s2.5.7 2.5 1.7-1 1.5-2.5 1.8-2.5.8-2.5 1.8 1 1.7 2.5 1.7 2.5-.6 2.5-1.6"/></svg><b id="finalcoins">+0</b><small>MONEDAS</small></div>
+        </div>
+        <div id="namebox" class="panel hidden">
+          <h3>Registra tu puntaje</h3>
+          <div id="nameprev" class="nameprev hidden">
+            <div class="vollbl" style="text-align:left;margin-bottom:5px">Nombres usados antes</div>
+            <div id="namechips" class="namechips"></div>
+          </div>
+          <div class="namerow">
+            <input type="text" id="nameinput" maxlength="14" placeholder="TU NOMBRE" autocomplete="off" spellcheck="false">
+            <button class="small" id="btnSaveName" style="margin-top:0">Guardar</button>
+          </div>
+          <div id="namemsg" class="shopmsg"></div>
+          <button class="small ghost hidden" id="btnCambiarNombre" style="margin-top:6px">CAMBIAR NOMBRE</button>
+          <div id="globalask" class="globalask hidden">
+            <div class="globalq">¿Quieres subir este puntaje al ranking global?</div>
+            <div class="globalbtns">
+              <button class="small" id="btnSubirGlobal" style="margin-top:0">SUBIR AL GLOBAL</button>
+              <button class="small ghost" id="btnSoloLocal" style="margin-top:0">NO, SOLO LOCAL</button>
+            </div>
+            <div id="globalaskmsg" class="globalmsg"></div>
+          </div>
+        </div>
+        <div class="gobtns">
+          <button class="big" id="btnRetry">REINTENTAR</button>
+          <div class="gofila">
+            <button class="small" id="btnMenu">Volver al menú</button>
+            <button class="small btncomp" id="btnCompartir">&#128227; COMPARTIR</button>
+          </div>
+          <div id="compmsg"></div>
+        </div>
       </div>
     </div>
-    <button class="small btncomp" id="btnCompartir">&#128227; COMPARTIR PUNTAJE</button>
-    <div id="compmsg"></div>
-    <button class="big" id="btnRetry">REINTENTAR</button>
-    <button class="small" id="btnMenu">Volver al menú</button>
   </div>
 </div>
 
@@ -2316,7 +2427,7 @@ const TRASH_TINTES = [
 // guarda la imagen ya escalada al tamaño del lienzo y la copia en un píxel
 // entero. Solo con la escala del mundo estable y sin giro; si no, como siempre.
 // Una imagen que se repinta en el sitio debe subir su img._ver.
-const ESC_MAX_PX = 5e6;                                // memoria de las copias (unos 20 MB)
+let ESC_MAX_PX = 5e6;                                  // memoria de las copias (unos 20 MB)
 const _esc = new Map();
 let _escPx = 0, _escNuevos = 0, _escId = 0, _escF = 0;
 let escK = 0;                                          // escala del mundo si este fotograma vale el volcado 1:1 (0 = no)
@@ -2364,7 +2475,7 @@ function dibujaImg(img, a, b, c, d, e, f, g, h){
   }
   if (img._contorno && sx === 0 && sy === 0 && sw === (img.naturalWidth || img.width) && sh === (img.naturalHeight || img.height) && img.complete !== false && sw > 0){
     // sin copia escalada: la imagen con contorno a su resolución, con el margen en proporción
-    const gr = Math.max(1, Math.round(sw/dw)), o = imgConContorno(img, gr), ex = dw/sw*gr, ey = dh/sh*gr;
+    const gr = Math.max(1, Math.floor(sw/dw)), o = imgConContorno(img, gr), ex = dw/sw*gr, ey = dh/sh*gr;
     ctx.drawImage(o, dx - ex, dy - ey, dw + 2*ex, dh + 2*ey);
     return;
   }
@@ -2381,7 +2492,11 @@ function dibujaRedonda(img, x, y, r){
 // Un trazo para todo: el mobiliario (árboles, farolas, bancos...) lleva el
 // mismo contorno oscuro de un píxel que la gente, la tropa y los autos. Se
 // pinta una vez, al hacer la copia escalada: en partida no cuesta nada.
-const CONTORNO_COL = 'rgba(14,16,22,0.88)', CONTORNO_EDIF = 'rgba(10,12,16,0.62)', CONTORNO_SPR = { tree:1, lamp:1, bench:1, trash:1, planter:1 };
+// Mismo tono que el trazo de la tropa, los civiles y los autos (marrón casi
+// negro, #140e08): todo encaja en una paleta. Los árboles, con su follaje ya
+// oscuro en el borde, lo llevan más tenue para que no se vea grueso.
+const CONTORNO_COL = 'rgba(20,14,8,0.86)', CONTORNO_EDIF = 'rgba(20,14,8,0.6)', CONTORNO_ARBOL = 'rgba(20,14,8,0.5)';
+const CONTORNO_SPR = { tree:'arbol', lamp:true, bench:true, trash:true, planter:true };
 let _contTmp = null;
 // Contorno de 'gr' píxeles alrededor de lo pintado en cv (que tiene ese margen).
 // Los edificios (img._contorno === 'edif') llevan uno más suave y un bisel:
@@ -2393,7 +2508,7 @@ function contornea(cv, gr, tipo){
   if (_contTmp.width < W || _contTmp.height < H){ _contTmp.width = Math.max(W, _contTmp.width); _contTmp.height = Math.max(H, _contTmp.height); }
   const t = _contTmp.getContext('2d');
   t.globalCompositeOperation = 'copy'; t.drawImage(cv, 0, 0);
-  t.globalCompositeOperation = 'source-in'; t.fillStyle = tipo === 'edif' ? CONTORNO_EDIF : CONTORNO_COL; t.fillRect(0, 0, W, H);
+  t.globalCompositeOperation = 'source-in'; t.fillStyle = tipo === 'edif' ? CONTORNO_EDIF : tipo === 'arbol' ? CONTORNO_ARBOL : CONTORNO_COL; t.fillRect(0, 0, W, H);
   t.globalCompositeOperation = 'source-over';
   const g = cv.getContext('2d');
   g.setTransform(1, 0, 0, 1, 0, 0);
@@ -2442,7 +2557,7 @@ function drawSpriteTint(key, tinteIdx, tintes, sx, sy, w, h, facing, rot){
   if (t){
     const cv = spriteTenido(key, t);
     if (cv){
-      if (CONTORNO_SPR[key]) cv._contorno = true;
+      if (CONTORNO_SPR[key]) cv._contorno = CONTORNO_SPR[key];
       const sp = sprites[key];
       ctx.save();
       ctx.translate(sx, sy);
@@ -2460,7 +2575,7 @@ function drawSprite(key, sx, sy, w, h, facing, rot){
   const s = sprites[key];
   if (!s || !s.img.complete || !s.img.naturalWidth) return false;
   const im = pintaDeforme ? deformCv(s.img) : s.img;
-  if (CONTORNO_SPR[key] && !im._contorno) im._contorno = true;
+  if (CONTORNO_SPR[key] && !im._contorno) im._contorno = CONTORNO_SPR[key];
   if (!rot){                                     // lo más común: sin guardar ni restaurar el estado del lienzo
     if (facing === s.face){ dibujaImg(im, sx - w/2, sy - h/2, w, h); return true; }
     ctx.translate(sx, sy); ctx.scale(-1, 1);
@@ -4542,7 +4657,7 @@ function arbolMuertoCv(){
 }
 function dibujaArbolMuerto(sx, sy, w, h, rot){
   ctx.save(); ctx.translate(sx, sy); if (rot) ctx.rotate(rot);
-  const am = arbolMuertoCv(); am._contorno = true;
+  const am = arbolMuertoCv(); am._contorno = 'arbol';
   dibujaImg(am, -w/2, -h/2, w, h);
   ctx.restore();
   return true;
@@ -4920,12 +5035,23 @@ let VW = CW / ZOOM, VH = CH / ZOOM;                    // mundo visible (unidade
 // dibuja a la densidad de la pantalla, con un tope de 2×. Si el equipo no
 // aguanta el ritmo, vigilaRendimiento() lo devuelve a 1× para que no haya lag.
 let DPR = 1, dprTope = 1.5;                  // en pantallas muy densas basta 1,5x: no se nota y pinta casi la mitad
+// Calidad ULTRA (Ajustes > Pantalla y sonido): lo único que cambia es la
+// resolución, 1,5 veces la de la pantalla (hasta 3x y unos 8 megapíxeles),
+// y no baja sola aunque el equipo vaya justo.
+let ultraOn = false;
+function dprUltra(dprPant){
+  let d = Math.min(3, Math.max(1, dprPant)*1.5);
+  const px = CW*CH*d*d, tope = 8.3e6;
+  if (px > tope) d = Math.sqrt(tope/(CW*CH));
+  return Math.max(1, d);
+}
 let _congelado = false;            // partida parada y ya pintada (ver mundoCongelado)
 function resize(){
   _congelado = false;                            // el tamaño cambió: hay que repintar
   CW = window.innerWidth; CH = window.innerHeight;
   const dprPant = window.devicePixelRatio || 1;
-  DPR = Math.min(dprTope, Math.max(1, dprPant));    // por debajo de 1 solo si el juego va lento (ver vigilaRendimiento)
+  DPR = ultraOn ? dprUltra(dprPant) : Math.min(dprTope, Math.max(1, dprPant));    // por debajo de 1 solo si el juego va lento (ver vigilaRendimiento)
+  ESC_MAX_PX = 5e6*Math.max(1, DPR*DPR/2.25);       // las copias escaladas crecen con la resolución
   canvas.width = Math.round(CW*DPR); canvas.height = Math.round(CH*DPR);
   ctx.imageSmoothingQuality = 'low';                 // al cambiar el tamaño se pierde
   canvas.style.width = CW + 'px'; canvas.style.height = CH + 'px';
@@ -7248,10 +7374,11 @@ let venenoT = 0, venenoDosis = 0, venenoUlt = 0, paralizadoT = 0;
 // Quemadura: daño breve que se apaga solo. La congelación deja clavado.
 const QUEMA_DUR = 2.6, QUEMA_DPS = 9;
 const HIELO_DUR = 1.4;
-let quemaT = 0, hieloT = 0;
+let quemaT = 0, hieloT = 0, hieloIni = 0;
 function quemar(dur){ if (Online.objetivoInv){ Online.estInv.q = 1; return; } quemaT = Math.max(quemaT, dur || QUEMA_DUR); }
 function congelar(dur){
   if (Online.objetivoInv){ Online.estInv.h = 1; return; }
+  if (!(hieloT > 0)) hieloIni = gameTime;          // para la animación del bloque al formarse
   hieloT = Math.max(hieloT, dur || HIELO_DUR);
   toast('¡CONGELADO!');
   sfx('deny');
@@ -7268,6 +7395,11 @@ function updateEstados(dt){
     hieloT -= dt;
     if (Math.random() < 0.3)
       addParticles(player.x + rand(-11,11), player.y + rand(-14,4), '#9fe8ff', 1, 40);
+    if (hieloT <= 0){                                 // el bloque se rompe en esquirlas
+      addParticles(player.x, player.y - 8, '#dff8ff', 14, 150);
+      addParticles(player.x, player.y - 8, '#7fd0f4', 8, 110);
+      sfx('cristal');
+    }
   }
   if (lentoT > 0) lentoT -= dt;
   if (electroT > 0) electroT -= dt;
@@ -13475,105 +13607,266 @@ function drawAnimVs(c, t){
 }
 
 
-// ---- tentáculos que rodean el botón JUGAR ----
-// Asoman al pasar el ratón y aprietan el botón al pulsarlo.
-const btnTent = {
-  inv: { ctx:null, hover:0, target:0, squeeze:0, sq:0 },
-  vs:  { ctx:null, hover:0, target:0, squeeze:0, sq:0 }
-};
-const BTN_W = 118, BTN_H = 46;      // tamaño aproximado del botón
-
-function drawBtnTentacles(c, st, t){
-  const W = 168, H = 88, cx = W/2, cy = H/2;
-  c.clearRect(0,0,W,H);
-  if (st.hover < 0.01) return;
-
-  const SK = (typeof skin === 'function') ? skin()
-           : {c:['#5fce7f','#2f7a45','#123d1f'], limb:'#2e6b3f', tip:'#45c46b'};
-  const e = st.hover, sq = st.sq;
-  const hw = BTN_W/2, hh = BTN_H/2;
-  const REACH = 13;                    // cuánto asoma la punta más allá del borde
-
-  // Anclados DENTRO del botón: el botón (z-index mayor) tapa el cuerpo,
-  // así que solo se ve la puntita saliendo por el borde.
-  const arms = [
-    { ax:-hw+12, ay:-hh*0.55, dx:-1, dy:-0.25 },
-    { ax:-hw+12, ay: hh*0.55, dx:-1, dy: 0.25 },
-    { ax: hw-12, ay:-hh*0.55, dx: 1, dy:-0.25 },
-    { ax: hw-12, ay: hh*0.55, dx: 1, dy: 0.25 },
-    { ax:-hw*0.45, ay:-hh+6, dx:-0.2, dy:-1 },
-    { ax: hw*0.45, ay:-hh+6, dx: 0.2, dy:-1 },
-    { ax:-hw*0.45, ay: hh-6, dx:-0.2, dy: 1 },
-    { ax: hw*0.45, ay: hh-6, dx: 0.2, dy: 1 }
-  ];
-
-  arms.forEach((a,i)=>{
-    const wob = Math.sin(t*3.4 + i*1.25) * 2.2 * (1-sq);
-    const out = (REACH - sq*5) * e;                 // al apretar se retraen un poco
-    const bx = cx + a.ax, by = cy + a.ay;
-    const nx = Math.hypot(a.dx, a.dy) || 1;
-    const ux = a.dx/nx, uy = a.dy/nx;
-    // punta justo fuera del borde del botón
-    const edgeX = cx + a.ax + ux * (Math.abs(a.dx) > 0.5 ? (hw - Math.abs(a.ax)) : 0);
-    const edgeY = cy + a.ay + uy * (Math.abs(a.dy) > 0.5 ? (hh - Math.abs(a.ay)) : 0);
-    const tx = edgeX + ux*out - uy*wob;
-    const ty = edgeY + uy*out + ux*wob;
-    const mx = (bx+tx)/2 - uy*wob*1.4;
-    const my = (by+ty)/2 + ux*wob*1.4;
-
-    c.strokeStyle = SK.limb;
-    c.lineWidth = 5.2 + sq*1.2;
-    c.lineCap = 'round';
-    c.beginPath(); c.moveTo(bx,by); c.quadraticCurveTo(mx,my,tx,ty); c.stroke();
-
-    c.fillStyle = SK.tip;
-    c.beginPath(); c.arc(tx, ty, (2.6 + sq*0.9), 0, Math.PI*2); c.fill();
-    c.fillStyle = SK.c[0];
-    c.globalAlpha = 0.55;
-    c.beginPath(); c.arc(tx - ux*3.4, ty - uy*3.4, 1.3, 0, Math.PI*2); c.fill();
-    c.globalAlpha = 1;
-  });
+// ---- El personaje en los botones de las pantallas tras INVADIR ----
+// Al pasar el ratón (o al tocar) cualquier botón, se nota quién juega: a la
+// cría le asoman tentáculos por detrás, el dragón lo recorre de rayos, el
+// viltrumita lo agrieta con un brillo rojo, Boros lo envuelve en su aura, la
+// máquina le saca chispas y al mago le trepan lianas. Al pulsarlo, un golpe
+// breve del mismo estilo (sin retrasar nada). Un único lienzo encima de todo
+// que solo se pinta mientras hay algo que mostrar.
+const FXB_PANTALLAS = ['modeselect', 'leyenda', 'leyVs', 'vselige', 'leyGuarda', 'sala'];
+const fxb = { cv:null, g:null, k:1, W:0, H:0, b:null, rad:8, obj:0, hover:0, apr:0, sq:0, raf:null, last:0, t:0, golpes:[], suelta:null };
+const FXB_COL = { viltrum:'#ff4a3a', dragon:'#8fd0ff', maquina:'#ffb04a', mago:'#b77dff', boros:'#b06bff' };
+function fxbColor(){ return FXB_COL[hero] || (typeof skin === 'function' ? skin().c[0] : '#5fce7f'); }
+function fxbBoton(el){
+  const b = el && el.closest ? el.closest('button') : null;
+  if (!b || b.disabled || !menuAnimOn) return null;
+  for (const id of FXB_PANTALLAS){ const o = document.getElementById(id); if (o && o.contains(b) && !o.classList.contains('hidden')) return b; }
+  return null;
 }
-
-function updateBtnTent(st, dt){
-  st.hover += (st.target  - st.hover) * Math.min(1, dt*9);
-  st.sq    += (st.squeeze - st.sq)    * Math.min(1, dt*16);
+function fxbApunta(b){
+  if (fxb.b !== b){ fxb.b = b; fxb.hover = 0; fxb.sq = 0; fxb.rad = parseFloat(getComputedStyle(b).borderTopLeftRadius) || 6; }
+  fxb.obj = 1; clearTimeout(fxb.suelta); fxbArranca();
 }
-
-// Los tentáculos sobre los botones de jugar solo salen con la cría.
-function refreshBtnFx(){
-  const ti = document.getElementById('tentInvasion');
-  const tv = document.getElementById('tentVs');
-  const oculto = usaVil() ? 'none' : '';
-  if (ti) ti.style.display = oculto;
-  if (tv) tv.style.display = oculto;
+function fxbSuelta(){ fxb.obj = 0; fxb.apr = 0; }
+function fxbArranca(){
+  if (fxb.raf != null) return;
+  if (!fxb.cv){
+    fxb.cv = document.createElement('canvas');
+    fxb.cv.style.cssText = 'position:fixed;left:0;top:0;pointer-events:none;z-index:61;background:transparent;border:0;margin:0;box-shadow:none';
+    document.body.appendChild(fxb.cv); fxb.g = fxb.cv.getContext('2d');
+  }
+  fxb.last = performance.now();
+  fxb.raf = requestAnimationFrame(fxbPaso);
 }
-
-function bindBtnTent(btnId, canvasId, key){
-  const b = document.getElementById(btnId);
-  const cv = document.getElementById(canvasId);
-  if (!b || !cv) return;
-  const st = btnTent[key];
-  st.ctx = cv.getContext ? cv.getContext('2d') : null;
-  const on  = ()=>{ st.target = 1; };
-  const off = ()=>{ st.target = 0; st.squeeze = 0; };
-  b.addEventListener('mouseenter', on);
-  b.addEventListener('mouseleave', off);
-  b.addEventListener('focus', on);
-  b.addEventListener('blur', off);
-  b.addEventListener('mousedown', ()=>{ st.squeeze = 1; });
-  b.addEventListener('mouseup',   ()=>{ st.squeeze = 0; });
-  // en táctil: asoman y aprietan al tocar
-  b.addEventListener('touchstart', ()=>{ st.target = 1; st.squeeze = 1; }, {passive:true});
-  b.addEventListener('touchend',   ()=>{ st.squeeze = 0; }, {passive:true});
+document.addEventListener('pointerover', ev => {
+  if (ev.pointerType && ev.pointerType !== 'mouse') return;
+  const b = fxbBoton(ev.target);
+  if (b) fxbApunta(b); else if (fxb.b) fxbSuelta();
+});
+document.addEventListener('pointerdown', ev => {
+  const b = fxbBoton(ev.target);
+  if (!b) return;
+  fxbApunta(b); fxb.apr = 1;
+  const r = b.getBoundingClientRect();
+  fxb.golpes.push({ x:r.left, y:r.top, w:r.width, h:r.height, rad:fxb.rad, t:0, s:(Math.random()*1000) | 0 });
+});
+document.addEventListener('pointerup', ev => {
+  fxb.apr = 0;
+  if (ev.pointerType && ev.pointerType !== 'mouse'){ clearTimeout(fxb.suelta); fxb.suelta = setTimeout(fxbSuelta, 700); }   // en táctil no hay "encima"
+});
+document.addEventListener('focusin', ev => {                   // con el mando o el teclado también
+  const b = fxbBoton(ev.target);
+  let vis = false; try { vis = b && (b.classList.contains('mandofoco') || b.matches(':focus-visible')); } catch(e){}
+  if (vis) fxbApunta(b);
+});
+// contorno redondeado (sin roundRect, que no tienen todos los navegadores)
+function fxbRR(g, x, y, w, h, r){
+  r = Math.max(0, Math.min(r, w/2, h/2));
+  g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r);
+  g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
+}
+// Punto del borde del rectángulo en la fracción s del perímetro, con su normal.
+function fxbBorde(x, y, w, h, s){
+  const P = 2*(w + h); let d = ((s % 1) + 1) % 1*P;
+  if (d < w) return [x + d, y, 0, -1];
+  d -= w; if (d < h) return [x + w, y + d, 1, 0];
+  d -= h; if (d < w) return [x + w - d, y + h, 0, 1];
+  d -= w; return [x, y + h - d, -1, 0];
+}
+function fxbPaso(ahora){
+  const dt = Math.min(0.05, (ahora - fxb.last)/1000); fxb.last = ahora; fxb.t += dt;
+  const g = fxb.g, k = Math.min(2, window.devicePixelRatio || 1);
+  const W = window.innerWidth, H = window.innerHeight;
+  if (fxb.W !== W || fxb.H !== H || fxb.k !== k){
+    fxb.W = W; fxb.H = H; fxb.k = k;
+    fxb.cv.width = Math.round(W*k); fxb.cv.height = Math.round(H*k);
+    fxb.cv.style.width = W + 'px'; fxb.cv.style.height = H + 'px';
+  }
+  g.setTransform(k, 0, 0, k, 0, 0); g.clearRect(0, 0, W, H);
+  g.globalAlpha = 1; g.lineCap = 'round'; g.lineJoin = 'round';
+  const b = fxb.b;
+  if (b && (!b.isConnected || !b.offsetParent || !fxbBoton(b))) fxb.obj = 0;
+  fxb.hover += (fxb.obj - fxb.hover)*Math.min(1, dt*9);
+  fxb.sq += (fxb.apr - fxb.sq)*Math.min(1, dt*16);
+  if (b && fxb.hover > 0.01){
+    const r = b.getBoundingClientRect();
+    if (r.width > 0) try { fxbAura(g, r.left, r.top, r.width, r.height, fxb.rad, fxb.hover, fxb.sq, fxb.t, W, H); } catch(e){}
+  }
+  for (let i = fxb.golpes.length - 1; i >= 0; i--){
+    const q = fxb.golpes[i]; q.t += dt;
+    if (q.t > 0.45){ fxb.golpes.splice(i, 1); continue; }
+    try { fxbGolpe(g, q, W); } catch(e){}
+  }
+  g.globalAlpha = 1;
+  if (fxb.hover > 0.01 || fxb.obj || fxb.golpes.length){ fxb.raf = requestAnimationFrame(fxbPaso); return; }
+  fxb.raf = null; fxb.b = null; g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, fxb.cv.width, fxb.cv.height);
+}
+// Lo que rodea al botón mientras está encima. "Por detrás": se recorta el
+// botón, así solo se ve lo que asoma por sus bordes.
+function fxbDetras(g, x, y, w, h, rad, W, H){
+  g.save(); g.beginPath(); g.rect(0, 0, W, H); fxbRR(g, x, y, w, h, rad); g.clip('evenodd');
+}
+function fxbAura(g, x, y, w, h, rad, e, sq, t, W, H){
+  const cx = x + w/2, cy = y + h/2, P = 2*(w + h);
+  let sem = 1;
+  const rnd = ()=>{ sem = (sem*9301 + 49297) % 233280; return sem/233280; };
+  const brillo = (col, a)=>{                                   // halo del color del personaje en el borde
+    g.globalAlpha = a*e; g.strokeStyle = col; g.lineWidth = 6;
+    g.beginPath(); fxbRR(g, x - 2, y - 2, w + 4, h + 4, rad + 2); g.stroke();
+    g.globalAlpha = Math.min(1, a*2)*e; g.lineWidth = 1.5;
+    g.beginPath(); fxbRR(g, x - 1, y - 1, w + 2, h + 2, rad + 1); g.stroke();
+  };
+  if (hero === 'alien'){
+    const SK = skin(), n = Math.max(4, Math.min(12, Math.round(P/52)));
+    fxbDetras(g, x, y, w, h, rad, W, H);
+    for (let i = 0; i < n; i++){
+      const s = (i + 0.5)/n, [px, py, nx, ny] = fxbBorde(x, y, w, h, s);
+      const wob = Math.sin(t*3.4 + i*1.25)*2.4*(1 - sq);
+      const out = (14 - sq*6)*e;
+      const bx = px - nx*12, by = py - ny*12, tx = px + nx*out - ny*wob, ty = py + ny*out + nx*wob;
+      const mx = (bx + tx)/2 - ny*wob*1.4, my = (by + ty)/2 + nx*wob*1.4;
+      g.globalAlpha = 1; g.strokeStyle = SK.limb || SK.c[1]; g.lineWidth = 5.4 + sq*1.2;
+      g.beginPath(); g.moveTo(bx, by); g.quadraticCurveTo(mx, my, tx, ty); g.stroke();
+      g.fillStyle = SK.tip; g.beginPath(); g.arc(tx, ty, 2.7 + sq*0.9, 0, Math.PI*2); g.fill();
+      g.fillStyle = SK.c[0]; g.globalAlpha = 0.6; g.beginPath(); g.arc(tx - nx*3.4, ty - ny*3.4, 1.3, 0, Math.PI*2); g.fill();
+    }
+    g.restore();
+  } else if (hero === 'dragon'){
+    brillo('#6fa8ff', 0.22);
+    sem = 3 + Math.floor(t*14);                                 // cambian de forma a saltos
+    for (let n = 0; n < 3; n++){
+      const s0 = rnd(), L = 0.12 + rnd()*0.14, seg = 9;
+      const pts = [];
+      for (let j = 0; j <= seg; j++){
+        const [px, py, nx, ny] = fxbBorde(x - 2, y - 2, w + 4, h + 4, s0 + L*j/seg), d = j && j < seg ? (rnd() - 0.3)*9 : 0;
+        pts.push(px + nx*d, py + ny*d);
+      }
+      for (const [lw, col, a] of [[5, '#6fa8ff', 0.35], [1.6, n % 2 ? '#fff3a0' : '#e8f4ff', 1]]){
+        g.globalAlpha = a*e; g.strokeStyle = col; g.lineWidth = lw; g.beginPath(); g.moveTo(pts[0], pts[1]);
+        for (let j = 2; j < pts.length; j += 2) g.lineTo(pts[j], pts[j + 1]);
+        g.stroke();
+      }
+    }
+    if (sq > 0.3){ g.globalAlpha = 0.15*sq; g.fillStyle = '#e8f4ff'; g.beginPath(); fxbRR(g, x, y, w, h, rad); g.fill(); }
+  } else if (hero === 'viltrum'){
+    brillo('#ff3b2e', 0.25 + Math.sin(t*6)*0.06);
+    const L = Math.min(18, h*0.45)*e;                           // grietas en dos esquinas
+    for (const [ox, oy, sx, sy] of [[x + 3, y + 3, 1, 1], [x + w - 3, y + h - 3, -1, -1]]){
+      sem = (ox | 0) + 7;
+      const pts = [ox, oy]; let px = ox, py = oy;
+      for (let j = 0; j < 4; j++){ px += sx*(L/4)*(0.6 + rnd()*0.8); py += sy*(L/4)*(0.3 + rnd()*0.9); pts.push(px, py); }
+      for (const [lw, col] of [[2.2, 'rgba(26,5,5,0.85)'], [0.9, 'rgba(255,190,170,0.9)']]){
+        g.globalAlpha = e; g.strokeStyle = col; g.lineWidth = lw; g.beginPath(); g.moveTo(pts[0], pts[1]);
+        for (let j = 2; j < pts.length; j += 2) g.lineTo(pts[j] + (lw < 1 ? 0.8 : 0), pts[j + 1]);
+        g.stroke();
+      }
+    }
+    g.fillStyle = '#ff7a5a';                                    // chispas rojas que suben
+    for (let n = 0; n < 7; n++){
+      sem = n*31 + 5; const f = (t*0.9 + rnd()) % 1, px = x + rnd()*w;
+      g.globalAlpha = (1 - f)*e*0.9; g.fillRect(px, y - 2 - f*22, 2, 2);
+    }
+  } else if (hero === 'boros'){
+    fxbDetras(g, x, y, w, h, rad, W, H);
+    const n = Math.max(10, Math.round(P/16));
+    for (let i = 0; i < n; i++){                                // llamas del aura alrededor
+      const s = i/n, [px, py, nx, ny] = fxbBorde(x, y, w, h, s);
+      const fl = 0.6 + 0.4*Math.sin(t*9 + i*2.1), alto = (9 + fl*9)*e;
+      const ux = nx*0.6, uy = ny*0.6 - 0.8, ul = Math.hypot(ux, uy) || 1;  // hacia fuera y hacia arriba
+      const tx = px + ux/ul*alto, ty = py + uy/ul*alto;
+      for (const [an, col, a] of [[5, '#7a2cff', 0.4], [2.2, '#e0b8ff', 0.85]]){
+        g.globalAlpha = a*e; g.fillStyle = col;
+        g.beginPath(); g.moveTo(px - ny*an, py + nx*an); g.quadraticCurveTo(px + ux/ul*alto*0.5, py + uy/ul*alto*0.5, tx, ty);
+        g.quadraticCurveTo(px + ux/ul*alto*0.5, py + uy/ul*alto*0.5, px + ny*an, py - nx*an); g.fill();
+      }
+    }
+    g.restore();
+    brillo('#a24bff', 0.25);
+  } else if (hero === 'maquina'){
+    brillo('#ff8a2b', 0.2);
+    const s = t*0.32, [px, py, nx, ny] = fxbBorde(x - 1, y - 1, w + 2, h + 2, s);
+    const tx = ny === 0 ? 0 : (ny < 0 ? 1 : -1), ty = nx === 0 ? 0 : (nx > 0 ? 1 : -1);   // sentido del recorrido
+    sem = Math.floor(t*30) + 3;
+    for (let n = 0; n < 12; n++){                               // chispas de amoladora
+      const a = Math.atan2(-ty + ny*0.6, -tx + nx*0.6) + (rnd() - 0.5)*1.1, l = 6 + rnd()*16;
+      g.globalAlpha = e*(0.6 + rnd()*0.4); g.strokeStyle = rnd() < 0.5 ? '#ffe9a0' : '#ff9a2b'; g.lineWidth = 1.4;
+      const d0 = rnd()*6;
+      g.beginPath(); g.moveTo(px + Math.cos(a)*d0, py + Math.sin(a)*d0); g.lineTo(px + Math.cos(a)*(d0 + l), py + Math.sin(a)*(d0 + l)); g.stroke();
+    }
+    g.globalAlpha = e; g.fillStyle = '#fff6d0'; g.beginPath(); g.arc(px, py, 2.6, 0, Math.PI*2); g.fill();
+    const lx = cx + Math.sin(t*1.7)*w*0.3, ly = cy + Math.cos(t*2.3)*h*0.22;   // la mira láser
+    g.globalAlpha = 0.85*e; g.strokeStyle = '#ff2a2a'; g.lineWidth = 1.2;
+    g.beginPath(); g.arc(lx, ly, 5, 0, Math.PI*2); g.moveTo(lx - 8, ly); g.lineTo(lx - 3, ly); g.moveTo(lx + 3, ly); g.lineTo(lx + 8, ly);
+    g.moveTo(lx, ly - 8); g.lineTo(lx, ly - 3); g.moveTo(lx, ly + 3); g.lineTo(lx, ly + 8); g.stroke();
+    g.fillStyle = '#ff4040'; g.beginPath(); g.arc(lx, ly, 1.4, 0, Math.PI*2); g.fill();
+  } else {                                                       // mago: lianas que trepan por los lados
+    fxbDetras(g, x, y, w, h, rad, W, H);
+    const n = Math.max(4, Math.min(8, Math.round(w/40)));
+    for (let i = 0; i < n; i++){
+      const lado = n > 1 ? i/(n - 1) - 0.5 : 0, x0 = cx + lado*w*1.05, y0 = y + h + 16;
+      const ex = cx + lado*w*0.92 + Math.sin(t*2 + i)*3, ey = y + h*(0.15 + (i % 3)*0.2) - (Math.abs(lado) > 0.4 ? 0 : h*0.6);
+      const c = e, mx = (x0 + ex)/2 + (lado < 0 ? -14 : 14), my = (y0 + ey)/2;
+      const pts = [];
+      for (let j = 0; j <= 10; j++){ const f = j/10*c, u = 1 - f; pts.push([u*u*x0 + 2*u*f*mx + f*f*ex, u*u*y0 + 2*u*f*my + f*f*ey]); }
+      for (const [lw, col, a] of [[7, '#7a3fb0', 0.35], [4, '#1a0d24', 1], [1, '#5a2f7a', 0.9]]){
+        g.globalAlpha = a; g.strokeStyle = col; g.lineWidth = lw;
+        g.beginPath(); g.moveTo(pts[0][0], pts[0][1]); for (const p of pts) g.lineTo(p[0], p[1]); g.stroke();
+      }
+      g.globalAlpha = 1; g.fillStyle = '#2a1238';
+      for (let j = 3; j < pts.length; j += 3){ const p = pts[j], s2 = j % 2 ? 1 : -1;
+        g.beginPath(); g.moveTo(p[0], p[1]); g.lineTo(p[0] + s2*7, p[1] - 4); g.lineTo(p[0] + s2*2, p[1] + 2); g.fill(); }
+    }
+    g.restore();
+    g.fillStyle = '#c77dff';                                    // chispas arcanas
+    for (let n2 = 0; n2 < 6; n2++){
+      sem = n2*17 + 9; const f = (t*0.7 + rnd()) % 1;
+      g.globalAlpha = (1 - f)*e*0.8; g.beginPath(); g.arc(x + rnd()*w, y + h - f*(h + 18), 1.6, 0, Math.PI*2); g.fill();
+    }
+  }
+  g.globalAlpha = 1;
+}
+// El golpe breve al pulsar: onda del color del personaje y su detalle propio.
+function fxbGolpe(g, q, W){
+  const f = q.t/0.45, col = fxbColor();
+  let sem = q.s + 1;
+  const rnd = ()=>{ sem = (sem*9301 + 49297) % 233280; return sem/233280; };
+  const cx = q.x + q.w/2, cy = q.y + q.h/2, o = f*16;
+  g.globalAlpha = (1 - f)*0.9; g.strokeStyle = col; g.lineWidth = 3*(1 - f) + 1;
+  g.beginPath(); fxbRR(g, q.x - o, q.y - o, q.w + 2*o, q.h + 2*o, q.rad + o); g.stroke();
+  g.fillStyle = col;
+  for (let n = 0; n < 10; n++){
+    const a = rnd()*Math.PI*2, v = 30 + rnd()*50, [px, py] = fxbBorde(q.x, q.y, q.w, q.h, rnd());
+    g.globalAlpha = 1 - f; g.fillRect(px + Math.cos(a)*v*f - 1.5, py + Math.sin(a)*v*f - 1.5, 3, 3);
+  }
+  if (hero === 'dragon' && f < 0.35){                            // un rayo cae sobre el botón
+    for (const [lw, c2, a] of [[8, '#6fa8ff', 0.35], [2.5, '#e8f4ff', 1]]){
+      sem = q.s + 7; g.globalAlpha = a*(1 - f/0.35); g.strokeStyle = c2; g.lineWidth = lw;
+      g.beginPath(); g.moveTo(cx + 30, 0);
+      for (let j = 1; j <= 8; j++){ const u = j/8; g.lineTo(cx + 30*(1 - u) + (rnd() - 0.5)*30*(1 - u*0.8), (q.y + q.h*0.4)*u); }
+      g.stroke();
+    }
+  } else if (hero === 'maquina'){                                // tres impactos de bala
+    for (let n = 0; n < 3; n++){
+      const hx = q.x + q.w*(0.25 + n*0.25) + (rnd() - 0.5)*10, hy = cy + (rnd() - 0.5)*q.h*0.4;
+      g.globalAlpha = 1 - f; g.fillStyle = '#16181c'; g.beginPath(); g.arc(hx, hy, 2.8, 0, Math.PI*2); g.fill();
+      g.strokeStyle = '#ffd257'; g.lineWidth = 1; g.globalAlpha = Math.max(0, 1 - f*3); g.beginPath(); g.arc(hx, hy, 3 + f*14, 0, Math.PI*2); g.stroke();
+    }
+  } else if (hero === 'viltrum' || hero === 'boros'){            // grieta desde el centro
+    g.globalAlpha = 1 - f; g.strokeStyle = hero === 'viltrum' ? 'rgba(30,6,6,0.9)' : 'rgba(40,10,70,0.9)'; g.lineWidth = 1.8;
+    g.beginPath();
+    for (let n = 0; n < 5; n++){
+      const a = n*1.26 + rnd()*0.5; let px = cx, py = cy; g.moveTo(px, py);
+      for (let j = 0; j < 3; j++){ px += Math.cos(a + (rnd() - 0.5)*0.8)*q.h*0.22; py += Math.sin(a + (rnd() - 0.5)*0.8)*q.h*0.16; g.lineTo(px, py); }
+    }
+    g.stroke();
+  }
 }
 
 function modeAnimLoop(now){
   if (!modeAnim.last) modeAnim.last = now;
   modeAnim.t += Math.min((now - modeAnim.last)/1000, 0.05);
   modeAnim.last = now;
-  const dt = Math.min((now - (modeAnim.prev||now))/1000, 0.05);
-  modeAnim.prev = now;
   // Cada lienzo por separado y empezando limpio: si un dibujo fallara a medias,
   // no dejaría la escala o la posición torcidas para los siguientes.
   const pinta = (c, fn)=>{
@@ -13589,15 +13882,8 @@ function modeAnimLoop(now){
     pinta(modeAnim.vsCtx,  c => drawAnimVs(c, modeAnim.t));
     pinta(modeAnim.dobCtx, c => drawAnimDoble(c, modeAnim.t));
   }
-  for (const k of ['inv','vs']){
-    if ((k === 'inv') !== (modoTab === '1')) continue;
-    const st = btnTent[k];
-    updateBtnTent(st, dt);
-    pinta(st.ctx, c => drawBtnTentacles(c, st, modeAnim.t));
-  }
   modeAnim.raf = requestAnimationFrame(modeAnimLoop);
 }
-let btnTentBound = false;
 function startModeAnims(){
   const a = document.getElementById('animInvasion');
   const b = document.getElementById('animVs');
@@ -13606,14 +13892,7 @@ function startModeAnims(){
   const l = document.getElementById('animLeyenda'), d = document.getElementById('animDoble');
   modeAnim.leyCtx = l && l.getContext ? l.getContext('2d') : null;
   modeAnim.dobCtx = d && d.getContext ? d.getContext('2d') : null;
-  refreshBtnFx();                       // se revisa cada vez, no solo la primera
-  if (!btnTentBound){
-    bindBtnTent('btnModeInvasion','tentInvasion','inv');
-    bindBtnTent('btnModeVs','tentVs','vs');
-    btnTentBound = true;
-  }
-  for (const k of ['inv','vs']){ btnTent[k].target=0; btnTent[k].hover=0; btnTent[k].squeeze=0; btnTent[k].sq=0; }
-  modeAnim.last = 0; modeAnim.prev = 0;
+  modeAnim.last = 0;
   if (modeAnim.raf == null) modeAnim.raf = requestAnimationFrame(modeAnimLoop);
 }
 function stopModeAnims(){
@@ -24831,9 +25110,19 @@ function refreshOvniVsUI(){
 // (p. ej. un Celeron con 4 GB) ya empieza algo más baja.
 const equipoFlojo = (navigator.hardwareConcurrency || 4) <= 2 || (navigator.deviceMemory > 0 && navigator.deviceMemory <= 2);
 async function loadCalidad(){
+  ultraOn = (await storeGet('invasion_ultra')) === 'on'; refreshUltraUI();
   let d = parseFloat(await storeGet('invasion_dpr'));
   if (!(d > 0.5 && d < 1)) d = equipoFlojo ? 0.8 : dprTope;
   dprTope = Math.min(dprTope, d); resize();
+}
+function refreshUltraUI(){
+  const b = document.getElementById('tgUltra'); if (!b) return;
+  b.textContent = ultraOn ? 'ON' : 'OFF'; b.classList.toggle('off', !ultraOn);
+}
+function cambiaUltra(){
+  ultraOn = !ultraOn; storeSet('invasion_ultra', ultraOn ? 'on' : 'off');
+  if (!ultraOn && !equipoFlojo) dprTope = Math.max(dprTope, 1);   // al volver, sin la penalización de antes
+  escVacia(); resize(); refreshUltraUI();
 }
 let temblorOn = true;
 async function loadTemblor(){ const v = await storeGet('invasion_temblor'); temblorOn = v !== 'off'; refreshTemblorUI(); }
@@ -32182,6 +32471,10 @@ function drawEnemyBase(e){
 
 function drawPlayer(){
   if (vil.caida) return;                       // cayendo: se pinta delante del portal
+  drawPlayerCuerpo();
+  if (hieloT > 0 && !vil.intro) drawHieloJugador();
+}
+function drawPlayerCuerpo(){
   if (isVil()) return drawViltrum();
   if (isDra()) return drawDragon();
   if (isMaq()) return drawMaquina();
@@ -32189,6 +32482,64 @@ function drawPlayer(){
   if (isBor()) return drawBoros();
   if (vil.intro) return drawEntradaHumo(drawAlien);
   drawAlien();
+}
+// Bloque de hielo sobre el invasor congelado por un rayo: crece al formarse,
+// brilla, y se agrieta justo antes de romperse. Tamaño según la figura.
+const _hieloPts = [[-0.5,0.42],[-0.58,-0.05],[-0.42,-0.46],[-0.06,-0.56],[0.4,-0.44],[0.56,-0.02],[0.48,0.4],[0.08,0.52]];
+function drawHieloJugador(){
+  const s = S(player.x, player.y);
+  let w, h, cy;
+  if (isVil()){ w = 40; h = 70; cy = -4; }
+  else if (isBor()){ w = 42; h = 82; cy = -10; }
+  else if (isMag()){ w = 50; h = 72; cy = -10; }
+  else if (isMaq()){ w = 56; h = 76; cy = -12; }
+  else if (isDra()){ w = DRA_R*3; h = DRA_R*2.5; cy = -6; }
+  else { const R = drawR; w = R*3; h = R*3; cy = 0; }
+  const nace = clamp((gameTime - hieloIni)/0.14, 0, 1), k = clamp(hieloT/0.45, 0, 1);
+  const e = 0.7 + 0.3*nace, x = s.x, y = s.y + cy;
+  w *= e; h *= e;
+  ctx.save();
+  // cuerpo del bloque: translúcido, más claro arriba a la izquierda
+  const g = ctx.createLinearGradient(x - w*0.5, y - h*0.5, x + w*0.5, y + h*0.5);
+  g.addColorStop(0, 'rgba(236,252,255,0.62)'); g.addColorStop(0.5, 'rgba(150,222,250,0.42)'); g.addColorStop(1, 'rgba(70,160,220,0.5)');
+  ctx.globalAlpha = 0.35 + 0.65*k;
+  ctx.beginPath();
+  for (let i = 0; i < _hieloPts.length; i++){ const p = _hieloPts[i]; i ? ctx.lineTo(x + p[0]*w, y + p[1]*h) : ctx.moveTo(x + p[0]*w, y + p[1]*h); }
+  ctx.closePath();
+  ctx.fillStyle = g; ctx.fill();
+  ctx.lineJoin = 'round';
+  ctx.strokeStyle = 'rgba(20,70,110,0.75)'; ctx.lineWidth = 2.4; ctx.stroke();
+  ctx.strokeStyle = '#e6fbff'; ctx.lineWidth = 1.2; ctx.stroke();
+  // caras: aristas desde un punto alto hacia los vértices
+  const fx = x - w*0.08, fy = y - h*0.2;
+  ctx.strokeStyle = 'rgba(255,255,255,0.45)'; ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (const i of [0, 2, 4, 6]){ const p = _hieloPts[i]; ctx.moveTo(fx, fy); ctx.lineTo(x + p[0]*w, y + p[1]*h); }
+  ctx.stroke();
+  // reflejo vertical
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.beginPath(); ctx.moveTo(x - w*0.4, y - h*0.32); ctx.lineTo(x - w*0.3, y - h*0.4); ctx.lineTo(x - w*0.36, y + h*0.2); ctx.lineTo(x - w*0.44, y + h*0.26); ctx.closePath(); ctx.fill();
+  // destello que recorre el bloque
+  const br = (gameTime*1.6) % 1.6;
+  if (br < 1){ ctx.globalAlpha *= 0.8*(1 - Math.abs(br*2 - 1)); ctx.fillStyle = '#ffffff';
+    const bx = x - w*0.45 + br*w*0.9, by = y - h*0.45 + br*h*0.6;
+    ctx.beginPath(); ctx.moveTo(bx, by - 5); ctx.lineTo(bx + 1.6, by); ctx.lineTo(bx, by + 5); ctx.lineTo(bx - 1.6, by); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(bx - 5, by); ctx.lineTo(bx, by + 1.2); ctx.lineTo(bx + 5, by); ctx.lineTo(bx, by - 1.2); ctx.closePath(); ctx.fill(); }
+  ctx.globalAlpha = 0.35 + 0.65*k;
+  // grietas cuando está a punto de romperse
+  if (hieloT < 0.55){
+    const q = 1 - hieloT/0.55;
+    ctx.strokeStyle = 'rgba(255,255,255,0.95)'; ctx.lineWidth = 1.3;
+    ctx.beginPath();
+    ctx.moveTo(x + w*0.1, y - h*0.1); ctx.lineTo(x + w*(0.1 - 0.25*q), y + h*0.18*q); ctx.lineTo(x - w*0.3*q, y + h*0.32*q);
+    ctx.moveTo(x + w*0.1, y - h*0.1); ctx.lineTo(x + w*0.36*q, y - h*0.28*q);
+    ctx.moveTo(x + w*0.1, y - h*0.1); ctx.lineTo(x + w*0.3*q, y + h*0.26*q);
+    ctx.stroke();
+  }
+  // escarcha en el suelo
+  ctx.fillStyle = 'rgba(225,248,255,0.55)';
+  ctx.beginPath(); ctx.ellipse(x, s.y + cy + h*0.46, w*0.5, 4, 0, 0, Math.PI*2); ctx.fill();
+  ctx.restore();
 }
 // Tentáculo de la cría: grueso en la base y fino hacia la punta, con un
 // reflejo a lo largo y una bolita brillante al final (como una gominola).
@@ -34273,7 +34624,7 @@ const perf = { t:0, n:0, lento:0 };
 // sola: así no da tirones yendo y viniendo.
 const DPR_PASOS = [1, 0.8, 0.67, 0.6];
 function vigilaRendimiento(ms){
-  if (!running || document.hidden || ms <= 0 || ms > 250) return;
+  if (!running || document.hidden || ms <= 0 || ms > 250 || ultraOn) return;
   if (DPR <= DPR_PASOS[DPR_PASOS.length - 1] + 0.001) return;
   perf.t += ms; perf.n++;
   if (perf.t < 2000) return;
@@ -35937,7 +36288,15 @@ async function endGame(){
     if (gimg) gimg.src = IMG_DERROTA;
     if (gs) gs.textContent = 'La invasión ha terminado';
   }
-  document.getElementById('finalscore').textContent = score;
+  // ganar o perder cambia el acento; arriba, con quién y dónde se jugó
+  const gano = gameMode === 'vs' ? vsWinner === 'alien' : gameMode === 'leyenda' ? hp > 0 : false;
+  document.getElementById('gameover').classList.toggle('gana', gano);
+  document.getElementById('goHeroe').textContent = heroName(hero).toUpperCase();
+  document.getElementById('goMapa').textContent = gameMode === 'leyenda' ? 'VS LEGENDARIO' : gameMode === 'vs' ? 'DUELO' : (MAPA_NOMBRE[mapa] || 'CIUDAD');
+  let mejorAntes = Infinity;
+  if (gameMode === 'invasion' && !enLinea){ try { const l = await loadScores(MAPAS.includes(mapa) ? mapa : 'ciudad'); mejorAntes = l.length ? l[0].score : 0; } catch(e){} }
+  document.getElementById('goRecord').classList.toggle('hidden', !(score > 0 && score > mejorAntes));
+  cuentaPuntaje(document.getElementById('finalscore'), score);
   document.getElementById('finaltime').textContent  = Math.floor(gameTime)+'s';
   document.getElementById('finalkills').textContent = kills;
   document.getElementById('finaldemo').textContent  = demolished;
@@ -35964,6 +36323,7 @@ async function endGame(){
   }
   SaveIO.flush();
   document.getElementById('btnCompartir').style.display = (gameMode === 'vs' || enLinea) ? 'none' : '';
+  document.querySelector('#gameover .gofila').classList.toggle('solo', gameMode === 'vs' || enLinea);
   document.getElementById('compmsg').textContent = '';
   compartirDatos = { score, hero, modo: gameMode, ganadas: gameMode === 'leyenda' ? ley.ganadas : 0, mapa };
   if (enLinea){                    // en línea no hay reintento inmediato: se vuelve a la sala
@@ -35973,6 +36333,18 @@ async function endGame(){
   document.getElementById('gameover').classList.remove('hidden');
 }
 
+// El puntaje sube contando hasta su valor (de un vistazo se nota lo logrado).
+function cuentaPuntaje(el, fin){
+  fin = Math.max(0, Math.round(fin || 0));
+  if (!menuAnimOn || fin < 10){ el.textContent = fin.toLocaleString('es'); return; }
+  const t0 = performance.now(), dur = 900;
+  const paso = ahora => {
+    const f = Math.min(1, (ahora - t0)/dur), v = Math.round(fin*(1 - Math.pow(1 - f, 3)));
+    el.textContent = v.toLocaleString('es');
+    if (f < 1) requestAnimationFrame(paso);
+  };
+  el.textContent = '0'; requestAnimationFrame(paso);
+}
 // ---- Compartir el puntaje ----
 let compartirDatos = null;
 function textoCompartir(d){
@@ -36691,6 +37063,7 @@ if (_edS) _edS.addEventListener('click', uiEdGuardar);
 const _edB = document.getElementById('uiEdBack');
 if (_edB) _edB.addEventListener('click', ()=>{ hide('uieditor'); show('controles'); sfx('ui'); });
 
+document.getElementById('tgUltra').addEventListener('click', ()=>{ cambiaUltra(); sfx('ui'); });
 document.getElementById('tgTemblor').addEventListener('click', ()=>{ temblorOn = !temblorOn; saveTemblor(); refreshTemblorUI(); sfx('ui'); });
 document.getElementById('tgHp').addEventListener('click', ()=>{
   showHpBars = !showHpBars;
@@ -36877,11 +37250,12 @@ function playModeIntro(){
   }
 }
 // Con el viltrumita el botón se resquebraja y estalla antes de empezar. El
-// dragón lo electrocuta con un rayo, la máquina lo acribilla a balazos y al
-// mago se lo llevan unas plantas oscuras que salen del suelo.
+// dragón lo electrocuta con un rayo, la máquina lo acribilla a balazos, al
+// mago se lo llevan unas plantas oscuras que salen del suelo, la cría lo
+// estruja con sus tentáculos y Boros lo manda lejos de un puñetazo.
 function crackAndStart(btnId, fn){
   const b = document.getElementById(btnId);
-  if (b && (isDra() || isMaq() || isMag() || isBor()) && menuAnimOn) return fxBotonJugar(b, fn);
+  if (b && !isVil() && menuAnimOn) return fxBotonJugar(b, fn);
   if (!isVil() || !b){ fn(); return; }
   if (b.dataset.cracking === '1') return;
   b.dataset.cracking = '1';
@@ -36890,7 +37264,7 @@ function crackAndStart(btnId, fn){
   setTimeout(()=>{ b.classList.remove('cracking'); b.dataset.cracking=''; fn(); }, 420);
 }
 
-const FX_BOTON_T = { dragon:0.8, maquina:0.9, mago:1.05 };
+const FX_BOTON_T = { dragon:0.8, maquina:0.9, mago:1.05, alien:0.8, boros:0.75 };
 function fxBotonJugar(b, fn){
   if (b.dataset.cracking === '1') return;
   b.dataset.cracking = '1';
@@ -36899,7 +37273,7 @@ function fxBotonJugar(b, fn){
   // Un lienzo pequeño alrededor del botón (por arriba llega hasta el cielo
   // para el rayo). Solo vive lo que dura la animación.
   const L = Math.max(0, r.left - 150), T = quien === 'dragon' ? 0 : Math.max(0, r.top - 160);
-  const W = Math.min(innerWidth, r.right + 150) - L, H = Math.min(innerHeight, r.bottom + 170) - T;
+  const W = Math.min(innerWidth, r.right + (quien === 'boros' ? 320 : 150)) - L, H = Math.min(innerHeight, r.bottom + 170) - T;
   const k = Math.min(2, window.devicePixelRatio || 1);
   const cv = document.createElement('canvas');
   cv.width = Math.round(W*k); cv.height = Math.round(H*k);
@@ -36923,7 +37297,9 @@ function fxBotonJugar(b, fn){
                     cu: (rnd() - 0.5)*80, gr: 5 + rnd()*4, t0: rnd()*0.12 });
     }
   }
-  sfx(quien === 'dragon' ? 'trueno' : quien === 'mago' ? 'conjuro' : 'recarga');
+  sfx(quien === 'dragon' ? 'trueno' : quien === 'mago' ? 'conjuro' : quien === 'alien' ? 'grab' : quien === 'boros' ? 'dash' : 'recarga');
+  const SK = skin();
+  let pego = false;
   const t0 = performance.now();
   let ultima = -1;
   const paso = (ahora)=>{
@@ -36992,6 +37368,50 @@ function fxBotonJugar(b, fn){
         }
       }
       if (t > 0.72){ const f = clamp((t - 0.72)/0.18, 0, 1); ty += f*f*120; rot = f*0.5; op = 1 - f; }
+    } else if (quien === 'alien'){
+      // los tentáculos llegan desde fuera, lo agarran, lo estrujan y se lo llevan
+      const llega = clamp(t/0.28, 0, 1), aprieta = clamp((t - 0.28)/0.2, 0, 1), tira = clamp((t - 0.52)/0.28, 0, 1);
+      esc = 1 - aprieta*0.08 - tira*0.4; ty = tira*tira*90; rot = Math.sin(t*28)*0.04*aprieta*(1 - tira); op = 1 - clamp((tira - 0.5)/0.5, 0, 1);
+      if (aprieta > 0 && aprieta < 1){ tx = (Math.random() - 0.5)*4*aprieta; }
+      const n = 8, ew = bw*esc, eh = bh*(1 - aprieta*0.14 - tira*0.4);
+      for (let i = 0; i < n; i++){
+        const a = (i + 0.5)/n*Math.PI*2, ox = bx + Math.cos(a)*(bw*0.5 + 120), oy = by + ty + Math.sin(a)*(bh*0.5 + 110);
+        const ex = bx + tx + Math.cos(a)*ew*(0.5 - 0.22*aprieta), ey = by + ty + Math.sin(a)*eh*(0.5 - 0.25*aprieta);
+        const px = ox + (ex - ox)*llega, py = oy + (ey - oy)*llega;
+        const wob = Math.sin(t*14 + i)*10*(1 - aprieta);
+        const mx = (ox + px)/2 - Math.sin(a)*wob, my = (oy + py)/2 + Math.cos(a)*wob;
+        g.globalAlpha = 1; g.strokeStyle = SK.limb || SK.c[1]; g.lineWidth = 8;
+        g.beginPath(); g.moveTo(ox, oy); g.quadraticCurveTo(mx, my, px, py); g.stroke();
+        g.strokeStyle = SK.c[0]; g.globalAlpha = 0.4; g.lineWidth = 2.5; g.stroke();
+        g.globalAlpha = 1; g.fillStyle = SK.tip; g.beginPath(); g.arc(px, py, 4.5, 0, Math.PI*2); g.fill();
+      }
+      if (aprieta > 0 && !pego){ pego = true; sfx('hit'); }
+    } else if (quien === 'boros'){
+      // un puñetazo morado: onda de choque, grietas y el botón sale volando
+      const golpe = 0.16, f = clamp((t - golpe)/0.5, 0, 1);
+      if (t < golpe){                                              // el puño llega por la izquierda
+        const q = t/golpe, fx2 = bx - bw*0.5 - 90 + q*90;
+        g.globalAlpha = 0.5*q; g.fillStyle = '#7a2cff'; g.beginPath(); g.ellipse(fx2 - 30, by, 40*q, 10, 0, 0, Math.PI*2); g.fill();
+        g.globalAlpha = 1; g.fillStyle = '#e8d8ff'; g.beginPath(); g.arc(fx2, by, 11, 0, Math.PI*2); g.fill();
+        g.strokeStyle = '#3a1670'; g.lineWidth = 2.5; g.stroke();
+      } else {
+        if (!pego){ pego = true; sfx('hit'); }
+        for (const [rr, col, w2] of [[1, '#b06bff', 5], [0.7, '#e0b8ff', 2.5], [1.35, '#6fa8ff', 2]]){
+          g.globalAlpha = (1 - f)*0.9; g.strokeStyle = col; g.lineWidth = w2*(1 - f) + 0.5;
+          g.beginPath(); g.ellipse(bx - bw*0.3, by, 14 + f*bw*rr, 10 + f*bh*rr, 0, 0, Math.PI*2); g.stroke();
+        }
+        if (f < 0.25){ g.globalAlpha = (0.25 - f)*3; g.fillStyle = '#f0e0ff'; g.beginPath(); g.arc(bx - bw*0.3, by, 26, 0, Math.PI*2); g.fill(); }
+        const vuela = clamp((t - golpe - 0.08)/0.42, 0, 1);
+        tx = vuela*vuela*260 + (vuela === 0 ? (Math.random() - 0.5)*8 : 0); ty = -vuela*70; rot = vuela*0.9; esc = 1 - vuela*0.3; op = 1 - clamp((vuela - 0.55)/0.45, 0, 1);
+        filtro = f < 0.15 ? 'brightness(1.8) hue-rotate(40deg)' : '';
+        g.globalAlpha = op; g.strokeStyle = 'rgba(40,10,70,0.95)'; g.lineWidth = 2;   // grietas que viajan con el botón
+        g.beginPath();
+        for (let n = 0; n < 5; n++){
+          sem = 11 + n*7; const a = n*1.26 + rnd()*0.5; let px = bx - bw*0.3 + tx, py = by + ty; g.moveTo(px, py);
+          for (let j = 0; j < 3; j++){ px += Math.cos(a + (rnd() - 0.5)*0.8)*bh*0.25*esc; py += Math.sin(a + (rnd() - 0.5)*0.8)*bh*0.18*esc; g.lineTo(px, py); }
+        }
+        g.stroke();
+      }
     } else {
       // plantas oscuras brotan, se enroscan al botón y lo arrastran bajo tierra
       const crece = clamp(t/0.45, 0, 1), tira = clamp((t - 0.5)/0.5, 0, 1);
@@ -37319,7 +37739,7 @@ async function cambiaHeroe(paso){
   hero = HEROES[(HEROES.indexOf(hero) + paso + n) % n];
   if (!document.getElementById('heroAyuda').classList.contains('hidden')) pintaFichaHeroe();
   saveHero(); refreshHeroUI(); sfx('holo'); holoCambia();
-  refreshBtnFx(); refreshLogos();
+  refreshLogos();
   layoutUI(); refreshUiSize();          // cada personaje tiene sus mandos
   if (scoreTab === 'global') showGlobal(false);   // el global también es suyo
   await renderScoreList();
@@ -38471,7 +38891,7 @@ function recibeMensaje(otro, m){
 }
 
 // ---- botones de modos y sala ----
-document.getElementById('btnModeDoble').addEventListener('click', ()=>{ sfx('ui'); abrirSala('doble'); });
+document.getElementById('btnModeDoble').addEventListener('click', ()=> crackAndStart('btnModeDoble', ()=> abrirSala('doble')));
 document.getElementById('btnVsLocal').addEventListener('click', ()=>{
   hide('vselige'); crackAndStart('btnModeVs', ()=> startGame('vs'));
 });
@@ -38526,14 +38946,14 @@ async function loadMapa(){
 }
 document.getElementById('btnModeInvasion').addEventListener('click', ()=> crackAndStart('btnModeInvasion', ()=> startGame('invasion')));
 document.getElementById('btnModeVs').addEventListener('click', ()=> crackAndStart('btnModeVs', ()=> startGame('vs')));
-document.getElementById('btnModeVsOnline').addEventListener('click', ()=>{ sfx('ui'); abrirSala('vs'); });
+document.getElementById('btnModeVsOnline').addEventListener('click', ()=> crackAndStart('btnModeVsOnline', ()=> abrirSala('vs')));
 document.getElementById('btnRetry').addEventListener('click', ()=>{
   if (gameMode === 'leyenda'){                     // la pantalla de derrota se cierra: debajo sale la VS
     sfx('ui'); hide('gameover');
     if (ley.guardada) leyContinua(); else leyEmpieza();
   } else startGame(gameMode);
 });
-document.getElementById('btnModeLeyenda').addEventListener('click', ()=>{ sfx('ui'); abreLeyenda(); });
+document.getElementById('btnModeLeyenda').addEventListener('click', ()=> crackAndStart('btnModeLeyenda', abreLeyenda));
 document.getElementById('btnLeyLucha').addEventListener('click', ()=> crackAndStart('btnLeyLucha', leyEmpieza));
 document.getElementById('btnLeyVolver').addEventListener('click', ()=>{ sfx('ui'); hide('leyenda'); show('modeselect'); startModeAnims(); });
 document.getElementById('leyMapaIzq').addEventListener('click', ()=> leyCambiaMapa(-1));
@@ -38541,7 +38961,7 @@ document.getElementById('leyMapaDer').addEventListener('click', ()=> leyCambiaMa
 document.getElementById('leyClima').addEventListener('click', leyCambiaClima);
 document.getElementById('leyHeroeIzq').addEventListener('click', ()=> leyCambiaHeroe(-1));
 document.getElementById('leyHeroeDer').addEventListener('click', ()=> leyCambiaHeroe(1));
-document.getElementById('btnLeySig').addEventListener('click', leySiguiente);
+document.getElementById('btnLeySig').addEventListener('click', ()=> crackAndStart('btnLeySig', leySiguiente));
 document.getElementById('btnLeyRetira').addEventListener('click', leyRetira);
 document.getElementById('btnLeySigue').addEventListener('click', ()=> crackAndStart('btnLeySigue', leyContinua));
 document.getElementById('btnLeyGuardaSi').addEventListener('click', ()=> leyGuardaElige(true));
@@ -38588,7 +39008,7 @@ document.getElementById('btnMenu').addEventListener('click', async ()=>{
         if (coins >= 1599) unlockAch('millonario');
         sanitizeBinds(); renderBinds(); renderBindsP2();
         refreshCoinLabels(); refreshAudioUI(); refreshTouchUI(); refreshAnimUI(); refreshHpUI(); refreshNumUI();
-        refreshHeroUI(); refreshVilHelp(); refreshLogos(); refreshBtnFx(); refreshSaveMode();
+        refreshHeroUI(); refreshVilHelp(); refreshLogos(); refreshSaveMode();
         refreshUiSize(); refreshFullUI(); layoutUI();
       }],
     ['Cargando puntajes',         async ()=>{ await renderScoreList(); }]
