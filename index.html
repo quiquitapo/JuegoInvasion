@@ -2159,6 +2159,10 @@
     <div class="panel" style="min-width:min(340px,92vw)">
       <h3>Pantalla y sonido</h3>
       <div class="bindrow">
+        <span class="bindname">Calidad ULTRA <small style="color:#8fbfa2">(más resolución)</small></span>
+        <button type="button" class="togglebtn off" id="tgUltra">OFF</button>
+      </div>
+      <div class="bindrow">
         <span class="bindname">Botones táctiles</span>
         <button type="button" class="togglebtn" id="tgTouch">AUTO</button>
       </div>
@@ -2173,10 +2177,6 @@
       <div class="bindrow">
         <span class="bindname">Números de daño</span>
         <button type="button" class="togglebtn" id="tgNums">ON</button>
-      </div>
-      <div class="bindrow">
-        <span class="bindname">Calidad ULTRA <small style="color:#8fbfa2">(más resolución)</small></span>
-        <button type="button" class="togglebtn off" id="tgUltra">OFF</button>
       </div>
       <div class="bindrow">
         <span class="bindname">Temblor de pantalla</span>
@@ -5201,7 +5201,7 @@ const BANCO_MONEDAS = 79;
         const tx = p.x + p.w*qx + (R() - 0.5)*p.w*0.3, ty = p.y + p.h*qy + (R() - 0.5)*p.h*0.3;
         if (Math.abs(tx - cx) < 24 || Math.abs(ty - cy) < 24) continue;
         if (treeSpots.some(t=> dist(t.x, t.y, tx, ty) < 34)) continue;
-        treeSpots.push({ x:tx, y:ty });
+        treeSpots.push({ x:tx, y:ty, parque:true });
       }
     }
     benchSpots.push({ x: cx - 62, y: cy - 20, horiz:true }, { x: cx + 62, y: cy + 22, horiz:true });
@@ -5411,7 +5411,7 @@ function resetGame(){
                                held:false, thrown:false, dead:false, rot:0, vx:0, vy:0 }));
   for (let i=0;i<treeSpots.length;i++){
     const t = treeSpots[i];
-    trees.push({ si:i, kind:'tree', x:t.x, y:t.y, w:40, h:54, hp:25, maxhp:25,
+    trees.push({ si:i, kind:'tree', x:t.x, y:t.y, w:40, h:54, hp:25, maxhp:25, parque: !!t.parque,
                  held:false, thrown:false, dead:false, rot:0, vx:0, vy:0, uprooted:false });
   }
   score=0; kills=0; demolished=0; gameTime=0; stage=1;
@@ -8240,10 +8240,13 @@ function aveHoja(tp){
   g.restore();
   return (_aveCv[tp] = c);
 }
-// Dónde se posan en el árbol (se decide una vez por árbol).
+// Dónde se posan en el árbol (se decide una vez por árbol). En los parques
+// casi todos los árboles tienen, y más pájaros; en la calle, menos de la mitad.
+const AVES_PROB = 0.42, AVES_PROB_PARQUE = 0.9;
+function avesN(t){ return t.parque ? 2 + Math.floor(Math.random()*2) : 1 + Math.floor(Math.random()*3); }
 function avesDe(t){
   if (t.aves === undefined){
-    t.aves = Math.random() < 0.42 ? 1 + Math.floor(Math.random()*3) : 0;
+    t.aves = Math.random() < (t.parque ? AVES_PROB_PARQUE : AVES_PROB) ? avesN(t) : 0;
     t._avs = [];
     for (let i = 0; i < 3; i++) t._avs.push([rand(-0.3, 0.3), rand(-0.32, 0.05), Math.random() < 0.5 ? 1 : -1, Math.random()*6]);
   }
@@ -8295,10 +8298,11 @@ function updateAves(dt){
       if (!t.dead && t.aves && dist(t.x, t.y, player.x, player.y) < AVES_R) espantaArbol(t, player.x, player.y);
     }
   }
-  // vuelven a posarse en los árboles lejanos (de uno en uno)
+  // vuelven a posarse en los árboles lejanos (de uno en uno; a los del parque, antes)
   if (Math.random() < dt*0.6 && trees.length){
     const t = trees[Math.floor(Math.random()*trees.length)];
-    if (!t.dead && !t.held && !t.thrown && t.aves === 0 && gameTime > (t.avesT || 0) && dist(t.x, t.y, player.x, player.y) > 650) t.aves = 1 + Math.floor(Math.random()*3);
+    const listo = gameTime > (t.avesT || 0) - (t.parque ? 18 : 0);
+    if (!t.dead && !t.held && !t.thrown && t.aves === 0 && listo && dist(t.x, t.y, player.x, player.y) > 650) t.aves = avesN(t);
   }
   for (let i = avesVuelo.length - 1; i >= 0; i--){
     const a = avesVuelo[i];
@@ -8346,9 +8350,10 @@ function sacudeArboles(cx, cy, radio, fuerza){
   }
 }
 
-// Dobla los árboles que el viltrumita roza en vuelo. Coste fijo: como mucho
-// cuatro celdas, con un puñado de árboles cada una.
-function rafagaArboles(){
+// Dobla los árboles que el viltrumita roza en vuelo (o Boros corriendo).
+// (fx, fy): hacia dónde va. Coste fijo: como mucho cuatro celdas, con un
+// puñado de árboles cada una.
+function rafagaArboles(fx, fy){
   if (!arbGrid) arbIndexa();
   const c0 = Math.floor((player.x - ARB_RADIO) / ARB_CELDA);
   const c1 = Math.floor((player.x + ARB_RADIO) / ARB_CELDA);
@@ -8369,7 +8374,7 @@ function rafagaArboles(){
         if (d2 > r2) continue;
         // se inclina en sentido contrario al paso, más cuanto más cerca
         const f2 = 1 - Math.sqrt(d2) / ARB_RADIO;
-        const lado = (dx * vil.fy - dy * vil.fx) >= 0 ? 1 : -1;
+        const lado = (dx * fy - dy * fx) >= 0 ? 1 : -1;
         t.viento = lado * ARB_DOBLA * f2;
       }
     }
@@ -8380,7 +8385,11 @@ function rafagaArboles(){
 // están doblados, que en la práctica son unos pocos.
 const arbDoblados = [];
 function updateViento(dt){
-  if (((isVil() || isDra()) && vil.flying || isMaq() && maq.impulso > 0.7) && !vil.intro) rafagaArboles();
+  if (((isVil() || isDra()) && vil.flying || isMaq() && maq.impulso > 0.7) && !vil.intro) rafagaArboles(vil.fx, vil.fy);
+  else if (isBor() && bor.corre && !vil.intro){
+    const v = Math.hypot(player.vx, player.vy);
+    if (v > 80) rafagaArboles(player.vx/v, player.vy/v);
+  }
   arbDoblados.length = 0;
   for (let __i41 = 0, __a41 = trees; __i41 < __a41.length; __i41++){ const t = __a41[__i41];
     if (!t.viento) continue;
@@ -30587,16 +30596,19 @@ function nubePat(){
 }
 // El patrón con la transparencia ya aplicada (en 16 escalones): rellenar con
 // globalAlpha a 1 va por el camino rápido; con otra opacidad es mucho más caro.
+// Va ya a la escala del lienzo (k = DPR), para rellenar en píxeles reales 1:1:
+// un patrón escalado al pintar costaba diez veces más con más resolución.
 // Solo se rehace cuando cambia el escalón (al anochecer o al cambiar el clima).
-const _nubeA = { q: -1, cv: null, pat: null };
-function nubePatAlfa(a){
+const _nubeA = { q: -1, k: 0, cv: null, pat: null };
+function nubePatAlfa(a, k){
   const q = Math.max(1, Math.round(a*16)), N = _nubeA;
-  if (q === N.q) return N.pat;
-  const src = nubePat();
-  if (!N.cv){ N.cv = document.createElement('canvas'); N.cv.width = src.width; N.cv.height = src.height; }
+  if (q === N.q && k === N.k) return N.pat;
+  const src = nubePat(), T = Math.round(src.width*k);
+  if (!N.cv) N.cv = document.createElement('canvas');
+  if (N.cv.width !== T){ N.cv.width = T; N.cv.height = T; }
   const g = N.cv.getContext('2d');
-  g.clearRect(0, 0, src.width, src.height); g.globalAlpha = q/16; g.drawImage(src, 0, 0);
-  N.q = q; N.pat = ctx.createPattern(N.cv, 'repeat');
+  g.clearRect(0, 0, T, T); g.globalAlpha = q/16; g.drawImage(src, 0, 0, T, T);
+  N.q = q; N.k = k; N.pat = ctx.createPattern(N.cv, 'repeat');
   return N.pat;
 }
 
@@ -30622,18 +30634,21 @@ function gotasLluvia(capa, roja){
   }
   return (_gotas[k] = { T, col: 'rgba(' + col + ',', grupos: grupos.filter(Boolean) });
 }
-function pintaGotas(G, dx, dy, alfa){
+// En píxeles reales del lienzo (k = DPR, sin escala en el contexto) y con el
+// grosor también en píxeles reales: así las gotas finas siguen por el camino
+// rápido de las líneas de un píxel aunque la resolución sea alta (ULTRA).
+function pintaGotas(G, dx, dy, alfa, k){
   const T = G.T, ox = ((dx % T) + T) % T - T, oy = ((dy % T) + T) % T - T;
   ctx.globalAlpha = 1;
   for (const g of G.grupos){
-    ctx.strokeStyle = G.col + (alfa*g.a).toFixed(3) + ')'; ctx.lineWidth = g.w;
+    ctx.strokeStyle = G.col + Math.min(0.95, alfa*g.a*Math.min(1.35, Math.sqrt(k))).toFixed(3) + ')'; ctx.lineWidth = g.w;   // más finas con más resolución: algo más opacas
     ctx.beginPath();
     const P = g.p;
     for (let ty = oy; ty < CH; ty += T) for (let tx = ox; tx < CW + 20; tx += T)
       for (let i = 0; i < P.length; i += 4){
         const x = tx + P[i], y = ty + P[i + 1];
         if (x < -2 || x + P[i + 2] > CW + 2 || y > CH + 2 || y + P[i + 3] < -2) continue;
-        ctx.moveTo(x, y); ctx.lineTo(x + P[i + 2], y + P[i + 3]);
+        ctx.moveTo(x*k, y*k); ctx.lineTo((x + P[i + 2])*k, (y + P[i + 3])*k);
       }
     ctx.stroke();
   }
@@ -30646,18 +30661,23 @@ function drawClima(){
   // dentro de la estampa de la hora (ver veloClima y overlayFase).
   // 2) sombras de nubes deslizándose, ancladas al mundo. Son sombras del sol:
   // se desvanecen al anochecer y de noche no se pintan (un relleno menos)
+  // Todo el clima se pinta en píxeles reales del lienzo (sin escala): con
+  // más resolución (ULTRA) la escala hacía caer los rellenos y los trazos
+  // finos en caminos mucho más lentos.
+  const k = DPR, W = canvas.width, H = canvas.height;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
   const sombraNube = nubeK*clamp(1 - (oscuridadAhora() - 0.15)/0.3, 0, 1);
   if (sombraNube > 0.01){
-    const p = nubePatAlfa(sombraNube);
-    const T = 512;
+    const p = nubePatAlfa(sombraNube, k);
+    const T = _nubeA.cv.width;
     // en píxeles enteros: con decimales el patrón se filtra píxel a píxel y
     // el relleno cuesta varias veces más (son manchas difusas, no se nota)
-    const ox = -Math.round((((camX*ZOOM - gameTime*22) % T) + T) % T);
-    const oy = -Math.round((((camY*ZOOM - gameTime*9) % T) + T) % T);
+    const ox = -Math.round((((camX*ZOOM - gameTime*22)*k % T) + T) % T);
+    const oy = -Math.round((((camY*ZOOM - gameTime*9)*k % T) + T) % T);
     ctx.globalAlpha = 1;
-    ctx.save(); ctx.translate(ox, oy);
-    ctx.fillStyle = p; ctx.fillRect(0, 0, CW - ox, CH - oy);
-    ctx.restore();
+    ctx.translate(ox, oy);
+    ctx.fillStyle = p; ctx.fillRect(0, 0, W - ox, H - oy);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
   }
   // 3) lluvia en dos capas: al fondo, gotas cortas; delante, gotas largas y
   // brillantes que caen más rápido. Antes eran dos rellenos de pantalla
@@ -30666,17 +30686,18 @@ function drawClima(){
   // solo tocan los píxeles de las gotas.
   if (lluviaK > 0.01){
     const roja = esInfierno() ? 1 : 0;
-    pintaGotas(gotasLluvia(0, roja), -(gameTime*900*0.28), gameTime*900, lluviaK*0.75);
-    pintaGotas(gotasLluvia(1, roja), -(gameTime*1250*0.3 + 37), gameTime*1250 - 11, lluviaK*0.6);
+    pintaGotas(gotasLluvia(0, roja), -(gameTime*900*0.28), gameTime*900, lluviaK*0.75, k);
+    pintaGotas(gotasLluvia(1, roja), -(gameTime*1250*0.3 + 37), gameTime*1250 - 11, lluviaK*0.6, k);
   }
   // 4) salpicaduras en el suelo: un puñado fijo que se recicla, nunca crece
-  if (lluviaK > 0.25){ drawSalpicaduras(); drawLluviaTechos(); }
+  if (lluviaK > 0.25){ drawSalpicaduras(k); drawLluviaTechos(k); }
   ctx.globalAlpha = 1;
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
 }
 
 const SALP_N = 36;
 const salp = [];
-function drawSalpicaduras(){
+function drawSalpicaduras(k){
   const n = SALP_N;
   while (salp.length < n) salp.push({ x: Math.random()*CW, y: Math.random()*CH, t: Math.random() });
   const dt = 1/60;
@@ -30692,7 +30713,7 @@ function drawSalpicaduras(){
     }
     const r = 1.5 + p.t * 7;
     ctx.globalAlpha = lluviaK * (1 - p.t) * 0.9;
-    ctx.beginPath(); ctx.ellipse(p.x, p.y, r, r*0.42, 0, 0, Math.PI*2); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(p.x*k, p.y*k, r*k, r*0.42*k, 0, 0, Math.PI*2); ctx.stroke();
   }
 }
 
@@ -30709,10 +30730,10 @@ function techosVisibles(){
   }
   return _techosVis;
 }
-function drawLluviaTechos(){
+function drawLluviaTechos(k){
   const L = techosVisibles();
   if (!L.length) return;
-  const Z = ZOOM, roja = esInfierno();
+  const Z = ZOOM*k, roja = esInfierno();
   ctx.lineWidth = 1;
   for (let i = 0; i < TECHO_N; i++){
     let p = techoSalp[i];
@@ -30727,14 +30748,14 @@ function drawLluviaTechos(){
       const x = (b.x + 4 + p.u*(b.w - 8) - camX + temblorX)*Z, y0 = (b.y + rh - camY + temblorY)*Z;
       const y = y0 + p.t*p.t*(b.h - rh)*0.7*Z;
       ctx.globalAlpha = lluviaK*(1 - p.t)*0.7; ctx.fillStyle = roja ? '#ff7a5a' : '#dcecff';
-      ctx.fillRect(x, y, 1.2, 3 + p.t*4);
+      ctx.fillRect(x, y, 1.2*k, (3 + p.t*4)*k);
     } else {                                        // impacto en el tejado: anillo y dos gotitas que saltan
-      const x = (b.x + p.u*b.w - camX + temblorX)*Z, y = (b.y + p.v*rh - camY + temblorY)*Z, r = 1 + p.t*5;
+      const x = (b.x + p.u*b.w - camX + temblorX)*Z, y = (b.y + p.v*rh - camY + temblorY)*Z, r = (1 + p.t*5)*k;
       ctx.globalAlpha = lluviaK*(1 - p.t)*0.85; ctx.strokeStyle = roja ? 'rgba(255,110,80,0.8)' : 'rgba(230,242,255,0.8)';
       ctx.beginPath(); ctx.ellipse(x, y, r, r*0.45, 0, 0, Math.PI*2); ctx.stroke();
-      const sb = Math.sin(p.t*Math.PI)*5;
+      const sb = Math.sin(p.t*Math.PI)*5*k, d = (2 + p.t*3)*k, q = 1.2*k;
       ctx.fillStyle = roja ? '#ff9a7a' : '#f0f6ff';
-      ctx.fillRect(x - 2 - p.t*3, y - sb, 1.2, 1.2); ctx.fillRect(x + 2 + p.t*3, y - sb*0.8, 1.2, 1.2);
+      ctx.fillRect(x - d, y - sb, q, q); ctx.fillRect(x + d, y - sb*0.8, q, q);
     }
   }
   ctx.globalAlpha = 1;
@@ -30907,19 +30928,21 @@ function spEsc(sp, d){
 }
 // Ampliar el búfer de luz a pantalla completa con filtrado es lo más caro de
 // la noche sin tarjeta gráfica. Se amplía en dos pasos: con filtrado hasta la
-// mitad de la resolución del lienzo (la cuarta parte de píxeles) y de ahí, sin
-// filtrar, al doble. La luz es un degradado suave: no se nota.
+// mitad de la resolución de la ventana (la cuarta parte de píxeles) y de ahí,
+// sin filtrar, al tamaño del lienzo. La luz es un degradado suave: no se nota.
+// Con más resolución (ULTRA) el paso filtrado sigue igual de pequeño.
 let luzMedCv = null;
 // fx, fy: la fracción de píxel del búfer que hay que desplazarlo (ver drawLighting)
 function vuelcaLuz(fx, fy){
-  const W = canvas.width, H = canvas.height, mw = Math.ceil(W/2), mh = Math.ceil(H/2);
+  const f = Math.max(2, Math.round(DPR*2));
+  const W = canvas.width, H = canvas.height, mw = Math.ceil(W/f), mh = Math.ceil(H/f);
   if (!luzMedCv) luzMedCv = document.createElement('canvas');
   if (luzMedCv.width !== mw || luzMedCv.height !== mh){ luzMedCv.width = mw; luzMedCv.height = mh; }
   const g = luzMedCv.getContext('2d');
-  const ex = W/2/lightW, ey = H/2/lightH;           // el búfer (sin la fila y columna de más) cubre el lienzo entero
+  const ex = W/f/lightW, ey = H/f/lightH;           // el búfer (sin la fila y columna de más) cubre el lienzo entero
   g.globalCompositeOperation = 'copy'; g.drawImage(lightCv, -fx*ex, -fy*ey, (lightW + 1)*ex, (lightH + 1)*ey);
   ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(luzMedCv, 0, 0, mw*2, mh*2);
+  ctx.drawImage(luzMedCv, 0, 0, mw*f, mh*f);
   ctx.restore();
 }
 function ensureLightBuf(){
