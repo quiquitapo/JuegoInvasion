@@ -8223,7 +8223,7 @@ function aveHoja(tp){
   const g = c.getContext('2d');
   const P = tp === 'a' ? { cuerpo:'#6a3aa8', ala:'#9a6ae0', pico:'#7affe0', ojo:'#7affe0' }
           : tp === 'i' ? { cuerpo:'#141012', ala:'#2a2226', pico:'#3a3030', ojo:'#ff3a2a' }
-          : { cuerpo:'#6a707c', ala:'#9aa2b0', pico:'#e0a04a', ojo:'#1a1a1a' };
+          : { cuerpo:'#545a66', ala:'#d6dae2', pico:'#f0a840', ojo:'#1a1a1a' };     // alas claras: resaltan sobre el follaje
   const px = (x, y, w, h, col)=>{ g.fillStyle = col; g.fillRect(x, y, w, h); };
   // posado (de perfil, mirando a la derecha)
   px(2, 4, 7, 4, '#0c0c10'); px(3, 3, 5, 5, P.cuerpo); px(7, 2, 3, 3, '#0c0c10'); px(7, 2, 2, 2, P.cuerpo);
@@ -8252,20 +8252,23 @@ function avesDe(t){
   }
   return t.aves;
 }
-// Los posados de un árbol, pintados juntos una vez (al doble de resolución): en
-// partida es una sola copia por árbol en vez de una por pájaro.
+// Los posados de un árbol, pintados juntos una vez (al doble de resolución) y
+// con contorno oscuro para que se vean sobre las hojas: en partida es una sola
+// copia por árbol en vez de una por pájaro.
 function avesGrupoCv(t){
   const tp = aveTipo();
   if (t._avG && t._avGn === t.aves && t._avGt === tp) return t._avG;
-  const E = 2, x0 = -0.3*t.w - 9, y0 = -0.32*t.h - 13, W = Math.ceil(0.6*t.w + 18), H = Math.ceil(0.37*t.h + 15);
+  const E = 2, x0 = -0.3*t.w - 12, y0 = -0.32*t.h - 18, W = Math.ceil(0.6*t.w + 24), H = Math.ceil(0.37*t.h + 21);
   const c = t._avG || document.createElement('canvas'); c.width = W*E; c.height = H*E;
   const g = c.getContext('2d'), h = aveHoja(tp);
   g.imageSmoothingEnabled = false;
   for (let i = 0; i < t.aves; i++){
     const a = t._avs[i], x = (a[0]*t.w - x0)*E, y = (a[1]*t.h - y0)*E;
     g.setTransform(a[2] < 0 ? -E : E, 0, 0, E, x, y);
-    g.drawImage(h, 0, 0, 12, 10, -8, -12, 16, 13);
+    g.drawImage(h, 0, 0, 12, 10, -10, -16, 21, 17);
   }
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  contornea(c, 2);
   c._ox = x0; c._oy = y0; c._w = W; c._h = H; c._ver = (c._ver | 0) + 1;
   t._avG = c; t._avGn = t.aves; t._avGt = tp;
   return c;
@@ -30637,21 +30640,39 @@ function gotasLluvia(capa, roja){
 // En píxeles reales del lienzo (k = DPR, sin escala en el contexto) y con el
 // grosor también en píxeles reales: así las gotas finas siguen por el camino
 // rápido de las líneas de un píxel aunque la resolución sea alta (ULTRA).
+// Los trazos de toda la pantalla (más una baldosa de margen) se preparan una
+// vez por tamaño de lienzo como Path2D; cada fotograma solo se desplazan.
+// Las gotas gruesas van como dos líneas de un píxel juntas: una línea de más
+// de un píxel de grosor va por un camino varias veces más lento.
+function gotasPaths(G, k){
+  const clave = CW + 'x' + CH + '@' + k;
+  if (G.clave === clave) return G.paths;
+  const T = G.T;
+  G.paths = G.grupos.map(g => {
+    const P = g.p, path = new Path2D(), doble = g.w > 1.2;
+    for (let ty = 0; ty < CH + T + 2; ty += T) for (let tx = 0; tx < CW + T + 20; tx += T)
+      for (let i = 0; i < P.length; i += 4){
+        const x = (tx + P[i])*k, y = (ty + P[i + 1])*k, ex = x + P[i + 2]*k, ey = y + P[i + 3]*k;
+        path.moveTo(x, y); path.lineTo(ex, ey);
+        if (doble){ path.moveTo(x + 1, y); path.lineTo(ex + 1, ey); }
+      }
+    return path;
+  });
+  G.clave = clave;
+  return G.paths;
+}
 function pintaGotas(G, dx, dy, alfa, k){
   const T = G.T, ox = ((dx % T) + T) % T - T, oy = ((dy % T) + T) % T - T;
+  const paths = gotasPaths(G, k);
   ctx.globalAlpha = 1;
-  for (const g of G.grupos){
-    ctx.strokeStyle = G.col + Math.min(0.95, alfa*g.a*Math.min(1.35, Math.sqrt(k))).toFixed(3) + ')'; ctx.lineWidth = g.w;   // más finas con más resolución: algo más opacas
-    ctx.beginPath();
-    const P = g.p;
-    for (let ty = oy; ty < CH; ty += T) for (let tx = ox; tx < CW + 20; tx += T)
-      for (let i = 0; i < P.length; i += 4){
-        const x = tx + P[i], y = ty + P[i + 1];
-        if (x < -2 || x + P[i + 2] > CW + 2 || y > CH + 2 || y + P[i + 3] < -2) continue;
-        ctx.moveTo(x*k, y*k); ctx.lineTo((x + P[i + 2])*k, (y + P[i + 3])*k);
-      }
-    ctx.stroke();
+  ctx.setTransform(1, 0, 0, 1, ox*k, oy*k);
+  for (let j = 0; j < G.grupos.length; j++){
+    const g = G.grupos[j];
+    const a = alfa*g.a*Math.min(1.35, Math.sqrt(k))*(g.w > 1.2 ? 0.8 : 1);       // más finas con más resolución: algo más opacas
+    ctx.strokeStyle = G.col + Math.min(0.95, a).toFixed(3) + ')'; ctx.lineWidth = Math.min(1, g.w);
+    ctx.stroke(paths[j]);
   }
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
 }
 
 function drawClima(){
@@ -30666,7 +30687,9 @@ function drawClima(){
   // finos en caminos mucho más lentos.
   const k = DPR, W = canvas.width, H = canvas.height;
   ctx.setTransform(1, 0, 0, 1, 0, 0);
-  const sombraNube = nubeK*clamp(1 - (oscuridadAhora() - 0.15)/0.3, 0, 1);
+  // bajo la lluvia el cielo está cubierto del todo: no hay sombras de nubes
+  // sueltas (y es un relleno de pantalla entera menos)
+  const sombraNube = nubeK*clamp(1 - (oscuridadAhora() - 0.15)/0.3, 0, 1)*(1 - lluviaK);
   if (sombraNube > 0.01){
     const p = nubePatAlfa(sombraNube, k);
     const T = _nubeA.cv.width;
@@ -30695,14 +30718,29 @@ function drawClima(){
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
 }
 
+// Anillo de salpicadura (elipse aplanada) ya pintado, en píxeles reales del
+// lienzo: copiarlo 1:1 es mucho más barato que trazar una elipse por gota.
+// El radio va en píxeles enteros (de 1 a ~30): pocas copias distintas.
+const _anillos = {};
+function anilloSp(col, r){
+  r = Math.max(1, Math.round(r));
+  const key = col + r;
+  let c = _anillos[key];
+  if (c) return c;
+  const w = 2*r + 4, h = Math.ceil(2*r*0.42) + 4;
+  c = document.createElement('canvas'); c.width = w; c.height = h;
+  const g = c.getContext('2d');
+  g.strokeStyle = col; g.lineWidth = 1;
+  g.beginPath(); g.ellipse(w/2, h/2, r, Math.max(0.6, r*0.42), 0, 0, Math.PI*2); g.stroke();
+  return (_anillos[key] = c);
+}
 const SALP_N = 36;
 const salp = [];
 function drawSalpicaduras(k){
   const n = SALP_N;
   while (salp.length < n) salp.push({ x: Math.random()*CW, y: Math.random()*CH, t: Math.random() });
   const dt = 1/60;
-  ctx.strokeStyle = esInfierno() ? 'rgba(230,60,40,0.6)' : 'rgba(210,228,245,0.55)';
-  ctx.lineWidth = 1;
+  const col = esInfierno() ? 'rgba(230,60,40,0.6)' : 'rgba(210,228,245,0.55)';
   for (let i = 0; i < n; i++){
     const p = salp[i];
     p.t += dt * 2.2;
@@ -30713,7 +30751,8 @@ function drawSalpicaduras(k){
     }
     const r = 1.5 + p.t * 7;
     ctx.globalAlpha = lluviaK * (1 - p.t) * 0.9;
-    ctx.beginPath(); ctx.ellipse(p.x*k, p.y*k, r*k, r*0.42*k, 0, 0, Math.PI*2); ctx.stroke();
+    const sp = anilloSp(col, r*k);
+    ctx.drawImage(sp, Math.round(p.x*k - sp.width/2), Math.round(p.y*k - sp.height/2));
   }
 }
 
@@ -30751,8 +30790,9 @@ function drawLluviaTechos(k){
       ctx.fillRect(x, y, 1.2*k, (3 + p.t*4)*k);
     } else {                                        // impacto en el tejado: anillo y dos gotitas que saltan
       const x = (b.x + p.u*b.w - camX + temblorX)*Z, y = (b.y + p.v*rh - camY + temblorY)*Z, r = (1 + p.t*5)*k;
-      ctx.globalAlpha = lluviaK*(1 - p.t)*0.85; ctx.strokeStyle = roja ? 'rgba(255,110,80,0.8)' : 'rgba(230,242,255,0.8)';
-      ctx.beginPath(); ctx.ellipse(x, y, r, r*0.45, 0, 0, Math.PI*2); ctx.stroke();
+      ctx.globalAlpha = lluviaK*(1 - p.t)*0.85;
+      const sp = anilloSp(roja ? 'rgba(255,110,80,0.8)' : 'rgba(230,242,255,0.8)', r);
+      ctx.drawImage(sp, Math.round(x - sp.width/2), Math.round(y - sp.height/2));
       const sb = Math.sin(p.t*Math.PI)*5*k, d = (2 + p.t*3)*k, q = 1.2*k;
       ctx.fillStyle = roja ? '#ff9a7a' : '#f0f6ff';
       ctx.fillRect(x - d, y - sb, q, q); ctx.fillRect(x + d, y - sb*0.8, q, q);
@@ -32283,7 +32323,7 @@ function drawTree(t){
     ctx.fillStyle='#5c8a3a';
     ctx.beginPath(); ctx.arc(s2.x, cy, t.w*0.42, 0, Math.PI*2); ctx.fill();
   }
-  if (t.aves && running) drawAvesPosadas(t, s2.x, cy);
+  if (running && avesDe(t)) drawAvesPosadas(t, s2.x, cy);     // avesDe sortea los pájaros la primera vez que se ve el árbol
   if (t.viento) ctx.restore();
 }
 
