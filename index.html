@@ -5394,7 +5394,7 @@ function finalWave(){ return form >= 1 && (gameTime > 140 || score >= 1500); }
 function resetGame(){
   player = { x: WORLD_W/2, y: WORLD_H/2, vx:0, vy:0, tentaclePhase:0 };
   civilians=[]; enemies=[]; cars=[]; trees=[]; planters=[]; trash=[]; benches=[]; bullets=[]; booms=[]; heldObject=null;
-  partN = 0; polvos.length = 0; avesVuelo.length = 0;                       // el depósito de chispas se reutiliza, no se tira
+  partN = 0; polvos.length = 0; avesVuelo.length = 0; avesSuelo.length = 0; for (const q of parques){ q.avesSuelo = undefined; q.avesN = 0; q.avesT = 0; }                      // el depósito de chispas se reutiliza, no se tira
   sonicRings.length = 0; windRings.length = 0; fuegos.length = 0; rayos.length = 0; bossTrack = null;
   limpiaPresentacion(); charcosAgua.length = 0; evoT = 0; numsDano.length = 0; bocadillos.length = 0;
   humosNegros.length = 0;
@@ -8216,34 +8216,101 @@ const AVES_R = 165;                     // a esta distancia del invasor se espan
 const avesVuelo = [];                   // los que van volando
 const _aveCv = {};
 function aveTipo(){ return esAlien() ? 'a' : esInfierno() ? 'i' : 'c'; }
-// Hojas de 3 dibujos (posado, alas arriba, alas abajo) de 12x10, con contorno.
+// Hoja de 6 dibujos de AVE_FW x AVE_FH, mirando a la derecha y ya con
+// contorno: 0 posado, 1 y 2 en vuelo (alas arriba / abajo), 3 y 4 caminando,
+// 5 picoteando. Pintados a buena resolución con volumen: la paloma lleva el
+// cuello tornasolado (verde y morado), barras oscuras en el ala, pico con su
+// carúncula blanca, ojo naranja y patas rosadas.
+const AVE_FW = 48, AVE_FH = 40;                 // a doble resolución: nítidos también en ULTRA
+const AVE_PAL = {
+  c: { cu:'#7f8796', os:'#4a515d', cl:'#b9c1cd', pe:'#c6ccd6', cuello:['#4fa07e', '#8a5fa6'], barra:'#2c3139', cola:'#3c424c',
+       pico:'#3a3a3e', car:'#eeeae2', ojo:'#f07a24', pata:'#e07c84' },
+  a: { cu:'#5c3c9e', os:'#2e1d5c', cl:'#9c7ce2', pe:'#b8a0f0', cuello:['#3ad6c0', '#7affe0'], barra:'#1a1030', cola:'#2a1850',
+       pico:'#7affe0', car:'#c8fff4', ojo:'#7affe0', pata:'#3ad6c0' },
+  i: { cu:'#1e1c22', os:'#0c0b0e', cl:'#3c3a48', pe:'#2c2a34', cuello:['#2a3c62', '#43305a'], barra:'#08080a', cola:'#141218',
+       pico:'#2c282a', car:'#3a3436', ojo:'#ff3a2a', pata:'#2c282a' }
+};
+function aveDibujo(g, P, pose){
+  const vuela = pose === 1 || pose === 2;
+  // cabeza, cuerpo e inclinación según la pose
+  const H = pose === 3 ? [18.2, 6.6] : pose === 4 ? [16.6, 5.4] : pose === 5 ? [19.2, 13.4] : vuela ? [18.6, 9.4] : [17.2, 6.2];
+  const B = vuela ? [11.5, 11, 6.6, 3.6, -0.05] : pose === 5 ? [11.5, 11.5, 6.4, 4.2, 0.32] : [11, 11.6, 6.4, 4.4, -0.12];
+  const el = (x, y, rx, ry, r, col)=>{ g.fillStyle = col; g.beginPath(); g.ellipse(x, y, rx, ry, r, 0, Math.PI*2); g.fill(); };
+  if (vuela && pose === 1){                                    // ala lejana, hacia arriba
+    g.fillStyle = P.os; g.beginPath(); g.moveTo(10, 9.5); g.quadraticCurveTo(9, 3, 13.5, 0.6); g.quadraticCurveTo(14.5, 5, 14, 9.5); g.fill();
+  }
+  // patas
+  if (!vuela){
+    g.strokeStyle = P.pata; g.lineWidth = 1.2; g.lineCap = 'round';
+    const pas = pose === 3 ? [[9.6, 7.8], [12.6, 14.2]] : pose === 4 ? [[10.6, 10.2], [11.8, 11.6]] : [[10, 9.6], [12.4, 12.8]];
+    g.beginPath();
+    for (const [x0, x1] of pas){ g.moveTo(x0, 15); g.lineTo(x1, 18.4); g.moveTo(x1 - 1, 18.6); g.lineTo(x1 + 1.4, 18.6); }
+    g.stroke();
+  }
+  // cola
+  g.fillStyle = P.cola; g.beginPath();
+  if (vuela){ g.moveTo(6, 10); g.lineTo(0.6, 9); g.lineTo(0.8, 12.8); g.lineTo(6, 12.4); }
+  else if (pose === 5){ g.moveTo(6.4, 8.6); g.lineTo(1.4, 5.4); g.lineTo(2.2, 8.4); g.lineTo(6.8, 12); }
+  else { g.moveTo(6, 11); g.lineTo(0.8, 13.6); g.lineTo(2.2, 15.2); g.lineTo(7, 14); }
+  g.fill();
+  // cuerpo con volumen: base, pecho claro, sombra abajo
+  el(B[0], B[1], B[2], B[3], B[4], P.cu);
+  el(B[0] + 2.2, B[1] - 0.4, B[2]*0.6, B[3]*0.75, B[4], P.pe);
+  g.save(); g.beginPath(); g.ellipse(B[0], B[1], B[2], B[3], B[4], 0, Math.PI*2); g.clip();
+  el(B[0], B[1] + B[3]*0.9, B[2]*1.1, B[3]*0.55, B[4], P.os);
+  g.restore();
+  // cuello y cabeza
+  g.strokeStyle = P.cuello[0]; g.lineWidth = 3.6; g.lineCap = 'round';
+  g.beginPath(); g.moveTo(B[0] + 3.6, B[1] - 1.4); g.lineTo(H[0] - 0.6, H[1] + 1); g.stroke();
+  g.strokeStyle = P.cuello[1]; g.lineWidth = 1.6;
+  g.beginPath(); g.moveTo(B[0] + 4.2, B[1] - 0.4); g.lineTo(H[0] - 0.2, H[1] + 2); g.stroke();
+  el(H[0], H[1], 2.9, 2.6, 0, P.cu);
+  el(H[0] - 0.6, H[1] - 0.9, 1.4, 1, 0, P.cl);                 // brillo en la coronilla
+  // pico con carúncula
+  const dirP = pose === 5 ? [1.2, 1.6] : [1, 0.12];
+  g.fillStyle = P.pico; g.beginPath();
+  g.moveTo(H[0] + 2.2, H[1] - 0.8); g.lineTo(H[0] + 2.2 + dirP[0]*3, H[1] + 0.2 + dirP[1]*2.6); g.lineTo(H[0] + 2.2, H[1] + 0.9); g.fill();
+  el(H[0] + 2.2, H[1] - 0.6, 0.9, 0.7, 0, P.car);
+  // ojo (con un punto de brillo)
+  el(H[0] + 0.8, H[1] - 0.4, 1.05, 1.05, 0, P.ojo);
+  g.fillStyle = '#111'; g.fillRect(H[0] + 0.7, H[1] - 0.6, 0.7, 0.7);
+  // ala cercana
+  if (pose === 1){
+    g.fillStyle = P.cl; g.beginPath(); g.moveTo(8.5, 10.5); g.quadraticCurveTo(7.5, 2.5, 12.5, 0.2); g.quadraticCurveTo(14, 5.5, 14.5, 10.5); g.fill();
+    g.strokeStyle = P.barra; g.lineWidth = 0.9; g.beginPath(); g.moveTo(9.4, 6.4); g.lineTo(13.4, 5.6); g.moveTo(9.2, 8.2); g.lineTo(13.8, 7.6); g.stroke();
+  } else if (pose === 2){
+    g.fillStyle = P.os; g.beginPath(); g.moveTo(10.5, 12); g.quadraticCurveTo(10, 17, 13, 19.4); g.quadraticCurveTo(14.2, 15, 14, 12); g.fill();
+    g.fillStyle = P.cl; g.beginPath(); g.moveTo(8.6, 11.6); g.quadraticCurveTo(7.6, 17.5, 11, 19.6); g.quadraticCurveTo(13, 15, 13.2, 11.6); g.fill();
+    g.strokeStyle = P.barra; g.lineWidth = 0.9; g.beginPath(); g.moveTo(9.2, 14.2); g.lineTo(12.6, 14.4); g.moveTo(9.4, 16.2); g.lineTo(12, 16.6); g.stroke();
+  } else {
+    const r = B[4];
+    el(B[0] - 0.8, B[1] - 0.6, 4.6, 2.7, r, P.cl);
+    g.strokeStyle = P.barra; g.lineWidth = 1;                   // las dos barras del ala
+    g.beginPath(); g.moveTo(B[0] - 3.2, B[1] - 0.2 - r*3); g.lineTo(B[0] + 0.8, B[1] - 0.8 + r*1); g.moveTo(B[0] - 3.6, B[1] + 1.2 - r*3); g.lineTo(B[0] + 0.4, B[1] + 0.8 + r*1); g.stroke();
+    el(B[0] - 4.6, B[1] + 0.6 - r*4, 1.8, 1.4, r, P.os);         // puntas de las plumas
+  }
+}
 function aveHoja(tp){
   if (_aveCv[tp]) return _aveCv[tp];
-  const c = document.createElement('canvas'); c.width = 36; c.height = 10;
+  const P = AVE_PAL[tp] || AVE_PAL.c, N = 6;
+  const c = document.createElement('canvas'); c.width = AVE_FW*N; c.height = AVE_FH;
   const g = c.getContext('2d');
-  const P = tp === 'a' ? { cuerpo:'#6a3aa8', ala:'#9a6ae0', pico:'#7affe0', ojo:'#7affe0' }
-          : tp === 'i' ? { cuerpo:'#141012', ala:'#2a2226', pico:'#3a3030', ojo:'#ff3a2a' }
-          : { cuerpo:'#545a66', ala:'#d6dae2', pico:'#f0a840', ojo:'#1a1a1a' };     // alas claras: resaltan sobre el follaje
-  const px = (x, y, w, h, col)=>{ g.fillStyle = col; g.fillRect(x, y, w, h); };
-  // posado (de perfil, mirando a la derecha)
-  px(2, 4, 7, 4, '#0c0c10'); px(3, 3, 5, 5, P.cuerpo); px(7, 2, 3, 3, '#0c0c10'); px(7, 2, 2, 2, P.cuerpo);
-  px(9, 3, 2, 1, P.pico); px(8, 2, 1, 1, P.ojo); px(1, 5, 2, 2, P.ala); px(4, 4, 3, 2, P.ala); px(4, 8, 1, 2, '#2a2420'); px(6, 8, 1, 2, '#2a2420');
-  // en vuelo, alas arriba
-  g.save(); g.translate(12, 0);
-  px(3, 5, 6, 3, '#0c0c10'); px(4, 5, 4, 2, P.cuerpo); px(8, 4, 2, 2, P.cuerpo); px(10, 5, 1, 1, P.pico);
-  px(1, 1, 3, 4, P.ala); px(6, 0, 3, 5, P.ala); px(1, 1, 1, 1, '#0c0c10'); px(8, 0, 1, 1, '#0c0c10');
-  g.restore();
-  // en vuelo, alas abajo
-  g.save(); g.translate(24, 0);
-  px(3, 3, 6, 3, '#0c0c10'); px(4, 3, 4, 2, P.cuerpo); px(8, 2, 2, 2, P.cuerpo); px(10, 3, 1, 1, P.pico);
-  px(1, 5, 3, 4, P.ala); px(6, 5, 3, 4, P.ala); px(1, 8, 1, 1, '#0c0c10'); px(8, 8, 1, 1, '#0c0c10');
-  g.restore();
+  const f = document.createElement('canvas'); f.width = AVE_FW; f.height = AVE_FH;
+  const fg = f.getContext('2d');
+  for (let i = 0; i < N; i++){
+    fg.setTransform(1, 0, 0, 1, 0, 0); fg.clearRect(0, 0, AVE_FW, AVE_FH);
+    fg.setTransform(1.8, 0, 0, 1.8, 2.4, 2);                    // dibujo en 24x20, con margen para el contorno
+    aveDibujo(fg, P, i);
+    fg.setTransform(1, 0, 0, 1, 0, 0);
+    contornea(f, 2);
+    g.drawImage(f, i*AVE_FW, 0);
+  }
   return (_aveCv[tp] = c);
 }
-// Dónde se posan en el árbol (se decide una vez por árbol). En los parques
-// casi todos los árboles tienen, y más pájaros; en la calle, menos de la mitad.
-const AVES_PROB = 0.42, AVES_PROB_PARQUE = 0.9;
-function avesN(t){ return t.parque ? 2 + Math.floor(Math.random()*2) : 1 + Math.floor(Math.random()*3); }
+// Dónde se posan en el árbol (se decide una vez por árbol). Pocos árboles de
+// la calle tienen; en los parques, la mitad, y algún pájaro más.
+const AVES_PROB = 0.16, AVES_PROB_PARQUE = 0.5;
+function avesN(t){ return t.parque ? 1 + Math.floor(Math.random()*3) : 1 + Math.floor(Math.random()*2); }
 function avesDe(t){
   if (t.aves === undefined){
     t.aves = Math.random() < (t.parque ? AVES_PROB_PARQUE : AVES_PROB) ? avesN(t) : 0;
@@ -8265,10 +8332,9 @@ function avesGrupoCv(t){
   for (let i = 0; i < t.aves; i++){
     const a = t._avs[i], x = (a[0]*t.w - x0)*E, y = (a[1]*t.h - y0)*E;
     g.setTransform(a[2] < 0 ? -E : E, 0, 0, E, x, y);
-    g.drawImage(h, 0, 0, 12, 10, -10, -16, 21, 17);
+    g.drawImage(h, 0, 0, AVE_FW, AVE_FH, -10, -16, 21, 17.5);
   }
   g.setTransform(1, 0, 0, 1, 0, 0);
-  contornea(c, 2);
   c._ox = x0; c._oy = y0; c._w = W; c._h = H; c._ver = (c._ver | 0) + 1;
   t._avG = c; t._avGn = t.aves; t._avGt = tp;
   return c;
@@ -8320,14 +8386,92 @@ function drawAvesVuelo(){
   for (let i = 0; i < avesVuelo.length; i++){
     const a = avesVuelo[i], x = a.x - camX, y = a.y - a.z - camY;
     if (x < -20 || x > VW + 20 || y < -20 || y > VH + 20) continue;
-    const h = aveHoja(a.tp), fr = Math.sin(a.fase) > 0 ? 12 : 24, esc = 1.35 + Math.min(0.6, a.z/240);   // más grandes cuanto más alto
+    const h = aveHoja(a.tp), fr = (Math.sin(a.fase) > 0 ? 1 : 2)*AVE_FW, esc = 1.35 + Math.min(0.6, a.z/240);   // más grandes cuanto más alto
+    const w = 14*esc, hh = w*AVE_FH/AVE_FW;
     ctx.globalAlpha = Math.min(1, (6 - a.t)/0.8);
-    if (a.vx < 0){ ctx.translate(x, y); ctx.scale(-1, 1); dibujaImg(h, fr, 0, 12, 10, -6*esc, -5*esc, 12*esc, 10*esc); ctx.scale(-1, 1); ctx.translate(-x, -y); }
-    else dibujaImg(h, fr, 0, 12, 10, x - 6*esc, y - 5*esc, 12*esc, 10*esc);
+    if (a.vx < 0){ ctx.translate(x, y); ctx.scale(-1, 1); dibujaImg(h, fr, 0, AVE_FW, AVE_FH, -w/2, -hh/2, w, hh); ctx.scale(-1, 1); ctx.translate(-x, -y); }
+    else dibujaImg(h, fr, 0, AVE_FW, AVE_FH, x - w/2, y - hh/2, w, hh);
   }
   ctx.globalAlpha = 1;
 }
+// ---- Pájaros en el césped del parque (solo en los parques) ----
+// Algunos parques tienen una bandada que camina, se para y picotea por el
+// césped. Al acercarse el invasor (o con un estallido cerca) salen todos
+// volando; la bandada vuelve más tarde, cuando no hay nadie cerca.
+const AVES_SUELO_PROB = 0.55, AVES_SUELO_R = 150;
+const avesSuelo = [];
+function parqueVisible(q, m){ return q.x + q.w > camX - m && q.x < camX + VW + m && q.y + q.h > camY - m && q.y < camY + VH + m; }
+function aveSueloPunto(q){                                      // un punto del césped, lejos de la fuente central
+  for (let k = 0; k < 8; k++){
+    const x = q.x + 14 + Math.random()*(q.w - 28), y = q.y + 14 + Math.random()*(q.h - 28);
+    if (Math.abs(x - (q.x + q.w/2)) > 34 || Math.abs(y - (q.y + q.h/2)) > 34) return [x, y];
+  }
+  return [q.x + 20, q.y + 20];
+}
+function bandadaParque(q){
+  const n = 3 + Math.floor(Math.random()*4), [cx, cy] = aveSueloPunto(q), tp = aveTipo();
+  for (let i = 0; i < n; i++){
+    const x = clamp(cx + rand(-30, 30), q.x + 10, q.x + q.w - 10), y = clamp(cy + rand(-22, 22), q.y + 10, q.y + q.h - 10);
+    avesSuelo.push({ q, x, y, tx: x, ty: y, f: Math.random() < 0.5 ? 1 : -1, est: 'quieto', t: rand(0.3, 2), paso: Math.random()*6, tp });
+  }
+  q.avesN = n;
+}
+function espantaParque(q, ox, oy){
+  let n = 0;
+  for (let i = avesSuelo.length - 1; i >= 0; i--){
+    const a = avesSuelo[i]; if (a.q !== q) continue;
+    const ang = Math.atan2(a.y - oy, a.x - ox) + rand(-0.6, 0.6), v = rand(140, 220);
+    if (avesVuelo.length < 40) avesVuelo.push({ x: a.x, y: a.y - 4, z: 0, vx: Math.cos(ang)*v, vy: Math.sin(ang)*v*0.6 - 30, vz: rand(60, 120), t: Math.random()*0.2, fase: Math.random()*6, tp: a.tp });
+    avesSuelo.splice(i, 1); n++;
+  }
+  q.avesN = 0; q.avesT = gameTime + rand(35, 60);
+  if (n) sfxEn(aveTipo() === 'i' ? 'cuervo' : 'aves', ox, oy, 0.8);
+}
+function updateAvesSuelo(dt){
+  for (let i = 0; i < parques.length; i++){
+    const q = parques[i];
+    if (q.avesSuelo === undefined){                             // se decide la primera vez que se ve
+      if (!parqueVisible(q, 200)) continue;
+      q.avesSuelo = Math.random() < AVES_SUELO_PROB;
+      if (q.avesSuelo) bandadaParque(q);
+    } else if (q.avesSuelo && !q.avesN && gameTime > (q.avesT || 0) && !parqueVisible(q, 120)
+               && dist(q.x + q.w/2, q.y + q.h/2, player.x, player.y) > 700) bandadaParque(q);   // vuelven sin que se vea
+  }
+  for (let i = avesSuelo.length - 1; i >= 0; i--){
+    const a = avesSuelo[i];
+    if (!a.q.avesN) continue;
+    if (dist(a.x, a.y, player.x, player.y) < AVES_SUELO_R && !vil.intro){
+      espantaParque(a.q, player.x, player.y);                    // se va toda la bandada: la lista se acorta de golpe
+      i = Math.min(i, avesSuelo.length); continue;
+    }
+    if (!parqueVisible(a.q, 300)) continue;                     // lejos: quietos, no cuesta nada
+    a.t -= dt;
+    if (a.est === 'camina'){
+      const dx = a.tx - a.x, dy = a.ty - a.y, d = Math.hypot(dx, dy), v = 18;
+      a.paso += dt*12;
+      if (d < 2 || a.t <= 0){ a.est = Math.random() < 0.6 ? 'pica' : 'quieto'; a.t = rand(0.6, 2.2); }
+      else { a.x += dx/d*v*dt; a.y += dy/d*v*dt; if (Math.abs(dx) > 1) a.f = dx > 0 ? 1 : -1; }
+    } else if (a.t <= 0){
+      if (Math.random() < 0.55){                                 // da unos pasitos cerca
+        const q = a.q;
+        a.tx = clamp(a.x + rand(-40, 40), q.x + 10, q.x + q.w - 10); a.ty = clamp(a.y + rand(-28, 28), q.y + 10, q.y + q.h - 10);
+        a.est = 'camina'; a.t = 3;
+      } else { a.est = Math.random() < 0.5 ? 'pica' : 'quieto'; a.t = rand(0.6, 2); if (Math.random() < 0.3) a.f = -a.f; }
+    }
+  }
+}
+// Se pinta ordenada por profundidad con el resto (delante o detrás de troncos y gente).
+function drawAveSuelo(a){
+  const w = 15, h = w*AVE_FH/AVE_FW, x = a.x - camX, y = a.y - camY;
+  const pose = a.est === 'camina' ? (Math.sin(a.paso) > 0 ? 3 : 4) : a.est === 'pica' ? (Math.sin(a.t*9) > -0.2 ? 5 : 4) : 0;
+  ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.beginPath(); ctx.ellipse(x, y, 5, 1.8, 0, 0, Math.PI*2); ctx.fill();
+  const hj = aveHoja(a.tp), sx = pose*AVE_FW;
+  if (a.f < 0){ ctx.translate(x, y); ctx.scale(-1, 1); dibujaImg(hj, sx, 0, AVE_FW, AVE_FH, -w/2, -h + 1, w, h); ctx.scale(-1, 1); ctx.translate(-x, -y); }
+  else dibujaImg(hj, sx, 0, AVE_FW, AVE_FH, x - w/2, y - h + 1, w, h);
+}
 function sacudeArboles(cx, cy, radio, fuerza){
+  for (let i = 0; i < parques.length; i++){ const q = parques[i];       // las bandadas del césped también se espantan
+    if (q.avesN && cx > q.x - radio && cx < q.x + q.w + radio && cy > q.y - radio && cy < q.y + q.h + radio) espantaParque(q, cx, cy); }
   if (!arbGrid) arbIndexa();
   const c0 = Math.floor((cx - radio) / ARB_CELDA), c1 = Math.floor((cx + radio) / ARB_CELDA);
   const f0 = Math.floor((cy - radio) / ARB_CELDA), f1 = Math.floor((cy + radio) / ARB_CELDA);
@@ -32992,6 +33136,7 @@ function draw(){
   for (let __i1 = 0, __a1 = civilians; __i1 < __a1.length; __i1++){ const c = __a1[__i1]; if (!c.dead && vis(c)) dlPush(c.y + 10, 0, c); }
   for (let __i2 = 0, __a2 = cars; __i2 < __a2.length; __i2++){ const c = __a2[__i2]; if (!c.dead && vis(c)) dlPush(c.y, 1, c); }
   for (let __i3 = 0, __a3 = trees; __i3 < __a3.length; __i3++){ const t = __a3[__i3]; if (!t.dead && vis(t)) dlPush(t.y, 2, t); }
+  for (let i = 0; i < avesSuelo.length; i++){ const a = avesSuelo[i]; if (a.x > vx0 && a.x < vx1 && a.y > vy0 && a.y < vy1) dlPush(a.y, 10, a); }
   for (let __i4 = 0, __a4 = trash; __i4 < __a4.length; __i4++){ const b = __a4[__i4]; if (!b.dead && vis(b)) dlPush(b.y, 3, b); }
   for (let __i5 = 0, __a5 = benches; __i5 < __a5.length; __i5++){ const b = __a5[__i5]; if (!b.dead && vis(b)) dlPush(b.y, 4, b); }
   for (let __i6 = 0, __a6 = lamps; __i6 < __a6.length; __i6++){ const l = __a6[__i6]; if (!l.dead && (l.held || l.thrown || l.presa) && vis(l)) dlPush(l.y, 5, l); }
@@ -33029,6 +33174,7 @@ function draw(){
       case 6: drawEnemy(d.o); break;
       case 8: dibujaCompanero(); break;
       case 9: drawZombi(d.o); break;
+      case 10: drawAveSuelo(d.o); break;
       default:
         if (esDoble() && Online.caidoYo){ const a0 = ctx.globalAlpha; ctx.globalAlpha = 0.35; drawPlayer(); ctx.globalAlpha = a0; }
         else drawPlayer();
@@ -34774,7 +34920,7 @@ function pasoBucle(t){
     updateCivilians(dt); updateCars(dt); updateTrees(dt); updateRam(dt); updateThrown(dt);
     Online.culpaInv = false;
     updateVS(dt);
-    updateEnemiesDoble(dt); updateTela(dt); updateGravedad(dt); updateZombis(dt); updateBullets(dt); updateFX(dt); updatePolvo(dt); updateAves(dt); updateSpawns(dt); updateNumeros(dt); updateBocadillos(dt); updateTutorial(dt);
+    updateEnemiesDoble(dt); updateTela(dt); updateGravedad(dt); updateZombis(dt); updateBullets(dt); updateFX(dt); updatePolvo(dt); updateAves(dt); updateAvesSuelo(dt); updateSpawns(dt); updateNumeros(dt); updateBocadillos(dt); updateTutorial(dt);
     if (vidaIntro >= 0) hp = vidaIntro;      // intocable mientras aterriza
   }
   if (running){
