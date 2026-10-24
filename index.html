@@ -8362,7 +8362,7 @@ function aveHoja(tp){
 }
 // Dónde se posan en el árbol (se decide una vez por árbol). Pocos árboles de
 // la calle tienen; en los parques, la mitad, y algún pájaro más.
-const AVES_PROB = 0.16, AVES_PROB_PARQUE = 0.5;
+const AVES_PROB = 0.12, AVES_PROB_PARQUE = 0.4;
 function avesN(t){ return t.parque ? 1 + Math.floor(Math.random()*3) : 1 + Math.floor(Math.random()*2); }
 function avesDe(t){
   if (t.aves === undefined){
@@ -8451,7 +8451,7 @@ function drawAvesVuelo(){
 // Algunos parques tienen una bandada que camina, se para y picotea por el
 // césped. Al acercarse el invasor (o con un estallido cerca) salen todos
 // volando; la bandada vuelve más tarde, cuando no hay nadie cerca.
-const AVES_SUELO_PROB = 0.55, AVES_SUELO_R = 150;
+const AVES_SUELO_PROB = 0.45, AVES_SUELO_R = 150;
 const avesSuelo = [];
 function parqueVisible(q, m){ return q.x + q.w > camX - m && q.x < camX + VW + m && q.y + q.h > camY - m && q.y < camY + VH + m; }
 function aveSueloPunto(q){                                      // un punto del césped, lejos de la fuente central
@@ -8593,6 +8593,16 @@ function avesMata(prueba, x0, y0, x1, y1, modo){
       else espantaArbol(t, x0, y0);                              // los que quedan, salen volando
     }
   }
+}
+// Golpes: delante del invasor (hacia donde mira o hacia ang); clics: donde
+// apuntas, si está a su alcance (los que disparan llegan lejos).
+function avesGolpe(r, ang, dist){
+  const a = ang === undefined ? ((player.facing || 1) > 0 ? 0 : Math.PI) : ang, d = dist || 34;
+  avesEnPunto(player.x + Math.cos(a)*d, player.y - 18 + Math.sin(a)*d*0.7, r, 'plumas');
+}
+function avesClic(x, y){
+  if (!(isMaq() || isMag()) && dist(x, y, player.x, player.y - 18) > 230) return;
+  avesEnPunto(x, y, 20, 'plumas');
 }
 function avesEnPunto(x, y, r, modo){
   if (!avesVuelo.length && !avesSuelo.length && !trees.length) return;
@@ -14149,30 +14159,33 @@ function fxbAura(g, x, y, w, h, rad, e, sq, t, W, H){
   }
   g.globalAlpha = 1;
 }
-// Cuatro tentáculos de la cría que llegan desde fuera y agarran el botón por
-// las esquinas (e: cuánto han llegado, 0-1); al pulsar (sq) aprietan hacia
-// dentro y engordan. Con el mismo dibujo que los tentáculos de la cría.
+// Los tentáculos de la cría en los botones (la forma de siempre): ocho
+// brazos anclados por detrás del botón, que lo tapa, así que solo asoma la
+// puntita con su bolita por el borde; al pulsar (sq) se retraen y engordan.
 function criaAgarre(g, x, y, w, h, e, sq, t){
-  // Salen de debajo del botón: el tramo que pasa por detrás se recorta (el
-  // botón lo tapa) y solo la punta, que se apoya en la esquina, va por encima.
-  const SK = skin(), col = SK.multicolor ? hslHex(SK.tono, 85, 45) : (SK.limb || SK.c[1]);
-  const esq = [[x, y, -1, -1], [x + w, y, 1, -1], [x, y + h, -1, 1], [x + w, y + h, 1, 1]];
-  const T = [];
-  for (let i = 0; i < 4; i++){
-    const [cx, cy, sx, sy] = esq[i], wob = Math.sin(t*3.2 + i*1.7)*2.4*(1 - sq);
-    const bx = cx - sx*Math.min(w*0.22, 28), by = cy - sy*Math.min(h*0.3, 12);          // la raíz, escondida bajo el botón
-    const mx = bx + (cx + sx*(30 - sq*7) + wob - bx)*e, my = by + (cy + sy*(22 - sq*6) - by)*e;   // asoma y rodea la esquina
-    const tx = bx + (cx - sx*(9 + sq*6) - bx)*e, ty = by + (cy - sy*(5 + sq*3) - by)*e;            // la punta, agarrada encima
-    T.push([bx, by, mx, my, tx, ty]);
+  const SK = skin(), cx = x + w/2, cy = y + h/2, hw = w/2, hh = h/2;
+  const REACH = 13, ax = Math.min(12, hw*0.3), ay = Math.min(6, hh*0.4);
+  const arms = [
+    [-hw + ax, -hh*0.55, -1, -0.25], [-hw + ax, hh*0.55, -1, 0.25], [hw - ax, -hh*0.55, 1, -0.25], [hw - ax, hh*0.55, 1, 0.25],
+    [-hw*0.45, -hh + ay, -0.2, -1], [hw*0.45, -hh + ay, 0.2, -1], [-hw*0.45, hh - ay, -0.2, 1], [hw*0.45, hh - ay, 0.2, 1]
+  ];
+  g.save(); g.beginPath(); g.rect(-1e4, -1e4, 2e4, 2e4); fxbRR(g, x, y, w, h, 8); g.clip('evenodd');   // el botón tapa la raíz
+  g.lineCap = 'round';
+  for (let i = 0; i < 8; i++){
+    const [a0, a1, dx, dy] = arms[i];
+    const wob = Math.sin(t*3.4 + i*1.25)*2.2*(1 - sq);
+    const out = (REACH - sq*5)*e;
+    const bx = cx + a0, by = cy + a1, n = Math.hypot(dx, dy) || 1, ux = dx/n, uy = dy/n;
+    const edgeX = bx + ux*(Math.abs(dx) > 0.5 ? hw - Math.abs(a0) : 0);
+    const edgeY = by + uy*(Math.abs(dy) > 0.5 ? hh - Math.abs(a1) : 0);
+    const tx = edgeX + ux*out - uy*wob, ty = edgeY + uy*out + ux*wob;
+    const mx = (bx + tx)/2 - uy*wob*1.4, my = (by + ty)/2 + ux*wob*1.4;
+    g.globalAlpha = 1; g.strokeStyle = SK.limb || SK.c[1]; g.lineWidth = 5.2 + sq*1.2;
+    g.beginPath(); g.moveTo(bx, by); g.quadraticCurveTo(mx, my, tx, ty); g.stroke();
+    g.fillStyle = SK.tip; g.beginPath(); g.arc(tx, ty, 2.6 + sq*0.9, 0, Math.PI*2); g.fill();
+    g.fillStyle = SK.c[0]; g.globalAlpha = 0.55; g.beginPath(); g.arc(tx - ux*3.4, ty - uy*3.4, 1.3, 0, Math.PI*2); g.fill();
   }
-  const pinta = q => criaTentaculo(g, q[0], q[1], q[2], q[3], q[4], q[5], 9 + sq*3, 4 + sq*1.4, col, SK.c[0], SK.tip, 3.3 + sq);
-  g.globalAlpha = Math.min(1, e*2);
-  g.save(); g.beginPath(); g.rect(-1e4, -1e4, 2e4, 2e4); fxbRR(g, x, y, w, h, 8); g.clip('evenodd');
-  for (const q of T) pinta(q);                                                       // lo que asoma por fuera
   g.restore();
-  for (const q of T){                                                                // la punta, por encima del botón
-    g.save(); g.beginPath(); g.arc(q[4], q[5], 9 + sq*2, 0, Math.PI*2); g.clip(); pinta(q); g.restore();
-  }
   g.globalAlpha = 1;
 }
 // El golpe breve al pulsar: onda del color del personaje y su detalle propio.
@@ -14926,6 +14939,10 @@ canvas.addEventListener('mousemove', e=>{
 });
 canvas.addEventListener('mousedown', e=>{
   if (esVisorVs()) return;
+  if (e.button === 0 && running && !vil.intro){                  // un clic sobre un pájaro lo deja en plumas
+    const r = canvas.getBoundingClientRect();
+    avesClic((e.clientX - r.left)/ZOOM + camX, (e.clientY - r.top)/ZOOM + camY);
+  }
   if (isMaq()){
     // Izquierdo: dispara (mantenido, sigue). Derecho: cambia de arma.
     if (e.button === 0){ if (!vil.intro){ maq.gatillo = true; maq.pulso = true; } }
@@ -15653,6 +15670,7 @@ function draMordisco(){
   dra.mordL = 0;
   const ap = draApunta();
   dra.mirA = ap.a;
+  avesGolpe(46, ap.a, 64);
   const px2 = player.x + Math.cos(ap.a)*48, py2 = player.y - 20 + Math.sin(ap.a)*40;
   let dio = false;
   for (const pool of [civilians, enemies]){
@@ -27182,6 +27200,7 @@ function borGolpe(){
   const i = bor.comboVentana > 0 ? (bor.combo + 1) % 3 : 0;
   bor.combo = i; borPonEst('golpe');
   borMira(borApunta('golpe'));
+  avesGolpe(i === 2 ? 64 : 50, bor.dirA);
   const av = i === 2 ? 250 : 150;
   player.vx = Math.cos(bor.dirA)*av; player.vy = Math.sin(bor.dirA)*av;
   tutEv('golpe');
@@ -29731,6 +29750,7 @@ function vilSmash(dt){
 function vilPunch(carga, modo){
   carga = carga || 0;
   if (vil.intro || vil.punchCd > 0) return;
+  avesGolpe(carga >= 0.4 || modo ? 74 : 48);
   tutEv(carga >= 0.4 || modo ? 'cargado' : 'golpe');
   const dir  = modo === 'dir';
   const clap = modo === 'clap';
