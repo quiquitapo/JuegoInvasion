@@ -5438,7 +5438,7 @@ function finalWave(){ return form >= 1 && (gameTime > 140 || score >= 1500); }
 function resetGame(){
   player = { x: WORLD_W/2, y: WORLD_H/2, vx:0, vy:0, tentaclePhase:0 };
   civilians=[]; enemies=[]; cars=[]; trees=[]; planters=[]; trash=[]; benches=[]; bullets=[]; booms=[]; heldObject=null;
-  partN = 0; polvos.length = 0; avesVuelo.length = 0; avesSuelo.length = 0; for (const q of parques){ q.avesSuelo = undefined; q.avesN = 0; q.avesT = 0; }                      // el depósito de chispas se reutiliza, no se tira
+  partN = 0; polvos.length = 0; avesVuelo.length = 0; avesSuelo.length = 0; plumas.length = 0; avesMuertas.length = 0; for (const q of parques){ q.avesSuelo = undefined; q.avesN = 0; q.avesT = 0; }                      // el depósito de chispas se reutiliza, no se tira
   sonicRings.length = 0; windRings.length = 0; fuegos.length = 0; rayos.length = 0; bossTrack = null;
   limpiaPresentacion(); charcosAgua.length = 0; evoT = 0; numsDano.length = 0; bocadillos.length = 0;
   humosNegros.length = 0;
@@ -7733,6 +7733,7 @@ function updateRayosOjos(dt){
   const largo = ch ? choque.dv : RAYO_LARGO;
   let dmin = 1e9;                                       // lo primero que alcanza el haz
   const toca = (x, y)=>{ const d = (x - ox)*ca + (y - oy)*sa; if (d > 0 && d < dmin) dmin = d; };
+  avesEnRayo(ox, oy, a, largo, RAYO_ANCHO, 'quemado');                 // pájaros que cruza: quemados
   for (const pool of [civilians, enemies]){
     for (let __i279 = 0, __a279 = pool; __i279 < __a279.length; __i279++){ const t = __a279[__i279];
       if (t.dead || t.held || (ch && t === choque.e)) continue;
@@ -8520,6 +8521,133 @@ function drawAveSuelo(a){
   const hj = aveHoja(a.tp), sx = pose*AVE_FW;
   if (a.f < 0){ ctx.translate(x, y); ctx.scale(-1, 1); dibujaImg(hj, sx, 0, AVE_FW, AVE_FH, -w/2, -h + 1, w, h); ctx.scale(-1, 1); ctx.translate(-x, -y); }
   else dibujaImg(hj, sx, 0, AVE_FW, AVE_FH, x - w/2, y - h + 1, w, h);
+}
+// ---- Pájaros abatidos ----
+// Lo lanzado los deja en plumas, los rayos eléctricos del dragón los
+// electrocutan y el láser del viltrumita los quema. Vale para los posados en
+// los árboles, los del césped y los que van volando.
+const AVE_PLUMA_COL = { c:['#d6dae2', '#8a919e', '#5e6470'], a:['#b8a0f0', '#3ad6c0', '#6a48b0'], i:['#2c2a34', '#46444f', '#151317'] };
+const plumas = [], avesMuertas = [];
+const _aveSil = {};
+function aveSilueta(tp, col){                                    // la hoja entera en un solo color (carbonizado o el fogonazo)
+  const k = tp + col;
+  if (_aveSil[k]) return _aveSil[k];
+  const h = aveHoja(tp), c = document.createElement('canvas'); c.width = h.width; c.height = h.height;
+  const g = c.getContext('2d'); g.drawImage(h, 0, 0); g.globalCompositeOperation = 'source-in'; g.fillStyle = col; g.fillRect(0, 0, c.width, c.height);
+  return (_aveSil[k] = c);
+}
+// (x, suelo): dónde cae; z: a qué altura está; modo: 'plumas', 'electro' o 'quemado'
+function aveAbatida(x, suelo, z, tp, modo, f){
+  if (modo === 'plumas'){
+    const C = AVE_PLUMA_COL[tp] || AVE_PLUMA_COL.c;
+    for (let i = 0; i < 14 && plumas.length < 90; i++){
+      const a = Math.random()*Math.PI*2, v = rand(30, 120);
+      plumas.push({ x, y: suelo - z - 4, suelo: suelo + rand(-6, 6), vx: Math.cos(a)*v, vy: Math.sin(a)*v*0.6 - rand(20, 70), rot: Math.random()*6, vr: rand(-6, 6),
+                    t: 0, vida: rand(1.8, 3), col: C[i % 3], fase: Math.random()*6, l: rand(3, 5.5) });
+    }
+    addParticles(x, suelo - z - 4, C[0], 6, 90);
+    sfxEn('hit', x, suelo, 0.45);
+  } else {
+    if (avesMuertas.length < 30) avesMuertas.push({ x, suelo, z, vz: 0, t: 0, tp, modo, f: f || 1, piso: 0 });
+    if (modo === 'electro'){ addParticles(x, suelo - z - 4, '#bfe8ff', 8, 160); addParticles(x, suelo - z - 4, '#ffffff', 4, 120); }
+    else { addParticles(x, suelo - z - 4, '#ff8a2b', 8, 120); addParticles(x, suelo - z - 6, '#3a3a40', 5, 50); }
+  }
+  sfxEn(tp === 'i' ? 'cuervo' : 'aves', x, suelo, 0.5);
+}
+// Mata los pájaros cuya figura (en pantalla) cae dentro de prueba(x, yAparente).
+function avesMata(prueba, x0, y0, x1, y1, modo){
+  // los que van volando
+  for (let i = avesVuelo.length - 1; i >= 0; i--){
+    const a = avesVuelo[i];
+    if (a.t > 5.5 || !prueba(a.x, a.y - a.z)) continue;
+    avesVuelo.splice(i, 1); aveAbatida(a.x, a.y, a.z, a.tp, modo, a.vx < 0 ? -1 : 1);
+  }
+  // los del césped (el resto de la bandada sale volando)
+  for (let i = avesSuelo.length - 1; i >= 0; i--){
+    const a = avesSuelo[i];
+    if (!prueba(a.x, a.y - 5)) continue;
+    const q = a.q; avesSuelo.splice(i, 1); q.avesN = Math.max(0, q.avesN - 1);
+    aveAbatida(a.x, a.y, 5, a.tp, modo, a.f);
+    if (q.avesN) espantaParque(q, a.x, a.y); else q.avesT = gameTime + rand(35, 60);
+    i = Math.min(i, avesSuelo.length);
+  }
+  // los posados en los árboles de la zona (por la rejilla de árboles)
+  if (!arbGrid) arbIndexa();
+  const c0 = Math.floor((Math.min(x0, x1) - 40)/ARB_CELDA), c1 = Math.floor((Math.max(x0, x1) + 40)/ARB_CELDA);
+  const f0 = Math.floor((Math.min(y0, y1) - 20)/ARB_CELDA), f1 = Math.floor((Math.max(y0, y1) + 60)/ARB_CELDA);
+  for (let fl = Math.max(0, f0); fl <= f1; fl++) for (let cl = Math.max(0, c0); cl <= c1 && cl < arbCols; cl++){
+    const celda = arbGrid[fl*arbCols + cl]; if (!celda) continue;
+    for (let k = 0; k < celda.length; k++){
+      const t = celda[k];
+      if (t.dead || t.held || t.thrown || !t.aves) continue;
+      const cy = t.y - t.h*0.42;
+      let tocado = false;
+      for (let j = t.aves - 1; j >= 0; j--){
+        const av = t._avs[j], bx = t.x + av[0]*t.w, by = cy + av[1]*t.h;
+        if (!prueba(bx, by)) continue;
+        if (j !== t.aves - 1){ const u = t._avs[t.aves - 1]; t._avs[t.aves - 1] = av; t._avs[j] = u; }   // el abatido pasa al final
+        t.aves--; tocado = true; aveAbatida(bx, t.y + rand(-4, 6), t.y - by, aveTipo(), modo, av[2]);
+      }
+      if (!tocado) continue;
+      if (!t.aves) t.avesT = gameTime + rand(30, 55);
+      else espantaArbol(t, x0, y0);                              // los que quedan, salen volando
+    }
+  }
+}
+function avesEnPunto(x, y, r, modo){
+  if (!avesVuelo.length && !avesSuelo.length && !trees.length) return;
+  avesMata((bx, by)=> (bx - x)*(bx - x) + (by - y)*(by - y) < r*r, x - r, y - r, x + r, y + r, modo);
+}
+function avesEnRayo(ox, oy, ang, largo, ancho, modo){
+  const ex = ox + Math.cos(ang)*largo, ey = oy + Math.sin(ang)*largo;
+  avesMata((bx, by)=> enLinea(bx, by, ox, oy, ang, largo, ancho + 5), ox, oy, ex, ey, modo);
+}
+function updateAvesMuertas(dt){
+  for (let i = plumas.length - 1; i >= 0; i--){
+    const p = plumas[i];
+    p.t += dt; p.fase += dt*5;
+    p.vx *= Math.exp(-2*dt); p.vy += (34 - p.vy)*Math.min(1, dt*1.8);   // caen despacio, meciéndose
+    p.x += (p.vx + Math.sin(p.fase)*22)*dt; p.y += p.vy*dt; p.rot += p.vr*dt;
+    if (p.y > p.suelo){ p.y = p.suelo; p.vx = 0; p.vy = 0; p.vr = 0; }
+    if (p.t > p.vida) plumas.splice(i, 1);
+  }
+  for (let i = avesMuertas.length - 1; i >= 0; i--){
+    const a = avesMuertas[i];
+    a.t += dt;
+    if (a.z > 0 && a.t > (a.modo === 'electro' ? 0.35 : 0.1)){
+      a.vz -= 520*dt; a.z = Math.max(0, a.z + a.vz*dt);
+      if (a.modo === 'quemado' && Math.random() < 0.5) addParticles(a.x, a.suelo - a.z - 4, Math.random() < 0.6 ? '#ff8a2b' : '#4a4a50', 1, 40);
+      if (!a.z){ a.piso = a.t; addParticles(a.x, a.suelo, '#3a3530', 4, 60); }
+    } else if (!a.z && !a.piso) a.piso = a.t;
+    if (a.piso && a.t - a.piso > 3) avesMuertas.splice(i, 1);
+  }
+}
+function drawAvesMuertas(){
+  if (!plumas.length && !avesMuertas.length) return;
+  for (let i = 0; i < avesMuertas.length; i++){
+    const a = avesMuertas[i], x = a.x - camX, y = a.suelo - a.z - camY;
+    if (x < -30 || x > VW + 30 || y < -30 || y > VH + 30) continue;
+    const flash = a.modo === 'electro' && a.t < 0.35 && ((a.t*20) | 0) % 2 === 0;
+    const hj = aveSilueta(a.tp, flash ? '#d8f4ff' : '#17110e');
+    const w = 15, h = w*AVE_FH/AVE_FW, fr = (a.z > 0 ? 1 : 0)*AVE_FW, rot = a.z > 0 ? 0 : 1.57;
+    ctx.globalAlpha = a.piso ? clamp(1 - (a.t - a.piso - 2.2)/0.8, 0, 1) : 1;
+    ctx.save(); ctx.translate(x, y - h*0.4); ctx.rotate(rot*a.f); ctx.scale(a.f, 1);
+    dibujaImg(hj, fr, 0, AVE_FW, AVE_FH, -w/2, -h/2, w, h);
+    ctx.restore();
+    if (flash){                                                  // chispazos alrededor
+      ctx.strokeStyle = '#9fd6ff'; ctx.lineWidth = 1.4; ctx.beginPath();
+      for (let k = 0; k < 3; k++){ const an = Math.random()*6.28; ctx.moveTo(x, y - h*0.4); ctx.lineTo(x + Math.cos(an)*9, y - h*0.4 + Math.sin(an)*7); ctx.lineTo(x + Math.cos(an + 0.5)*14, y - h*0.4 + Math.sin(an + 0.5)*11); }
+      ctx.stroke();
+    }
+  }
+  for (let i = 0; i < plumas.length; i++){
+    const p = plumas[i], x = p.x - camX, y = p.y - camY;
+    if (x < -10 || x > VW + 10 || y < -10 || y > VH + 10) continue;
+    ctx.globalAlpha = clamp((p.vida - p.t)/0.6, 0, 1);
+    ctx.fillStyle = p.col;
+    ctx.beginPath(); ctx.ellipse(x, y, p.l, p.l*0.36, p.rot, 0, Math.PI*2); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
 }
 function sacudeArboles(cx, cy, radio, fuerza){
   for (let i = 0; i < parques.length; i++){ const q = parques[i];       // las bandadas del césped también se espantan
@@ -14025,18 +14153,25 @@ function fxbAura(g, x, y, w, h, rad, e, sq, t, W, H){
 // las esquinas (e: cuánto han llegado, 0-1); al pulsar (sq) aprietan hacia
 // dentro y engordan. Con el mismo dibujo que los tentáculos de la cría.
 function criaAgarre(g, x, y, w, h, e, sq, t){
+  // Salen de debajo del botón: el tramo que pasa por detrás se recorta (el
+  // botón lo tapa) y solo la punta, que se apoya en la esquina, va por encima.
   const SK = skin(), col = SK.multicolor ? hslHex(SK.tono, 85, 45) : (SK.limb || SK.c[1]);
   const esq = [[x, y, -1, -1], [x + w, y, 1, -1], [x, y + h, -1, 1], [x + w, y + h, 1, 1]];
+  const T = [];
   for (let i = 0; i < 4; i++){
     const [cx, cy, sx, sy] = esq[i], wob = Math.sin(t*3.2 + i*1.7)*2.4*(1 - sq);
-    // sube por el costado del botón, dobla por encima de la esquina y la punta
-    // queda apoyada encima (al apretar entra más y se pega al borde)
-    const bx = cx + sx*(30 + Math.sin(t*1.8 + i)*2), by = cy - sy*h*0.32 + wob;
-    const mx = cx + sx*(8 - sq*3), my = cy + sy*(10 - sq*4);
-    const ins = 12 + sq*8, gx = cx - sx*ins, gy = cy - sy*(5 + sq*3);
-    const k = Math.min(1, e*1.25), tx = bx + (gx - bx)*e, ty = by + (gy - by)*e;
-    g.globalAlpha = Math.min(1, e*2);
-    criaTentaculo(g, bx, by, bx + (mx - bx)*k, by + (my - by)*k, tx, ty, 9 + sq*3, 4 + sq*1.4, col, SK.c[0], SK.tip, 3.3 + sq);
+    const bx = cx - sx*Math.min(w*0.22, 28), by = cy - sy*Math.min(h*0.3, 12);          // la raíz, escondida bajo el botón
+    const mx = bx + (cx + sx*(30 - sq*7) + wob - bx)*e, my = by + (cy + sy*(22 - sq*6) - by)*e;   // asoma y rodea la esquina
+    const tx = bx + (cx - sx*(9 + sq*6) - bx)*e, ty = by + (cy - sy*(5 + sq*3) - by)*e;            // la punta, agarrada encima
+    T.push([bx, by, mx, my, tx, ty]);
+  }
+  const pinta = q => criaTentaculo(g, q[0], q[1], q[2], q[3], q[4], q[5], 9 + sq*3, 4 + sq*1.4, col, SK.c[0], SK.tip, 3.3 + sq);
+  g.globalAlpha = Math.min(1, e*2);
+  g.save(); g.beginPath(); g.rect(-1e4, -1e4, 2e4, 2e4); fxbRR(g, x, y, w, h, 8); g.clip('evenodd');
+  for (const q of T) pinta(q);                                                       // lo que asoma por fuera
+  g.restore();
+  for (const q of T){                                                                // la punta, por encima del botón
+    g.save(); g.beginPath(); g.arc(q[4], q[5], 9 + sq*2, 0, Math.PI*2); g.clip(); pinta(q); g.restore();
   }
   g.globalAlpha = 1;
 }
@@ -15881,6 +16016,7 @@ function draRayosDanan(){
   // un poco por encima (las bocas están a la altura de las cabezas).
   const suelo = dra.rayoOy === 0;
   const sAng = Math.atan2(T.y - player.y, T.x - player.x), sLen = Math.hypot(T.x - player.x, T.y - player.y);
+  for (const h of haces) avesEnRayo(h.x, h.y, h.ang, h.len, 8, 'electro');   // pájaros electrocutados
   for (const pool of [civilians, enemies]){
     for (let __i292 = 0, __a292 = pool; __i292 < __a292.length; __i292++){ const t = __a292[__i292];
       if (t.dead || t.held) continue;
@@ -29791,6 +29927,7 @@ function updateThrown(dt){
       continue;
     }
 
+    if (!o.byEnemy) avesEnPunto(o.x, o.y, radioChoque(o)*0.8 + 6, 'plumas');   // los pájaros que alcanza: en plumas
     let impact = null;
     for (const pool of [civilians, enemies]){
       for (let __i59 = 0, __a59 = pool; __i59 < __a59.length; __i59++){ const e = __a59[__i59];
@@ -33258,7 +33395,7 @@ function draw(){
   if (dobleAnf() && Online.av && Online.av.pj) drawProyJ(Online.av.pj);
   drawMaquinaEfectos(); drawMagoEfectos();
   drawNubesEntrada();
-  drawRelampagos(); drawHumos(); drawHumoEdif(); drawSonic(); drawWind(); drawRayosOjos(); drawRestosAire(); drawFX(); drawPolvo(); drawAvesVuelo(); drawLucesDia(); drawNumeros(); drawMarcaTutorial(); drawAura(); drawPortalCelestial(); if (vil.caida) drawCaidaJugador(); drawP2Cursor();
+  drawRelampagos(); drawHumos(); drawHumoEdif(); drawSonic(); drawWind(); drawRayosOjos(); drawRestosAire(); drawFX(); drawPolvo(); drawAvesMuertas(); drawAvesVuelo(); drawLucesDia(); drawNumeros(); drawMarcaTutorial(); drawAura(); drawPortalCelestial(); if (vil.caida) drawCaidaJugador(); drawP2Cursor();
   ctx.restore();
   escK = 0;
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
@@ -34990,7 +35127,7 @@ function pasoBucle(t){
     updateCivilians(dt); updateCars(dt); updateTrees(dt); updateRam(dt); updateThrown(dt);
     Online.culpaInv = false;
     updateVS(dt);
-    updateEnemiesDoble(dt); updateTela(dt); updateGravedad(dt); updateZombis(dt); updateBullets(dt); updateFX(dt); updatePolvo(dt); updateAves(dt); updateAvesSuelo(dt); updateSpawns(dt); updateNumeros(dt); updateBocadillos(dt); updateTutorial(dt);
+    updateEnemiesDoble(dt); updateTela(dt); updateGravedad(dt); updateZombis(dt); updateBullets(dt); updateFX(dt); updatePolvo(dt); updateAves(dt); updateAvesSuelo(dt); updateAvesMuertas(dt); updateSpawns(dt); updateNumeros(dt); updateBocadillos(dt); updateTutorial(dt);
     if (vidaIntro >= 0) hp = vidaIntro;      // intocable mientras aterriza
   }
   if (running){
@@ -35891,7 +36028,7 @@ function leyVictoria(){
   document.getElementById('bottomhud').classList.add('hidden');
   { const sb = document.getElementById('skillbar'); if (sb) sb.classList.add('hidden'); }
   document.getElementById('actionBtns').classList.remove('playing');
-  bossTrack = null; stopMusic(); fanfarria('victoria');
+  bossTrack = null; stopMusic();                 // la fanfarria ya sonó al caer el jefe: aquí sonaría dos veces
   const mon = LEY_MONEDAS + (ley.monedas || 0);
   coins += mon; saveShop(); refreshCoinLabels();
   const vencidos = ley.tipos.map(leyNombre).join(' Y ');
