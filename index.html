@@ -354,6 +354,140 @@
   .achcard.locked .achdesc { color:#6a6a60; }
   .achmark { color:#2fe86e; font-size:1.15rem; font-weight:900; flex:0 0 auto; }
 
+  /* ---- TIENDA: vitrina con el personaje, pestañas y cuadrícula de tarjetas ---- */
+  #tienda { padding-bottom:18px; }
+  .tdhead { display:flex; align-items:center; justify-content:center; gap:22px; flex-wrap:wrap; margin-bottom:2px; }
+  .tdtitle { font-size:clamp(1.5rem,5vw,2.8rem); margin:0; }
+  .tdmonedas { display:flex; align-items:center; gap:9px; padding:7px 16px 7px 9px; border-radius:999px;
+               background:linear-gradient(180deg, rgba(60,46,10,0.85), rgba(26,18,4,0.85)); border:1px solid #c9a23a;
+               box-shadow:0 0 14px rgba(255,210,80,0.18), inset 0 1px 0 rgba(255,230,140,0.25); }
+  .tdmonedas b { color:#ffe066; font-size:1.15rem; letter-spacing:1px; }
+  .tdmonedas small { color:#bfa46a; font-size:0.5rem; letter-spacing:2px; }
+  .tdmoneda { display:inline-block; width:22px; height:22px; border-radius:50%; flex:0 0 auto;
+              background:radial-gradient(circle at 35% 30%, #fff6c2, #ffd23a 38%, #c98c10 72%, #8a5a06);
+              box-shadow:inset 0 0 0 2px rgba(120,70,0,0.55), 0 0 6px rgba(255,200,60,0.5); position:relative; }
+  .tdmoneda::after { content:''; position:absolute; inset:5px; border-radius:50%; border:1.5px solid rgba(140,90,10,0.6); }
+  .skinbtn .tdmoneda { width:12px; height:12px; margin-right:5px; vertical-align:-2px; }
+  .skinbtn .tdmoneda::after { inset:3px; border-width:1px; }
+  #tienda .shopmsg { margin:4px 0 6px; }
+  .tdcuerpo { display:grid; grid-template-columns:300px minmax(0, 1fr); gap:18px; width:min(1120px, 96vw); align-items:start; }
+  .tdvitrina { position:sticky; top:8px; display:flex; flex-direction:column; align-items:stretch; gap:10px; padding:12px;
+               border:1px solid #2f7d4f; border-radius:14px;
+               background:radial-gradient(ellipse at 50% 0%, rgba(80,255,160,0.10), rgba(0,0,0,0) 60%), linear-gradient(180deg, rgba(14,30,22,0.92), rgba(6,12,9,0.92));
+               box-shadow:0 10px 30px rgba(0,0,0,0.45), inset 0 1px 0 rgba(140,255,190,0.08); }
+  #tdPrev { width:100%; height:auto; aspect-ratio:300/280; display:block; border-radius:10px; }
+  .tdvitinfo { text-align:center; }
+  .tdvitest { display:inline-block; font-size:0.5rem; letter-spacing:2px; padding:3px 9px; border-radius:999px; color:#1a1404; background:#ffd257; }
+  .tdvitest.prueba { background:#8fd7ff; }
+  .tdvitnom { color:#e8fff0; font-size:0.86rem; letter-spacing:2px; margin-top:6px; font-weight:900; }
+  .tdvitayuda { color:#6fa382; font-size:0.5rem; letter-spacing:1px; margin-top:5px; }
+  .tdcoleccion { display:grid; grid-template-columns:1fr auto; gap:5px 8px; align-items:center; font-size:0.52rem; letter-spacing:2px; color:#8fbfa2;
+                 padding-top:8px; border-top:1px solid rgba(80,160,110,0.25); }
+  .tdcoleccion b { color:#ffe066; font-size:0.66rem; }
+  .tdbarra { grid-column:1 / -1; height:8px; border-radius:99px; background:rgba(0,0,0,0.5); border:1px solid rgba(90,160,120,0.35); overflow:hidden; }
+  .tdbarra i { display:block; height:100%; width:0; border-radius:99px; background:linear-gradient(90deg, #2fe86e, #ffe066); box-shadow:0 0 8px rgba(255,224,102,0.5); transition:width .5s ease; }
+  .tdcatalogo { min-width:0; }
+  .tdtabs { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px; }
+  .tdtab { flex:1 1 0; min-width:96px; padding:9px 8px; border-radius:9px 9px 4px 4px; font-family:inherit; font-size:0.62rem; letter-spacing:2px; cursor:pointer;
+           color:#8fbfa2; background:rgba(10,22,16,0.8); border:1px solid #2a5a3c; border-bottom-width:3px; transition:background .15s, color .15s, border-color .15s; }
+  .tdtab span { color:#6f8f7c; font-size:0.52rem; margin-left:4px; }
+  .tdtab:hover { color:#d8ffe6; border-color:#3f8f5f; }
+  .tdtab.on { color:#06110b; background:linear-gradient(180deg, #8dffb4, #43d77a); border-color:#2fe86e; box-shadow:0 0 14px rgba(60,240,130,0.3); }
+  .tdtab.on span { color:#0d3a20; }
+  .tdtab[data-tdtab="unicas"].on, .tdtab[data-tdtab="imagen"].on { background:linear-gradient(180deg, #e2c4ff, #a272e8); border-color:#c49bff; box-shadow:0 0 14px rgba(180,120,255,0.3); }
+  .tdpanel { display:none; padding:12px; border-radius:12px; border:1px solid #2a5a3c; background:linear-gradient(180deg, rgba(10,24,17,0.85), rgba(5,10,8,0.85)); }
+  .tdpanel.on { display:block; animation:tdEntra .25s ease; }
+  .tdpanel[data-tdpanel="unicas"], .tdpanel[data-tdpanel="imagen"] { border-color:#5a3f86; background:linear-gradient(180deg, rgba(22,12,36,0.85), rgba(8,5,14,0.85)); }
+  @keyframes tdEntra { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
+  .tdpsub { font-size:0.52rem; letter-spacing:1.5px; color:#7fb394; margin:0 0 10px; text-align:left; }
+  .tdpanel[data-tdpanel="unicas"] .tdpsub, .tdpanel[data-tdpanel="imagen"] .tdpsub { color:#a891d0; }
+  #tienda .shoplist { width:100%; margin:0; display:grid; grid-template-columns:repeat(auto-fill, minmax(138px, 1fr)); gap:10px; }
+  #tienda .skincard.tile { position:relative; flex-direction:column; justify-content:flex-start; gap:8px; padding:14px 8px 10px; text-align:center;
+                           border-radius:11px; border:1px solid #234a33; background:linear-gradient(180deg, rgba(22,40,30,0.9), rgba(8,14,11,0.9));
+                           transition:transform .15s ease, border-color .15s, box-shadow .15s; cursor:default; }
+  #tienda .skincard.tile:hover { transform:translateY(-3px); border-color:#3f9f66; box-shadow:0 8px 18px rgba(0,0,0,0.4); }
+  #tienda .skincard.tile.uniq { border-color:#4a3570; background:linear-gradient(180deg, rgba(34,22,52,0.9), rgba(12,8,20,0.9)); }
+  #tienda .skincard.tile.uniq:hover { border-color:#8a63c8; }
+  #tienda .skincard.tile.active { border-color:#ffd257; box-shadow:0 0 0 1px #ffd257, 0 0 18px rgba(255,210,87,0.25); }
+  #tienda .skincard.tile.probando { border-color:#8fd7ff; box-shadow:0 0 0 1px #8fd7ff, 0 0 16px rgba(143,215,255,0.25); }
+  #tienda .tile .swatch { width:62px; height:62px; flex:0 0 auto; border:3px solid rgba(0,0,0,0.55);
+                           box-shadow:0 6px 14px rgba(0,0,0,0.5), inset 0 -6px 10px rgba(0,0,0,0.25), inset 0 4px 8px rgba(255,255,255,0.18); }
+  #tienda .tile .skinname { flex:0 0 auto; font-size:0.6rem; line-height:1.35; min-height:2.7em; display:flex; flex-direction:column; justify-content:center; overflow-wrap:anywhere; }
+  #tienda .tile .skinbtn { width:100%; padding:7px 4px; font-size:0.58rem; margin-top:auto; }
+  #tienda .tile .skinbtn.premio { font-size:0.5rem; }
+  .tdsello { position:absolute; top:7px; right:7px; font-size:0.42rem; letter-spacing:1px; padding:2px 6px; border-radius:99px; background:#ffd257; color:#1a1404; font-weight:900; }
+  .tdsello.tuyo { background:#2fe86e; color:#06200f; }
+  #tienda .tile .skinbtn.buy.poor { border-color:#4a4636; color:#7a7460; background:rgba(0,0,0,0.25); }
+  #tienda .customcard { width:100%; margin:0 0 10px; }
+  #tienda .customcard .skincard { border-radius:11px; padding:12px; }
+  #tienda .customcard .swatch { width:44px; height:44px; flex:0 0 44px; }
+  .tdimgacc { text-align:center; margin-top:12px; }
+  #tienda #btnShopBack { margin-top:16px; }
+  @media (max-width:760px){
+    .tdhead { flex-direction:column; gap:8px; }
+    .tdcuerpo { grid-template-columns:1fr; gap:12px; }
+    .tdvitrina { position:relative; top:0; display:grid; grid-template-columns:150px 1fr; grid-template-areas:'cv info' 'cv col'; align-items:center; gap:6px 12px; padding:10px; }
+    #tdPrev { grid-area:cv; }
+    .tdvitinfo { grid-area:info; text-align:left; }
+    .tdcoleccion { grid-area:col; }
+    .tdtab { min-width:0; font-size:0.54rem; letter-spacing:1px; padding:8px 4px; }
+    #tienda .shoplist { grid-template-columns:repeat(auto-fill, minmax(112px, 1fr)); gap:8px; }
+    #tienda .tile .swatch { width:50px; height:50px; }
+  }
+  @media (max-height:520px) and (orientation:landscape){
+    #tienda .title.tdtitle { font-size:1.7rem; }
+    .tdmonedas { padding:4px 12px 4px 6px; }
+    .tdmonedas b { font-size:0.9rem; }
+    #tienda .tile .swatch { width:44px; height:44px; }
+    #tienda .skincard.tile { padding:10px 6px 8px; gap:6px; }
+    .tdcuerpo { grid-template-columns:220px minmax(0, 1fr); gap:12px; }
+    .tdvitrina { position:sticky; display:flex; padding:8px; gap:6px; }
+    #tdPrev { max-height:150px; width:auto; align-self:center; }
+    .tdvitayuda { display:none; }
+    #tienda .shoplist { grid-template-columns:repeat(auto-fill, minmax(118px, 1fr)); }
+  }
+
+  /* ---- LOGROS: resumen con medalla, filtros y medallas en cuadrícula ---- */
+  .lgresumen { display:flex; align-items:center; gap:16px; width:min(640px, 94vw); padding:12px 16px; margin:4px 0 12px; border-radius:14px;
+               border:1px solid #7a5c1f; background:linear-gradient(180deg, rgba(46,34,10,0.85), rgba(16,11,3,0.85)); box-shadow:0 8px 24px rgba(0,0,0,0.4); }
+  .lgmedalla { width:64px; height:64px; flex:0 0 64px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:1.9rem;
+               background:radial-gradient(circle at 35% 30%, #6a5a40, #2a2214); border:3px solid #8a7a5a; box-shadow:0 0 0 3px rgba(0,0,0,0.4); }
+  .lgmedalla.bronce { background:radial-gradient(circle at 35% 30%, #f0b27a, #9a5a22 70%); border-color:#d08a4a; }
+  .lgmedalla.plata  { background:radial-gradient(circle at 35% 30%, #ffffff, #9aa6b2 70%); border-color:#cfd8e0; }
+  .lgmedalla.oro    { background:radial-gradient(circle at 35% 30%, #fff3b0, #d4a017 70%); border-color:#ffd257; box-shadow:0 0 18px rgba(255,210,87,0.5); }
+  .lgmedalla.platino{ background:radial-gradient(circle at 35% 30%, #ffffff, #7fe6ff 55%, #b48cff); border-color:#d9f6ff; box-shadow:0 0 22px rgba(143,215,255,0.6); }
+  .lgdatos { flex:1; min-width:0; display:flex; flex-direction:column; gap:7px; }
+  .lgcifra { display:flex; align-items:baseline; justify-content:space-between; gap:10px; }
+  .lgcifra b { color:#ffd257; font-size:1.15rem; letter-spacing:2px; }
+  .lgcifra span { color:#bfa46a; font-size:0.7rem; letter-spacing:2px; }
+  .tdbarra.lg { height:10px; border-color:rgba(200,160,60,0.4); }
+  .lgsecretos { color:#c9a6ff; font-size:0.52rem; letter-spacing:1px; min-height:0.8em; }
+  .lgfiltros { display:flex; gap:6px; margin-bottom:12px; flex-wrap:wrap; justify-content:center; }
+  .lgf { padding:7px 14px; border-radius:99px; font-family:inherit; font-size:0.56rem; letter-spacing:2px; cursor:pointer;
+         color:#bfa46a; background:rgba(20,14,4,0.8); border:1px solid #5a4418; }
+  .lgf:hover { color:#ffe9a8; border-color:#a07a2a; }
+  .lgf.on { color:#1a1404; background:linear-gradient(180deg, #ffe48a, #e0a82a); border-color:#ffd257; }
+  #logros .achlist { width:min(1040px, 96vw); display:grid; grid-template-columns:repeat(auto-fill, minmax(300px, 1fr)); gap:10px; }
+  #logros .achcard { position:relative; align-items:flex-start; gap:12px; padding:12px; border-radius:12px; overflow:hidden; }
+  #logros .achcard:not(.locked)::before { content:''; position:absolute; inset:0; pointer-events:none;
+                                          background:linear-gradient(115deg, rgba(255,230,140,0) 40%, rgba(255,230,140,0.10) 50%, rgba(255,230,140,0) 60%); }
+  #logros .achart { width:56px; height:56px; flex:0 0 56px; border-radius:50%; font-size:1.55rem;
+                    background:radial-gradient(circle at 35% 30%, #fff3b0, #d4a017 70%); border:3px solid #ffd257; box-shadow:0 0 12px rgba(255,210,87,0.35); }
+  #logros .achcard.locked .achart { background:radial-gradient(circle at 35% 30%, #3a3f3c, #161a18 70%); border-color:#3a443e; box-shadow:none; font-size:1.2rem; filter:grayscale(1); opacity:0.8; }
+  #logros .achcard.secreto .achart { background:radial-gradient(circle at 35% 30%, #f0dcff, #8a5ad8 70%); border-color:#c49bff; box-shadow:0 0 12px rgba(180,120,255,0.4); }
+  #logros .achcard.secreto .achname { color:#e2c4ff; }
+  .lgsec { display:inline-block; margin-left:6px; font-size:0.42rem; letter-spacing:1px; padding:2px 6px; border-radius:99px; background:#8a5ad8; color:#fff; vertical-align:2px; }
+  .lgfecha { color:#7a8f7f; font-size:0.5rem; letter-spacing:1px; margin-top:6px; }
+  .lgprog { display:grid; grid-template-columns:1fr auto; gap:4px 8px; align-items:center; margin-top:7px; font-size:0.5rem; color:#8fa49a; letter-spacing:1px; }
+  .lgprog .tdbarra { grid-column:1; height:6px; }
+  #logros .achmark { position:absolute; top:10px; right:12px; }
+  #logros .achcard:not(.locked) .achinfo { padding-right:20px; }
+  .lgvacio { grid-column:1 / -1; color:#6a7a70; font-size:0.66rem; letter-spacing:1px; padding:20px; text-align:center; }
+  @media (max-width:640px){
+    #logros .achlist { grid-template-columns:1fr; }
+    .lgmedalla { width:52px; height:52px; flex-basis:52px; font-size:1.5rem; }
+  }
+
   #achtoast { position:absolute; left:50%; top:14%; transform:translate(-50%,-16px);
               z-index:18; pointer-events:none; display:flex; align-items:center; gap:11px;
               background:linear-gradient(180deg, rgba(52,40,12,0.96), rgba(20,14,4,0.96));
@@ -1797,7 +1931,19 @@
   <!-- ============ LOGROS ============ -->
   <div id="logros" class="overlay hidden">
     <h1 class="title" style="font-size:clamp(1.5rem,5vw,2.8rem)">LOGROS</h1>
-    <div class="subtitle">Desbloqueados: <b id="achcount">0 / 10</b></div>
+    <div class="lgresumen">
+      <div class="lgmedalla" id="lgMedalla" aria-hidden="true">&#x1F3C6;</div>
+      <div class="lgdatos">
+        <div class="lgcifra"><b id="achcount">0 / 10</b><span id="lgPct">0 %</span></div>
+        <div class="tdbarra lg"><i id="lgBar"></i></div>
+        <div class="lgsecretos" id="lgSecretos"></div>
+      </div>
+    </div>
+    <div class="lgfiltros" role="tablist">
+      <button type="button" class="lgf on" data-lgf="todos">TODOS</button>
+      <button type="button" class="lgf" data-lgf="si">CONSEGUIDOS</button>
+      <button type="button" class="lgf" data-lgf="no">PENDIENTES</button>
+    </div>
     <div id="achlist" class="achlist"></div>
     <button class="small" id="btnAchBack">Volver</button>
   </div>
@@ -2112,36 +2258,35 @@
 
   <!-- ============ TIENDA ============ -->
   <div id="tienda" class="overlay hidden">
-    <h1 class="title" style="font-size:clamp(1.5rem,5vw,2.8rem)">TIENDA</h1>
-    <div class="subtitle">Colores para tu Invasor</div>
-    <div class="coinbar big">MONEDAS: <b id="coincount">0</b> ⬤</div>
+    <div class="tdhead">
+      <h1 class="title tdtitle">TIENDA</h1>
+      <div class="tdmonedas" title="Tus monedas"><span class="tdmoneda" aria-hidden="true"></span><b id="coincount">0</b><small>MONEDAS</small></div>
+    </div>
     <div id="shopmsg" class="shopmsg"></div>
-    <div id="customcard" class="customcard"></div>
-    <div id="auracard" class="customcard"></div>
-    <div class="shopcols">
-      <div class="shopcol">
-        <div class="normwrap">
-          <h3 class="normtitle">COLORES</h3>
-          <div class="normsub">Tu masa, a tu gusto</div>
-          <div id="shoplist" class="shoplist"></div>
+    <div class="tdcuerpo">
+      <aside class="tdvitrina">
+        <canvas id="tdPrev" width="300" height="280" aria-hidden="true"></canvas>
+        <div class="tdvitinfo">
+          <div class="tdvitest" id="tdPrevEst">EN USO</div>
+          <div class="tdvitnom" id="tdPrevNom">COLOR ORIGINAL</div>
+          <div class="tdvitayuda" id="tdPrevAyuda">Pasa el ratón o toca un color para probarlo</div>
         </div>
-      </div>
-      <div class="shopcol">
-    <div class="uniqwrap" id="imgwrap">
-      <h3 class="uniqtitle">SKINS CON IMAGEN</h3>
-      <div class="uniqsub">Tu propia imagen sobre el personaje</div>
-      <div id="imgskinlist" class="shoplist"></div>
-      <div style="text-align:center; margin-top:8px">
-        <button type="button" class="togglebtn" id="btnElegirImg">ELEGIR IMAGEN…</button>
-        <div id="imgLock" class="imglock">Necesitas <b>CREAR COLOR PROPIO</b> para usarlas</div>
-      </div>
-    </div>
-    <div class="uniqwrap">
-      <h3 class="uniqtitle">SKINS ÚNICAS</h3>
-      <div class="uniqsub">Más que solo colores</div>
-      <div id="uniqlist" class="shoplist"></div>
-    </div>
-      </div>
+        <div class="tdcoleccion"><span>COLECCIÓN</span><b id="tdColTxt">0 / 0</b><div class="tdbarra"><i id="tdColBar"></i></div></div>
+      </aside>
+      <section class="tdcatalogo">
+        <div class="tdtabs" role="tablist">
+          <button type="button" class="tdtab on" data-tdtab="colores" role="tab">COLORES <span id="tdCntCol"></span></button>
+          <button type="button" class="tdtab" data-tdtab="unicas" role="tab">ÚNICAS <span id="tdCntUni"></span></button>
+          <button type="button" class="tdtab" data-tdtab="imagen" role="tab">CON IMAGEN</button>
+          <button type="button" class="tdtab" data-tdtab="extras" role="tab">EXTRAS</button>
+        </div>
+        <div class="tdpanel on" data-tdpanel="colores"><div class="tdpsub">Tu masa, a tu gusto</div><div id="shoplist" class="shoplist"></div></div>
+        <div class="tdpanel" data-tdpanel="unicas"><div class="tdpsub">Más que solo colores: estampados, accesorios y formas nuevas</div><div id="uniqlist" class="shoplist"></div></div>
+        <div class="tdpanel" data-tdpanel="imagen" id="imgwrap"><div class="tdpsub">Tu propia imagen sobre el personaje</div><div id="imgskinlist" class="shoplist"></div>
+          <div class="tdimgacc"><button type="button" class="togglebtn" id="btnElegirImg">ELEGIR IMAGEN…</button>
+            <div id="imgLock" class="imglock">Necesitas <b>CREAR COLOR PROPIO</b> (en EXTRAS) para usarlas</div></div></div>
+        <div class="tdpanel" data-tdpanel="extras"><div class="tdpsub">Mejoras que se compran una sola vez</div><div id="customcard" class="customcard"></div><div id="auracard" class="customcard"></div></div>
+      </section>
     </div>
     <button class="small" id="btnShopBack">Volver</button>
   </div>
@@ -10319,7 +10464,7 @@ function renderAuraCard(){
   if (!auraBought){
     c.innerHTML = `<div class="skincard">${sw}
       <span class="skinname">EFECTO AURA<br><span class="customsub">Cada baja suelta colores y textos</span></span>
-      <button class="skinbtn buy${coins>=AURA_COST?'':' poor'}" id="btnAura">${AURA_COST} ⬤</button></div>`;
+      <button class="skinbtn buy${coins>=AURA_COST?'':' poor'}" id="btnAura"><span class="tdmoneda"></span>${AURA_COST}</button></div>`;
   } else {
     c.innerHTML = `<div class="skincard${auraOn?' active':''}">${sw}
       <span class="skinname">EFECTO AURA<br><span class="customsub">${auraOn?'Activado':'Desactivado'}</span></span>
@@ -10351,18 +10496,19 @@ function renderShop(){
   renderAuraCard();
   // Las que cambian algo más que el color van a su propio panel.
   const tarjeta = (k, uniq)=>{
-    const owned = ownedSkins.includes(k.id);
+    const owned = ownedSkins.includes(k.id) || !k.cost;
     const active = activeSkin === k.id;
     const btn = active ? `<span class="skinbtn on">EN USO</span>`
       : owned ? `<button class="skinbtn own" data-use="${k.id}">USAR</button>`
       : k.premio ? `<span class="skinbtn premio">VENCE AL<br>VILTRUMITA</span>`
-      : `<button class="skinbtn buy${coins>=k.cost?'':' poor'}" data-buy="${k.id}">${k.cost} ⬤</button>`;
+      : `<button class="skinbtn buy${coins>=k.cost?'':' poor'}" data-buy="${k.id}"><span class="tdmoneda"></span>${k.cost}</button>`;
     // el color original es el de cada personaje: verde la cría y el viltrumita,
     // dorado el dragón, azul la máquina y morado el mago
     const c = k.id === 'verde' ? colorOriginal() : k.c;
-    return `<div class="skincard${active?' active':''}${uniq?' uniq':''}">
+    const sello = active ? '<span class="tdsello">EN USO</span>' : owned && k.cost ? '<span class="tdsello tuyo">TUYO</span>' : '';
+    return `<div class="skincard tile${active?' active':''}${uniq?' uniq':''}${tdPrev.probando === k.id ? ' probando' : ''}" data-prev="${k.id}">${sello}
       <span class="swatch" style="background:${k.muestra || `radial-gradient(circle at 34% 30%, ${c[0]}, ${c[1]} 60%, ${c[2]})`}"></span>
-      <span class="skinname">${k.name}${k.premio && !owned ? '<br><span class="customsub">Premio de VS LEGENDARIO</span>' : ''}</span>${btn}</div>`;
+      <span class="skinname">${k.name}${k.premio && !owned ? '<span class="customsub">Premio de VS LEGENDARIO</span>' : ''}</span>${btn}</div>`;
   };
   const lk = document.getElementById('imgLock');
   if (lk) lk.classList.toggle('on', !customBought);
@@ -10371,13 +10517,13 @@ function renderShop(){
     li.innerHTML = imgSkins.length
       ? imgSkins.map(sk=>{
           const act = activeSkin === 'img:'+sk.id;
-          return `<div class="skincard${act?' active':''} uniq">
+          return `<div class="skincard tile${act?' active':''} uniq" data-prev="img:${esc(sk.id)}">${act ? '<span class="tdsello">EN USO</span>' : ''}
             <span class="swatch" style="background-image:url(&quot;${esc(sk.data)}&quot;); background-size:cover"></span>
             <span class="skinname">${esc(sk.name)}</span>
             ${act ? '<span class="skinbtn on">EN USO</span>'
                   : `<button class="skinbtn own" data-imgset="${esc(sk.id)}">USAR</button>`}</div>`;
         }).join('')
-      : '<div class="skincard uniq"><span class="skinname">Aún no tienes ninguna</span></div>';
+      : '<div class="skincard uniq" style="grid-column:1 / -1"><span class="skinname">Aún no tienes ninguna: crea la primera con ELEGIR IMAGEN</span></div>';
     li.querySelectorAll('[data-imgset]').forEach(b=>b.addEventListener('click', ()=>{
       activeSkin = 'img:'+b.dataset.imgset; saveShop(); sfx('ui'); renderShop();
     }));
@@ -10393,7 +10539,7 @@ function renderShop(){
       cust.innerHTML = `<div class="skincard">
         <span class="swatch" style="background:conic-gradient(#ff5b5b,#ffe066,#2fe86e,#3ba0e0,#a755e0,#ff5b5b)"></span>
         <span class="skinname">CREAR COLOR PROPIO<br><span class="customsub">Se compra una sola vez</span></span>
-        <button class="skinbtn buy${coins>=CUSTOM_COST?'':' poor'}" id="btnBuyCustom">${CUSTOM_COST} ⬤</button>
+        <button class="skinbtn buy${coins>=CUSTOM_COST?'':' poor'}" id="btnBuyCustom"><span class="tdmoneda"></span>${CUSTOM_COST}</button>
       </div>`;
       const bb = document.getElementById('btnBuyCustom');
       if (bb) bb.addEventListener('click', ()=>{
@@ -10446,7 +10592,108 @@ function renderShop(){
     activeSkin = b.dataset.use; saveShop(); sfx('ui'); renderShop();
   }));
   }
+  tdResumen();
+  tdPrevArranca();
 }
+// Contadores de las pestañas y la barra de colección (todo lo que se compra).
+function tdResumen(){
+  const tiene = k => !k.cost || ownedSkins.includes(k.id);
+  const col = SKINS.filter(k => !SKIN_UNICA[k.id]), uni = SKINS.filter(k => SKIN_UNICA[k.id]);
+  const pon = (id, txt)=>{ const e = document.getElementById(id); if (e) e.textContent = txt; };
+  pon('tdCntCol', col.filter(tiene).length + '/' + col.length);
+  pon('tdCntUni', uni.filter(tiene).length + '/' + uni.length);
+  const comprables = SKINS.filter(k => k.cost > 0 && !k.premio);
+  const total = comprables.length + 2, hecho = comprables.filter(k => ownedSkins.includes(k.id)).length + (customBought ? 1 : 0) + (auraBought ? 1 : 0);
+  pon('tdColTxt', hecho + ' / ' + total);
+  const bar = document.getElementById('tdColBar'); if (bar) bar.style.width = (100*hecho/Math.max(1, total)).toFixed(1) + '%';
+  tdPrevTexto();
+}
+// ---- vitrina: tu personaje con el color en uso (o el que estás probando) ----
+const tdPrev = { raf:0, t:0, last:0, probando:null, probT:0, fig:null };
+function tdNombreSkin(id){
+  if (id === 'custom') return 'COLOR PROPIO';
+  if (id && id.startsWith('img:')){ const sk = imgSkins.find(x => 'img:' + x.id === id); return sk ? sk.name : 'IMAGEN'; }
+  const k = skinById(id); return k ? k.name : '';
+}
+function tdPrevTexto(){
+  const est = document.getElementById('tdPrevEst'), nom = document.getElementById('tdPrevNom');
+  if (!est || !nom) return;
+  const p = tdPrev.probando && tdPrev.probando !== activeSkin;
+  est.textContent = p ? 'PROBANDO' : 'EN USO'; est.classList.toggle('prueba', !!p);
+  const ay = document.getElementById('tdPrevAyuda');
+  if (ay) ay.textContent = lastInputTouch || document.body.classList.contains('movil') ? 'Toca un color para probarlo' : 'Pasa el ratón por un color para probarlo';
+  nom.textContent = tdNombreSkin(p ? tdPrev.probando : activeSkin);
+}
+function tdProbar(id, segundos){
+  tdPrev.probando = id; tdPrev.probT = segundos || 0;
+  document.querySelectorAll('#tienda .skincard.tile').forEach(c => c.classList.toggle('probando', !!id && c.dataset.prev === id && id !== activeSkin));
+  tdPrevTexto();
+}
+function tdPrevArranca(){ if (!tdPrev.raf){ tdPrev.last = 0; tdPrev.raf = requestAnimationFrame(tdPrevLoop); } }
+function tdPrevLoop(now){
+  tdPrev.raf = 0;
+  const cv = document.getElementById('tdPrev'), t = document.getElementById('tienda');
+  if (!cv || !t || t.classList.contains('hidden') || document.hidden){ tdProbar(null); return; }
+  const dt = tdPrev.last ? Math.min(0.05, (now - tdPrev.last)/1000) : 0; tdPrev.last = now; tdPrev.t += dt;
+  if (tdPrev.probT > 0 && (tdPrev.probT -= dt) <= 0) tdProbar(null);
+  const dpr = Math.min(2, window.devicePixelRatio || 1), W = Math.round(cv.clientWidth*dpr) || 300, H = Math.round(W*280/300);
+  if (cv.width !== W || cv.height !== H){ cv.width = W; cv.height = H; }
+  const g = cv.getContext('2d');
+  g.setTransform(W/300, 0, 0, W/300, 0, 0);
+  try { tdPrevDibuja(g, tdPrev.t); } catch(e){}
+  tdPrev.raf = requestAnimationFrame(tdPrevLoop);
+}
+function tdPrevDibuja(g, t){
+  const W = 300, H = 280, bx = W/2, by = H - 46;
+  g.clearRect(0, 0, W, H);
+  const fondo = g.createLinearGradient(0, 0, 0, H); fondo.addColorStop(0, '#08140e'); fondo.addColorStop(1, '#020604');
+  g.fillStyle = fondo; g.fillRect(0, 0, W, H);
+  // foco desde arriba
+  const foco = g.createRadialGradient(bx, by - 40, 10, bx, by - 40, 170);
+  foco.addColorStop(0, 'rgba(160,255,200,0.20)'); foco.addColorStop(1, 'rgba(160,255,200,0)');
+  g.fillStyle = foco; g.beginPath(); g.moveTo(bx - 40, 0); g.lineTo(bx + 40, 0); g.lineTo(bx + 120, by + 10); g.lineTo(bx - 120, by + 10); g.closePath(); g.fill();
+  // motas de polvo en la luz
+  for (let i = 0; i < 14; i++){ const f = (t*0.08 + i*0.071) % 1, x = bx + Math.sin(i*3.1 + t*0.5)*(20 + f*80), y = 10 + f*(by - 20); g.globalAlpha = 0.5*Math.sin(f*Math.PI); g.fillStyle = '#d8ffe8'; g.fillRect(x, y, 1.4, 1.4); }
+  g.globalAlpha = 1;
+  // pedestal
+  const SK = (()=>{ const a = activeSkin; if (tdPrev.probando) activeSkin = tdPrev.probando; try { return skin(); } finally { activeSkin = a; } })();
+  const brillo = (SK && SK.c && SK.c[0]) || '#5fce7f';
+  g.fillStyle = '#0e1a14'; g.beginPath(); g.ellipse(bx, by + 14, 92, 20, 0, 0, Math.PI*2); g.fill();
+  g.fillStyle = '#1c2e24'; g.beginPath(); g.ellipse(bx, by + 6, 86, 17, 0, 0, Math.PI*2); g.fill();
+  g.fillStyle = '#16251d'; g.fillRect(bx - 86, by + 6, 172, 8);
+  const anillo = g.createRadialGradient(bx, by + 6, 10, bx, by + 6, 86);
+  anillo.addColorStop(0, brillo); anillo.addColorStop(1, 'rgba(0,0,0,0)');
+  g.globalAlpha = 0.35 + Math.sin(t*2)*0.08; g.fillStyle = anillo; g.beginPath(); g.ellipse(bx, by + 6, 80, 15, 0, 0, Math.PI*2); g.fill(); g.globalAlpha = 1;
+  // el personaje (con el color probado, si lo hay)
+  const h = hero, M = holoMide(h);
+  if (!tdPrev.fig){ tdPrev.fig = document.createElement('canvas'); tdPrev.fig.width = tdPrev.fig.height = 320; }
+  const fc = tdPrev.fig, fg = fc.getContext('2d');
+  fg.setTransform(1, 0, 0, 1, 0, 0); fg.clearRect(0, 0, 320, 320);
+  const ant = activeSkin;
+  if (tdPrev.probando) activeSkin = tdPrev.probando;
+  try { holoFigura(fg, h, 160, 190, t); } catch(e){} finally { activeSkin = ant; }
+  const k = Math.min(M.k*1.75, 175/(M.altoR || 92), 210/(M.anchoR || 118));
+  g.save(); g.translate(bx, by + 6 - Math.sin(t*1.6)*1.5); g.scale(k, k);
+  g.drawImage(fc, -M.cx, -M.by);
+  g.restore();
+}
+// Pestañas de la tienda y "probar" un color (pasar el ratón o tocar la tarjeta).
+(function(){
+  const t = document.getElementById('tienda');
+  if (!t) return;
+  t.addEventListener('click', e=>{
+    const tab = e.target.closest('.tdtab');
+    if (tab){
+      t.querySelectorAll('.tdtab').forEach(b => b.classList.toggle('on', b === tab));
+      t.querySelectorAll('.tdpanel').forEach(p => p.classList.toggle('on', p.dataset.tdpanel === tab.dataset.tdtab));
+      sfx('ui'); return;
+    }
+    const card = e.target.closest('.skincard.tile[data-prev]');
+    if (card && !e.target.closest('button')) tdProbar(card.dataset.prev, 5);
+  });
+  t.addEventListener('mouseover', e=>{ const c = e.target.closest('.skincard.tile[data-prev]'); if (c && !lastInputTouch) tdProbar(c.dataset.prev, 0); });
+  t.addEventListener('mouseout', e=>{ const c = e.target.closest('.skincard.tile[data-prev]'); if (c && !lastInputTouch && !c.contains(e.relatedTarget)) tdProbar(null); });
+})();
 
 // ================= EDITOR DE SKIN CON IMAGEN =================
 const imgEd = { img:null, ox:0, oy:0, scale:1, editando:null, hero:'alien', arrastra:false };
@@ -14649,27 +14896,53 @@ function achNext(){
   }, 2600);
 }
 
+let achFiltro = 'todos';
+// Progreso de los logros que se pueden medir fuera de la partida.
+function achAvance(id){
+  if (id === 'millonario') return [Math.min(coins, 1599), 1599];
+  if (id === 'colector'){ const c = SKINS.filter(k => k.cost > 0 && !k.premio); return [c.filter(k => ownedSkins.includes(k.id)).length + (customBought ? 1 : 0), c.length + 1]; }
+  if (id === 'esotodo'){ let n = 0; for (const b of BESTIARY) if (dexCount(b.id) > 0) n++; return [n, BESTIARY.length]; }
+  return null;
+}
 function renderAch(){
   // Los secretos no se muestran ni se cuentan hasta conseguirlos: así ni
-  // siquiera se sabe cuántos faltan.
+  // siquiera se sabe cuáles son (solo cuántos quedan).
   const visibles = ACHIEVEMENTS.filter(a => !a.secret || achDone(a.id));
   const got = visibles.filter(a=>achDone(a.id)).length;
+  const secretos = ACHIEVEMENTS.filter(a => a.secret && !achDone(a.id)).length;
+  const pct = Math.round(100*got/Math.max(1, visibles.length));
   const cnt = document.getElementById('achcount');
   const lst = document.getElementById('achlist');
   if (cnt) cnt.textContent = got + ' / ' + visibles.length;
+  const pe = document.getElementById('lgPct'); if (pe) pe.textContent = pct + ' %';
+  const bar = document.getElementById('lgBar'); if (bar) bar.style.width = pct + '%';
+  const md = document.getElementById('lgMedalla'); if (md) md.className = 'lgmedalla ' + (pct >= 100 ? 'platino' : pct >= 67 ? 'oro' : pct >= 34 ? 'plata' : got ? 'bronce' : '');
+  const se = document.getElementById('lgSecretos'); if (se) se.textContent = secretos ? '+ ' + secretos + (secretos === 1 ? ' logro secreto' : ' logros secretos') + ' por descubrir' : '';
+  document.querySelectorAll('#logros .lgf').forEach(b => b.classList.toggle('on', b.dataset.lgf === achFiltro));
   if (!lst) return;
-  lst.innerHTML = visibles.map(a=>{
-    const on = achDone(a.id);
+  const lista = visibles.filter(a => achFiltro === 'todos' || (achFiltro === 'si') === achDone(a.id));
+  // conseguidos primero (en "todos"), por orden de la lista
+  if (achFiltro === 'todos') lista.sort((x, y)=> achDone(y.id) - achDone(x.id));
+  lst.innerHTML = lista.length ? lista.map(a=>{
+    const on = achDone(a.id), cuando = achUnlocked[achKey(a.id)];
+    const fecha = on && typeof cuando === 'number' && cuando > 1e12 ? new Date(cuando).toLocaleDateString('es') : '';
+    const av = !on ? achAvance(a.id) : null;
     return `<div class="achcard${on?'':' locked'}${a.secret?' secreto':''}">
-      <div class="achart">${on ? a.icon : '<span class="qmark">?</span>'}</div>
+      <div class="achart">${on ? a.icon : '\u{1F512}'}</div>
       <div class="achinfo">
-        <div class="achname">${on ? esc(a.name) : '? ? ? ? ?'}</div>
+        <div class="achname">${on ? esc(a.name) : '? ? ? ? ?'}${a.secret ? '<span class="lgsec">SECRETO</span>' : ''}</div>
         <div class="achdesc">${esc(a.desc)}</div>
+        ${av ? `<div class="lgprog"><div class="tdbarra"><i style="width:${(100*av[0]/av[1]).toFixed(1)}%"></i></div><span>${av[0]} / ${av[1]}</span></div>` : ''}
+        ${fecha ? `<div class="lgfecha">Conseguido el ${fecha}</div>` : ''}
       </div>
       <div class="achmark">${on ? '\u2714' : ''}</div>
     </div>`;
-  }).join('');
+  }).join('') : `<div class="lgvacio">${achFiltro === 'si' ? 'Aún no has conseguido ninguno. ¡A invadir!' : '¡Los tienes todos!'}</div>`;
 }
+(function(){
+  const l = document.getElementById('logros');
+  if (l) l.addEventListener('click', e=>{ const b = e.target.closest('.lgf'); if (!b) return; achFiltro = b.dataset.lgf; sfx('ui'); renderAch(); });
+})();
 
 // ================= ARTE DE INTERFAZ =================
 const UI_ART = {
