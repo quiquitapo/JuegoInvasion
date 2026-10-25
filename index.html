@@ -5714,9 +5714,70 @@ function autoPatina(c, dt){
     if (c.condenado) autoRevienta(c);
   }
 }
+// Carriles: cada sentido por su lado de la calzada (se circula por la
+// derecha). Antes los dos sentidos iban por el mismo y se atravesaban.
+function carrilEn(r, vx, vy){
+  return r.dir === 'v' ? r.x + r.w*(vy < 0 ? 0.72 : 0.28) : r.y + r.h*(vx > 0 ? 0.72 : 0.28);
+}
+// Planta del auto (la huella en el suelo, vista desde arriba).
+function autoPlanta(o){
+  const v = o.road && o.road.dir === 'v' && !o.thrown && !o.held, L = o.w || 50;
+  return v ? [15, L*0.36] : [L*0.5, 12];
+}
+// ¿Cabe aquí un auto nuevo sin pisar a otro?
+function sitioAutoLibre(x, y, r){
+  const v = r.dir === 'v', h = v ? [15, 24] : [32, 12];
+  for (let i = 0; i < cars.length; i++){ const o = cars[i];
+    if (o.dead || o.held || o.thrown) continue;
+    const q = autoPlanta(o);
+    if (Math.abs(o.x - x) < h[0] + q[0] + (v ? 6 : 30) && Math.abs(o.y - y) < h[1] + q[1] + (v ? 30 : 6)) return false;
+  }
+  return true;
+}
+// Lleva poco a poco al auto a su carril (al dar media vuelta cambia de lado).
+function autoAlCarril(c, dt){
+  const r = c.road; if (!r) return;
+  const t = carrilEn(r, c.vx, c.vy), k = Math.min(1, dt*2.6);
+  if (r.dir === 'v'){ const d = t - c.x; if (d && Math.abs(d) < r.w) c.x = Math.abs(d) < 0.4 ? t : c.x + d*k; }
+  else { const d = t - c.y; if (d && Math.abs(d) < r.h) c.y = Math.abs(d) < 0.4 ? t : c.y + d*k; }
+}
+// ¿Puede dar media vuelta? Solo si el carril de enfrente está despejado a su altura.
+function autoPuedeGirar(c){
+  const r = c.road; if (!r) return true;
+  const v = r.dir === 'v', t = carrilEn(r, -c.vx, -c.vy);
+  for (let i = 0; i < cars.length; i++){ const o = cars[i];
+    if (o === c || o.dead || o.held || o.thrown) continue;
+    const lat = v ? o.x : o.y, lon = v ? o.y - c.y : o.x - c.x;
+    if (Math.abs(lat - t) < 18 && Math.abs(lon) < (c.w + (o.w || 50))*0.5 + 26) return false;
+  }
+  return true;
+}
+// Cruces: no entra si un auto de la otra calle le está pasando por delante.
+// Si los dos se cortan el paso, pasa el que ya está más metido en el cruce.
+function autoDelanteCaja(c, extra){
+  const v = c.road.dir === 'v', s = Math.sign(v ? c.vy : c.vx), q = autoPlanta(c);
+  if (v){ const a = c.y + s*q[1], b = a + s*extra; return [c.x - q[0], Math.min(a, b), c.x + q[0], Math.max(a, b)]; }
+  const a = c.x + s*q[0], b = a + s*extra; return [Math.min(a, b), c.y - q[1], Math.max(a, b), c.y + q[1]];
+}
+function cajaToca(k, o){
+  const q = autoPlanta(o);
+  return o.x + q[0] > k[0] && o.x - q[0] < k[2] && o.y + q[1] > k[1] && o.y - q[1] < k[3];
+}
+function autoCruce(c){
+  if (!c.road || (!c.vx && !c.vy)) return null;
+  const k = autoDelanteCaja(c, 22);
+  for (let i = 0; i < cars.length; i++){ const o = cars[i];
+    if (o === c || o.dead || o.held || o.thrown || !o.road || o.road.dir === c.road.dir) continue;
+    if (Math.abs(o.x - c.x) > 110 || Math.abs(o.y - c.y) > 110 || !cajaToca(k, o)) continue;
+    const mueve = !o.parado && !o.patina && !isWreck(o) && (o.vx || o.vy);
+    if (mueve && cajaToca(autoDelanteCaja(o, 22), c) && (c.uid || 0) < (o.uid || 0)) continue;   // se cortan: pasa uno
+    return o;
+  }
+  return null;
+}
 // El auto de delante en el mismo carril y sentido (para frenar detrás), o null.
 function autoDelante(c){
-  let best = null, bd = 64;
+  let best = null, bd = 100;
   for (let i = 0; i < cars.length; i++){ const o = cars[i];
     if (o === c || o.dead || o.held || o.thrown) continue;
     let d;
@@ -5724,6 +5785,7 @@ function autoDelante(c){
     else { if (Math.abs(o.x - c.x) > 14) continue; d = (o.y - c.y)*Math.sign(c.vy); }
     if (d > 0 && d < bd){ bd = d; best = o; }
   }
+  c._dDel = bd;
   return best;
 }
 
@@ -5734,6 +5796,11 @@ function eligeAvenidas(){
   dentro.sort((a, b)=> dist(a.x + a.w/2, a.y + a.h/2, WORLD_W/2, WORLD_H/2) - dist(b.x + b.w/2, b.y + b.h/2, WORLD_W/2, WORLD_H/2));
   return dentro.slice(0, 3);
 }
+let autoUid = 0;
+// Pasados los 15.000 puntos circulan algo menos autos (un 30 % menos).
+const AUTOS_MENOS_SCORE = 15000;
+function topeAutos(n){ return score >= AUTOS_MENOS_SCORE ? Math.round(n*0.7) : n; }
+function esperaAuto(a, b){ return rand(a, b)*(score >= AUTOS_MENOS_SCORE ? 1.35 : 1); }
 function autosCirculando(){ let n = 0; for (let i = 0; i < cars.length; i++){ const c = cars[i]; if (!c.dead && !c.held && !c.thrown && !c.parado) n++; } return n; }
 function spawnCar(){
   const r = avenidas.length && Math.random() < 0.55 ? avenidas[Math.floor(Math.random()*avenidas.length)] : roads[Math.floor(rand(0,roads.length))];
@@ -5749,17 +5816,22 @@ function spawnCar(){
   const lento = type === 'truck' || modelo === 'autobus' || modelo === 'reparto';
   const speed = lento ? rand(45,70) : modelo === 'deportivo' ? rand(110,150) : rand(65,115);
   let x,y,vx,vy,facing;
-  if (r.dir==='v'){
-    x = r.x + r.w*0.28; y = rand(0,WORLD_H);
-    vx = 0; vy = Math.random()<0.5 ? speed : -speed;
-    facing = Math.random()<0.5 ? 1 : -1;           // side-view sprite on a vertical road
-  } else {
-    y = r.y + r.h*0.28; x = rand(0,WORLD_W);
-    vx = Math.random()<0.5 ? speed : -speed; vy = 0;
-    facing = vx > 0 ? 1 : -1;                       // point the way it drives
+  // cada sentido por su carril; se prueban varios sitios hasta dar con uno
+  // en el que no haya otro auto (antes podía salir encima de uno)
+  for (let intento = 0; intento < 8; intento++){
+    if (r.dir==='v'){
+      vx = 0; vy = Math.random()<0.5 ? speed : -speed;
+      x = carrilEn(r, vx, vy); y = rand(0,WORLD_H);
+      facing = Math.random()<0.5 ? 1 : -1;           // side-view sprite on a vertical road
+    } else {
+      vx = Math.random()<0.5 ? speed : -speed; vy = 0;
+      y = carrilEn(r, vx, vy); x = rand(0,WORLD_W);
+      facing = vx > 0 ? 1 : -1;                       // point the way it drives
+    }
+    if (sitioAutoLibre(x, y, r)) break;
   }
   const M = AUTO_MODELOS[type === 'truck' ? 'cisterna' : type === 'taxi' ? 'taxi' : modelo];
-  cars.push({ kind:'car', x,y,vx,vy, w:M.L, h:M.H, modelo, col: Math.floor(Math.random()*AUTO_COLORES.length),
+  cars.push({ kind:'car', uid: ++autoUid, x,y,vx,vy, w:M.L, h:M.H, modelo, col: Math.floor(Math.random()*AUTO_COLORES.length),
     type, hp: M.hp, maxhp: M.hp, fleeCd:0, fuse:0,
     held:false, thrown:false, dead:false, road:r, facing, rot:0 });
   if (esAlien()) alienizaAuto(cars[cars.length - 1]);
@@ -8725,6 +8797,65 @@ function rafagaArboles(fx, fy){
   }
 }
 
+// ---- reposo: al rato quieto, el héroe se cruje el cuello o los nudillos ----
+// (el viltrumita y Boros). Cualquier tecla, clic o paso lo corta.
+const REPOSO_ESPERA = 4.5;
+const REPOSO = {
+  cuello:   { dur:1.9, cruje:[0.48, 1.18],
+              giro:[[0, 0], [0.4, 0.3], [0.48, 0.44], [0.8, 0.38], [1.1, -0.3], [1.18, -0.44], [1.45, -0.38], [1.9, 0]],
+              mano:[[0, 0], [0.3, 1], [1.55, 1], [1.9, 0]] },
+  nudillos: { dur:1.7, cruje:[0.55, 0.8, 1.05],
+              giro:[[0, 0], [1.7, 0]],
+              mano:[[0, 0], [0.3, 1], [1.4, 1], [1.7, 0]] }
+};
+const reposo = { quieto:0, tipo:'', t:0, n:0, ultimo:'nudillos' };
+function reposoCorta(){ reposo.quieto = 0; reposo.tipo = ''; }
+function reposoTramo(keys, t){
+  if (t <= keys[0][0]) return keys[0][1];
+  for (let i = 1; i < keys.length; i++){
+    const a = keys[i - 1], b = keys[i];
+    if (t <= b[0]){ const u = (t - a[0])/(b[0] - a[0]), e = u*u*(3 - 2*u); return a[1] + (b[1] - a[1])*e; }
+  }
+  return keys[keys.length - 1][1];
+}
+// Lo que toca ahora: giro de la cabeza, cuánto lleva la mano a su sitio y el
+// respingo de cada crujido. null si no está en reposo.
+function reposoAhora(){
+  if (!reposo.tipo) return null;
+  const R = REPOSO[reposo.tipo], t = reposo.t;
+  let j = 0; for (const c of R.cruje){ const d = (t - c)/0.05; if (d > -3 && d < 3) j += Math.exp(-d*d); }
+  return { tipo: reposo.tipo, giro: reposoTramo(R.giro, t), mano: reposoTramo(R.mano, t), j };
+}
+function reposoPuede(){
+  if (!running || vil.intro || paralizado() || congelado()) return false;
+  if (isVil()) return !vil.flying && !(vil.charge > 0) && !(vil.punchT > 0) && !vil.presaFase && !(heldObject && heldObject.ref) && !(vil.aterrizaT > 0);
+  if (isBor()) return !bor.est && !bor.cargando && !bor.holding && !bor.zApunta && !bor.bApunta && !bor.cApunta && !bor.tApunta && !(bor.z > 0);
+  return false;
+}
+function updateReposo(dt){
+  if (!reposoPuede() || Math.hypot(player.vx || 0, player.vy || 0) > 14){ reposoCorta(); return; }
+  if (reposo.tipo){
+    const R = REPOSO[reposo.tipo];
+    reposo.t += dt;
+    if (reposo.n < R.cruje.length && reposo.t >= R.cruje[reposo.n]){        // ¡crac!
+      reposo.n++;
+      const f = player.facing || 1, cu = reposo.tipo === 'cuello';
+      const x = player.x + f*(cu ? 5 : 4), y = player.y + (isBor() ? (cu ? -26 : -14) : (cu ? -11 : -6));
+      sfxEn('crujido', player.x, player.y);
+      addParticles(x, y, '#ffffff', 2, 40);
+    }
+    if (reposo.t >= R.dur){ reposo.tipo = ''; reposo.quieto = -rand(4, 8); }   // y un rato sin repetir
+    return;
+  }
+  reposo.quieto += dt;
+  if (reposo.quieto >= REPOSO_ESPERA){
+    reposo.tipo = reposo.ultimo === 'cuello' ? 'nudillos' : 'cuello'; reposo.ultimo = reposo.tipo;
+    reposo.t = 0; reposo.n = 0;
+  }
+}
+addEventListener('keydown', reposoCorta);
+addEventListener('pointerdown', reposoCorta);
+
 // Los árboles doblados se van enderezando solos. Solo se recorren los que
 // están doblados, que en la práctica son unos pocos.
 const arbDoblados = [];
@@ -10825,6 +10956,8 @@ const SFX = {
   gritoBor:  ()=> { grunido(170, 80, 1.1, 0.2, 'sawtooth', 23, 0); grunido(340, 150, 0.9, 0.09, 'square', 31, 0.06);
                     noise(0.55, 0.16, 520, 0.8); tone(58, 1.1, 'sine', 0.24, 34); tone(880, 0.5, 'sine', 0.04, 1760); },
   crack:     ()=> { noise(0.22, 0.22, 1600, 1); tone(150,0.18,'square',0.14,60); },
+  // crujido de cuello o nudillos: dos chasquidos secos y muy cortos
+  crujido:   ()=> { noise(0.03, 0.26, 5200, 2.5); noise(0.05, 0.14, 2600, 3); tone(1900, 0.02, 'square', 0.04, 900); },
   grab:   ()=> tone(220, 0.10, 'square', 0.16, 420),
   throw:  ()=> tone(520, 0.14, 'sawtooth', 0.16, 130),
   hit:    ()=> noise(0.09, 0.22, 1400, 1),
@@ -28120,8 +28253,21 @@ function borPoseBase(){
                               bF:0.3 - 1.0*sn, cF:1.7, bB:0.3 + 1.0*sn, cB:1.7, cab:-0.25 });
     return P({ lean:0.14, mF:0.5*sn, rF:0.2 + 0.6*Math.max(0, cs), mB:-0.5*sn, rB:0.2 + 0.6*Math.max(0, -cs), bF:0.7 - 0.35*sn, cF:1.6, bB:0.4 + 0.35*sn, cB:1.8 });
   }
-  if (met) return P({ lean:0.02 + resp, mF:0.2, rF:0.15, mB:-0.22, rB:0.15, bF:0.25, cF:0.45, bB:0.12, cB:0.4, cab:-0.1 });
-  return P({ lean:0.1 + resp, mF:0.22, rF:0.35, mB:-0.24, rB:0.3, bF:0.8, cF:1.75, bB:0.45, cB:1.95 });
+  const q = met ? P({ lean:0.02 + resp, mF:0.2, rF:0.15, mB:-0.22, rB:0.15, bF:0.25, cF:0.45, bB:0.12, cB:0.4, cab:-0.1 })
+              : P({ lean:0.1 + resp, mF:0.22, rF:0.35, mB:-0.24, rB:0.3, bF:0.8, cF:1.75, bB:0.45, cB:1.95 });
+  const r = !_apCompa && reposoAhora();
+  if (r){                                                 // reposo: cuello o nudillos
+    const m = r.mano;
+    if (r.tipo === 'nudillos'){
+      q.bF = lerp(q.bF, 1.05, m); q.cF = lerp(q.cF, 2.05 - r.j*0.15, m);
+      q.bB = lerp(q.bB, 1.25, m); q.cB = lerp(q.cB, 1.8 - r.j*0.15, m);
+      q.lean += 0.05*m + r.j*0.03; q.cab += 0.15*m;
+    } else {
+      q.bF = lerp(q.bF, 1.95, m); q.cF = lerp(q.cF, 2.55, m);
+      q.cab += r.giro*1.1;
+    }
+  }
+  return q;
 }
 // ---- dibujo ----
 // Resplandor azul y morado (una estampa que se reutiliza).
@@ -29353,7 +29499,14 @@ function vilPielCuello(g, P, t){
 function vilFigura(g, st){
   if (st.SK && st.SK.cosmic) return vilFiguraCosmica(g, st);
   const P = st.pal, t = st.t, pose = VIL_POSES[st.pose] || VIL_POSES.quieto, pie = VIL_PIERNAS[pose.p];
-  const brazos = vilBrazos(st, pose);
+  const brazos = vilBrazos(st, pose), rep = st.rep;
+  if (rep && rep.mano > 0){                                       // reposo: se cruje los nudillos o el cuello
+    const m = rep.mano, mezcla = (a, b)=> a.map((v, i)=> v + (b[i] - v)*m);
+    if (rep.tipo === 'nudillos'){
+      brazos[0] = mezcla(brazos[0], vilBrazoHasta(-7.5, -10.5, 2.6, -6.8 + rep.j*0.8));
+      brazos[1] = mezcla(brazos[1], vilBrazoHasta(7.8, -10.5, 4.4, -7.4 + rep.j*0.8));
+    } else brazos[1] = mezcla(brazos[1], vilBrazoHasta(7.8, -10.5, 6.6, -14.2));   // la mano en el cuello
+  }
   const L = P.linea, vuela = pose.p === 'juntas';
   g.save(); g.lineCap = 'round'; g.lineJoin = 'round';
   if (st.pose === 'aterriza') g.translate(0, 5);
@@ -29432,9 +29585,12 @@ function vilFigura(g, st){
   }
   // brazo de delante
   if (!delante) vilBrazo(g, brazos[1], P, st.manos, 1, gol && st.golpeLado > 0 ? gol : null, st.pose === 'golpe' || st.pose === 'carga');
-  // cabeza
+  // cabeza (en reposo, ladeada al crujirse el cuello)
+  const giro = rep ? rep.giro : 0;
+  if (giro){ g.save(); g.translate(0.5, -15); g.rotate(giro); g.translate(-0.5, 15); }
   if (st.cabeza) st.cabeza(1, -20.5);
   else vilCabezaDib(g, P);
+  if (giro) g.restore();
   if (delante) vilBrazo(g, brazos[1], P, st.manos, 1, null, true);
   g.restore();
 }
@@ -29581,7 +29737,7 @@ function vilEstadoDib(pose){
   return { t: vil.capa || 0, pose, punchT: vil.punchT || 0, golpeLado: vil.golpeLado || 1, manos: vil.manos || 0,
            carga: vil.charge > 0 ? vil.charge/VIL_CHARGE_MAX : 1,
            la: vil.flying ? 0 : Math.atan2(Math.sin(vil.golpeA || 0), Math.abs(Math.cos(vil.golpeA || 0))), agarre: vilAgarreLocal(),
-           sangre: vil._sangre, pal: vilPaleta(), SK, cabeza: vilCabezaSkin(SK) };
+           sangre: vil._sangre, pal: vilPaleta(), SK, cabeza: vilCabezaSkin(SK), rep: pose === 'quieto' ? reposoAhora() : null };
 }
 // Cabezas de las skins especiales (armadura cósmica, calabaza) y sombreros.
 function vilCabezaSkin(SK){
@@ -29889,15 +30045,33 @@ function updateCars(dt){
       if (c.humo >= 0.3){ c.humo = 0; addSmoke(c.x + (c.vy ? 0 : (c.facing || 1)*c.w*0.32), c.y - c.h*0.3); }
     }
     if (c.parado) continue;                      // abandonado donde quedó
+    // en un cruce: espera a que pase el de la otra calle (si se atasca mucho
+    // rato, da la vuelta o, si el otro también espera, pasa igual)
+    if (c.cruceT > 0) c.cruceT -= dt;
+    else {
+      const cr = autoCruce(c);
+      if (cr){
+        c.esperaCruce = (c.esperaCruce || 0) + dt;
+        const quieto = cr.parado || cr.patina || isWreck(cr) || (!cr.vx && !cr.vy) || cr.esperaCruce > 0 || cr.espera > 0;   // también si él espera
+        if (quieto && c.esperaCruce > 1.4 && autoPuedeGirar(c)){ c.vx = -c.vx; c.vy = -c.vy; c.esperaCruce = 0; c.fleeCd = 2; }
+        else if (c.esperaCruce > 6){ c.esperaCruce = 0; c.cruceT = 1.2; }   // último recurso: no se queda ahí para siempre
+        c.vr = 0; autoAlCarril(c, dt);
+        continue;
+      }
+      c.esperaCruce = 0;
+    }
     // en caravana: frena detrás del de delante; si el de delante no se mueve, da la vuelta
     const del = autoDelante(c);
     if (del){
-      const vd = del.parado || del.patina || isWreck(del) ? 0 : Math.hypot(del.vx, del.vy);
+      // lo que de verdad avanza el de delante (parado en un cruce no avanza)
+      const vd = del.parado || del.patina || isWreck(del) || del.esperaCruce > 0 ? 0 : del.vr !== undefined ? del.vr : Math.hypot(del.vx, del.vy);
       c.espera = vd < 5 ? (c.espera || 0) + dt : 0;
-      if (c.espera > 1.4){ c.vx = -c.vx; c.vy = -c.vy; c.espera = 0; c.fleeCd = 2; }
+      if (c.espera > (del.esperaCruce > 0 || del.espera > 0 ? 4 : 1.4) && autoPuedeGirar(c)){ c.vx = -c.vx; c.vy = -c.vy; c.espera = 0; c.fleeCd = 2; }   // en fila tras uno que espera: paciencia
       else {
-        const v0 = c.v0 || (c.v0 = Math.hypot(c.vx, c.vy)), v = Math.min(v0, vd), sx = Math.sign(c.vx), sy = Math.sign(c.vy);
-        c.x += sx*v*dt; c.y += sy*v*dt;
+        const lo = c.vy === 0 ? 0 : 1, hueco = c._dDel - autoPlanta(c)[lo] - autoPlanta(del)[lo];   // distancia entre parachoques
+        const v0 = c.v0 || (c.v0 = Math.hypot(c.vx, c.vy)), v = hueco < 6 ? 0 : Math.min(v0, hueco < 16 ? vd : Math.max(vd, v0*0.5)), sx = Math.sign(c.vx), sy = Math.sign(c.vy);
+        c.x += sx*v*dt; c.y += sy*v*dt; c.vr = v;
+        autoAlCarril(c, dt);
         continue;
       }
     } else c.espera = 0;
@@ -29905,17 +30079,27 @@ function updateCars(dt){
     if (c.fleeCd > 0) c.fleeCd -= dt;
     else if (dist(c.x, c.y, player.x, player.y) < 190){
       const towards = (c.vx*(player.x-c.x) + c.vy*(player.y-c.y)) > 0;
-      if (towards){                       // solo si venía hacia él
+      if (towards && autoPuedeGirar(c)){  // solo si venía hacia él (y cabe en el otro carril)
         c.vx = -c.vx; c.vy = -c.vy;
         c.fleeCd = 3.5;                   // no vuelve a girar en un rato
         addParticles(c.x, c.y, '#dfe4e8', 5, 60);
       }
     }
-    c.x += c.vx*dt; c.y += c.vy*dt;
+    c.x += c.vx*dt; c.y += c.vy*dt; c.vr = Math.hypot(c.vx, c.vy);
+    autoAlCarril(c, dt);
     if (c.vx !== 0) c.facing = c.vx > 0 ? 1 : -1;
-    if (c.x < -70 || c.x > WORLD_W+70 || c.y < -70 || c.y > WORLD_H+70){
-      if (c.road.dir==='v') c.y = c.vy>0 ? -50 : WORLD_H+50;
-      else                  c.x = c.vx>0 ? -50 : WORLD_W+50;
+    if ((c.vx > 0 ? c.x > WORLD_W+70 : c.vx < 0 ? c.x < -70 : false) || (c.vy > 0 ? c.y > WORLD_H+70 : c.vy < 0 ? c.y < -70 : false) ||
+        c.x < -600 || c.x > WORLD_W+600 || c.y < -600 || c.y > WORLD_H+600){   // sale por delante (al entrar puede venir de más lejos)
+      // con muchos puntos sobran autos: el que sale del mapa ya no vuelve
+      if (score >= AUTOS_MENOS_SCORE && !c.tut && autosCirculando() > topeAutos(gameMode === 'vs' || gameMode === 'leyenda' ? 12 : 16)){ c.dead = true; continue; }
+      // vuelve a entrar por el otro lado, detrás del último que entró (sin pisarlo)
+      for (let k = 0; k < 6; k++){
+        const e = 50 + k*80;
+        if (c.road.dir==='v') c.y = c.vy>0 ? -e : WORLD_H+e;
+        else                  c.x = c.vx>0 ? -e : WORLD_W+e;
+        c.dead = true; const libre = sitioAutoLibre(c.x, c.y, c.road); c.dead = false;
+        if (libre) break;
+      }
     }
   }
   if (cars.some(c=>c.dead)) cars = cars.filter(c=>!c.dead);   // sin bajas, la misma lista: nada que copiar
@@ -30746,7 +30930,7 @@ function updateSpawns(dt){
     spawnTimers.civ -= dt;
     if (spawnTimers.civ<=0 && civilians.length<12){ spawnCivilian(); spawnTimers.civ = rand(1.6,2.6); }
     spawnTimers.car -= dt;
-    if (spawnTimers.car<=0 && autosCirculando() < 12 && cars.length < 26){ spawnCar(); spawnTimers.car = rand(1.6,3); }
+    if (spawnTimers.car<=0 && autosCirculando() < topeAutos(12) && cars.length < 26){ spawnCar(); spawnTimers.car = esperaAuto(1.6,3); }
     updateMiniOleada(dt);
     return;
   }
@@ -30763,7 +30947,7 @@ function updateSpawns(dt){
     spawnTimers.civ -= dt;
     if (spawnTimers.civ<=0 && civilians.length<14){ spawnCivilian(); spawnTimers.civ = rand(1.4,2.4); }
     spawnTimers.car -= dt;
-    if (spawnTimers.car<=0 && autosCirculando() < 16 && cars.length < 28){ spawnCar(); spawnTimers.car = rand(1.2,2.4); }
+    if (spawnTimers.car<=0 && autosCirculando() < topeAutos(16) && cars.length < 28){ spawnCar(); spawnTimers.car = esperaAuto(1.2,2.4); }
   }
 
   const count = t => enemies.filter(e=>e.type===t && !e.dead).length;
@@ -35169,7 +35353,7 @@ function pasoBucle(t){
     updateZoom(dt); updateSonic(dt); updateFocos(dt); updateWind(dt); comboUpdate(dt);
     updateFuegos(dt); updateHumos(dt); updateRelampagos(dt); updateVeneno(dt); updateEstados(dt); updateRayos(dt);
     updateClima(dt);
-    updateViento(dt); updateBuff(dt); updateOvniSpawn(dt); updateRayosOjos(dt); updateAura(dt);
+    updateViento(dt); updateReposo(dt); updateBuff(dt); updateOvniSpawn(dt); updateRayosOjos(dt); updateAura(dt);
     // Mientras cae en la entrada nada puede tocarle: se anota la vida antes
     // y se restaura después, en vez de parchear las cinco vías de daño.
     const vidaIntro = vil.intro ? hp : -1;          // cualquier personaje, mientras entra
@@ -36030,7 +36214,7 @@ function updateLeyenda(dt){
   spawnTimers.civ -= dt;
   if (spawnTimers.civ <= 0 && civilians.length < 10){ spawnCivilian(); spawnTimers.civ = rand(1.8, 3); }
   spawnTimers.car -= dt;
-  if (spawnTimers.car<=0 && autosCirculando() < 12 && cars.length < 26){ spawnCar(); spawnTimers.car = rand(1.6,3); }
+  if (spawnTimers.car<=0 && autosCirculando() < topeAutos(12) && cars.length < 26){ spawnCar(); spawnTimers.car = esperaAuto(1.6,3); }
   if (ley.regen > 0 && hp > 0) hp = Math.min(maxHp(), hp + ley.regen*dt);
   leyEnfria(dt);
   if (ley.cartelT < 4.2) ley.cartelT += dt;
