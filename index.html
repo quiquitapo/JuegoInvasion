@@ -563,6 +563,7 @@
                font-size:0.72rem; font-weight:900; cursor:pointer;
                background:#0f2418; border:1px solid #2fe86e; color:#7bffa0; }
   .togglebtn.off { background:#2a1010; border-color:#8a3a3a; color:#d98a8a; }
+  #tgUltra small { font-size:0.6rem; font-weight:700; opacity:0.8; }
   #controles .panel { max-width:min(740px, 94vw); box-sizing:border-box; }
   .volrow { display:flex; align-items:center; gap:10px; padding:6px 0; border-bottom:1px dashed #1f4a2c; }
   .volrow:last-of-type { border-bottom:none; }
@@ -2349,8 +2350,8 @@
     <div class="panel" style="min-width:min(340px,92vw)">
       <h3>Pantalla y sonido</h3>
       <div class="bindrow">
-        <span class="bindname">Calidad ULTRA <small style="color:#8fbfa2">(más resolución)</small></span>
-        <button type="button" class="togglebtn off" id="tgUltra">OFF</button>
+        <span class="bindname">Alta resolución <small style="color:#8fbfa2">(ULTRA)</small></span>
+        <button type="button" class="togglebtn" id="tgUltra">AUTO</button>
       </div>
       <div class="bindrow">
         <span class="bindname">Botones táctiles</span>
@@ -5225,10 +5226,12 @@ let VW = CW / ZOOM, VH = CH / ZOOM;                    // mundo visible (unidade
 // dibuja a la densidad de la pantalla, con un tope de 2×. Si el equipo no
 // aguanta el ritmo, vigilaRendimiento() lo devuelve a 1× para que no haya lag.
 let DPR = 1, dprTope = 1.5;                  // en pantallas muy densas basta 1,5x: no se nota y pinta casi la mitad
-// Calidad ULTRA (Ajustes > Pantalla y sonido): lo único que cambia es la
-// resolución, 1,5 veces la de la pantalla (hasta 3x y unos 8 megapíxeles),
-// y no baja sola aunque el equipo vaya justo.
-let ultraOn = false;
+// Alta resolución (ULTRA; Ajustes > Pantalla y sonido): lo único que cambia
+// es la resolución, 1,5 veces la de la pantalla (hasta 3x y unos 8
+// megapíxeles). Tres modos: ENCENDIDO y APAGADO no cambian nunca solos; AUTO
+// (el de fábrica) la enciende solo si el juego ya va fluido y la apaga solo
+// si con ella deja de ir fluido (ver ultraVigila).
+let ultraOn = false, ultraModo = 'auto';
 function dprUltra(dprPant){
   let d = Math.min(3, Math.max(1, dprPant)*1.5);
   const px = CW*CH*d*d, tope = 8.3e6;
@@ -9277,6 +9280,7 @@ function updateArtillero(e, dt, d, ang){
     e.y = clamp(e.y + e.rumboY*ART_CARGA_VEL*dt, 60, WORLD_H-60);
     e.facing = e.rumboX >= 0 ? 1 : -1;
     if (Math.random() < 0.6) addParticles(e.x - e.rumboX*70, e.y - e.rumboY*70, '#ff8a2b', 2, 200);
+    artPolvo(e, dt*2.5, e.rumboX, e.rumboY);
     // arrasa con lo que pilla por delante
     const rr = ART_CARGA_W/2;
     for (const pool of [civilians, enemies]){
@@ -9321,9 +9325,11 @@ function updateArtillero(e, dt, d, ang){
   if (d < ART_HUIR){
     e.x = clamp(e.x - Math.cos(ang)*e.speed*dt, 60, WORLD_W-60);
     e.y = clamp(e.y - Math.sin(ang)*e.speed*dt, 60, WORLD_H-60);
+    artPolvo(e, dt, -Math.cos(ang), -Math.sin(ang));
   } else if (d > ART_HUIR*2.4){
     e.x = clamp(e.x + Math.cos(ang)*e.speed*0.55*dt, 60, WORLD_W-60);
     e.y = clamp(e.y + Math.sin(ang)*e.speed*0.55*dt, 60, WORLD_H-60);
+    artPolvo(e, dt, Math.cos(ang), Math.sin(ang));
   }
 
   // ---- embestida ----
@@ -9363,9 +9369,28 @@ function updateArtillero(e, dt, d, ang){
     e.shootCd -= dt;
     if (e.shootCd <= 0){
       e.shootCd = rand(0.24, 0.36);
-      bullets.push(mkBullet(e, ang + rand(-0.07,0.07), 400, 9, '#ffe27b', 4));
+      const m = artBoca(e), b = mkBullet(e, Math.atan2(player.y - m.y, player.x - m.x) + rand(-0.07,0.07), 400, 9, '#ffe27b', 4);
+      b.x = m.x; b.y = m.y;
+      bullets.push(b);
+      e.flashT = 0.07;                           // fogonazo: un destello corto en la boca
     }
   }
+  if (e.flashT > 0) e.flashT -= dt;
+}
+// Boca de la ametralladora: el cañón rotatorio va al frente, a media altura
+// del tanque (medido sobre el sprite; mira a la derecha sin espejar).
+function artBoca(e){
+  const k = e.esc || 1;
+  return { x: e.x + (e.facing || 1)*90*k, y: e.y + 32*k };
+}
+// Polvo de las orugas al avanzar: una nube cada tanto, detrás y abajo.
+function artPolvo(e, dt, vx, vy){
+  e.polvoT = (e.polvoT || 0) - dt;
+  if (e.polvoT > 0) return;
+  e.polvoT = 0.16;
+  const k = e.esc || 1, lado = Math.random() < 0.5 ? -1 : 1;
+  const v = Math.hypot(vx, vy) || 1;
+  addSmoke(e.x - vx/v*60*k + lado*rand(20, 60)*k, e.y + 78*k);
 }
 
 // ================= SCORING / DAMAGE =================
@@ -9854,6 +9879,11 @@ const SKINS = [
   // Colores y emblema de la bandera de Israel.
   { id:'israel',   name:'ISRAEL',  cost:180, c:['#f4f8ff','#8fb8e8','#2c5aa8'],
     limb:'#4a7ec0', tip:'#0f3d91', flagIL:true },
+  // Bandera de Chile: mitad blanca y mitad roja, con el cuadro azul y su
+  // estrella blanca.
+  { id:'chile',    name:'CHILE',   cost:18, c:['#f4f6fb','#d52b1e','#0b2f7a'],
+    limb:'#0039a6', tip:'#d52b1e', flagCL:true,
+    muestra:'radial-gradient(circle at 21% 25%, #fff 0 7%, transparent 8%), linear-gradient(90deg, #0039a6 0 42%, transparent 42%) 0 0 / 100% 50% no-repeat, linear-gradient(#f4f6fb 0 50%, #d52b1e 50%)' },
   // Huaso chileno: chamanto oscuro con franjas de colores y greca, faja roja,
   // tentáculos de cuero y la chupalla de paja con su cinta.
   { id:'huaso',    name:'HUASO',   cost:190, c:['#3b2b22','#241811','#120b07'],
@@ -10246,6 +10276,58 @@ function drawFlagIL(cx, cy, r, seed){
   ctx.restore();
 }
 
+// Bandera de Chile: blanco arriba, rojo abajo y el cuadro azul con la
+// estrella blanca de cinco puntas.
+function drawFlagCL(cx, cy, r, seed){
+  if (r < 3) return;
+  ctx.save();
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.clip();
+  ctx.fillStyle = '#f4f6fb'; ctx.fillRect(cx - r, cy - r, r*2, r);
+  ctx.fillStyle = '#d52b1e'; ctx.fillRect(cx - r, cy, r*2, r);
+  const q = r*0.98;                                   // el cuadro azul, arriba a la izquierda
+  ctx.fillStyle = '#0039a6'; ctx.fillRect(cx - r, cy - r, q, r);
+  const ex = cx - r + q/2, ey = cy - r/2 + r*0.04, R = r*0.3;
+  ctx.fillStyle = '#ffffff'; ctx.beginPath();
+  for (let i = 0; i < 10; i++){
+    const a = -Math.PI/2 + i*Math.PI/5, rr = i % 2 ? R*0.4 : R;
+    if (i === 0) ctx.moveTo(ex + Math.cos(a)*rr, ey + Math.sin(a)*rr); else ctx.lineTo(ex + Math.cos(a)*rr, ey + Math.sin(a)*rr);
+  }
+  ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+// Muestra de la tarjeta de la tienda con el estampado de verdad (se pinta una
+// vez por skin y se guarda como imagen).
+const _swatchCache = {};
+function swatchEstampa(k){
+  if (!k || !(k.cosmic || k.drip || k.flagIL || k.flagCL || k.huaso)) return '';
+  if (_swatchCache[k.id] !== undefined) return _swatchCache[k.id];
+  let url = '';
+  const c0 = ctx;
+  try {
+    const cv = document.createElement('canvas'); cv.width = cv.height = 96;
+    ctx = cv.getContext('2d');
+    ctx.fillStyle = k.c[1]; ctx.beginPath(); ctx.arc(48, 48, 46, 0, Math.PI*2); ctx.fill();
+    skinEstampa(k, 48, 48, 46, 0);
+    url = "url('" + cv.toDataURL('image/png') + "') center / cover";      // comillas simples: va dentro de style="..."
+  } catch(e){ url = ''; } finally { ctx = c0; }
+  return (_swatchCache[k.id] = url);
+}
+// Si la skin lleva estampado (bandera, monograma, manto...): lo pinta en el
+// círculo dado. Devuelve si pintó algo.
+function skinEstampa(SK, cx, cy, r, seed){
+  if (!SK) return false;
+  if (SK.cosmic) drawCosmos(cx, cy, r*1.08, seed);
+  else if (SK.drip) drawDrip(cx, cy, r, seed);
+  else if (SK.flagIL) drawFlagIL(cx, cy, r, seed);
+  else if (SK.flagCL) drawFlagCL(cx, cy, r, seed);
+  else if (SK.huaso) drawHuaso(cx, cy, r, seed);
+  else if (SK.calabaza) drawCalabaza(cx, cy, r, seed);
+  else if (SK.navidad) drawNavidad(cx, cy, r, seed);
+  else if (SK.multicolor) drawMulticolor(cx, cy, r, seed);
+  else return false;
+  return true;
+}
+
 // Manto estrellado de la ARMADURA CÓSMICA. Todo se calcula con una fórmula
 // fija (sin arrays ni objetos por fotograma), así que no cuesta nada.
 const COSMIC_N = 16;
@@ -10416,7 +10498,7 @@ function comboPts(pts){
 
 function coinsFor(sc, demo){ return Math.floor(sc/50) + demo*2; }
 
-const SKIN_UNICA = { drip:1, israel:1, cosmica:1, huaso:1, calabaza:1, navidad:1, cody:1, regente:1 };
+const SKIN_UNICA = { drip:1, israel:1, chile:1, cosmica:1, huaso:1, calabaza:1, navidad:1, cody:1, regente:1 };
 
 // ---- Skins hechas con una imagen propia ----
 // Se guarda la imagen ya reducida (240px de lado, JPEG) más el encuadre
@@ -10507,7 +10589,7 @@ function renderShop(){
     const c = k.id === 'verde' ? colorOriginal() : k.c;
     const sello = active ? '<span class="tdsello">EN USO</span>' : owned && k.cost ? '<span class="tdsello tuyo">TUYO</span>' : '';
     return `<div class="skincard tile${active?' active':''}${uniq?' uniq':''}${tdPrev.probando === k.id ? ' probando' : ''}" data-prev="${k.id}">${sello}
-      <span class="swatch" style="background:${k.muestra || `radial-gradient(circle at 34% 30%, ${c[0]}, ${c[1]} 60%, ${c[2]})`}"></span>
+      <span class="swatch" style="background:${swatchEstampa(k) || k.muestra || `radial-gradient(circle at 34% 30%, ${c[0]}, ${c[1]} 60%, ${c[2]})`}"></span>
       <span class="skinname">${k.name}${k.premio && !owned ? '<span class="customsub">Premio de VS LEGENDARIO</span>' : ''}</span>${btn}</div>`;
   };
   const lk = document.getElementById('imgLock');
@@ -10676,6 +10758,18 @@ function tdPrevDibuja(g, t){
   g.save(); g.translate(bx, by + 6 - Math.sin(t*1.6)*1.5); g.scale(k, k);
   g.drawImage(fc, -M.cx, -M.by);
   g.restore();
+  // Si la figura de este héroe solo toma los colores, el estampado de la skin
+  // (bandera, monograma, manto...) se enseña en un medallón junto a él.
+  if (HOLO_SIN_ESTAMPA[h] && SK && (SK.cosmic || SK.drip || SK.flagIL || SK.flagCL || SK.huaso || SK.calabaza || SK.navidad || SK.multicolor)){
+    const mx = W - 40, my = 40, mr = 24, c0 = ctx;
+    g.fillStyle = 'rgba(0,0,0,0.45)'; g.beginPath(); g.arc(mx + 2, my + 3, mr + 4, 0, Math.PI*2); g.fill();
+    ctx = g;
+    try { skinEstampa(SK, mx, my, mr, 0); } catch(e){} finally { ctx = c0; }
+    g.strokeStyle = (SK.tip && /^#[0-9a-f]{6}$/i.test(SK.tip)) ? SK.tip : '#7bffa0'; g.lineWidth = 3;
+    g.beginPath(); g.arc(mx, my, mr + 1.5, 0, Math.PI*2); g.stroke();
+    g.strokeStyle = 'rgba(255,255,255,0.35)'; g.lineWidth = 1;
+    g.beginPath(); g.arc(mx, my, mr + 4, 0, Math.PI*2); g.stroke();
+  }
 }
 // Pestañas de la tienda y "probar" un color (pasar el ratón o tocar la tarjeta).
 (function(){
@@ -13520,66 +13614,216 @@ function bbSigue(bt){ bbPon(bt && bt.bb ? bt.bb : null, !!(bt && (bt.bbReinicia 
 // navegador no tiene Workers, suena su versión de antes (respaldo). Van por
 // una vía directa, sin el filtro paso bajo del resto de la música, con el
 // mismo volumen, silencio y fundidos.
-const ESTUDIO_SR = 32000, ESTUDIO_GAN = 0.36, ESTUDIO_MAX_BYTES = 60e6;
-const estudio = { w:null, roto:false, buf:{}, crudo:{}, falla:{}, cola:[], ocupado:null, id:null, src:null, g:null, uso:0 };
+const ESTUDIO_SR = 32000, ESTUDIO_GAN = 0.36, ESTUDIO_MAX_BYTES = 60e6, ESTUDIO_DISCO_MAX = 90e6;
+const estudio = { ws:[], roto:false, buf:{}, crudo:{}, falla:{}, cola:[], fondo:[], leyendo:{}, id:null, src:null, g:null, uso:0,
+                  ver:'', disco:null, db:null, enDisco:null, esperan:[] };
+// Huella de la música: si cambia el motor o una partitura, lo guardado en
+// disco ya no vale y se vuelve a generar.
+function estudioVer(){
+  if (estudio.ver) return estudio.ver;
+  const s = estudioMotor.toString() + estudioPartituras.toString() + ESTUDIO_SR;
+  let h = 5381, h2 = 52711;
+  for (let i = 0; i < s.length; i++){ const c = s.charCodeAt(i); h = (h*33 ^ c) | 0; h2 = (h2*31 + c) | 0; }
+  return (estudio.ver = (h >>> 0).toString(36) + (h2 >>> 0).toString(36));
+}
+// Lo que corre dentro del Worker: genera la pista, la manda y la deja guardada
+// en disco (IndexedDB, en 16 bits) para la próxima vez. 'solo': se genera de
+// fondo y solo se guarda, sin mandarla (no ocupa memoria en el juego).
+function estudioTrabajador(M, ver, MAX){
+  let db = null;
+  const abre = ()=> db || (db = new Promise(res=>{
+    try {
+      const rq = indexedDB.open('invasion_musica', 1);
+      rq.onupgradeneeded = ()=>{ const d = rq.result; d.createObjectStore('pcm'); d.createObjectStore('meta'); };
+      rq.onsuccess = ()=> res(rq.result); rq.onerror = ()=> res(null); rq.onblocked = ()=> res(null);
+    } catch(e){ res(null); }
+  }));
+  const a16 = x =>{ const n = x.length, o = new Int16Array(n); for (let i = 0; i < n; i++){ const v = x[i]*32767; o[i] = v > 32767 ? 32767 : v < -32767 ? -32767 : v; } return o; };
+  // Fuera lo de otra versión y, si hay demasiado, lo que hace más que no se oye.
+  const poda = d =>{
+    try {
+      const tx = d.transaction(['pcm', 'meta'], 'readwrite'), ms = tx.objectStore('meta'), ps = tx.objectStore('pcm');
+      const rk = ms.getAllKeys(), rv = ms.getAll();
+      rv.onsuccess = ()=>{
+        const L = rk.result.map((k, i)=> ({ k, m: rv.result[i] || {} }));
+        let total = 0;
+        for (const e of L){ if (e.m.v !== ver){ ms.delete(e.k); ps.delete(e.k); e.fuera = 1; } else total += e.m.bytes || 0; }
+        L.sort((a, b)=> (a.m.t || 0) - (b.m.t || 0));
+        for (const e of L){ if (total <= MAX) break; if (e.fuera) continue; ms.delete(e.k); ps.delete(e.k); total -= e.m.bytes || 0; }
+      };
+    } catch(e){}
+  };
+  const guarda = (id, sr, r)=> new Promise(res=>{
+    let L, R;
+    try { L = a16(r.L); R = a16(r.R); } catch(e){ return res(false); }
+    abre().then(d=>{
+      if (!d) return res(false);
+      try {
+        const tx = d.transaction(['pcm', 'meta'], 'readwrite');
+        tx.objectStore('pcm').put({ v: ver, sr, bucle: r.bucle, L, R }, id);
+        tx.objectStore('meta').put({ v: ver, t: Date.now(), bytes: L.length*4 }, id);
+        tx.oncomplete = ()=>{ poda(d); res(true); }; tx.onerror = tx.onabort = ()=> res(false);
+      } catch(e){ res(false); }
+    });
+  });
+  self.onmessage = e =>{
+    const id = e.data.id, sr = e.data.sr;
+    let r;
+    try { r = M.render(id, sr); } catch(err){ postMessage({ id, error: String(err && err.message || err) }); return; }
+    if (e.data.solo){ guarda(id, sr, r).then(ok=> postMessage({ id, guardado: ok })); return; }
+    const p = guarda(id, sr, { L: r.L, R: r.R, bucle: r.bucle });   // pasa a 16 bits antes de soltar los datos
+    postMessage({ id, L: r.L, R: r.R, bucle: r.bucle }, [r.L.buffer, r.R.buffer]);
+    p.then(ok=>{ if (ok) postMessage({ id, guardado: true, eco: true }); });
+  };
+}
+// Dos Workers si el aparato tiene núcleos de sobra: la pista que hace falta ya
+// no espera a que termine otra. El segundo, además, deja hechas de fondo las
+// que aún no están en disco.
 function estudioWorker(){
-  if (estudio.w || estudio.roto) return estudio.w;
+  if (estudio.ws.length || estudio.roto) return estudio.ws.length > 0;
   try {
     if (typeof Worker === 'undefined' || typeof Blob === 'undefined') throw 0;
     const fuente = 'const estudioPartituras = ' + estudioPartituras.toString() + ';\n' +
       'const estudioMotor = ' + estudioMotor.toString() + ';\n' +
-      'const M = estudioMotor();\n' +
-      'onmessage = e => { const id = e.data.id;\n' +
-      '  try { const r = M.render(id, e.data.sr); postMessage({ id, L: r.L, R: r.R, bucle: r.bucle }, [r.L.buffer, r.R.buffer]); }\n' +
-      '  catch(err){ postMessage({ id, error: String(err && err.message || err) }); } };\n';
+      '(' + estudioTrabajador.toString() + ')(estudioMotor(), ' + JSON.stringify(estudioVer()) + ', ' + ESTUDIO_DISCO_MAX + ');\n';
     const url = URL.createObjectURL(new Blob([fuente], { type:'application/javascript' }));
-    const w = new Worker(url);
+    const n = (navigator.hardwareConcurrency || 2) >= 4 ? 2 : 1;
+    for (let i = 0; i < n; i++){
+      const w = new Worker(url), o = { w, id:null, solo:false };
+      w.onmessage = e => estudioRecibe(e.data, o);
+      w.onerror = e => { if (e && e.preventDefault) e.preventDefault(); estudioRoto(); };
+      estudio.ws.push(o);
+    }
     setTimeout(()=> URL.revokeObjectURL(url), 30000);
-    w.onmessage = e => estudioRecibe(e.data);
-    w.onerror = e => { if (e && e.preventDefault) e.preventDefault(); estudio.roto = true; estudio.cola.length = 0; estudio.ocupado = null; retuneMusic(); };
-    estudio.w = w;
-  } catch(e){ estudio.roto = true; }
-  return estudio.w;
+  } catch(e){ estudioRoto(); }
+  return estudio.ws.length > 0;
+}
+function estudioRoto(){
+  estudio.roto = true; estudio.cola.length = 0; estudio.fondo.length = 0;
+  for (const o of estudio.ws) try { o.w.terminate(); } catch(e){}
+  estudio.ws = [];
+  if (audio.musicTimer) retuneMusic();
+}
+// El disco: se abre al cargar y se anota qué pistas de esta versión ya están.
+function estudioDisco(){
+  if (estudio.disco) return estudio.disco;
+  return (estudio.disco = new Promise(res=>{
+    const fin = db =>{ estudio.db = db; if (!estudio.enDisco) estudio.enDisco = new Set(); res(db);
+                       const e = estudio.esperan.splice(0); for (const [id, d, f] of e) estudioPide(id, d, f); };
+    try {
+      if (typeof indexedDB === 'undefined' || !indexedDB) return fin(null);
+      const rq = indexedDB.open('invasion_musica', 1);
+      rq.onupgradeneeded = ()=>{ const d = rq.result; d.createObjectStore('pcm'); d.createObjectStore('meta'); };
+      rq.onerror = rq.onblocked = ()=> fin(null);
+      rq.onsuccess = ()=>{
+        const db = rq.result, ver = estudioVer();
+        try {
+          const ms = db.transaction('meta').objectStore('meta'), rk = ms.getAllKeys(), rv = ms.getAll();
+          rv.onsuccess = ()=>{ estudio.enDisco = new Set(rk.result.filter((k, i)=> rv.result[i] && rv.result[i].v === ver)); fin(db); };
+          rv.onerror = ()=> fin(db);
+        } catch(e){ fin(db); }
+      };
+    } catch(e){ fin(null); }
+    setTimeout(()=> { if (!estudio.enDisco) fin(null); }, 2500);      // un disco que no contesta no bloquea la música
+  }));
+}
+// Saca una pista ya hecha del disco (no hace falta generarla).
+function estudioLee(id, delante){
+  estudio.leyendo[id] = 1;
+  const falla = ()=>{ delete estudio.leyendo[id]; if (estudio.enDisco) estudio.enDisco.delete(id); estudioPide(id, delante); };
+  try {
+    const tx = estudio.db.transaction(['pcm', 'meta'], 'readwrite'), rq = tx.objectStore('pcm').get(id);
+    rq.onsuccess = ()=>{
+      const r = rq.result;
+      if (!r || r.v !== estudioVer() || r.sr !== ESTUDIO_SR || !r.L || !r.R) return falla();
+      try { tx.objectStore('meta').put({ v: r.v, t: Date.now(), bytes: r.L.length*4 }, id); } catch(e){}
+      delete estudio.leyendo[id];
+      estudio.crudo[id] = { id, L16: r.L, R16: r.R, bucle: r.bucle };
+      estudioLlega(id);
+    };
+    rq.onerror = falla;
+  } catch(e){ falla(); }
 }
 function estudioListo(id){
   if (estudio.buf[id]) return true;
   if (estudio.crudo[id] && audio.ctx){ estudioBuffer(id); return !!estudio.buf[id]; }
   return false;
 }
-// Pide una pista (si no está ya hecha, pedida o rota).
-function estudioPide(id, delante){
-  if (!id || estudio.buf[id] || estudio.crudo[id] || estudio.falla[id] || estudio.ocupado === id) return;
-  const i = estudio.cola.indexOf(id);
-  if (i >= 0){ if (delante && i > 0){ estudio.cola.splice(i, 1); estudio.cola.unshift(id); } return; }
+// Pide una pista (si no está ya hecha, pedida o rota). 'fondo': solo dejarla
+// guardada en disco para otra vez.
+function estudioPide(id, delante, fondo){
+  if (!id || estudio.buf[id] || estudio.crudo[id] || estudio.falla[id] || estudio.leyendo[id]) return;
+  if (!estudio.enDisco){ estudioDisco(); estudio.esperan.push([id, delante, fondo]); return; }
+  if (fondo && (!estudio.db || estudio.enDisco.has(id))) return;
+  const enMarcha = estudio.ws.find(o => o.id === id);
+  if (enMarcha){ if (!fondo) enMarcha.quiere = true; return; }       // la de fondo que ya va: que la mande al acabar
+  if (!fondo && estudio.enDisco.has(id) && estudio.db){
+    const j = estudio.fondo.indexOf(id); if (j >= 0) estudio.fondo.splice(j, 1);
+    estudioLee(id, delante); return;
+  }
+  const q = fondo ? estudio.fondo : estudio.cola;
+  if (!fondo){ const j = estudio.fondo.indexOf(id); if (j >= 0) estudio.fondo.splice(j, 1); }
+  const i = q.indexOf(id);
+  if (i >= 0){ if (delante && i > 0){ q.splice(i, 1); q.unshift(id); } return; }
   if (!estudioWorker()) return;
-  if (delante) estudio.cola.unshift(id); else estudio.cola.push(id);
+  if (delante) q.unshift(id); else q.push(id);
   estudioSigueCola();
 }
 function estudioSigueCola(){
-  if (estudio.ocupado || !estudio.cola.length || !estudio.w) return;
-  estudio.ocupado = estudio.cola.shift();
-  estudio.w.postMessage({ id: estudio.ocupado, sr: ESTUDIO_SR });
+  for (let i = 0; i < estudio.ws.length; i++){
+    const o = estudio.ws[i];
+    if (o.id) continue;
+    let id = estudio.cola.shift(), solo = false;
+    if (!id && i > 0 && estudio.fondo.length){ id = estudio.fondo.shift(); solo = true; }   // el primero queda siempre libre para lo urgente
+    if (!id) continue;
+    o.id = id; o.solo = solo; o.quiere = false;
+    o.w.postMessage({ id, sr: ESTUDIO_SR, solo });
+  }
 }
-function estudioRecibe(d){
-  if (d.id === estudio.ocupado) estudio.ocupado = null;
+function estudioRecibe(d, o){
+  if (d.eco){ if (estudio.enDisco) estudio.enDisco.add(d.id); return; }        // ya quedó guardada la que se mandó
+  if (o && o.id === d.id){ const quiere = o.quiere; o.id = null; o.quiere = false;
+    if (d.guardado !== undefined){ if (d.guardado && estudio.enDisco) estudio.enDisco.add(d.id); if (quiere) estudioPide(d.id, true); } }
   if (d.error){ estudio.falla[d.id] = true; }
-  else { estudio.crudo[d.id] = d; if (audio.ctx) estudioBuffer(d.id); }
+  else if (d.L){ estudio.crudo[d.id] = d; estudioLlega(d.id); }
   estudioSigueCola();
+}
+function estudioLlega(id){
+  if (audio.ctx) estudioBuffer(id);
   if (audio.musicTimer) retuneMusic();                  // ya puede sonar la buena
-  if (previewTrack && previewTrack.gen === d.id && !running){   // el registro deja de decir "generando"
+  if (previewTrack && previewTrack.gen === id && !running){   // el registro deja de decir "generando"
     try { const r = document.getElementById('registro'); if (r && !r.classList.contains('hidden')) renderDex(); } catch(e){}
   }
 }
-// De los datos del Worker a un AudioBuffer (y fuera lo que menos se usa si
-// hay demasiado guardado).
+// Todas las pistas del estudio.
+function estudioTodas(){
+  const s = [];
+  for (const k in BOSS_TRACKS) if (BOSS_TRACKS[k] && BOSS_TRACKS[k].gen) s.push(BOSS_TRACKS[k].gen);
+  for (const k in CIUDAD_PISTAS) if (CIUDAD_PISTAS[k].gen) s.push(CIUDAD_PISTAS[k].gen);
+  for (const t of [INFIERNO_TRACK, INFIERNO_TRACK2]) if (t && t.gen) s.push(t.gen);
+  return [...new Set(s)];
+}
+// Desde el menú se van preparando las del mapa elegido (las primeras que
+// sonarán) y, de fondo, las demás quedan guardadas para otras partidas.
+function estudioPrecarga(){
+  const m = mapaElegido === 'infierno' ? ['infierno', 'infierno2'] : mapaElegido === 'alien' ? [] : ['ciudad_dia', 'ciudad_atardecer'];
+  for (const id of m) estudioPide(id);
+  for (const id of estudioTodas()) estudioPide(id, false, true);
+}
+// De los datos del Worker (o del disco) a un AudioBuffer (y fuera lo que menos
+// se usa si hay demasiado guardado).
 function estudioBuffer(id){
   const d = estudio.crudo[id];
   if (!d || !audio.ctx) return;
   delete estudio.crudo[id];
   try {
-    const b = audio.ctx.createBuffer(2, d.L.length, ESTUDIO_SR);
-    b.getChannelData(0).set(d.L); b.getChannelData(1).set(d.R);
-    estudio.buf[id] = { b, bucle: d.bucle, uso: ++estudio.uso, bytes: d.L.length*8 };
+    const n = (d.L || d.L16).length, b = audio.ctx.createBuffer(2, n, ESTUDIO_SR);
+    if (d.L){ b.getChannelData(0).set(d.L); b.getChannelData(1).set(d.R); }
+    else {
+      const k = 1/32767, a = b.getChannelData(0), c = b.getChannelData(1), L = d.L16, R = d.R16;
+      for (let i = 0; i < n; i++){ a[i] = L[i]*k; c[i] = R[i]*k; }
+    }
+    estudio.buf[id] = { b, bucle: d.bucle, uso: ++estudio.uso, bytes: n*8 };
   } catch(e){ estudio.falla[id] = true; return; }
   let total = 0; for (const k in estudio.buf) total += estudio.buf[k].bytes;
   while (total > ESTUDIO_MAX_BYTES){
@@ -13624,6 +13868,7 @@ function estudioPon(id){
   } catch(e){ estudio.falla[id] = true; }
 }
 function estudioSigue(bt){ estudioPon(bt && bt.gen ? bt.gen : null); }
+estudioDisco();
 
 // El tema que manda: muestra del registro, jefe, menú o, en el planeta
 // marciano, su propio tema futurista.
@@ -15012,7 +15257,7 @@ function miniVil(c, x, y, r, t, hx, hy){
   c.save(); c.translate(x, y - r*0.06 + fl*k*0.5); c.scale(k, k);
   const golpe = (t % 2.6) > 2.1 && hx === undefined;
   vilFigura(c, { t, pose: hx !== undefined && hx !== null ? 'presa' : golpe ? 'golpe' : 'quieto', punchT: golpe ? 0.1 : 0, golpeLado: 1,
-                 manos: 0, sangre: null, pal: vilPaleta(), SK: (skin() || {}).cosmic ? skin() : null, cabeza: null });
+                 manos: 0, sangre: null, pal: vilPaleta(), SK: skin() || null, cabeza: null });
   c.restore();
 }
 
@@ -15116,9 +15361,16 @@ function miniAlien(c, x, y, r, phase, tipX, tipY){
   const g = c.createRadialGradient(x-r*0.3,y-r*0.3,r*0.15,x,y,r*1.05);
   g.addColorStop(0,SK.c[0]); g.addColorStop(0.6,SK.c[1]); g.addColorStop(1,SK.c[2]);
   c.fillStyle=g; c.beginPath(); c.arc(x,y,r,0,Math.PI*2); c.fill();
-  c.strokeStyle = 'rgba(8,30,12,0.7)'; c.lineWidth = Math.max(1, r*0.08); c.stroke();
-  criaBrillo(c, x, y, r);
+  const estampa = c === ctx && skinEstampa(SK, x, y, r, 0);        // bandera, monograma... (en la vitrina)
+  c.strokeStyle = 'rgba(8,30,12,0.7)'; c.lineWidth = Math.max(1, r*0.08);
+  c.beginPath(); c.arc(x,y,r,0,Math.PI*2); c.stroke();
+  if (!(estampa && SK.cosmic)) criaBrillo(c, x, y, r);
   criaOjos(c, x, y, r, phase, tipX != null ? Math.atan2(tipY - y, tipX - x) : undefined);
+  if (estampa){                                                    // y lo que lleva puesto
+    if (SK.huaso) drawChupalla(x, y - r*0.66, r*2.3);
+    if (SK.calabaza) drawTallo(x, y - r*0.92, r*0.62);
+    if (SK.navidad) drawGorroNavidad(x, y - r*0.70, r*1.7);
+  }
 }
 function animSprite(c, key, x, y, w, h, facing, rot){
   const sp = sprites[key];
@@ -27263,19 +27515,77 @@ function refreshOvniVsUI(){
 // (p. ej. un Celeron con 4 GB) ya empieza algo más baja.
 const equipoFlojo = (navigator.hardwareConcurrency || 4) <= 2 || (navigator.deviceMemory > 0 && navigator.deviceMemory <= 2);
 async function loadCalidad(){
-  ultraOn = (await storeGet('invasion_ultra')) === 'on'; refreshUltraUI();
+  let m = await storeGet('invasion_ultra2');
+  if (m !== 'auto' && m !== 'on' && m !== 'off') m = (await storeGet('invasion_ultra')) === 'on' ? 'on' : 'auto';   // de la versión de dos estados
+  ultraModo = m;
+  ultraAuto.fallos = Math.min(6, parseInt(await storeGet('invasion_ultra_fallos'), 10) || 0);
+  ultraOn = m === 'on' || (m === 'auto' && !equipoFlojo && (await storeGet('invasion_ultra_auto')) === 'on');   // AUTO empieza como quedó
+  refreshUltraUI();
   let d = parseFloat(await storeGet('invasion_dpr'));
   if (!(d > 0.5 && d < 1)) d = equipoFlojo ? 0.8 : dprTope;
   dprTope = Math.min(dprTope, d); resize();
 }
 function refreshUltraUI(){
   const b = document.getElementById('tgUltra'); if (!b) return;
-  b.textContent = ultraOn ? 'ON' : 'OFF'; b.classList.toggle('off', !ultraOn);
+  b.innerHTML = ultraModo === 'auto' ? 'AUTO <small>(' + (ultraOn ? 'encendido' : 'apagado') + ')</small>' : ultraModo === 'on' ? 'ENCENDIDO' : 'APAGADO';
+  b.classList.toggle('off', ultraModo === 'off');
+  b.title = ultraModo === 'auto' ? 'Se enciende sola si el juego va fluido y se apaga si con ella no lo va' : '';
 }
-function cambiaUltra(){
-  ultraOn = !ultraOn; storeSet('invasion_ultra', ultraOn ? 'on' : 'off');
+// Pone o quita la alta resolución (sin tocar el modo).
+function ponUltra(on){
+  if (on === ultraOn) return;
+  ultraOn = on;
   if (!ultraOn && !equipoFlojo) dprTope = Math.max(dprTope, 1);   // al volver, sin la penalización de antes
   escVacia(); resize(); refreshUltraUI();
+  ultraAuto.calma = 3;                                            // el cambio da un tirón al rehacer las copias: no cuenta
+  ultraAuto.v.length = 0; ultraAuto.bien = ultraAuto.mal = 0;
+}
+// El botón va AUTO → ENCENDIDO → APAGADO → AUTO.
+function cambiaUltra(){
+  ultraModo = ultraModo === 'auto' ? 'on' : ultraModo === 'on' ? 'off' : 'auto';
+  storeSet('invasion_ultra2', ultraModo);
+  if (ultraModo === 'auto'){ ultraAuto.espera = 0; ultraAuto.fallos = 0; storeSet('invasion_ultra_fallos', '0'); }
+  ponUltra(ultraModo === 'on' || (ultraModo === 'auto' && ultraOn && !equipoFlojo));
+  refreshUltraUI();
+}
+// ---- AUTO: decide con lo medido en partida, en tandas de 2 s ----
+// Fluido = 57 fps o más de media, casi sin tirones (el 95 % de los fotogramas
+// por debajo de 21 ms) y con margen de cálculo (el bucle en menos de 9 ms).
+// Para encender hacen falta 4 tandas fluidas seguidas (8 s); para apagar, 2
+// tandas seguidas claramente malas con ella puesta (menos de 48 fps de media o
+// tirones de más de 34 ms). Tras cada apagado espera más antes de volver a
+// probar (45 s, 90 s, 3 min...) y lo aprendido se recuerda: no va y viene.
+const ULTRA_TANDA = 2000;
+const ultraAuto = { v:[], t:0, trabajo:0, bien:0, mal:0, calma:0, espera:0, fallos:0, estable:0 };
+function ultraVigila(ms, trabajo){
+  if (ultraModo !== 'auto' || equipoFlojo) return;
+  if (!running || document.hidden || ms <= 0) return;
+  const A = ultraAuto;
+  if (ms > 250){ A.v.length = 0; A.t = 0; A.trabajo = 0; return; }   // pestaña dormida o una carga: no es el ritmo real
+  if (A.calma > 0){ A.calma -= ms/1000; return; }
+  if (A.espera > 0) A.espera -= ms/1000;
+  A.v.push(ms); A.t += ms; A.trabajo += trabajo;
+  if (A.t < ULTRA_TANDA) return;
+  const v = A.v.slice().sort((a, b)=> a - b), n = v.length;
+  const media = A.t/n, p95 = v[Math.min(n - 1, Math.floor(n*0.95))], obra = A.trabajo/n;
+  A.v.length = 0; A.t = 0; A.trabajo = 0;
+  if (ultraOn){
+    const malo = media > 1000/48 || p95 > 34;
+    A.mal = malo ? A.mal + 1 : 0;
+    if (!malo && ++A.estable >= 30){ A.estable = 0; if (A.fallos > 0){ A.fallos--; storeSet('invasion_ultra_fallos', String(A.fallos)); } }   // un minuto bien: se le perdona un fallo
+    if (A.mal >= 2){
+      A.fallos = Math.min(6, A.fallos + 1); A.espera = 45*Math.pow(2, A.fallos - 1);
+      storeSet('invasion_ultra_fallos', String(A.fallos)); storeSet('invasion_ultra_auto', 'off');
+      ponUltra(false);
+    }
+  } else {
+    const fluido = media <= 1000/57 && p95 <= 21 && obra <= 9 && dprTope >= 1;
+    A.bien = fluido ? A.bien + 1 : 0;
+    if (A.bien >= 4 && A.espera <= 0){
+      storeSet('invasion_ultra_auto', 'on');
+      ponUltra(true);
+    }
+  }
 }
 let temblorOn = true;
 async function loadTemblor(){ const v = await storeGet('invasion_temblor'); temblorOn = v !== 'off'; refreshTemblorUI(); }
@@ -31152,11 +31462,12 @@ function vilFigura(g, st){
   torso(); g.fillStyle = P.traje; g.fill();
   if (st.SK && g === ctx){                                        // skins con estampado: sobre el traje
     const SK = st.SK;
-    if (SK.cosmic || SK.drip || SK.flagIL || SK.huaso || SK.calabaza || SK.navidad || SK.multicolor || SK.imgRef){
+    if (SK.cosmic || SK.drip || SK.flagIL || SK.flagCL || SK.huaso || SK.calabaza || SK.navidad || SK.multicolor || SK.imgRef){
       g.save(); torso(); g.clip();
       if (SK.cosmic) drawCosmos(0, -4, 13, 1.3);
       if (SK.drip)   drawDrip(0, -4, 12, 1.3);
       if (SK.flagIL) drawFlagIL(0, -4, 12, 1.3);
+      if (SK.flagCL) drawFlagCL(0, -4, 12, 1.3);
       if (SK.huaso)  drawHuaso(0, -4, 12, 1.3);
       if (SK.calabaza) drawCalabaza(0, -4, 12, 1.3);
       if (SK.navidad)  drawNavidad(0, -4, 12, 1.3);
@@ -32607,8 +32918,9 @@ function updateSpawns(dt){
   if (habiaJefe && !bossAlive) bossRest = enCiudad() ? BOSS_REST_CIUDAD : BOSS_REST;   // cayó o se le agotó el plazo
   if (bossRest > 0) bossRest -= dt;
 
-  // el próximo jefe se sortea de antemano: así su música ya está lista cuando llega
-  if (!bossAlive && !proximoJefe && score >= (enCiudad() ? BOSS_SCORE_CIUDAD : BOSS_SCORE)*0.6 && (!esAlien() || ENEMY_TYPES.centurion)){
+  // el próximo jefe se sortea de antemano (nada más empezar o caer el anterior):
+  // así su música tiene tiempo de sobra para estar lista cuando llega
+  if (!bossAlive && !proximoJefe && (!esAlien() || ENEMY_TYPES.centurion)){
     proximoJefe = esAlien() ? sorteaJefe(TIPOS_JEFE_ALIEN) : esInfierno() ? sorteaJefeInf() : sorteaJefe();
     estudioPide(pistaDeJefe(proximoJefe));
   }
@@ -34726,6 +35038,13 @@ function drawEnemyBase(e){
     if (e.type === 'artillero'){
       const k = e.fase === 'arrasa' ? 'artRun' : e.fase === 'curando' ? 'artHeal' : 'artOk';
       if (drawSprite(k, s.x, dy, e.w, e.h, e.facing, e.rot)){
+        if (e.flashT > 0 && luzAmarilla){              // fogonazo en la boca del cañón
+          const kk = e.esc || 1, bx = s.x + (e.facing || 1)*96*kk, by = dy + 32*kk;
+          ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.9;
+          dibujaRedonda(luzAmarilla, bx, by, 15 + Math.random()*6);
+          if (luzBlanca) dibujaRedonda(luzBlanca, bx, by, 7);
+          ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+        }
         if (showHpBars) hpBar(s.x, dy - e.h*0.55, 84, e.hp, e.maxhp, '#c81f1f');
         return;
       }
@@ -34906,6 +35225,7 @@ function drawAlien(){
   if (SK.cosmic) drawCosmos(s.x, s.y, R, 0);          // estrellas dentro del cuerpo
   if (SK.drip)   drawDrip(s.x, s.y, R, 0);
   if (SK.flagIL) drawFlagIL(s.x, s.y, R, 0);
+  if (SK.flagCL) drawFlagCL(s.x, s.y, R, 0);
   if (SK.huaso)  drawHuaso(s.x, s.y, R, 0);
   if (SK.calabaza) drawCalabaza(s.x, s.y, R, 0);
   if (SK.navidad)  drawNavidad(s.x, s.y, R, 0);
@@ -34916,7 +35236,7 @@ function drawAlien(){
     pintaImgSkin(SK.imgRef, s.x, s.y, R);
     ctx.restore();
   }
-  ctx.strokeStyle = SK.cosmic ? '#4a5a80' : SK.drip ? '#ffd85e' : SK.flagIL ? '#0f3d91'
+  ctx.strokeStyle = SK.cosmic ? '#4a5a80' : SK.drip ? '#ffd85e' : SK.flagIL ? '#0f3d91' : SK.flagCL ? '#0b2f7a'
                   : SK.huaso ? '#1a1210' : SK.calabaza ? '#6e3208'
                   : SK.navidad ? '#5c0d12' : '#0b2712';
   // Se rehace el círculo antes de perfilarlo: las skins dibujan sus propios
@@ -36027,6 +36347,9 @@ function lucesDinamicas(luz){
     if (choque.on) luz(choque.px, choque.py, 150, luzRoja, 1);      // el choque alumbra alrededor
   }
   if (choque.on && choque.dra) luz(choque.px, choque.py, 150, luzAmarilla, 1);
+  for (let __i56 = 0, __a56 = enemies; __i56 < __a56.length; __i56++){ const e = __a56[__i56];
+    if (e.flashT > 0 && e.type === 'artillero' && !e.dead){ const m = artBoca(e); luz(m.x, m.y, 85, luzAmarilla, 0.75); }
+  }
 }
 const lucesMax = 28;              // luces dinámicas a la vez
 function drawLucesDia(){
@@ -36911,7 +37234,7 @@ const perf = { t:0, n:0, lento:0 };
 // sola: así no da tirones yendo y viniendo.
 const DPR_PASOS = [1, 0.8, 0.67, 0.6];
 function vigilaRendimiento(ms){
-  if (!running || document.hidden || ms <= 0 || ms > 250 || ultraOn) return;
+  if (!running || document.hidden || ms <= 0 || ms > 250 || ultraOn) return;   // con ULTRA puesta decide ultraVigila
   if (DPR <= DPR_PASOS[DPR_PASOS.length - 1] + 0.001) return;
   perf.t += ms; perf.n++;
   if (perf.t < 2000) return;
@@ -36957,8 +37280,10 @@ function reparaLienzo(){
   ctx.imageSmoothingQuality = 'low';
 }
 function loop(t){
+  const ms = t - lastT, t0 = performance.now();
   try { pasoBucle(t); }
   catch(e){ anotaError('bucle', e); reparaLienzo(); try { rivAgarre = null; } catch(_){} }
+  try { ultraVigila(ms, performance.now() - t0); } catch(e){}
   requestAnimationFrame(loop);
 }
 function pasoBucle(t){
@@ -40014,13 +40339,20 @@ function miniBoros(g, x, y, r, t){
   borRetrato(g, x, y + r*0.62, r*2.3, fo, pose, t);
 }
 function holoFigura(g, h, x, y, t){
-  if (h === 'boros') miniBoros(g, x, y, 36, t);
-  else if (h === 'dragon') miniDragon(g, x, y, 36, t);
-  else if (h === 'maquina') miniMaquina(g, x, y, 36, t);
-  else if (h === 'mago') miniMago(g, x, y, 36, t);
-  else if (h === 'viltrum') miniVil(g, x, y, 36, t);
-  else miniAlien(g, x, y, 32, t);
+  // los estampados de las skins (bandera, monograma...) se pintan en el lienzo
+  // principal: mientras tanto, el principal es el de la figura
+  const c0 = ctx; ctx = g;
+  try {
+    if (h === 'boros') miniBoros(g, x, y, 36, t);
+    else if (h === 'dragon') miniDragon(g, x, y, 36, t);
+    else if (h === 'maquina') miniMaquina(g, x, y, 36, t);
+    else if (h === 'mago') miniMago(g, x, y, 36, t);
+    else if (h === 'viltrum') miniVil(g, x, y, 36, t);
+    else miniAlien(g, x, y, 32, t);
+  } finally { ctx = c0; }
 }
+// Los héroes cuya figura no lleva el estampado de la skin (solo sus colores).
+const HOLO_SIN_ESTAMPA = { dragon:1, maquina:1, mago:1, boros:1 };
 // Cuánto ocupa la figura (se mide una vez): así cada personaje cabe entero.
 function holoMide(h){
   if (holo.medida[h]) return holo.medida[h];
@@ -41393,7 +41725,7 @@ document.querySelectorAll('.mapbtn').forEach(b=> b.addEventListener('click', e=>
   e.stopPropagation();
   mapaElegido = b.dataset.mapa === 'alien' || b.dataset.mapa === 'infierno' ? b.dataset.mapa : 'ciudad';
   storeSet('invasion_mapa', mapaElegido);
-  pintaBotonesMapa(); sfx('ui');
+  pintaBotonesMapa(); sfx('ui'); estudioPrecarga();
   if (puntMapa !== mapaElegido){ puntMapa = mapaElegido; pintaMapasPuntaje(); if (scoreTab === 'global') showGlobal(false); else renderScoreList(); }
 }));
 // El mapa elegido se recuerda entre sesiones. Se carga con las demás
@@ -41402,6 +41734,7 @@ document.querySelectorAll('.mapbtn').forEach(b=> b.addEventListener('click', e=>
 async function loadMapa(){
   try { const v = await storeGet('invasion_mapa'); mapaElegido = (v === 'alien' || v === 'infierno') ? v : 'ciudad'; } catch(e){}
   pintaBotonesMapa();
+  setTimeout(estudioPrecarga, 1500);                 // la música del mapa se va haciendo ya en el menú
   if (puntMapa !== mapaElegido){ puntMapa = mapaElegido; pintaMapasPuntaje(); if (scoreTab === 'global') showGlobal(false); else renderScoreList(); }
 }
 document.getElementById('btnModeInvasion').addEventListener('click', ()=> crackAndStart('btnModeInvasion', ()=> startGame('invasion')));
