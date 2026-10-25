@@ -2083,13 +2083,13 @@
       <div class="pausacfg">
         <div class="volrow">
           <span class="vollbl">Volumen efectos</span>
-          <input type="range" id="pVolSfx" min="0" max="100" value="70">
-          <span class="volval" id="pVolSfxVal">70</span>
+          <input type="range" id="pVolSfx" min="0" max="100" value="49">
+          <span class="volval" id="pVolSfxVal">49</span>
         </div>
         <div class="volrow">
           <span class="vollbl">Volumen música</span>
-          <input type="range" id="pVolMus" min="0" max="100" value="45">
-          <span class="volval" id="pVolMusVal">45</span>
+          <input type="range" id="pVolMus" min="0" max="100" value="100">
+          <span class="volval" id="pVolMusVal">100</span>
         </div>
         <div class="volrow" id="pUiRow" style="display:none">
           <span class="vollbl">Mandos</span>
@@ -2250,8 +2250,8 @@
       </div>
       <div class="volrow">
         <span class="vollbl">Volumen efectos</span>
-        <input type="range" id="volSfx" min="0" max="100" value="70">
-        <span class="volval" id="volSfxVal">70</span>
+        <input type="range" id="volSfx" min="0" max="100" value="49">
+        <span class="volval" id="volSfxVal">49</span>
       </div>
       <div class="bindrow">
         <span class="bindname">Música</span>
@@ -2259,8 +2259,8 @@
       </div>
       <div class="volrow">
         <span class="vollbl">Volumen música</span>
-        <input type="range" id="volMus" min="0" max="100" value="45">
-        <span class="volval" id="volMusVal">45</span>
+        <input type="range" id="volMus" min="0" max="100" value="100">
+        <span class="volval" id="volMusVal">100</span>
       </div>
     </div>
 
@@ -5464,7 +5464,7 @@ function resetGame(){
   spawnTimers = { civ:0, pol:0, mil:0, car:0, tank:0, heli:0, gunship:8, siege:12, plane:7, mbt:14 };
   resetRunStats();
   finalAnnounced = false; bossAlive = false; bossRest = 0; bossRoll = 0; coinsBanco = 0;
-  ultimoJefe = null; penultimoJefe = null;   // cada partida empieza con el bombo lleno
+  ultimoJefe = null; penultimoJefe = null; proximoJefe = null;   // cada partida empieza con el bombo lleno
   comboReset(); comboBonus = 0; comboFlash = 0;
   venenoT = 0; venenoDosis = 0; venenoUlt = 0; paralizadoT = 0;
   quemaT = 0; hieloT = 0; lentoT = 0;
@@ -6002,7 +6002,7 @@ function spawnEnemy(type, atX, atY){
                             fase:'quieto', faseT:0, misilCd:rand(3,5), shootCd:rand(0.4,0.9),
                             cargaCd:rand(9,13), marcas:[], curando:0, golpeadoT:0,
                             rumboX:0, rumboY:0});
-  if (type==='flametank') Object.assign(base, {hp:1050,maxhp:1050,speed:38, w:152,h:99,
+  if (type==='flametank') Object.assign(base, {hp:1350,maxhp:1350,speed:38, w:152,h:99,
                                                grabbable:false, phase:'aim', pt:FLAME_AIM,
                                                aimA:0, lockA:0, closeCd:0});
   // Trípode marciano: camina sobre la ciudad, agarra con tentáculos, se
@@ -6974,7 +6974,6 @@ const FLAME_FIRE   = 1.1;    // duración de la llamarada
 const FLAME_LEN    = 430;    // alcance del cono
 const FLAME_SPREAD = 0.34;   // medio ángulo del cono
 const FLAME_DPS    = 46;     // daño por segundo dentro del fuego
-const CLOSE_RANGE  = 165;    // a esta distancia suelta la llamarada corta
 let bossAlive = false;
 // Memoria de los dos últimos jefes de la partida. El anterior no repite, y
 // el de antes sale con la mitad de probabilidad; a partir del tercero, todo
@@ -6982,7 +6981,7 @@ let bossAlive = false;
 // 'marciana' no es una unidad: es el evento que trae a los trípodes.
 const TIPOS_JEFE = ['flametank', 'omni', 'artillero', 'superx', 'marciana', 'heroe', 'kaiyin', 'crias'];   // 'crias': la camada (evento)
 const PESO_PENULTIMO = 0.5;
-let ultimoJefe = null, penultimoJefe = null;
+let ultimoJefe = null, penultimoJefe = null, proximoJefe = null;
 
 // Sorteo con pesos: el penúltimo pesa la mitad que el resto.
 // En el planeta marciano: sus dos guardianes, la Tejedora y los refuerzos
@@ -7054,15 +7053,6 @@ function updateBoss(e, dt, a, angToPlayer){
   // se acerca sin pegarse del todo
   if (a > 300){ e.x += Math.cos(angToPlayer)*e.speed*dt; e.y += Math.sin(angToPlayer)*e.speed*dt; }
   collideBuildings(e, 52, dt, 110);
-
-  // llamarada corta: si te pegas a él, te alcanza sí o sí
-  e.closeCd -= dt;
-  if (a < CLOSE_RANGE && e.closeCd <= 0){
-    e.closeCd = 0.5;
-    burn(e, e.x, e.y, angToPlayer, CLOSE_RANGE + 30, 0.85, 14);
-    addParticles(e.x + Math.cos(angToPlayer)*60, e.y + Math.sin(angToPlayer)*60, '#ff6a2b', 10, 150);
-    shake(4, 0.1);
-  }
 
   e.pt -= dt;
   if (e.phase === 'aim'){
@@ -10680,7 +10670,7 @@ function toastShop(msg){
 // ================= AUDIO (sintetizado, sin archivos) =================
 const audio = {
   ctx:null, master:null, sfxGain:null, musGain:null,
-  sfxOn:true, musOn:true, sfxVol:0.7, musVol:0.45,
+  sfxOn:true, musOn:true, sfxVol:0.49, musVol:1,
   musicTimer:null, step:0, started:false
 };
 
@@ -11318,6 +11308,14 @@ BOSS_TRACKS.centurion = { tempo: 250, name:'AL FILO DEL CUCHILLO', rec:'centurio
 BOSS_TRACKS.flametank = Object.assign({}, BOSS_TRACKS.flametank, { name:'ORUGAS EN LLAMAS', gen:'flametank', respaldo: BOSS_TRACKS.flametank });
 BOSS_TRACKS.superx = Object.assign({}, BOSS_TRACKS.superx, { name:'VENENO EN EL AIRE', gen:'superx', respaldo: BOSS_TRACKS.superx });
 BOSS_TRACKS.desgarrador = Object.assign({}, BOSS_TRACKS.desgarrador, { name:'SIERRA DE GUERRA', gen:'desgarrador', respaldo: BOSS_TRACKS.desgarrador });
+// y también el Artillero, Desesperación, Kaiyin y el trípode marciano (mismos nombres, música nueva)
+for (const k of ['artillero', 'desesperacion', 'kaiyin', 'tripode']) BOSS_TRACKS[k] = Object.assign({}, BOSS_TRACKS[k], { gen: k, respaldo: BOSS_TRACKS[k] });
+// Castigo Divino: sus dos temas (el primero prepara el segundo, que entra al alargarse la partida)
+{ const a = Object.assign({}, INFIERNO_TRACK), b = Object.assign({}, INFIERNO_TRACK2);
+  Object.assign(INFIERNO_TRACK, { gen:'infierno', respaldo: a, siguiente: ()=> 'infierno2' });
+  Object.assign(INFIERNO_TRACK2, { gen:'infierno2', respaldo: b }); }
+// La pista del jefe de un tipo (la invasión marciana trae a los trípodes).
+function pistaDeJefe(tipo){ const t = BOSS_TRACKS[tipo === 'marciana' ? 'tripode' : tipo]; return t && t.gen ? t.gen : null; }
 let bossTrack = null;              // el que suena ahora, si hay jefe en pie
 let previewTrack = null, previewT = 0;
 
@@ -11976,6 +11974,7 @@ function estudioMotor(){
     for (let n = 1; n <= h; n++){
       let a = 0;
       if (tipo === 'saw') a = 1/n;
+      else if (tipo === 'sin'){ if (n === 1) a = 1; }
       else if (tipo === 'sq'){ if (n % 2) a = 1/n; }
       else if (tipo === 'tri'){ if (n % 2) a = ((n >> 1) % 2 ? -1 : 1)/(n*n); }
       if (!a) continue;
@@ -12179,7 +12178,8 @@ function estudioMotor(){
           if (vib && x > vibT) fr *= 1 + vib*min(1, (x - vibT)*3)*sin(TAU*5.6*x + v);
           ph += fr/sr; const ii = (ph % 1)*TL, a = ii | 0;
           const s = svf(lp, tw[a] + (tw[a + 1] - tw[a])*(ii - a));
-          const env = x < A ? x/A : x < A + D ? 1 - (1 - S)*(x - A)/D : x < dur ? S : S*max(0, 1 - (x - dur)/R);
+          let env = x < A ? x/A : x < A + D ? 1 - (1 - S)*(x - A)/D : x < dur ? S : S*max(0, 1 - (x - dur)/R);
+          if (o.trem) env *= 1 - (o.tremP || 0.6)*(0.5 + 0.5*sin(TAU*o.trem*x + v*1.7));
           bL[i] += s*env*gl; bR[i] += s*env*gr;
         }
       }
@@ -12245,6 +12245,27 @@ function estudioMotor(){
       b[i] = sin(pc + ind*exp(-x*kd)*sin(pm))*env*vel;
     }
     C.mezcla(b, null, n, t0, { gan: o.gan == null ? 0.3 : o.gan, pan: o.pan || 0, rev: o.rev == null ? 0.3 : o.rev, eco: o.eco || 0, bombea: !!o.bombea });
+  }
+  // Órgano de tubos: senos en registros (16', 8', 4', 2 2/3', 2', mixtura)
+  // con entrada lenta, un leve trémolo y dos voces abiertas a los lados.
+  function organo(C, t0, dur, notas, vel = 1, o = {}){
+    const sr = C.sr, A = o.a || 0.12, R = o.r || 0.5, n = floor((dur + R)*sr); tmp(n); const bL = tmpA, bR = tmpB;
+    const REG = o.registros || [[0.5, 0.7], [1, 1], [2, 0.6], [3, 0.35], [4, 0.3], [6, 0.15], [8, 0.12]];
+    for (let k = 0; k < notas.length; k++){
+      const f = mtof(notas[k]);
+      for (let v = 0; v < 2; v++){
+        const fv = f*(v ? 1.0016 : 0.9984), pan = v ? 0.45 : -0.45, gl = cos((pan + 1)*PI/4), gr = sin((pan + 1)*PI/4);
+        const ph = REG.map(()=> azar()*TAU), w = REG.map(r => TAU*fv*r[0]/sr), act = REG.map(r => fv*r[0] < sr*0.45 ? r[1] : 0);
+        for (let i = 0; i < n; i++){
+          const x = i/sr;
+          let y = 0;
+          for (let j = 0; j < REG.length; j++){ if (!act[j]) continue; ph[j] += w[j]; y += sin(ph[j])*act[j]; }
+          const env = (x < A ? x/A : x < dur ? 1 : max(0, 1 - (x - dur)/R))*(1 - 0.08*(0.5 + 0.5*sin(TAU*5.5*x + v)));
+          bL[i] += y*env*gl; bR[i] += y*env*gr;
+        }
+      }
+    }
+    C.mezcla(bL, bR, n, t0, { gan: vel*(o.gan == null ? 0.25 : o.gan)/sqrt(notas.length*2), rev: o.rev == null ? 0.5 : o.rev, bombea: !!o.bombea });
   }
   // Coro: sierras con vibrato a través de dos formantes de vocal ("a" u "o").
   function coro(C, t0, dur, notas, vel = 1, o = {}){
@@ -12401,7 +12422,7 @@ function estudioMotor(){
   };
   const I = { bombo: memo('bombo', bombo), caja: memo('caja', caja), charles: memo('charles', charles), platillo: memo('platillo', platillo), ride: memo('ride', ride),
               timbal: memo('timbal', timbal), bajo: memo('bajo', bajo), sinte: memo('sinte', sinte), guitarra: memo('guitarra', guitarra), pulsada: memo('pulsada', pulsada),
-              fm: memo('fm', fm), coro: memo('coro', coro), barrido: memo('barrido', barrido), impacto: memo('impacto', impacto), acorde, mtof, azar: ()=> azar() };
+              fm: memo('fm', fm), coro: memo('coro', coro), organo: memo('organo', organo), barrido: memo('barrido', barrido), impacto: memo('impacto', impacto), acorde, mtof, azar: ()=> azar() };
 
   // =============== las partituras ===============
   const PISTAS = estudioPartituras(I);
@@ -12424,7 +12445,7 @@ function estudioMotor(){
 // (X fuerte, x normal, o suave) y melodías con nombre de nota y duración en
 // semicorcheas ("D5:4 F5:2 -:2" = re 5 una negra, fa 5 una corchea, silencio).
 function estudioPartituras(I){
-  const { bombo, caja, charles, platillo, ride, timbal, bajo, sinte, guitarra, pulsada, fm, coro, barrido, impacto, acorde } = I;
+  const { bombo, caja, charles, platillo, ride, timbal, bajo, sinte, guitarra, pulsada, fm, coro, organo, barrido, impacto, acorde } = I;
   const NOTA = { C:0, D:2, E:4, F:5, G:7, A:9, B:11 };
   const nm = s => { const m = /^([A-G])([#b]?)(-?\d)$/.exec(s); return 12*(+m[3] + 1) + NOTA[m[1]] + (m[2] === '#' ? 1 : m[2] === 'b' ? -1 : 0); };
   // ritmo de 16 pasos en el compás c
@@ -12696,6 +12717,319 @@ function estudioPartituras(I){
           mel(C, c, tema[c - 24], (t, d, m)=> sinte(C, t, d*0.97, [m + 12, m], 0.9, metal));
           if ((c - 24) % 2 === 0){ impacto(C, C.t(c, 0), 0.5); platillo(C, C.t(c, 0), 1); }
           coro(C, C.t(c), C.T(16), voz(r + 12, tp, 60), 0.6, { vocal: 'a', gan: 0.3, a: 0.2, r: 0.3, bombea: true });
+        }
+      } },
+
+    // =================================================================
+    // EL ARTILLERO: marcha militar vieja y torcida en sol menor armónica.
+    // Redoble de caja de banda, bombo y platillos de mano, tuba que hace
+    // "um-pa", metales en los contratiempos, la corneta de siempre, un trío
+    // en mi bemol y cañonazos en la vuelta final.
+    // =================================================================
+    artillero: { bpm: 112, compases: 24, bucle: 2, semilla: 61, master: { rms: 0.25, bombeo: 0.15, reverb: { tam: 0.86 } },
+      compone(C){
+        const ESC = [55, 57, 58, 60, 62, 63, 66, 67];                   // sol menor armónica (G3...)
+        const CORNETA = [0,-1,0,2, 4,-1,4,-1, 7,-1,4,2, 4,-1,-1,-1, 0,0,2,4, 7,-1,4,-1, 5,4,2,1, 0,-1,-1,-1];
+        const progA = [[43, 'm'], [43, 'm'], [48, 'm'], [50, 'M'], [43, 'm'], [51, 'M'], [50, 'M'], [43, 'm']];
+        const tuba = { onda: 'saw', voces: 2, des: 6, a: 0.01, d: 0.2, s: 0.6, r: 0.08, corte: 450, envF: 900, decF: 0.12, q: 0.9, gan: 0.55, rev: 0.12 };
+        const metal = { onda: 'saw', voces: 3, des: 9, a: 0.008, d: 0.15, s: 0.35, r: 0.1, corte: 700, envF: 2600, decF: 0.09, gan: 0.42, rev: 0.25 };
+        const corneta = { onda: 'saw', voces: 2, des: 7, a: 0.025, d: 0.2, s: 0.8, r: 0.12, corte: 1900, envF: 1600, decF: 0.12, vib: 0.006, vibT: 0.2, gan: 0.42, rev: 0.3, glide: 0.03 };
+        const marcha = (c, fill, fuerte)=>{
+          rit(C, c, fill ? 'x..xx..xx.x.xxxx' : 'x..xx..xx.x.x.xx', (t, v, s)=> caja(C, t, (s % 4 === 0 ? 1 : 0.65)*(fuerte ? 1 : 0.85), { tono: 270, dec: 0.12, ruido: 1.1, cuerpo: 0.5, gan: 0.5, rev: 0.25 }));
+          rit(C, c, 'x.......x.......', (t, v)=> bombo(C, t, v, { f0: 95, f1: 48, dec: 0.5, dist: 1, click: 0.4, gan: 0.75, rev: 0.2 }));
+          if (fuerte) rit(C, c, 'x.......x.......', (t, v)=> platillo(C, t, 0.7, { dec: 0.7, hp: 3500, gan: 0.12 }));
+        };
+        const umpa = (c, raiz, tp)=>{
+          const a = voz(raiz + 12, tp, 62);
+          sinte(C, C.t(c, 0), C.T(3), raiz - 12, 1, tuba); sinte(C, C.t(c, 8), C.T(3), raiz - 5, 0.9, tuba);
+          for (const s of [4, 12]) sinte(C, C.t(c, s), C.T(2), a, 0.9, metal);
+        };
+        // ---- intro (0-1): redoble que crece y timbales ----
+        for (let c = 0; c < 2; c++){
+          rit(C, c, 'xxxxxxxxxxxxxxxx', (t, v, s)=> caja(C, t, 0.25 + (c*16 + s)/32*0.7, { tono: 270, dec: 0.09, ruido: 1.1, cuerpo: 0.4, gan: 0.45, rev: 0.2 }));
+          timbal(C, C.t(c, 0), 43, 0.8, { orquesta: true, dec: 1.3, gan: 0.55 }); timbal(C, C.t(c, 8), 38, 0.7, { orquesta: true, dec: 1.3, gan: 0.5 });
+        }
+        // ---- A (2-9): la marcha con la corneta ----
+        for (let c = 2; c < 10; c++){
+          const [r, tp] = progA[c - 2];
+          marcha(c, c === 9, true); umpa(c, r, tp);
+          if (c === 2 || c === 6) platillo(C, C.t(c, 0), 1);
+          const k = ((c - 2) % 4)*8;
+          for (let j = 0; j < 8; j++){
+            const i = CORNETA[k + j]; if (i < 0) continue;
+            let l = 1; while (j + l < 8 && CORNETA[k + j + l] === -1) l++;
+            sinte(C, C.t(c, j*2), C.T(l*2)*0.92, ESC[i] + 12, 1, corneta);
+          }
+        }
+        // ---- trío (10-17): mi bemol, trompas y cuerdas ----
+        const progB = [[51, 'M'], [46, 'M'], [48, 'm'], [50, 'M'], [51, 'M'], [46, 'M'], [45, 'dim'], [50, 'M']];
+        const trio = ['G4:6 Bb4:2 Eb5:8', 'D5:6 C5:2 Bb4:8', 'C5:4 Eb5:4 G5:4 F5:2 Eb5:2', 'D5:8 F#4:4 A4:4', 'G4:4 Bb4:4 Eb5:4 G5:4', 'F5:6 Eb5:2 D5:8', 'C5:4 Eb5:4 A4:4 C5:4', 'D5:12 -:4'];
+        const trompa = { onda: 'saw', voces: 3, des: 8, a: 0.06, d: 0.3, s: 0.85, r: 0.25, corte: 1100, envF: 900, decF: 0.25, vib: 0.005, gan: 0.42, rev: 0.4 };
+        for (let c = 10; c < 18; c++){
+          const [r, tp] = progB[c - 10];
+          marcha(c, c === 17, false);
+          sinte(C, C.t(c, 0), C.T(3), r - 12, 0.9, tuba); sinte(C, C.t(c, 8), C.T(3), r - 5, 0.8, tuba);
+          sinte(C, C.t(c), C.T(16), voz(r + 12, tp, 60), 0.75, { onda: 'saw', voces: 4, des: 12, a: 0.25, r: 0.4, corte: 1700, gan: 0.24, rev: 0.45 });
+          mel(C, c, trio[c - 10], (t, d, m)=> sinte(C, t, d*0.95, m, 1, trompa));
+          if (c % 2 === 0) timbal(C, C.t(c, 0), r - 12 + (r < 47 ? 12 : 0), 0.7, { orquesta: true, dec: 1.2, gan: 0.45 });
+        }
+        // ---- A' (18-23): todo, la corneta en octavas, flautín y cañonazos ----
+        for (let c = 18; c < 24; c++){
+          const [r, tp] = progA[(c - 18) % 8];
+          marcha(c, c === 23, true); umpa(c, r, tp);
+          if (c % 2 === 0){ impacto(C, C.t(c, 0), 0.8); platillo(C, C.t(c, 0), 1.1); }
+          const k = ((c - 18) % 4)*8;
+          for (let j = 0; j < 8; j++){
+            const i = CORNETA[k + j]; if (i < 0) continue;
+            let l = 1; while (j + l < 8 && CORNETA[k + j + l] === -1) l++;
+            sinte(C, C.t(c, j*2), C.T(l*2)*0.92, [ESC[i] + 12, ESC[i]], 1, corneta);
+          }
+          const a = voz(r + 24, tp, 79);
+          for (let s = 0; s < 16; s += 2) sinte(C, C.t(c, s), C.T(1.5), a[(s >> 1) % a.length], 0.5, { onda: 'tri', voces: 1, a: 0.01, d: 0.1, s: 0.5, r: 0.06, corte: 5000, gan: 0.22, rev: 0.3 });
+        }
+        rit(C, 23, '........x.x.xxxx', (t, v, s)=> timbal(C, t, 43 - (s - 8), 0.8, { orquesta: true, dec: 0.5, gan: 0.5 }));
+      } },
+
+    // =================================================================
+    // DESESPERACIÓN: terror de persecución en 7/8. Latidos, un ostinato
+    // grave que no deja respirar, racimos de cuerdas disonantes que cambian
+    // cada siete compases, chillidos que se deslizan, raspados metálicos y
+    // un coro susurrado. La batería entra cojeando (2+2+3).
+    // =================================================================
+    desesperacion: { bpm: 158, compases: 28, bucle: 7, semilla: 71, master: { rms: 0.2, bombeo: 0.35, reverb: { tam: 0.9, amort: 0.35 } },
+      compone(C){
+        const ESC = [36, 37, 39, 40, 42, 43, 44, 47];
+        const OST = [0, -1, 0, 1, 0, -1, 0, 4, -1, 0, 1, 0, -1, 3];
+        const N = C.compases*16, P = C.paso;
+        const racimos = [[60, 61, 62], [63, 64, 65], [66, 67, 68], [71, 72, 73]];
+        for (let g = 0; g < N; g++){
+          const t = g*P, k = g % 14, ciclo = Math.floor(g/112), sec = Math.floor(g/112);   // 7 compases = 112 pasos
+          const i = OST[k];
+          // latido (siempre) y ostinato (desde el compás 7)
+          if (k === 0 || k === 2) bombo(C, t, k ? 0.6 : 0.9, { f0: 75, f1: 38, dec: 0.32, dist: 1.2, click: 0.2, gan: 0.75, rev: 0.25 });
+          if (i >= 0){
+            if (sec >= 1) bajo(C, t, P*0.9, ESC[i], k === 0 || k === 7 ? 1 : 0.8, { tipo: 'reese', corte: 320, env: 900, dec: 0.07, dist: 2.6, gan: 0.5 });
+            if (k === 0 || k === 7) timbal(C, t, ESC[i] + 12, 0.75, { orquesta: true, dec: 0.8, gan: 0.45 });
+            if (sec >= 3) pulsada(C, t, ESC[i] + 36, 0.55, { brillo: 0.6, dur: 0.35, gan: 0.2, eco: 0.25, pan: k % 2 ? 0.4 : -0.4 });
+          }
+          // batería cojeando desde el compás 14: bombo 0 y 7, caja 4 y 11
+          if (sec >= 2){
+            if (k === 7 || k === 10) bombo(C, t, 0.85, { f0: 120, f1: 45, dec: 0.25, dist: 2, gan: 0.7 });
+            if (k === 4 || k === 11) caja(C, t, 1, { tono: 200, dec: 0.2, gan: 0.55, rev: 0.35 });
+          }
+          if (sec >= 1) charles(C, t, k % 2 ? 0.35 : 0.6, { gan: 0.12 });
+          if (sec >= 3 && g % 2) charles(C, t + P*0.5, 0.3, { gan: 0.1 });
+        }
+        // racimos de cuerdas, uno cada 7 compases
+        for (let c = 0; c < C.compases; c += 7) sinte(C, C.t(c), C.T(112), racimos[(c/7) % 4], 0.8, { onda: 'saw', voces: 3, des: 22, a: 2.5, r: 1.5, corte: 1300, q: 1.1, trem: 6, tremP: 0.25, gan: 0.3, rev: 0.55 });
+        // coro susurrado desde el compás 14
+        for (let c = 14; c < C.compases; c += 7) coro(C, C.t(c), C.T(112), racimos[(c/7 + 2) % 4].map(m => m - 12), 0.7, { vocal: 'o', gan: 0.4, a: 1.5, r: 1.2 });
+        // chillidos que se deslizan y raspados metálicos
+        for (let c = 7; c < C.compases; c += 2){
+          const m = [79, 80, 83, 84][Math.floor(I.azar()*4)];
+          sinte(C, C.t(c, Math.floor(I.azar()*8)), C.T(8), m, 0.7, { onda: 'saw', voces: 2, des: 30, a: 0.15, r: 0.6, corte: 2600, q: 2, vib: 0.03, vibT: 0.05, desde: m - 7, glide: 0.6, gan: 0.2, rev: 0.5, eco: 0.3 });
+          fm(C, C.t(c + 1, Math.floor(I.azar()*16)), C.T(4), [84, 85, 91][Math.floor(I.azar()*3)], 0.5, { razon: 1.414, indice: 7, kd: 1.2, dec: 0.7, gan: 0.12, rev: 0.6, pan: I.azar()*1.4 - 0.7 });
+        }
+        // zumbido grave y la subida antes de volver
+        bajo(C, C.t(0), C.T(112), 24, 0.7, { tipo: 'sub', gan: 0.4, bombea: false });
+        for (let c = 6; c < C.compases; c += 7) barrido(C, C.t(c, 0), C.T(16), 0.9, { f0: 200, f1: 6000, q: 3, gan: 0.28 });
+      } },
+
+    // =================================================================
+    // KAIYIN (tres cabezas): música de película de monstruos gigantes. El
+    // ostinato frigio de siempre en metales graves, taikos y timbales,
+    // cuerdas en trémolo, un "bwaaam" de metales, coro y la melodía de las
+    // trompas; impactos orquestales en cada sección.
+    // =================================================================
+    kaiyin: { bpm: 84, compases: 16, bucle: 2, semilla: 81, master: { rms: 0.24, bombeo: 0.2, reverb: { tam: 0.9, amort: 0.3 } },
+      compone(C){
+        const ESC = [40, 41, 43, 45, 47, 48, 50, 52];
+        const OST = [0,1,2,-1, 0,1,2,-1, 0,1,3,2, 1,-1,-1,-1, 0,1,2,-1, 0,1,2,-1, 4,3,2,1, 0,-1,-1,-1];
+        const bronce = { onda: 'saw', voces: 3, des: 8, a: 0.02, d: 0.25, s: 0.7, r: 0.15, corte: 650, envF: 1300, decF: 0.18, q: 0.9, gan: 0.45, rev: 0.35 };
+        const trompa = { onda: 'saw', voces: 4, des: 9, a: 0.08, d: 0.4, s: 0.85, r: 0.35, corte: 1000, envF: 900, decF: 0.3, vib: 0.005, gan: 0.42, rev: 0.45 };
+        const bwaam = (c)=> sinte(C, C.t(c), C.T(28), [28, 40, 47], 1, { onda: 'saw', voces: 4, des: 10, a: 0.5, d: 1, s: 0.8, r: 1, corte: 260, envF: 900, decF: 0.6, q: 1.3, dist: 2.2, gan: 0.5, rev: 0.5 });
+        const ostinato = (c, gan)=>{
+          for (let s = 0; s < 16; s++){
+            const i = OST[(c % 2)*16 + s]; if (i < 0) continue;
+            sinte(C, C.t(c, s), C.T(1.6), [ESC[i] - 12, ESC[i]], gan || 1, bronce);
+          }
+        };
+        const taikos = (c, fill)=>{
+          rit(C, c, fill ? 'x...x...x.x.xxxx' : 'x.....x.x.......', (t, v)=> timbal(C, t, 31, v, { orquesta: true, dec: 0.9, gan: 0.6, rev: 0.35 }));
+          rit(C, c, '....x.......x...', (t, v)=> timbal(C, t, 45, 0.7, { dec: 0.4, gan: 0.4, rev: 0.4 }));
+        };
+        const cuerdas = (c, notas)=> sinte(C, C.t(c), C.T(32), notas, 0.8, { onda: 'saw', voces: 4, des: 14, a: 0.3, r: 0.6, corte: 1800, trem: 13, tremP: 0.75, gan: 0.28, rev: 0.45 });
+        const golpe = (c, notas)=>{ impacto(C, C.t(c, 0), 0.9); platillo(C, C.t(c, 0), 1.2); sinte(C, C.t(c, 0), C.T(3), notas, 1, Object.assign({}, bronce, { corte: 900, envF: 2600, gan: 0.55 })); timbal(C, C.t(c, 0), 28, 1, { orquesta: true, dec: 1.6, gan: 0.6 }); };
+        // ---- intro (0-1): el bwaaam y los timbales ----
+        bwaam(0);
+        rit(C, 1, 'x...x...x.x.xxxx', (t, v, s)=> timbal(C, t, 40, 0.5 + s*0.03, { orquesta: true, dec: 0.6, gan: 0.5 }));
+        barrido(C, C.t(1), C.T(16), 0.9, { f0: 150, f1: 5000, gan: 0.3 });
+        // ---- A (2-5): el ostinato y los taikos ----
+        golpe(2, [40, 47, 52]);
+        for (let c = 2; c < 6; c++){ ostinato(c); taikos(c, c === 5); }
+        cuerdas(2, [52, 59]); cuerdas(4, [53, 60]);
+        // ---- B (6-13): las trompas, el coro y las cuerdas ----
+        const tema = ['E4:8 F4:4 G4:4', 'B4:12 A4:4', 'G4:8 F4:4 E4:4', 'F4:16', 'E4:4 G4:4 B4:4 E5:4', 'D5:8 C5:4 B4:4', 'C5:8 B4:4 A4:4', 'B4:16'];
+        const acordes = [[52, 59, 64], [53, 60, 65], [55, 62, 67], [53, 60, 65], [52, 59, 64], [50, 57, 62], [48, 55, 60], [47, 54, 59]];
+        golpe(6, [40, 47, 52]); golpe(10, [40, 47, 52]); bwaam(9);
+        for (let c = 6; c < 14; c++){
+          ostinato(c, 0.8); taikos(c, c === 13);
+          mel(C, c, tema[c - 6], (t, d, m)=> sinte(C, t, d*0.96, [m, m - 12], 1, trompa));
+          if (c % 2 === 0) cuerdas(c, acordes[c - 6].slice(0, 2).map(m => m + 12));
+          coro(C, C.t(c), C.T(16), acordes[c - 6].map(m => m - 12 + 12), 0.8, { vocal: 'a', gan: 0.42, a: 0.3, r: 0.4 });
+        }
+        // ---- subida (14-15): redoble, timbales y la vuelta ----
+        for (let c = 14; c < 16; c++){ ostinato(c, 0.9); coro(C, C.t(c), C.T(16), c === 14 ? [41, 48, 53] : [40, 47, 52], 1, { vocal: 'o', gan: 0.5 }); }
+        rit(C, 14, 'x.x.x.x.x.x.x.x.', (t, v, s)=> caja(C, t, 0.4 + s*0.02, { tono: 230, dec: 0.15, gan: 0.45, rev: 0.4 }));
+        rit(C, 15, 'xxxxxxxxxxxxxxxx', (t, v, s)=> { caja(C, t, 0.6 + s*0.025, { tono: 230, dec: 0.12, gan: 0.45, rev: 0.4 }); if (s % 2 === 0) timbal(C, t, 40, 0.6 + s*0.02, { orquesta: true, dec: 0.4, gan: 0.45 }); });
+        barrido(C, C.t(14), C.T(32), 1, { f0: 120, f1: 8000, gan: 0.32 });
+      } },
+
+    // =================================================================
+    // TRÍPODE MARCIANO: ciencia ficción de los años 50. Un theremín que se
+    // desliza entre notas (la frigio dominante), vibráfono, órgano con
+    // trémolo, arpa en glissando, pitidos alienígenas con eco y un pulso
+    // grave moderno debajo.
+    // =================================================================
+    tripode: { bpm: 100, compases: 16, bucle: 2, semilla: 91, master: { rms: 0.2, bombeo: 0.3, eco: { fb: 0.5 }, reverb: { tam: 0.88 } },
+      compone(C){
+        const prog = [[45, 'M'], [46, 'M'], [45, 'M'], [43, 'm']];   // La, Si bemol, La, Sol menor
+        const ESCH = [69, 70, 73, 74, 76, 77, 79, 81, 82, 85, 86, 88];   // la frigio dominante para el arpa
+        const theremin = { onda: 'sin', voces: 1, a: 0.12, d: 0.3, s: 0.9, r: 0.4, corte: 6000, vib: 0.014, vibT: 0.05, gan: 0.55, rev: 0.45, eco: 0.3, glide: 0.22 };
+        const arpa = c => { for (let k = 0; k < 12; k++) pulsada(C, C.t(c, 0) + k*0.035, ESCH[k], 0.7, { brillo: 0.8, dur: 1.5, gan: 0.34, rev: 0.4, pan: -0.5 + k/12 }); };
+        let ant = null;
+        const melodia = (c, texto, oct)=> mel(C, c, texto, (t, d, m)=>{ sinte(C, t, d*0.98, m + (oct || 0), 1, Object.assign({}, theremin, { desde: ant == null ? m + (oct || 0) : ant })); ant = m + (oct || 0); });
+        for (let c = 0; c < 16; c++){
+          const [r, tp] = prog[c % 4], sec = c < 2 ? 0 : c < 4 ? 1 : c < 12 ? 2 : 3;
+          // órgano con trémolo
+          sinte(C, C.t(c), C.T(16), voz(r + 12, tp, 60), 0.7, { onda: 'tri', voces: 3, des: 6, a: 0.3, r: 0.4, corte: 1600, trem: 5, tremP: 0.35, gan: 0.3, rev: 0.4, bombea: true });
+          // pulso grave
+          if (sec >= 1) for (let s = 0; s < 16; s += 2) bajo(C, C.t(c, s), C.T(1.6), r - 12 + (s === 6 || s === 14 ? 7 : 0), s % 8 === 0 ? 1 : 0.8, { tipo: 'fm', razon: 1, indice: 1.2, dec: 0.1, pluck: true, gan: 0.5 });
+          // vibráfono en corcheas
+          if (sec >= 1){ const a = voz(r + 24, tp, 72); for (let s = 0; s < 16; s += 2) fm(C, C.t(c, s), C.T(2), a[(s >> 1) % 3] + ((s >> 1) % 4 === 3 ? 12 : 0), 0.6, { razon: 4, indice: 1.4, kd: 3, dec: 1.2, gan: 0.2, rev: 0.4, eco: 0.2, pan: 0.3 }); }
+          // batería ligera
+          if (sec >= 1){
+            rit(C, c, 'x.....x...x.....', (t, v)=> bombo(C, t, v*0.85, { f0: 120, f1: 45, dec: 0.3, dist: 1.2, gan: 0.7 }));
+            rit(C, c, 'o.o.o.o.o.o.o.oo', (t, v)=> charles(C, t, v*0.8, { dec: 0.03, hp: 8000, gan: 0.32 }));
+          }
+          if (sec >= 2) rit(C, c, '....x.......x...', (t, v)=> caja(C, t, 0.9, { palma: true, dec: 0.16, gan: 0.6, rev: 0.35 }));
+          // pitidos alienígenas
+          for (let k = 0; k < (sec >= 2 ? 3 : 2); k++)
+            fm(C, C.t(c, 1 + Math.floor(I.azar()*7)*2), C.T(1), [93, 94, 97, 98, 100][Math.floor(I.azar()*5)], 0.45, { razon: 2, indice: 3, kd: 25, dec: 0.12, pluck: true, gan: 0.12, eco: 0.45, pan: I.azar()*1.4 - 0.7 });
+          if (c % 4 === 0) arpa(c);
+        }
+        // el theremín
+        melodia(4, 'A4:8 Bb4:4 C#5:4 E5:12 D5:4 F5:8 E5:4 C#5:4 D5:16');
+        melodia(8, 'A5:8 G5:4 F5:4 E5:8 F5:4 E5:4 C#5:4 D5:4 Bb4:4 C#5:4 A4:16');
+        melodia(12, 'E5:4 F5:4 E5:4 D5:4 C#5:8 Bb4:8 A4:4 Bb4:4 C#5:4 E5:4 A5:16', 0);
+        coro(C, C.t(12), C.T(64), [57, 64, 69], 0.6, { vocal: 'o', gan: 0.3, a: 1, r: 1 });
+        barrido(C, C.t(15), C.T(16), 0.8, { f0: 300, f1: 7000, q: 4, gan: 0.22 });
+      } },
+
+    // =================================================================
+    // CASTIGO DIVINO · LAMENTO ETERNO: órgano de tubos que nunca resuelve,
+    // el Dies irae cantado por un coro y doblado por campanas, un latido
+    // lento de timbal, un zumbido grave y viento que aúlla.
+    // =================================================================
+    infierno: { bpm: 66, compases: 16, bucle: 0, semilla: 101, master: { rms: 0.19, bombeo: 0, reverb: { tam: 0.93, amort: 0.25, nivel: 2.6 } },
+      compone(C){
+        const prog = [[38, 'm'], [38, 'm'], [46, 'M'], [46, 'M'], [43, 'm'], [43, 'm'], [45, 'sus4'], [45, 'sus4'],
+                      [38, 'm'], [38, 'm'], [39, 'M'], [39, 'M'], [36, 'm'], [36, 'm'], [45, 'sus4'], [45, 'sus4']];
+        for (let c = 0; c < 16; c++){
+          const [r, tp] = prog[c];
+          if (c % 2 === 0) organo(C, C.t(c), C.T(32), voz(r + 12, tp, 55).concat([r]), 0.9, { a: 0.6, r: 1.2, gan: 0.3 });
+          bajo(C, C.t(c), C.T(16), r - 12, 0.8, { tipo: 'sub', gan: 0.42, bombea: false });
+          // latido: lub-dub
+          timbal(C, C.t(c, 0), 26, 0.9, { orquesta: true, dec: 1.2, gan: 0.6, rev: 0.4 });
+          timbal(C, C.t(c, 3), 26, 0.55, { orquesta: true, dec: 0.9, gan: 0.5, rev: 0.4 });
+          if (c % 4 === 0) fm(C, C.t(c, 0), C.T(16), 50, 0.8, { razon: 1.4, indice: 3.2, kd: 0.6, dec: 3.5, gan: 0.22, rev: 0.6 });   // campana
+          if (c % 2 === 1) barrido(C, C.t(c, 4), C.T(12), 0.5, { f0: 300, f1: 1400, q: 5, gan: 0.14, rev: 0.6, pan: c % 4 === 1 ? -0.6 : 0.6 });
+        }
+        // el Dies irae: coro (y campanas en la segunda vuelta)
+        const dies = ['F4:4 E4:4 F4:4 D4:4', 'E4:4 C4:4 D4:8', 'F4:4 F4:4 G4:4 F4:4', 'E4:4 D4:4 C4:4 E4:4', 'D4:8 D4:8', '-:16'];
+        for (const [c0, campana] of [[2, false], [10, true]]){
+          dies.forEach((txt, k)=> mel(C, c0 + k, txt, (t, d, m)=>{
+            coro(C, t, d*0.95, [m, m - 12], 1, { vocal: 'a', gan: 0.6, a: 0.12, r: 0.5 });
+            if (campana) fm(C, t, d, m + 12, 0.45, { razon: 3.5, indice: 2, kd: 2, dec: 1.4, gan: 0.12, rev: 0.6 });
+          }));
+        }
+        coro(C, C.t(0), C.T(256), [38, 45], 0.5, { vocal: 'o', gan: 0.25, a: 3, r: 2 });
+      } },
+
+    // =================================================================
+    // CASTIGO DIVINO · LO ÚNICO QUE TEMEN: metal industrial en do frigio
+    // con el tritono. Riff apagado de djent con doble bombo, golpes de
+    // sintetizador saturado, caídas de subgrave, coro, una melodía heroica
+    // y un breakdown que se corta en seco.
+    // =================================================================
+    infierno2: { bpm: 135, compases: 32, bucle: 4, semilla: 111, master: { rms: 0.22, bombeo: 0.3 },
+      compone(C){
+        const ESC = [36, 37, 39, 41, 42, 43, 44, 46];                    // do frigio con el tritono (C2...)
+        const RIFF = [0,0,-1,0, -1,0,0,-1, 1,-1,0,0, -1,3,-1,2], RIFF2 = [0,0,-1,0, -1,0,0,-1, 0,0,-1,0, 4,-1,3,1];
+        const BRK = [0,-1,-1,0, -1,-1,0,-1, -1,-1,1,-1, 0,-1,-1,-1];
+        const PROG = [0, 0, 6, 6, 5, 5, 1, 1];                          // Do, La bemol, Sol, Re bemol
+        const LEAD = [0,-1,-1,-1, -1,-1,-1,-1, 3,-1,-1,-1, 5,-1,-1,-1, 6,-1,-1,-1, 5,-1,-1,-1, 3,-1,-1,-1, 2,-1,3,-1,
+                      5,-1,-1,-1, -1,-1,-1,-1, 7,-1,-1,-1, 8,-1,-1,-1, 9,-1,-1,-1, 8,-1,7,-1, 6,-1,-1,-1, 5,-1,-1,-1];
+        const LE = [60, 61, 63, 65, 67, 68, 70, 72, 73, 75];            // la melodía, una octava arriba
+        const riff = (c, pat, sinCaja)=>{
+          for (let s = 0; s < 16; s++){
+            const i = pat[s]; if (i < 0) continue;
+            guitarra(C, C.t(c, s), C.T(0.9), ESC[i], s % 4 === 0 ? 1 : 0.85, { apagada: true, notas: [ESC[i], ESC[i] + 7], gan: 0.21, gano: 11 });
+            bajo(C, C.t(c, s), C.T(0.9), ESC[i] - 12, 1, { tipo: 'pulso', corte: 280, env: 900, dec: 0.05, dist: 2.6, gan: 0.42, bombea: false });
+            bombo(C, C.t(c, s), 0.8, { f0: 180, f1: 50, dec: 0.18, dist: 2.4, gan: 0.7 });
+          }
+          if (!sinCaja) rit(C, c, '....x.......x...', (t, v)=> caja(C, t, 1, { tono: 210, dec: 0.2, gan: 0.6, rev: 0.25 }));
+          rit(C, c, 'x.x.x.x.x.x.x.x.', (t, v)=> ride(C, t, 0.9, { gan: 0.12 }));
+        };
+        const golpeSinte = (c, raiz)=>{ for (const s of [0, 3, 6, 10]) sinte(C, C.t(c, s), C.T(1.4), [raiz + 24, raiz + 31, raiz + 36], 0.9, { onda: 'saw', voces: 3, des: 14, a: 0.003, d: 0.12, s: 0.3, r: 0.1, corte: 900, envF: 4000, decF: 0.06, q: 1.4, dist: 3, gan: 0.3, rev: 0.2 }); };
+        const caida = c => bajo(C, C.t(c), C.T(16), 24, 1, { tipo: 'sub', desde: 48, glide: 1.4, gan: 0.55, bombea: false });
+        // ---- intro (0-3): coro, zumbido, caída de subgrave y redoble ----
+        coro(C, C.t(0), C.T(64), [48, 55, 60], 1, { vocal: 'a', gan: 0.55, a: 1.2 });
+        sinte(C, C.t(0), C.T(64), [36, 43], 0.8, { onda: 'saw', voces: 3, des: 12, a: 2, r: 0.5, corte: 500, q: 1.5, dist: 2, gan: 0.35, rev: 0.4 });
+        caida(0); caida(2);
+        rit(C, 3, 'x.x.x.x.xxxxxxxx', (t, v, s)=> caja(C, t, 0.4 + s*0.04, { tono: 220, dec: 0.12, gan: 0.55 }));
+        barrido(C, C.t(2), C.T(32), 1, { f0: 150, f1: 9000, gan: 0.32 });
+        // ---- A (4-11): el riff ----
+        for (let c = 4; c < 12; c++){
+          riff(c, (c % 4 === 3) ? RIFF2 : RIFF);
+          if (c % 2 === 0){ platillo(C, C.t(c, 0), 1); golpeSinte(c, ESC[PROG[(c - 4) % 8]]); }
+        }
+        // ---- B (12-19): acordes, coro y la melodía heroica ----
+        for (let c = 12; c < 20; c++){
+          const raiz = ESC[PROG[(c - 12) % 8]];
+          guitarra(C, C.t(c, 0), C.T(7), raiz, 1, { gan: 0.2, gano: 10 }); guitarra(C, C.t(c, 8), C.T(7), raiz, 0.95, { gan: 0.2, gano: 10 });
+          bajo(C, C.t(c, 0), C.T(7), raiz - 12, 1, { tipo: 'pulso', corte: 350, env: 600, dist: 2.5, gan: 0.42, bombea: false });
+          bajo(C, C.t(c, 8), C.T(7), raiz - 12, 1, { tipo: 'pulso', corte: 350, env: 600, dist: 2.5, gan: 0.42, bombea: false });
+          rit(C, c, 'x.xxx.xxx.xxx.xx', (t, v)=> bombo(C, t, 0.8, { f0: 180, f1: 50, dec: 0.18, dist: 2.4, gan: 0.7 }));
+          rit(C, c, '....x.......x...', (t, v)=> caja(C, t, 1, { tono: 210, dec: 0.2, gan: 0.6, rev: 0.25 }));
+          platillo(C, C.t(c, 0), c % 2 ? 0.8 : 1.1);
+          if (c % 2 === 0) coro(C, C.t(c), C.T(32), [raiz + 12, raiz + 19, raiz + 24], 1, { vocal: 'a', gan: 0.5, a: 0.2 });
+          for (let s = 0; s < 16; s++){
+            const i = LEAD[((c - 12) % 4)*16 + s]; if (i < 0) continue;
+            let l = 1; while (s + l < 16 && LEAD[((c - 12) % 4)*16 + s + l] === -1) l++;
+            sinte(C, C.t(c, s), C.T(l)*0.96, LE[i], 1, { onda: 'saw', voces: 3, des: 12, a: 0.02, d: 0.3, s: 0.8, r: 0.2, corte: 2600, envF: 1800, decF: 0.2, vib: 0.008, gan: 0.42, rev: 0.3, eco: 0.15, glide: 0.04 });
+          }
+        }
+        // ---- breakdown (20-23): medio tiempo y corte en seco ----
+        for (let c = 20; c < 24; c++){
+          for (let s = 0; s < 16; s++){
+            const i = BRK[s]; if (i < 0 || (c === 23 && s >= 12)) continue;
+            guitarra(C, C.t(c, s), C.T(1.4), ESC[i] - 0, 1, { apagada: s !== 0, notas: [ESC[i], ESC[i] + 7, ESC[i] + 12], gan: 0.22, gano: 12 });
+            bajo(C, C.t(c, s), C.T(1.4), ESC[i] - 12, 1, { tipo: 'pulso', corte: 280, env: 900, dec: 0.07, dist: 2.6, gan: 0.45, bombea: false });
+            bombo(C, C.t(c, s), 1, { f0: 160, f1: 42, dec: 0.32, dist: 2.2, gan: 0.8 });
+          }
+          if (c < 23 || true) rit(C, c, c === 23 ? '........' : '........x.......', (t, v)=> caja(C, t, 1.1, { tono: 190, dec: 0.35, gan: 0.65, rev: 0.4 }));
+          if (c % 2 === 0){ platillo(C, C.t(c, 0), 1.2); caida(c); }
+        }
+        // ---- A' (24-31): el riff con la melodía y el coro ----
+        for (let c = 24; c < 32; c++){
+          riff(c, (c % 4 === 3) ? RIFF2 : RIFF);
+          if (c % 2 === 0){ platillo(C, C.t(c, 0), 1); coro(C, C.t(c), C.T(32), [ESC[PROG[(c - 24) % 8]] + 12, ESC[PROG[(c - 24) % 8]] + 19, ESC[PROG[(c - 24) % 8]] + 24], 0.8, { vocal: 'o', gan: 0.42 }); }
+          for (let s = 0; s < 16; s++){
+            const i = LEAD[((c - 24) % 4)*16 + s]; if (i < 0) continue;
+            let l = 1; while (s + l < 16 && LEAD[((c - 24) % 4)*16 + s + l] === -1) l++;
+            sinte(C, C.t(c, s), C.T(l)*0.96, LE[i] + 12, 0.9, { onda: 'saw', voces: 3, des: 12, a: 0.02, d: 0.3, s: 0.8, r: 0.2, corte: 2800, envF: 1800, decF: 0.2, vib: 0.008, gan: 0.36, rev: 0.3, eco: 0.15, glide: 0.04 });
+          }
         }
       } },
 
@@ -12985,6 +13319,9 @@ function estudioRecibe(d){
   else { estudio.crudo[d.id] = d; if (audio.ctx) estudioBuffer(d.id); }
   estudioSigueCola();
   if (audio.musicTimer) retuneMusic();                  // ya puede sonar la buena
+  if (previewTrack && previewTrack.gen === d.id && !running){   // el registro deja de decir "generando"
+    try { const r = document.getElementById('registro'); if (r && !r.classList.contains('hidden')) renderDex(); } catch(e){}
+  }
 }
 // De los datos del Worker a un AudioBuffer (y fuera lo que menos se usa si
 // hay demasiado guardado).
@@ -13051,6 +13388,7 @@ function pistaBase(){
     if (p.siguiente && running) estudioPide(p.siguiente());                          // (y ya se va preparando la que viene)
     if (estudioListo(p.gen)) return p;
     estudioPide(p.gen, true);
+    if (p === previewTrack) return null;          // en el registro, silencio hasta que esté (no la de antes)
     return p.respaldo || null;
   }
   return p;
@@ -13062,6 +13400,7 @@ function musicStep(){
   const bt = pistaBase();
   bbSigue(bt); recSigue(bt); estudioSigue(bt);
   if (bt && (bt.bb || bt.rec || bt.gen)) return;   // suena dollchan, una grabada o el estudio: el secuenciador calla
+  if (!bt && previewTrack) return;                 // la muestra del registro aún se está generando: silencio
   const key = (typeof phase === 'function') ? phase().id : 'dia';
   const sc = bt ? bt.scale : (MUSIC_SCALES[key] || MUSIC_SCALES.dia);
   const t0 = audio.ctx.currentTime;
@@ -13522,8 +13861,6 @@ function updateBossMusic(dt){
     if (e.type === 'rivalVil'){ cual = 'muerteVeloz'; break; }
   }
   if (!cual && refz) cual = 'refuerzos';
-  // a los 30 s de partida se van preparando las pistas de los jefes del mapa
-  if (gameTime > 30 && gameMode !== 'leyenda'){ if (esAlien()) estudioPide('desgarrador'); else if (!esInfierno()){ estudioPide('flametank'); estudioPide('superx'); } }
   const nuevo = cual ? BOSS_TRACKS[cual] : null;
   if (nuevo !== bossTrack){ bossTrack = nuevo; retuneMusic(); }
   const base = pistaBase();
@@ -13623,8 +13960,8 @@ const BESTIARY = [
     verb:'DERROTADOS',
     desc:'La pieza de artillería más pesada del ejército, con un viejo cañonero encima. No quiere tenerte cerca: si te acercas retrocede sin dejar de hostigarte con la minigun. Cada pocos segundos marca varias zonas en el suelo y deja caer misiles que las dejan ardiendo un rato. Si te tiene a tiro calcula tu posición, señala un pasillo y lo recorre a toda velocidad arrasando cuanto pilla, tropas propias incluidas. Termina lejos y se detiene a repararse con los ojos cerrados: un solo golpe le corta la reparación.',
     states:[['artOk','En guardia'],['artRun','Arrasando'],['artHeal','Reparándose']] },
-  { id:'flametank', name:'TANQUE DE FUEGO', hp:1050, dmg:'46/s + quemadura', sprite:'flametank',
-    desc:'Mini jefe que puede presentarse en cualquier momento pasados los 6.850 puntos, y detiene la llegada de refuerzos mientras vive. Vale tanto como diez tanques. Tras derrotarlo la ciudad respira un rato antes de que vuelva a acecharte. Calcula tu posición durante 3 segundos con el cono siguiéndote, lo fija 1 segundo y suelta la llamarada. El fuego quema por igual a sus propias tropas. Si te pegas a él, la llamarada corta te alcanza siempre: esquiva de lejos y bombardéalo con objetos.' },
+  { id:'flametank', name:'TANQUE DE FUEGO', hp:1350, dmg:'46/s + quemadura', sprite:'flametank',
+    desc:'Mini jefe que puede presentarse en cualquier momento pasados los 6.850 puntos, y detiene la llegada de refuerzos mientras vive. Vale tanto como diez tanques. Tras derrotarlo la ciudad respira un rato antes de que vuelva a acecharte. Calcula tu posición durante 3 segundos con el cono siguiéndote, lo fija 1 segundo y suelta la llamarada. El fuego quema por igual a sus propias tropas. Pegarse a él es la forma de esquivar la llamarada, pero aguanta mucho: bombardéalo con objetos.' },
   { id:'plane', name:'CAZA', hp:90, dmg:'28 por misil (recto)', sprite:'plane',
     desc:'Vuela tan rápido como un taxi a toda marcha: se te viene encima, te sobrevuela y sigue de largo sin frenar. Al alejarse da media vuelta y suelta un misil recto, sin guiado, que puedes esquivar o bloquear. Es frágil y agarrable si aciertas el instante en que pasa.' },
   { id:'omni', name:'OMNIDROIDE', hp:1600, dmg:'52/s el rayo', sprite:null,
@@ -13771,9 +14108,9 @@ const OST_TEMAS = [
     desc:'El tema del Mundo Alienígena: una pieza de bytebeat que va creciendo, con bombo, bajos y arpegios de chip que cambian cada pocos compases y suben de tono a mitad de camino.' },
   { id:'mapa_infierno', icon:'\u{1F525}', name:'LAMENTO ETERNO', pista: ()=> INFIERNO_TRACK,
     bloqueo:'Juega una partida en CASTIGO DIVINO para desbloquearlo. Toca el icono para ver otro tema.',
-    desc:'El tema de Castigo Divino. Un órgano grave que nunca se resuelve, un coro desafinado, el Dies irae arrastrado y un tambor lento como un latido.' },
+    desc:'El tema de Castigo Divino. Un órgano de tubos que nunca resuelve, el Dies irae cantado por un coro y doblado por campanas, un latido lento de timbal, un zumbido grave y el viento que aúlla.' },
   { id:'mapa_infierno2', icon:'\u{1F918}', name:'LO ÚNICO QUE TEMEN', pista: ()=> INFIERNO_TRACK2,
-    desc:'El segundo tema de Castigo Divino, cuando la partida se alarga: metal industrial con coro, sintetizadores, caídas de subgrave, un riff sincopado de doble bombo, una melodía heroica y un breakdown que se corta en seco.' },
+    desc:'El segundo tema de Castigo Divino, cuando la partida se alarga: metal industrial en do frigio, con un riff apagado de doble bombo, golpes de sintetizador saturado, caídas de subgrave, coro, una melodía heroica y un breakdown que se corta en seco.' },
   // Las pantallas del menú con música propia (grabada).
   { id:'registro', icon:'\u{1F4D6}', name:'MUCK', pista: ()=> REGISTRO_TRACK, grupo:'MENÚS',
     desc:'La música del Registro: suena mientras repasas todo lo que has derrotado.' },
@@ -13816,7 +14153,7 @@ function renderOST(){
        <div class="ostname">${on ? esc(t.name) : 'TEMA POR DESCUBRIR'}</div>
        <div class="ostdesc">${on ? esc(t.desc) : esc(t.bloqueo || 'Juega una partida a esta hora del día para desbloquearlo. Toca el icono para ver otro tema.')}</div>
      </div>
-     <button type="button" class="ostplay${sonando?' on':''}" id="ostPlay"${on?'':' disabled'}>${sonando ? '\u{25A0} PARAR' : '\u{25B6} OÍR'}</button>`;
+     <button type="button" class="ostplay${sonando?' on':''}" id="ostPlay"${on?'':' disabled'}>${sonando ? (previewTrack.gen && !estudioListo(previewTrack.gen) && !estudio.falla[previewTrack.gen] && !estudio.roto ? '\u{23F3} GENERANDO…' : '\u{25A0} PARAR') : '\u{25B6} OÍR'}</button>`;
   const ico = document.getElementById('ostIco');
   if (ico) ico.addEventListener('click', ()=>{ ostSel = (ostSel+1) % OST_TEMAS.length; sfx('ui'); renderOST(); });
   const pl = document.getElementById('ostPlay');
@@ -13995,7 +14332,7 @@ function renderDex(){
         <div class="dexname">${b.name}</div>
         <div class="dexdesc">${b.desc}</div>
         <div class="dexstats"><span class="hpv">HP ${b.hp}</span><span class="dmv">DAÑO ${b.dmg}</span>
-          ${BOSS_TRACKS[b.id] && n > 0 ? `<button type="button" class="ostbtn" data-ost="${b.id}">\u{266A} ${esc(BOSS_TRACKS[b.id].name)}</button>` : ''}
+          ${BOSS_TRACKS[b.id] && n > 0 ? `<button type="button" class="ostbtn" data-ost="${b.id}">${previewTrack === BOSS_TRACKS[b.id] && previewTrack.gen && !estudioListo(previewTrack.gen) && !estudio.falla[previewTrack.gen] && !estudio.roto ? '\u{23F3} GENERANDO…' : '\u{266A} ' + esc(BOSS_TRACKS[b.id].name)}</button>` : ''}
           <span class="cntv">${b.verb || 'ELIMINADOS'}: ${n}</span></div>
       </div></div>`;
   }).join('');
@@ -31997,6 +32334,11 @@ function updateSpawns(dt){
   if (habiaJefe && !bossAlive) bossRest = enCiudad() ? BOSS_REST_CIUDAD : BOSS_REST;   // cayó o se le agotó el plazo
   if (bossRest > 0) bossRest -= dt;
 
+  // el próximo jefe se sortea de antemano: así su música ya está lista cuando llega
+  if (!bossAlive && !proximoJefe && score >= (enCiudad() ? BOSS_SCORE_CIUDAD : BOSS_SCORE)*0.6 && (!esAlien() || ENEMY_TYPES.centurion)){
+    proximoJefe = esAlien() ? sorteaJefe(TIPOS_JEFE_ALIEN) : esInfierno() ? sorteaJefeInf() : sorteaJefe();
+    estudioPide(pistaDeJefe(proximoJefe));
+  }
   if (score >= (enCiudad() ? BOSS_SCORE_CIUDAD : BOSS_SCORE) && !bossAlive && bossRest <= 0 && (!esAlien() || ENEMY_TYPES.centurion)){
     bossRoll -= dt;
     if (bossRoll <= 0){
@@ -32004,7 +32346,8 @@ function updateSpawns(dt){
       if (Math.random() < (enAsedio() ? BOSS_CHANCE_2 : BOSS_CHANCE)*(enCiudad() ? BOSS_CHANCE_CIUDAD : 1)){
         // En invasión no se repite jefe seguido, y el de dos turnos atrás
         // sale con la mitad de probabilidad. Es memoria de una sola partida.
-        const cual = esAlien() ? sorteaJefe(TIPOS_JEFE_ALIEN) : esInfierno() ? sorteaJefeInf() : sorteaJefe();
+        const cual = proximoJefe || (esAlien() ? sorteaJefe(TIPOS_JEFE_ALIEN) : esInfierno() ? sorteaJefeInf() : sorteaJefe());
+        proximoJefe = null;
         penultimoJefe = ultimoJefe;
         ultimoJefe = cual;
         if (cual === 'marciana') lanzaInvasionMarciana();
