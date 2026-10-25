@@ -254,6 +254,7 @@
              background:radial-gradient(ellipse at 50% 62%, rgba(38,70,50,0.55), rgba(0,0,0,0.5) 75%);
              border:1px solid #1f3a2a; border-radius:6px; overflow:hidden; }
   .dexfoto img { width:100%; height:100%; object-fit:contain; image-rendering:pixelated; display:block; }
+  .dexfoto img.izq { transform:scaleX(-1); }   /* dibujo que mira a la izquierda: en el registro todos miran a la derecha */
   .dexart.tapable { cursor:pointer; }
   .dexart.tapable .dexfoto { border-color:#2a4a5c; }
   .dexart.tapable:hover .dexfoto { border-color:#8fd7ff; background:radial-gradient(ellipse at 50% 62%, rgba(30,60,80,0.6), rgba(0,0,0,0.5) 75%); }
@@ -7137,6 +7138,7 @@ let _boomDisparo = 0;
 function bumDisparo(fn){ _boomDisparo++; try { return fn(); } finally { _boomDisparo--; } }
 function explode(x, y, radius, dmg, big, hurtPlayer){
   const chain = [];
+  avesEnPunto(x, y - 10, radius + 10, 'quemado');               // los pájaros alcanzados: chamuscados
   // Doble Invasión: también alcanzan al invasor del otro (si no se está ya
   // apuntando a él, que entonces lo cubre el bloque de abajo)
   if (hurtPlayer && dmg > 0 && dobleAnf() && Online.av && !Online.av.caido && player !== Online.proxy){
@@ -8612,6 +8614,11 @@ function avesEnRayo(ox, oy, ang, largo, ancho, modo){
   const ex = ox + Math.cos(ang)*largo, ey = oy + Math.sin(ang)*largo;
   avesMata((bx, by)=> enLinea(bx, by, ox, oy, ang, largo, ancho + 5), ox, oy, ex, ey, modo);
 }
+// Lo que cruza en un fotograma un proyectil, de (x, y) a (x + dx, y + dy).
+function avesTramo(x, y, dx, dy, ancho, modo){
+  const l = Math.hypot(dx, dy);
+  if (l > 0.5) avesEnRayo(x, y, Math.atan2(dy, dx), l, ancho, modo); else avesEnPunto(x, y, ancho + 5, modo);
+}
 function updateAvesMuertas(dt){
   for (let i = plumas.length - 1; i >= 0; i--){
     const p = plumas[i];
@@ -8722,7 +8729,10 @@ function rafagaArboles(fx, fy){
 // están doblados, que en la práctica son unos pocos.
 const arbDoblados = [];
 function updateViento(dt){
-  if (((isVil() || isDra()) && vil.flying || isMaq() && maq.impulso > 0.7) && !vil.intro) rafagaArboles(vil.fx, vil.fy);
+  if (((isVil() || isDra()) && vil.flying || isMaq() && maq.impulso > 0.7) && !vil.intro){
+    rafagaArboles(vil.fx, vil.fy);
+    if (vil.flying) avesEnPunto(player.x, player.y - 30, isDra() ? 72 : 46, 'plumas');   // los que roza al pasar volando
+  }
   else if (isBor() && bor.corre && !vil.intro){
     const v = Math.hypot(player.vx, player.vy);
     if (v > 80) rafagaArboles(player.vx/v, player.vy/v);
@@ -12780,9 +12790,12 @@ function regVariantes(b){
     regD(desFrame('cortaAviso', 0, 'carne'), 0.9, g=> g.drawImage(desFrame('cortaAviso', 0, 'huesos'), 0, 0)))]];
   if (id === 'tripode') return [[VD + ' · ojos y pezuñas', ()=> regD(tripodeIconCv(), 1.6, regOjosTripode)]];
   if (id === 'omni') return [[VD + ' · ojo humano', ()=> regD(omniIconCv(), 1.6, regOjoOmni)]];
-  if (REG_D[id]) return [[VD, ()=> regD(spriteListo(REG_D[id][0]), REG_D[id][1])]];
+  if (REG_D[id]) return [[VD, ()=> regD(spriteListo(REG_D[id][0]), REG_D[id][1]), regMiraIzq(REG_D[id][0])]];
   return [];
 }
+// En el registro todos miran a la derecha: los dibujos que miran a la
+// izquierda se muestran en espejo.
+function regMiraIzq(key){ const s = sprites[key]; return !!(s && s.face === -1); }
 // La imagen de una versión (vacía si aún no se puede generar: se reintenta).
 function regVarURL(id, i, v){
   const k = id + '|' + i;
@@ -12815,14 +12828,14 @@ function renderDex(){
     if (idx >= nSt){
       const v = vars[idx - nSt], u = regVarURL(b.id, idx - nSt, v);
       etiqueta = v[0];
-      if (u) art = `<img src="${u}" alt="">`;
+      if (u) art = `<img src="${u}" alt=""${v[2] ? ' class="izq"' : ''}>`;
     } else {
       const key = st ? st[idx][0] : b.sprite;
       const oic = b.id === 'omni' ? omniIconURL() : b.id === 'tripode' ? tripodeIconURL() : b.id === 'criaColosal' ? criasIconURL() : '';
       if (oic){
         art = `<img src="${oic}" alt="">`;
       } else if (key && sprites[key]){
-        art = `<img src="${sprites[key].img.src}" alt="">`;
+        art = `<img src="${sprites[key].img.src}" alt=""${regMiraIzq(key) ? ' class="izq"' : ''}>`;
       }
     }
     const tapa = total > 1;
@@ -15296,6 +15309,7 @@ function saveHero(){ storeSet('invasion_hero', hero); }
 // dirección del puñetazo. Se dibuja como dos anillos que se abren.
 const windRings = [];
 function ondaDeViento(ang){
+  avesEnPunto(player.x, player.y - 18, VIL_ONDA_R, 'plumas');      // los pájaros de alrededor: en plumas
   sacudeArboles(player.x, player.y, VIL_ONDA_R, 0.34);
   windRings.push({ x:player.x, y:player.y, ang, r:18, life:0.5, max:0.5 });
   windRings.push({ x:player.x, y:player.y, ang, r:4,  life:0.62, max:0.62 });
@@ -15339,6 +15353,7 @@ function ondaDeViento(ang){
 }
 // Ráfaga del golpe dirigido: solo hacia donde apunta, pero llega más lejos.
 function rafagaViento(ang){
+  avesEnRayo(player.x, player.y - 18, ang, VIL_RAFAGA_R, VIL_RAFAGA_R*0.22, 'plumas');
   sacudeArboles(player.x + Math.cos(ang)*VIL_RAFAGA_R*0.4,
                 player.y + Math.sin(ang)*VIL_RAFAGA_R*0.4, VIL_RAFAGA_R*0.7, 0.30);
   windRings.push({ x:player.x, y:player.y, ang, r:22, life:0.46, max:0.46, dir:true });
@@ -15635,6 +15650,7 @@ function draBoca(i){
 // ---- ataques ----
 function draDanaArea(x, y, R, dmg, empuje, aturde){
   let dio = false;
+  avesEnPunto(x, y - 16, R + 16, 'plumas');
   for (const pool of [civilians, enemies]){
     for (let __i288 = 0, __a288 = pool; __i288 < __a288.length; __i288++){ const t = __a288[__i288];
       if (t.dead || t.held) continue;
@@ -15756,6 +15772,7 @@ function draColetazo(){
     const cx = clamp(x, b.x, b.x+b.w), cy = clamp(y, b.y, b.y+b.h);
     if (dist(x, y, cx, cy) < DRA_COLA_R*0.6) porJugador(()=> damageBuilding(b, 120));
   }
+  avesEnPunto(x, y - 16, DRA_COLA_R + 16, 'plumas');
   sacudeArboles(x, y, DRA_COLA_R*1.5, 0.42);
   windRings.push({ x, y, ang:0, r:30, life:0.55, max:0.55 });
   windRings.push({ x, y, ang:Math.PI, r:10, life:0.7, max:0.7 });
@@ -22773,6 +22790,7 @@ function danaAuto(c, dmg){
 }
 // Explosión propia. En Doble Invasión, como invitado, la hace el anfitrión.
 function explotaPropia(x, y, R, dmg){
+  avesEnPunto(x, y - 10, R + 10, 'quemado');
   if (dobleInv()){
     enviaAccion({ t:'expl', x:Math.round(x), y:Math.round(y), R, dmg });
     addParticles(x, y, '#ffca4d', 18, 200); addParticles(x, y, '#ff6a2b', 10, 150);
@@ -22871,6 +22889,7 @@ function updateProyJ(dt){
       p.rot += dt*9;
       const n = Math.max(1, Math.ceil(Math.hypot(p.vx, p.vy)*dt / 12));
       let fin = false;
+      avesTramo(p.x, p.y, p.vx*dt, p.vy*dt, p.sz + 3, 'plumas');
       for (let s = 0; s < n && !fin; s++){
         p.x += p.vx*dt/n; p.y += p.vy*dt/n;
         const t = proyJBlanco(p, p.sz);
@@ -22917,6 +22936,7 @@ function updateProyJ(dt){
     // pasos cortos: a 900 px/s una bala atravesaría a un soldado de un salto
     const n = Math.max(1, Math.ceil(Math.hypot(p.vx, p.vy)*dt / 14));
     let fin = false;
+    avesTramo(p.x, p.y, p.vx*dt, p.vy*dt, 5, p.k === 'cohete' ? 'quemado' : 'plumas');
     for (let s = 0; s < n && !fin; s++){
       p.x += p.vx*dt/n; p.y += p.vy*dt/n;
       if (p.k === 'cohete'){
@@ -23255,6 +23275,7 @@ function maqTajo(ap){
     let da = Math.abs(Math.atan2(y - oy, x - ox) - a); if (da > Math.PI) da = Math.PI*2 - da;
     return da <= ARCO;
   };
+  avesMata((bx, by)=> enArco(bx, by, 6), ox - R, oy - R, ox + R, oy + R, 'plumas');
   const tocados = new Set();                                           // la onda no repite con estos
   let dio = false;
   for (const pool of [civilians, enemies]){
@@ -23308,6 +23329,7 @@ function maqTajo(ap){
 // una sola vez) y se deshace contra el primer edificio.
 function maqOnda(p){
   const hit = p._hit || (p._hit = new Set()), W = p.W;
+  avesEnPunto(p.x, p.y, W + 6, 'plumas');
   for (const pool of [civilians, enemies]){
     for (let __i324 = 0, __a324 = pool; __i324 < __a324.length; __i324++){ const t = __a324[__i324];
       if (t.dead || t.held || t.thrown || hit.has(t) || Math.abs(t.x - p.x) > W + 70) continue;
@@ -23396,6 +23418,7 @@ function maqLlama(p, L){
     let da = Math.abs(Math.atan2(dy, dx) - p.a); if (da > Math.PI) da = Math.PI*2 - da;
     return da <= p.sp + Math.atan2(r, d);
   };
+  avesMata((bx, by)=> enCono(bx, by, 6), p.x - L, p.y - L, p.x + L, p.y + L, 'quemado');
   for (const pool of [civilians, enemies]){
     for (let __i326 = 0, __a326 = pool; __i326 < __a326.length; __i326++){ const t = __a326[__i326];
       if (t.dead || t.held || hit.has(t)) continue;
@@ -23476,6 +23499,7 @@ function maqSierraSuelta(){
 function maqArrolla(){
   tutEv('sierras');
   const sob = maqSob(), dmg = MAQ_SIE_PASO*(sob ? MAQ_SOB : 1), R = MAQ_R + 24;
+  avesEnPunto(player.x, player.y - 16, R + 16, 'plumas');
   if (!maqGolpeados) maqGolpeados = new Set();
   for (const pool of [civilians, enemies]){
     for (let __i328 = 0, __a328 = pool; __i328 < __a328.length; __i328++){ const t = __a328[__i328];
@@ -27152,6 +27176,8 @@ function borDentroCono(cono, x, y, tx, ty){
 }
 function borArea(x, y, R, dmg, empuje, edif, cono){
   let dio = false;
+  avesMata((bx, by)=> (bx - x)*(bx - x) + (by - y + 16)*(by - y + 16) < (R + 16)*(R + 16) && borDentroCono(cono, x, y, bx, by + 16),
+           x - R - 16, y - R - 32, x + R + 16, y + R, 'plumas');
   dmg *= borMet() ? BOR_MET_DMG : 1;
   for (const pool of [civilians, enemies]){
     for (let i = 0; i < pool.length; i++){ const t = pool[i];
@@ -27779,6 +27805,7 @@ function borRayoUpdate(dt){
       bor.rayoTick += 0.1;
       const n = Math.round(R.dura/0.1), dmg = R.dmg/n*(canon ? 1 : 1), o = borPecho(), W = R.ancho;
       const L = choque.on && choque.bor ? Math.max(20, choque.dv - 10) : R.largo;   // trabado: no pasa del choque
+      avesEnRayo(o.x, o.y, bor.dirA, L, W/2 + 6, 'quemado');
       for (const pool of [civilians, enemies]){
         for (let i = 0; i < pool.length; i++){ const t = pool[i];
           if (t.dead || t.held) continue;
@@ -34074,18 +34101,22 @@ function updateBocadillos(dt){
     if (b.t >= b.max || (b.o.dead && !b.fijo)) bocadillos.splice(i, 1);
   }
 }
+const BOC_FUENTE = '900 12px "Trebuchet MS", Verdana, sans-serif', BOC_FUENTE_CIV = '900 11px "Trebuchet MS", Verdana, sans-serif';
 function drawBocadillos(){
   if (!bocadillos.length) return;
-  // Bocadillo grande y legible: letra gruesa de 12 px, globo blanco con borde
-  // negro de 2 px, sombra y la colita hacia quien habla.
-  ctx.save(); ctx.font = '900 12px "Trebuchet MS", Verdana, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  // Bocadillo grande y legible: letra gruesa de 12 px (11 los civiles), globo
+  // blanco con borde negro de 2 px, sombra y la colita hacia quien habla.
+  ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.lineJoin = 'round';
+  let fuente = '';
   for (const b of bocadillos){
-    const o = b.o, alt = o.alt ? alturaVisible(o) : 0;
+    const o = b.o, alt = o.alt ? alturaVisible(o) : 0, civ = o.kind === 'civ';
+    const f = civ ? BOC_FUENTE_CIV : BOC_FUENTE;
+    if (f !== fuente) ctx.font = fuente = f;
     const s = S(o.x, o.y - (o.h || 30)*0.9 - alt - 12);
     const a = Math.min(1, b.t/0.1, (b.max - b.t)/0.3), sube = Math.min(1, b.t/0.15)*4;
     const pop = 1 + Math.max(0, 0.12 - b.t)*2.2;                       // aparece con un pequeño salto
-    const w = (ctx.measureText(b.txt).width + 14)*pop, h = 19*pop, y = s.y - sube, x0 = s.x - w/2, y0 = y - h/2;
+    const w = (ctx.measureText(b.txt).width + (civ ? 12 : 14))*pop, h = (civ ? 17 : 19)*pop, y = s.y - sube, x0 = s.x - w/2, y0 = y - h/2;
     ctx.globalAlpha = a;
     const globo = ()=>{ ctx.beginPath(); ctx.moveTo(x0 + 5, y0); ctx.lineTo(x0 + w - 5, y0); ctx.quadraticCurveTo(x0 + w, y0, x0 + w, y0 + 5); ctx.lineTo(x0 + w, y0 + h - 5);
                         ctx.quadraticCurveTo(x0 + w, y0 + h, x0 + w - 5, y0 + h); ctx.lineTo(s.x + 4, y0 + h); ctx.lineTo(s.x, y0 + h + 6); ctx.lineTo(s.x - 4, y0 + h);
