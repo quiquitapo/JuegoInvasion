@@ -10721,6 +10721,7 @@ function applyAudioVolumes(){
   audio.sfxGain.gain.value = audio.sfxOn ? audio.sfxVol : 0;
   audio.musGain.gain.cancelScheduledValues(audio.ctx.currentTime);       // por si había un fundido en curso
   audio.musGain.gain.value = audio.musOn ? audio.musVol * 0.5 : 0;
+  if (audio.musDir){ audio.musDir.gain.cancelScheduledValues(audio.ctx.currentTime); audio.musDir.gain.value = audio.musGain.gain.value; }
 }
 
 // El navegador exige un gesto del usuario antes de sonar, así que se inicia al primer click/tecla.
@@ -10751,7 +10752,7 @@ function initAudio(){
     musFlt.connect(comp);
     musFlt.connect(delay); delay.connect(dfl); dfl.connect(fb); fb.connect(delay);
     dfl.connect(wet); wet.connect(comp);
-    audio.musFlt = musFlt;
+    audio.musFlt = musFlt; audio.musComp = comp;
     // oído de la música (no suena por él): lo usan las luces que laten con ella
     try { audio.musAn = audio.ctx.createAnalyser(); audio.musAn.fftSize = 1024; audio.musAn.smoothingTimeConstant = 0.35; audio.musGain.connect(audio.musAn); }
     catch(e){ audio.musAn = null; }
@@ -11312,6 +11313,11 @@ const BOSS_TRACKS = {
 // El Omnidroide y el Centurión suenan con su pista grabada; si no carga, con la de antes.
 BOSS_TRACKS.omni = { tempo: 250, name:'POSITIVAMENTE BESTIAL', rec:'omni', respaldo: BOSS_TRACKS.omni };
 BOSS_TRACKS.centurion = { tempo: 250, name:'AL FILO DEL CUCHILLO', rec:'centurion', respaldo: BOSS_TRACKS.centurion };
+// El tanque de fuego, el Super X2 y el Desgarrador suenan con su pista del
+// estudio; mientras se genera (o si no se puede), con la de antes.
+BOSS_TRACKS.flametank = Object.assign({}, BOSS_TRACKS.flametank, { name:'ORUGAS EN LLAMAS', gen:'flametank', respaldo: BOSS_TRACKS.flametank });
+BOSS_TRACKS.superx = Object.assign({}, BOSS_TRACKS.superx, { name:'VENENO EN EL AIRE', gen:'superx', respaldo: BOSS_TRACKS.superx });
+BOSS_TRACKS.desgarrador = Object.assign({}, BOSS_TRACKS.desgarrador, { name:'SIERRA DE GUERRA', gen:'desgarrador', respaldo: BOSS_TRACKS.desgarrador });
 let bossTrack = null;              // el que suena ahora, si hay jefe en pie
 let previewTrack = null, previewT = 0;
 
@@ -11362,6 +11368,9 @@ const CIUDAD_PISTAS = {
          21,-1,-1,-1, 20,-1,21,-1, 24,-1,-1,-1, 26,-1,-1,-1,
          23,-1,-1,-1, 19,-1,-1,-1, 20,-1,23,-1, 26,-1,-1,-1] }
 };
+// Cada hora suena con su pista del estudio (y prepara la de la hora siguiente).
+for (const [k, sig] of [['manana', 'dia'], ['dia', 'atardecer'], ['atardecer', 'noche'], ['noche', 'manana']])
+  CIUDAD_PISTAS[k] = Object.assign({}, CIUDAD_PISTAS[k], { gen:'ciudad_' + k, respaldo: CIUDAD_PISTAS[k], siguiente: ()=> 'ciudad_' + sig });
 function pistaCiudad(){ try { return CIUDAD_PISTAS[phase().id] || CIUDAD_PISTAS.dia; } catch(e){ return CIUDAD_PISTAS.dia; } }
 // Temas de los menús, piezas de dollchan: uno en el menú principal y otro
 // mientras se está en la tienda o en los controles.
@@ -11935,6 +11944,893 @@ function bbGeneradores(){
   };
 }
 
+// ================= ESTUDIO: MÚSICA SINTETIZADA EN DIFERIDO =================
+// Cada pista se compone como código (una partitura que va dejando notas en el
+// tiempo) y se sintetiza entera, muestra a muestra, en un Worker: batería
+// sintetizada, bajos con filtro, supersierras, guitarra distorsionada,
+// metales, coro, cuerdas pulsadas (Karplus-Strong), FM, reverb, eco,
+// compresión con bombeo (sidechain) y un limitador. El resultado es un bucle
+// sin costuras: lo que suena más allá del final (colas, reverb) se suma al
+// principio, y los efectos se pasan dos veces para que entren ya asentados.
+function estudioMotor(){
+  'use strict';
+  const TAU = Math.PI*2, { sin, exp, abs, min, max, floor, round, pow, sqrt, PI, tan, cos } = Math;
+  // saturación suave (aproximación racional de tanh: mucho más barata)
+  const tanh = x => x <= -3 ? -1 : x >= 3 ? 1 : x*(27 + x*x)/(27 + 9*x*x);
+  const mtof = m => 440*pow(2, (m - 69)/12);
+
+  // ---- azar con semilla (cada pista suena siempre igual) ----
+  let sem = 1;
+  const azar = ()=>{ sem = sem + 0x6D2B79F5 | 0; let t = Math.imul(sem ^ sem >>> 15, 1 | sem); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0)/4294967296; };
+  const ruido = ()=> azar()*2 - 1;
+
+  // ---- tablas de onda limitadas en banda (sin aliasing) ----
+  const TL = 2048, HARM = [1,2,3,4,6,8,12,16,24,32,48,64,96,128,192,256,384];
+  const tablas = {};
+  function tabla(tipo, f, sr){
+    const h0 = floor(sr*0.45/max(1, f));
+    let h = 1; for (const x of HARM) if (x <= h0) h = x;
+    const k = tipo + h;
+    if (tablas[k]) return tablas[k];
+    const t = new Float32Array(TL + 1);
+    for (let n = 1; n <= h; n++){
+      let a = 0;
+      if (tipo === 'saw') a = 1/n;
+      else if (tipo === 'sq'){ if (n % 2) a = 1/n; }
+      else if (tipo === 'tri'){ if (n % 2) a = ((n >> 1) % 2 ? -1 : 1)/(n*n); }
+      if (!a) continue;
+      const w = TAU*n/TL;
+      for (let i = 0; i < TL; i++) t[i] += a*sin(w*i);
+    }
+    let pk = 0; for (let i = 0; i < TL; i++) pk = max(pk, abs(t[i]));
+    for (let i = 0; i < TL; i++) t[i] /= pk || 1;
+    t[TL] = t[0];
+    return (tablas[k] = t);
+  }
+
+  // ---- filtro de estado variable (TPT, estable con la frecuencia alta) ----
+  function SVF(){ return { a1:0, a2:0, a3:0, k:1, i1:0, i2:0 }; }
+  function svfPon(s, fc, q, sr){
+    const g = tan(PI*min(fc, sr*0.45)/sr); s.k = 1/q;
+    s.a1 = 1/(1 + g*(g + s.k)); s.a2 = g*s.a1; s.a3 = g*s.a2;
+  }
+  // devuelve el paso bajo; banda en s.bp y alto en s.hp
+  function svf(s, x){
+    const v3 = x - s.i2, v1 = s.a1*s.i1 + s.a2*v3, v2 = s.i2 + s.a2*s.i1 + s.a3*v3;
+    s.i1 = 2*v1 - s.i1; s.i2 = 2*v2 - s.i2;
+    s.bp = v1; s.hp = x - s.k*v1 - v2;
+    return v2;
+  }
+
+  // =============== la canción: buses, notas y mezcla ===============
+  function Cancion(o, sr){
+    const bpm = o.bpm, paso = 60/bpm/4, compases = o.compases;
+    const L = round(compases*16*paso*sr), Ls = round((o.bucle || 0)*16*paso*sr);
+    const C = {
+      sr, L, Ls, paso, bpm, compases,
+      dL: new Float32Array(L), dR: new Float32Array(L),     // seco
+      pL: new Float32Array(L), pR: new Float32Array(L),     // seco que bombea con el bombo
+      rL: new Float32Array(L), rR: new Float32Array(L),     // envío a la reverb
+      eL: new Float32Array(L), eR: new Float32Array(L),     // envío al eco
+      golpes: [],                                           // dónde pega el bombo (bombeo)
+      swing: o.swing || 0
+    };
+    // tiempo (s) del compás c, semicorchea s (con swing en las impares)
+    C.t = (c, s = 0)=> (c*16 + s + (s % 2 ? C.swing : 0))*paso;
+    C.T = (pasos)=> pasos*paso;                               // duración de n semicorcheas
+    // suma un trozo mono o estéreo a los buses, con paneo, envíos y bombeo
+    // (o, mientras se graba un sonido para la caché, lo guarda)
+    C.graba = null;
+    C.mezcla = (bL, bR, n, t0, m)=>{
+      if (C.graba){ C.graba.push({ bL: bL.slice(0, n), bR: bR ? bR.slice(0, n) : null, n, t0, m }); return; }
+      C.suma(bL, bR, n, t0, m);
+    };
+    C.suma = (bL, bR, n, t0, m)=>{
+      const g = m.gan == null ? 1 : m.gan, p = m.pan || 0;
+      const gl = cos((p + 1)*PI/4)*g*1.4142, gr = sin((p + 1)*PI/4)*g*1.4142;
+      const rv = m.rev || 0, ec = m.eco || 0;
+      const AL = m.bombea ? C.pL : C.dL, AR = m.bombea ? C.pR : C.dR;
+      let j = ((round(t0*sr) % L) + L) % L;
+      const nf = n - 96;
+      for (let i = 0; i < n; i++){
+        const fd = i > nf ? (n - i)/96 : 1;
+        const l = bL[i]*gl*fd, r = (bR ? bR[i] : bL[i])*gr*fd;
+        AL[j] += l; AR[j] += r;
+        if (rv){ C.rL[j] += l*rv; C.rR[j] += r*rv; }
+        if (ec){ C.eL[j] += l*ec; C.eR[j] += r*ec; }
+        if (++j >= L) j = Ls;                               // lo que se pasa del final suena al volver al bucle
+      }
+    };
+    return C;
+  }
+  // búferes de trabajo reutilizables
+  let tmpA = new Float32Array(1), tmpB = new Float32Array(1);
+  function tmp(n){ if (tmpA.length < n){ tmpA = new Float32Array(n); tmpB = new Float32Array(n); } tmpA.fill(0, 0, n); tmpB.fill(0, 0, n); return tmpA; }
+
+  // =============== instrumentos ===============
+  // Bombo: seno con caída de tono, chasquido y saturación.
+  function bombo(C, t0, vel = 1, o = {}){
+    const sr = C.sr, d = o.dec || 0.42, n = floor((d*1.6 + 0.05)*sr), b = tmp(n);
+    const f0 = o.f0 || 165, f1 = o.f1 || 46, dr = o.dist || 1.6;
+    let ph = 0;
+    for (let i = 0; i < n; i++){
+      const x = i/sr, f = f1 + (f0 - f1)*exp(-x*30);
+      ph += TAU*f/sr;
+      const a = min(1, x*900)*exp(-x*3.2/d);
+      let v = sin(ph)*a + ruido()*exp(-x*700)*0.35*(o.click == null ? 1 : o.click);
+      b[i] = tanh(v*dr)/tanh(dr)*vel;
+    }
+    C.golpes.push([t0, vel]);
+    C.mezcla(b, null, n, t0, { gan: o.gan == null ? 0.9 : o.gan, rev: o.rev || 0 });
+  }
+  // Caja: cuerpo afinado y ruido filtrado; o palmada (tres rebotes).
+  function caja(C, t0, vel = 1, o = {}){
+    const sr = C.sr, d = o.dec || 0.2, n = floor((d*2 + 0.05)*sr), b = tmp(n);
+    const f = o.tono || 190, hp = SVF(), bp = SVF();
+    svfPon(hp, o.hp || 1400, 0.7, sr); svfPon(bp, o.bp || 1200, 1.2, sr);
+    let p1 = 0, p2 = 0;
+    for (let i = 0; i < n; i++){
+      const x = i/sr;
+      let v = 0;
+      if (o.palma){
+        const r = ruido(); svf(bp, r);
+        const env = (x < 0.03 ? exp(-((x*1000) % 10)*0.35) : 0) + exp(-x*3/d)*0.8*(x >= 0.02 ? 1 : 0);
+        v = bp.bp*env*2.2;
+      } else {
+        p1 += TAU*f*(1 + 0.6*exp(-x*45))/sr; p2 += TAU*f*1.72/sr;
+        const cuerpo = (sin(p1) + 0.45*sin(p2))*exp(-x*22)*(o.cuerpo == null ? 0.7 : o.cuerpo);
+        svf(hp, ruido());
+        v = cuerpo + hp.hp*exp(-x*3.5/d)*(o.ruido == null ? 0.9 : o.ruido);
+      }
+      b[i] = tanh(v*1.4)*vel;
+    }
+    C.mezcla(b, null, n, t0, { gan: o.gan == null ? 0.55 : o.gan, rev: o.rev == null ? 0.18 : o.rev, pan: o.pan || 0 });
+  }
+  // Charles / platillos: seis cuadradas inarmónicas (como una 808) más ruido.
+  const METAL = [205.3, 304.4, 369.6, 522.7, 540, 800];
+  function metal(C, t0, vel, o){
+    const sr = C.sr, d = o.dec, n = floor((d*2.2 + 0.02)*sr), b = tmp(n), hp = SVF(), lp = SVF();
+    svfPon(hp, o.hp || 7000, 0.8, sr); svfPon(lp, o.lp || 13500, 0.7, sr);
+    const ph = new Float64Array(6), k = o.tono || 1.7;
+    for (let i = 0; i < n; i++){
+      const x = i/sr;
+      let m = 0;
+      for (let j = 0; j < 6; j++){ ph[j] += METAL[j]*k/sr; m += (ph[j] % 1) < 0.5 ? 1 : -1; }
+      const v = m*0.12*(o.metal == null ? 1 : o.metal) + ruido()*(o.ruido == null ? 0.6 : o.ruido);
+      svf(hp, v); const y = svf(lp, hp.hp);
+      b[i] = y*min(1, x*3000)*exp(-x*4/d)*vel*3;            // (el paso alto se come casi todo: se compensa)
+    }
+    C.mezcla(b, null, n, t0, { gan: o.gan == null ? 0.3 : o.gan, pan: o.pan || 0, rev: o.rev || 0.08 });
+  }
+  const charles = (C, t0, vel = 1, o = {})=> metal(C, t0, vel, Object.assign({ dec: o.abierto ? 0.32 : 0.045, gan: 0.24 }, o));
+  const platillo = (C, t0, vel = 1, o = {})=> metal(C, t0, vel, Object.assign({ dec: 1.5, hp: 4200, gan: 0.15, rev: 0.25, tono: 1.25, ruido: 0.9 }, o));
+  const ride = (C, t0, vel = 1, o = {})=> metal(C, t0, vel, Object.assign({ dec: 0.55, hp: 5200, gan: 0.13, tono: 2.4, metal: 1.6, ruido: 0.3 }, o));
+  // Tom / timbal: tono que cae, con parciales inarmónicos y golpe de ruido.
+  function timbal(C, t0, midi, vel = 1, o = {}){
+    const sr = C.sr, d = o.dec || 0.9, n = floor(d*2*sr), b = tmp(n), f = mtof(midi);
+    const P = o.orquesta ? [[1, 1], [1.5, 0.5], [1.98, 0.35], [2.44, 0.2]] : [[1, 1], [1.6, 0.25]];
+    const ph = new Float64Array(P.length), en = P.map(p => p[1]), kd = P.map((p, j)=> exp(-(3 + j*2.5)/d/sr));
+    let eb = 0.35, er = 0.4; const kb = exp(-18/sr), kr = exp(-60/sr);
+    for (let i = 0; i < n; i++){
+      const bend = 1 + eb; eb *= kb;
+      let v = 0;
+      for (let j = 0; j < P.length; j++){ ph[j] += TAU*f*P[j][0]*bend/sr; v += sin(ph[j])*en[j]; en[j] *= kd[j]; }
+      v += ruido()*er; er *= kr;
+      b[i] = tanh(v*1.3)*vel;
+    }
+    C.mezcla(b, null, n, t0, { gan: o.gan == null ? 0.6 : o.gan, pan: o.pan || 0, rev: o.rev == null ? 0.3 : o.rev });
+  }
+
+  // Bajo: ácido (sierra + filtro resonante con envolvente), sub, reese
+  // (dos sierras desafinadas), fm o pulso.
+  function bajo(C, t0, dur, midi, vel = 1, o = {}){
+    const sr = C.sr, rel = 0.03, n = floor((dur + rel)*sr), b = tmp(n), tipo = o.tipo || 'acido';
+    const f = mtof(midi), fd = o.desde != null ? mtof(o.desde) : f, gl = o.glide || 0.06;
+    const tw = tabla(tipo === 'pulso' ? 'sq' : 'saw', f*2, sr), lp = SVF(), lp2 = SVF();
+    let p1 = 0, p2 = 0.37, p3 = 0, pm = 0;
+    const corte = o.corte || 600, envA = o.env == null ? 2200 : o.env, q = o.q || 1.2, dec = o.dec || 0.18, dr = o.dist || 1.5;
+    for (let i = 0; i < n; i++){
+      const x = i/sr;
+      const fr = fd + (f - fd)*min(1, x/gl);
+      if ((i & 15) === 0){ const fc = corte + envA*exp(-x/dec); svfPon(lp, fc, q, sr); svfPon(lp2, fc*1.1, 0.6, sr); }
+      let v;
+      if (tipo === 'sub'){ p1 += TAU*fr/sr; v = sin(p1) + 0.25*sin(2*p1); }
+      else if (tipo === 'fm'){
+        pm += TAU*fr*(o.razon || 1)/sr; p1 += TAU*fr/sr;
+        v = sin(p1 + (o.indice || 2.5)*exp(-x/dec)*sin(pm)) + 0.3*sin(p1*0.5*2);
+      } else {
+        p1 += fr/sr; const i1 = (p1 % 1)*TL, a = i1 | 0;
+        v = tw[a] + (tw[a + 1] - tw[a])*(i1 - a);
+        if (tipo === 'reese'){
+          p2 += fr*1.0075/sr; const i2 = (p2 % 1)*TL, c = i2 | 0;
+          v = 0.6*(v + tw[c] + (tw[c + 1] - tw[c])*(i2 - c));
+          p3 += TAU*fr/sr; v += 0.55*sin(p3);
+        }
+        v = svf(lp, v); if (tipo !== 'acido') v = svf(lp2, v);
+      }
+      const a = min(1, x*400)*(x > dur ? max(0, 1 - (x - dur)/rel) : 1)*(o.pluck ? 0.45 + 0.55*exp(-x*6) : 1);
+      b[i] = tanh(v*dr)*a*vel;
+    }
+    C.mezcla(b, null, n, t0, { gan: o.gan == null ? 0.5 : o.gan, bombea: o.bombea !== false, rev: o.rev || 0, eco: o.eco || 0 });
+  }
+
+  // Sintetizador polifónico: sierras/cuadradas desafinadas (unísono) en
+  // estéreo, filtro con envolvente, vibrato y portamento. Sirve para lead,
+  // pad (supersierra), metales y cuerdas.
+  function sinte(C, t0, dur, notas, vel = 1, o = {}){
+    const sr = C.sr, A = o.a == null ? 0.01 : o.a, D = o.d == null ? 0.25 : o.d, S = o.s == null ? 0.75 : o.s, R = o.r == null ? 0.2 : o.r;
+    const n = floor((dur + R)*sr); tmp(n); const bL = tmpA, bR = tmpB;
+    const voces = o.voces || 2, des = o.des == null ? 12 : o.des, onda = o.onda || 'saw';
+    const corte = o.corte || 3000, envF = o.envF || 0, decF = o.decF || 0.3, q = o.q || 0.8;
+    const vib = o.vib || 0, vibT = o.vibT == null ? 0.25 : o.vibT, fdes = o.desde;
+    const lista = Array.isArray(notas) ? notas : [notas];
+    for (let k = 0; k < lista.length; k++){
+      const f = mtof(lista[k]), tw = tabla(onda, f*1.5, sr);
+      for (let v = 0; v < voces; v++){
+        const cent = voces > 1 ? (v/(voces - 1) - 0.5)*2*des : 0, fm = pow(2, cent/1200);
+        const pan = voces > 1 ? (v/(voces - 1) - 0.5)*1.6*(o.ancho == null ? 1 : o.ancho) : 0;
+        const gl = cos((pan + 1)*PI/4), gr = sin((pan + 1)*PI/4);
+        const lp = SVF(); let ph = azar();
+        const f0 = fdes != null ? mtof(fdes + (lista[k] - lista[0])) : f;
+        for (let i = 0; i < n; i++){
+          const x = i/sr;
+          if ((i & 15) === 0) svfPon(lp, corte + envF*exp(-x/decF), q, sr);
+          let fr = (f0 + (f - f0)*min(1, x/(o.glide || 0.08)))*fm;
+          if (vib && x > vibT) fr *= 1 + vib*min(1, (x - vibT)*3)*sin(TAU*5.6*x + v);
+          ph += fr/sr; const ii = (ph % 1)*TL, a = ii | 0;
+          const s = svf(lp, tw[a] + (tw[a + 1] - tw[a])*(ii - a));
+          const env = x < A ? x/A : x < A + D ? 1 - (1 - S)*(x - A)/D : x < dur ? S : S*max(0, 1 - (x - dur)/R);
+          bL[i] += s*env*gl; bR[i] += s*env*gr;
+        }
+      }
+    }
+    const g = vel/sqrt(voces*lista.length)*(o.gan == null ? 0.35 : o.gan);
+    if (o.dist){ for (let i = 0; i < n; i++){ bL[i] = tanh(bL[i]*o.dist)/o.dist*1.5; bR[i] = tanh(bR[i]*o.dist)/o.dist*1.5; } }
+    C.mezcla(bL, bR, n, t0, { gan: g, pan: o.pan || 0, rev: o.rev == null ? 0.25 : o.rev, eco: o.eco || 0, bombea: !!o.bombea });
+  }
+  // Guitarra distorsionada: quinta y octava, doble pista abierta a los lados,
+  // saturación fuerte y "pantalla" de altavoz. Apagada (palm mute) = corta y oscura.
+  function guitarra(C, t0, dur, midi, vel = 1, o = {}){
+    const sr = C.sr, apag = !!o.apagada, R = apag ? 0.03 : 0.08, n = floor((dur + R)*sr);
+    const tonos = o.notas || [midi, midi + 7, midi + 12];
+    // la distorsión se calcula al doble de frecuencia (menos aliasing) y se promedia
+    const s2 = sr*2, gano = o.gano || 9;
+    for (const lado of [-1, 1]){
+      const b = tmp(n), pre = SVF(), hp = SVF(), cab = SVF(), cab2 = SVF();
+      svfPon(pre, apag ? 900 : 3200, 0.7, s2); svfPon(hp, 110, 0.7, s2); svfPon(cab, 4200, 0.9, s2); svfPon(cab2, 3000, 1.6, s2);
+      const ph = tonos.map(()=> azar());
+      const tw = tonos.map(m => tabla('saw', mtof(m)*2, sr));
+      const ff = tonos.map(m => mtof(m)*(1 + (lado*0.0018) + ruido()*0.0009)/s2);
+      for (let i = 0; i < n; i++){
+        const x = i/sr;
+        let v = 0;
+        for (let sub = 0; sub < 2; sub++){
+          let u = 0;
+          for (let k = 0; k < tonos.length; k++){ ph[k] += ff[k]; const ii = (ph[k] % 1)*TL, a = ii | 0; u += tw[k][a] + (tw[k][a + 1] - tw[k][a])*(ii - a); }
+          u = svf(pre, u); svf(hp, u);
+          u = tanh(hp.hp*gano);
+          u = svf(cab, u); svf(cab2, u); v += (u + cab2.bp*0.6)*0.5;
+        }
+        const env = min(1, x*500)*(apag ? exp(-x*14) : 0.85 + 0.15*exp(-x*4))*(x > dur ? max(0, 1 - (x - dur)/R) : 1);
+        b[i] = v*env*vel;
+      }
+      C.mezcla(b, null, n, t0, { gan: (o.gan == null ? 0.2 : o.gan), pan: lado*0.8, rev: o.rev == null ? 0.08 : o.rev, bombea: !!o.bombea });
+    }
+  }
+  // Cuerda pulsada (Karplus-Strong): arpegios y punteos.
+  function pulsada(C, t0, midi, vel = 1, o = {}){
+    const sr = C.sr, d = o.dur || 1.2, n = floor(d*sr), b = tmp(n), f = mtof(midi);
+    const N = max(2, round(sr/f)), lin = new Float32Array(N), br = o.brillo == null ? 0.5 : o.brillo;
+    let prev = 0;
+    for (let i = 0; i < N; i++){ const r = ruido(); prev = prev + (r - prev)*(0.3 + br*0.7); lin[i] = prev; }
+    const fb = o.caida || 0.996;
+    let p = 0;
+    for (let i = 0; i < n; i++){
+      const a = lin[p], c = lin[(p + 1) % N];
+      const y = (a*(0.5 + br*0.3) + c*(0.5 - br*0.3))*fb;
+      lin[p] = y; p = (p + 1) % N;
+      b[i] = a*vel*1.8*min(1, (n - i)/(sr*0.05));
+    }
+    C.mezcla(b, null, n, t0, { gan: o.gan == null ? 0.4 : o.gan, pan: o.pan || 0, rev: o.rev == null ? 0.2 : o.rev, eco: o.eco || 0, bombea: !!o.bombea });
+  }
+  // FM de dos operadores: campanas, piano eléctrico, golpes metálicos.
+  function fm(C, t0, dur, midi, vel = 1, o = {}){
+    const sr = C.sr, R = o.r == null ? 0.3 : o.r, n = floor((dur + R)*sr), b = tmp(n), f = mtof(midi);
+    const razon = o.razon || 3.5, ind = o.indice || 3, kd = o.kd || 2.5, dec = o.dec || 1.2;
+    let pc = 0, pm = 0;
+    for (let i = 0; i < n; i++){
+      const x = i/sr;
+      pm += TAU*f*razon/sr; pc += TAU*f/sr;
+      const env = min(1, x*800)*exp(-x/dec*(o.pluck ? 3 : 1))*(x > dur ? max(0, 1 - (x - dur)/R) : 1);
+      b[i] = sin(pc + ind*exp(-x*kd)*sin(pm))*env*vel;
+    }
+    C.mezcla(b, null, n, t0, { gan: o.gan == null ? 0.3 : o.gan, pan: o.pan || 0, rev: o.rev == null ? 0.3 : o.rev, eco: o.eco || 0, bombea: !!o.bombea });
+  }
+  // Coro: sierras con vibrato a través de dos formantes de vocal ("a" u "o").
+  function coro(C, t0, dur, notas, vel = 1, o = {}){
+    const sr = C.sr, A = o.a || 0.35, R = o.r || 0.6, n = floor((dur + R)*sr); tmp(n); const bL = tmpA, bR = tmpB;
+    const F = o.vocal === 'o' ? [[450, 5, 1], [800, 7, 0.65]] : [[730, 5, 1], [1090, 7, 0.6]];
+    for (let k = 0; k < notas.length; k++){
+      for (let v = 0; v < 2; v++){
+        const f = mtof(notas[k])*pow(2, (v - 0.5)*14/1200), tw = tabla('saw', f, sr), fs = F.map(()=> SVF());
+        F.forEach((x, j)=> svfPon(fs[j], x[0], x[1], sr));
+        const pan = (v - 0.5)*1.1, gl = cos((pan + 1)*PI/4), gr = sin((pan + 1)*PI/4);
+        let ph = azar();
+        for (let i = 0; i < n; i++){
+          const x = i/sr;
+          ph += f*(1 + 0.006*sin(TAU*(5 + v*0.4)*x + k))/sr; const ii = (ph % 1)*TL, a = ii | 0;
+          const s = tw[a] + (tw[a + 1] - tw[a])*(ii - a);
+          let y = 0; for (let j = 0; j < F.length; j++){ svf(fs[j], s); y += fs[j].bp*F[j][2]; }
+          const env = x < A ? x/A : x < dur ? 1 : max(0, 1 - (x - dur)/R);
+          bL[i] += y*env*gl; bR[i] += y*env*gr;
+        }
+      }
+    }
+    C.mezcla(bL, bR, n, t0, { gan: 0.63*vel*(o.gan == null ? 0.5 : o.gan)/sqrt(notas.length*2), rev: o.rev == null ? 0.5 : o.rev, bombea: !!o.bombea });
+  }
+  // Barrido de ruido (subida o bajada) y golpe grave de impacto.
+  function barrido(C, t0, dur, vel = 1, o = {}){
+    const sr = C.sr, n = floor(dur*sr), b = tmp(n), bp = SVF(), f0 = o.f0 || 300, f1 = o.f1 || 9000;
+    for (let i = 0; i < n; i++){
+      const u = i/n;
+      if ((i & 15) === 0) svfPon(bp, f0*pow(f1/f0, u), o.q || 2, sr);
+      svf(bp, ruido());
+      const env = o.baja ? pow(1 - u, 2) : pow(u, 2.2);
+      b[i] = bp.bp*env*vel;
+    }
+    C.mezcla(b, null, n, t0, { gan: o.gan == null ? 0.35 : o.gan, rev: o.rev == null ? 0.4 : o.rev, pan: o.pan || 0 });
+  }
+  function impacto(C, t0, vel = 1, o = {}){
+    const sr = C.sr, n = floor(2.2*sr), b = tmp(n), lp = SVF();
+    svfPon(lp, 2500, 0.7, sr);
+    let ph = 0;
+    for (let i = 0; i < n; i++){
+      const x = i/sr; ph += TAU*(38 + 70*exp(-x*6))/sr;
+      b[i] = (sin(ph)*exp(-x*1.6) + svf(lp, ruido())*exp(-x*5)*0.6)*vel;
+    }
+    C.mezcla(b, null, n, t0, { gan: o.gan == null ? 0.7 : o.gan, rev: o.rev == null ? 0.45 : o.rev });
+  }
+
+  // =============== efectos y mezcla final ===============
+  // Los efectos recorren el bucle dos veces como sonará: entero la primera
+  // (intro incluida) y desde el inicio del bucle la segunda, ya con las colas
+  // de la vuelta anterior; se guarda lo de la intro de la primera y el resto
+  // de la segunda.
+  // Reverb tipo Freeverb (8 peines con amortiguación y 4 pasatodo por lado).
+  function reverb(C, inL, inR, outL, outR, o = {}){
+    // a media frecuencia de muestreo (la cola de una reverb no tiene agudos): la mitad de trabajo
+    const sr = C.sr, L = C.L, s = sr/2/44100, tam = o.tam || 0.84, am = o.amort || 0.3;
+    const CO = [1116, 1188, 1277, 1356, 1422, 1491, 1557, 1617], AP = [556, 441, 341, 225];
+    const wet = o.nivel || 2.2;
+    const lado = (inp, out, sp)=>{
+      // las 8 líneas de los peines y las 4 de los pasatodo en un solo búfer
+      const cl = CO.map(x => round((x + sp)*s)), al = AP.map(x => round((x + sp)*s));
+      const cb = cl.map(n => new Float32Array(n)), ab = al.map(n => new Float32Array(n));
+      const ci = new Int32Array(8), ai = new Int32Array(4), cf = new Float32Array(8);
+      let yp = 0;
+      for (let pasada = 0; pasada < 2; pasada++){
+        const j0 = pasada ? C.Ls : 0;
+        for (let j = j0; j < L - 1; j += 2){
+          const x = (inp[j] + inp[j + 1])*0.0075;
+          let y = 0;
+          for (let k = 0; k < 8; k++){ const b = cb[k], i = ci[k], v = b[i]; cf[k] = v*(1 - am) + cf[k]*am; b[i] = x + cf[k]*tam; ci[k] = i + 1 >= cl[k] ? 0 : i + 1; y += v; }
+          for (let k = 0; k < 4; k++){ const b = ab[k], i = ai[k], v = b[i]; b[i] = y + v*0.5; ai[k] = i + 1 >= al[k] ? 0 : i + 1; y = v - y; }
+          if (pasada || j < C.Ls){ out[j] += (yp + y)*0.5*wet; out[j + 1] += y*wet; }
+          yp = y;
+        }
+      }
+    };
+    lado(inL, outL, 0); lado(inR, outR, 23);
+  }
+  // Eco cruzado (ping-pong) con paso bajo en la realimentación.
+  function eco(C, inL, inR, outL, outR, o = {}){
+    const sr = C.sr, L = C.L, D = round((o.t || C.paso*3)*sr), fb = o.fb == null ? 0.42 : o.fb;
+    const bl = new Float32Array(D), br = new Float32Array(D);
+    let i = 0, fl = 0, fr = 0;
+    for (let pasada = 0; pasada < 2; pasada++) for (let j = pasada ? C.Ls : 0; j < L; j++){
+      const yl = bl[i], yr = br[i];
+      fl += (yr - fl)*0.35; fr += (yl - fr)*0.35;
+      bl[i] = inL[j] + fl*fb; br[i] = inR[j]*0.3 + fr*fb;
+      if (++i >= D) i = 0;
+      if (pasada || j < C.Ls){ outL[j] += yl; outR[j] += yr; }
+    }
+  }
+  function masteriza(C, o = {}){
+    const L = C.L, sr = C.sr, oL = new Float32Array(L), oR = new Float32Array(L);
+    // bombeo: la ganancia del grupo "bombea" baja con cada bombo y vuelve
+    const prof = o.bombeo == null ? 0.55 : o.bombeo, rel = (o.bombeoRel || 0.16)*sr, env = new Float32Array(L).fill(1);
+    const NK = round(rel*3), curva = new Float32Array(NK);
+    for (let k = 0; k < NK; k++) curva[k] = prof*exp(-k/rel)*min(1, k/(0.004*sr));
+    for (const [t, v] of C.golpes){
+      let j = round(t*sr); if (j >= L) j = C.Ls + (j - L) % (L - C.Ls);
+      for (let k = 0; k < NK; k++){
+        const g = 1 - v*curva[k];
+        if (g < env[j]) env[j] = g;
+        if (++j >= L) j = C.Ls;
+      }
+    }
+    for (let j = 0; j < L; j++){ oL[j] = C.dL[j] + C.pL[j]*env[j]; oR[j] = C.dR[j] + C.pR[j]*env[j]; }
+    reverb(C, C.rL, C.rR, oL, oR, o.reverb);
+    eco(C, C.eL, C.eR, oL, oR, o.eco);
+    // fuera la continua y lo que no se oye (paso alto de 28 Hz)
+    let xl = 0, xr = 0, yl = 0, yr = 0; const a = 1 - TAU*28/sr;
+    const hl = new Float32Array(L), hr = new Float32Array(L);
+    for (let pasada = 0; pasada < 2; pasada++) for (let j = pasada ? C.Ls : 0; j < L; j++){
+      const nl = oL[j] - xl + a*yl, nr = oR[j] - xr + a*yr; xl = oL[j]; xr = oR[j]; yl = nl; yr = nr;
+      if (pasada || j < C.Ls){ hl[j] = nl; hr[j] = nr; }
+    }
+    oL.set(hl); oR.set(hr);
+    if (o.crudo) return { L: oL, R: oR, bucle: C.Ls/sr };
+    // nivel: misma sonoridad para todas las pistas
+    let s2 = 0; for (let j = 0; j < L; j++) s2 += oL[j]*oL[j] + oR[j]*oR[j];
+    const rms = sqrt(s2/(2*L)) || 1, g0 = (o.rms || 0.2)/rms;
+    // compresor de bus (suave) y limitador por saturación
+    let e = 0; const at = exp(-1/(0.003*sr)), re = exp(-1/(0.15*sr)), um = 0.5, rat = 0.35;
+    for (let pasada = 0; pasada < 2; pasada++) for (let j = pasada ? C.Ls : 0; j < L; j++){
+      const l = oL[j]*g0, r = oR[j]*g0, pk = max(abs(l), abs(r));
+      e = pk > e ? at*e + (1 - at)*pk : re*e + (1 - re)*pk;
+      const gr = e > um ? pow(um/e, 1 - rat) : 1;
+      if (pasada || j < C.Ls){ hl[j] = tanh(l*gr*1.15)/1.15; hr[j] = tanh(r*gr*1.15)/1.15; }
+    }
+    oL.set(hl); oR.set(hr);
+    let pk = 0; for (let j = 0; j < L; j++) pk = max(pk, abs(oL[j]), abs(oR[j]));
+    const gf = 0.95/(pk || 1);
+    for (let j = 0; j < L; j++){ oL[j] *= gf; oR[j] *= gf; }
+    return { L: oL, R: oR, bucle: C.Ls/sr };
+  }
+
+  // ---- teoría: acordes y escalas ----
+  const ACORDE = { M:[0,4,7], m:[0,3,7], m7:[0,3,7,10], M7:[0,4,7,11], '7':[0,4,7,10], sus2:[0,2,7], sus4:[0,5,7], '5':[0,7,12], dim:[0,3,6], add9:[0,4,7,14], m9:[0,3,7,10,14] };
+  const acorde = (raiz, tipo)=> ACORDE[tipo].map(x => raiz + x);
+
+  // Caché de sonidos: un golpe, una nota o un acorde con los mismos
+  // parámetros se sintetiza una sola vez y después solo se copia (en una
+  // canción casi todo se repite). Se guarda también dónde pegó el bombo.
+  let MEMO = new Map(), SOLO = null;
+  const memo = (nombre, f)=> function(C, t0){
+    const a = Array.prototype.slice.call(arguments, 2), k = nombre + JSON.stringify(a);
+    let rec = MEMO.get(k);
+    if (!rec){
+      const g0 = C.golpes.length;
+      C.graba = []; a.unshift(C, 0); f.apply(null, a);
+      rec = { trozos: C.graba, golpes: C.golpes.splice(g0) }; C.graba = null;
+      MEMO.set(k, rec);
+    }
+    if (!SOLO || SOLO === nombre) for (const q of rec.trozos) C.suma(q.bL, q.bR, q.n, t0 + q.t0, q.m);
+    for (const g of rec.golpes) C.golpes.push([t0 + g[0], g[1]]);
+  };
+  const I = { bombo: memo('bombo', bombo), caja: memo('caja', caja), charles: memo('charles', charles), platillo: memo('platillo', platillo), ride: memo('ride', ride),
+              timbal: memo('timbal', timbal), bajo: memo('bajo', bajo), sinte: memo('sinte', sinte), guitarra: memo('guitarra', guitarra), pulsada: memo('pulsada', pulsada),
+              fm: memo('fm', fm), coro: memo('coro', coro), barrido: memo('barrido', barrido), impacto: memo('impacto', impacto), acorde, mtof, azar: ()=> azar() };
+
+  // =============== las partituras ===============
+  const PISTAS = estudioPartituras(I);
+
+  function render(id, sr, op){
+    const P = PISTAS[id];
+    if (!P) throw new Error('pista desconocida: ' + id);
+    sem = P.semilla || 7; MEMO = new Map(); SOLO = op && op.solo || null;
+    const C = Cancion(P, sr || 32000);
+    P.compone(C, I);
+    MEMO = new Map();                                       // la caché ya no hace falta
+    if (op && op.crudo) return masteriza(C, Object.assign({}, P.master, { crudo: true }));
+    return masteriza(C, P.master || {});
+  }
+  return { render, pistas: Object.keys(PISTAS), info: id => PISTAS[id] && { bpm: PISTAS[id].bpm, compases: PISTAS[id].compases } };
+}
+
+// Las partituras del estudio: cada pista deja sus notas en el tiempo con los
+// instrumentos de estudioMotor. Ritmos de batería como cadenas de 16 pasos
+// (X fuerte, x normal, o suave) y melodías con nombre de nota y duración en
+// semicorcheas ("D5:4 F5:2 -:2" = re 5 una negra, fa 5 una corchea, silencio).
+function estudioPartituras(I){
+  const { bombo, caja, charles, platillo, ride, timbal, bajo, sinte, guitarra, pulsada, fm, coro, barrido, impacto, acorde } = I;
+  const NOTA = { C:0, D:2, E:4, F:5, G:7, A:9, B:11 };
+  const nm = s => { const m = /^([A-G])([#b]?)(-?\d)$/.exec(s); return 12*(+m[3] + 1) + NOTA[m[1]] + (m[2] === '#' ? 1 : m[2] === 'b' ? -1 : 0); };
+  // ritmo de 16 pasos en el compás c
+  const rit = (C, c, patron, fn)=>{
+    for (let s = 0; s < patron.length; s++){
+      const ch = patron[s];
+      if (ch === '.' || ch === ' ') continue;
+      fn(C.t(c, s), ch === 'X' ? 1.15 : ch === 'x' ? 1 : ch === 'o' ? 0.5 : 0.8, s);
+    }
+  };
+  // melodía desde el compás c (puede ocupar varios); fn(t, dur, midi, paso)
+  const mel = (C, c, texto, fn)=>{
+    let p = 0;
+    for (const tok of texto.trim().split(/\s+/)){
+      const [n, d] = tok.split(':'), len = +d;
+      if (n !== '-') fn(C.t(c, 0) + C.T(p), C.T(len), nm(n), p);
+      p += len;
+    }
+  };
+  // armonía dentro de la escala (clases de nota 0-11): bajar n grados, la
+  // tercera de debajo (para la segunda voz) y el bajo que se sale de la escala
+  // se cambia por la quinta del acorde
+  const pc = m => ((m % 12) + 12) % 12;
+  const grados = (m, esc, n)=>{ let x = m, k = 0; while (k < n){ x--; if (esc.includes(pc(x))) k++; } return x; };
+  const tercera = (m, esc)=> esc.includes(pc(m)) ? grados(m, esc, 2) : m - 4;
+  const enEsc = (raiz, off, esc)=> esc.includes(pc(raiz + off)) ? raiz + off : raiz + 7;
+  // acorde abierto cerca de una nota central (inversión que menos salta)
+  const voz = (raiz, tipo, centro)=>{
+    const a = acorde(raiz, tipo);
+    return a.map(n => { while (n < centro - 6) n += 12; while (n > centro + 6) n -= 12; return n; }).sort((x, y)=> x - y);
+  };
+
+  return {
+    // =================================================================
+    // TANQUE DE FUEGO: metal industrial. Riff galopante en re con quintas
+    // apagadas, acentos en fa, sol y la bemol (la quinta disminuida), doble
+    // bombo, timbales, un lead de fuego en re menor armónica, coro y un
+    // breakdown a medio tiempo con barridos de llamas.
+    // =================================================================
+    flametank: { bpm: 150, compases: 32, bucle: 4, semilla: 11, master: { rms: 0.22, bombeo: 0.25, reverb: { tam: 0.8, amort: 0.4 } },
+      compone(C){
+        const D2 = 38;
+        const galope = (c, acento, final)=>{
+          // apagadas: x.xx x.xx x.xx | acento abierto
+          for (const s of [0, 2, 3, 4, 6, 7, 8, 10, 11]){
+            guitarra(C, C.t(c, s), C.T(1)*0.9, D2, s % 4 === 0 ? 1 : 0.8, { apagada: true, gan: 0.2 });
+            bajo(C, C.t(c, s), C.T(1)*0.9, D2 - 12, 0.9, { tipo: 'pulso', corte: 300, env: 900, dec: 0.05, dist: 2.5, gan: 0.42, bombea: false });
+          }
+          guitarra(C, C.t(c, 12), C.T(final ? 3 : 4), acento, 1, { gan: 0.2 });
+          bajo(C, C.t(c, 12), C.T(4)*0.95, acento - 12, 1, { tipo: 'pulso', corte: 400, env: 800, dist: 2.5, gan: 0.42, bombea: false });
+        };
+        const bateriaA = (c, crash)=>{
+          rit(C, c, 'xxxxxxxxxxxx.x.x', (t, v)=> bombo(C, t, v*0.85, { dec: 0.2, f0: 190, f1: 52, dist: 2.2, gan: 0.75 }));
+          rit(C, c, '....x.......x...', (t, v)=> caja(C, t, v, { tono: 210, dec: 0.22, gan: 0.6 }));
+          rit(C, c, 'x.x.x.x.x.x.x.x.', (t, v)=> ride(C, t, v, { gan: 0.12 }));
+          if (crash) platillo(C, C.t(c, 0), 1);
+        };
+        // ---- intro (0-3): zumbido grave, timbales que crecen, galope que arranca ----
+        sinte(C, C.t(0), C.T(64), [D2, D2 + 7], 0.9, { onda: 'saw', voces: 3, des: 9, a: 2.5, r: 0.5, corte: 500, q: 1.2, gan: 0.35, rev: 0.4 });
+        for (let c = 0; c < 4; c++) for (const s of [0, 8]) timbal(C, C.t(c, s), D2 - 12 + 12, 0.45 + 0.15*c, { orquesta: true, dec: 1.2, gan: 0.6 });
+        for (let s = 0; s < 16; s += 2) guitarra(C, C.t(2, s), C.T(1), D2, 0.7, { apagada: true, gan: 0.18 });
+        for (let s = 0; s < 16; s++) guitarra(C, C.t(3, s), C.T(1)*0.9, D2, 0.75 + s*0.015, { apagada: true, gan: 0.18 });
+        rit(C, 3, 'x.x.x.x.xxxxxxxx', (t, v)=> bombo(C, t, 0.8, { dec: 0.2, f0: 190, f1: 52, dist: 2.2, gan: 0.7 }));
+        rit(C, 3, '........xoxoxxxx', (t, v, s)=> caja(C, t, 0.4 + (s - 8)*0.08, { tono: 210, dec: 0.15, gan: 0.55 }));
+        barrido(C, C.t(2), C.T(32), 0.9, { f0: 200, f1: 7000, gan: 0.3 });
+        // ---- riff A (4-11) ----
+        const accA = [[41, 43, 44, 43], [41, 43, 46, 45]];
+        for (let c = 4; c < 12; c++){
+          const ac = accA[(c - 4) >> 2][(c - 4) % 4];
+          galope(c, ac, false); bateriaA(c, (c - 4) % 2 === 0);
+        }
+        // ---- riff B (12-19): Dm Bb C A con el lead de fuego ----
+        const progB = [[38, 'm'], [46, 'M'], [48, 'M'], [45, 'M']];
+        const leadB = ['D5:6 F5:2 A5:4 G5:2 F5:2', 'F5:6 D5:2 Bb4:4 C5:2 D5:2', 'E5:6 C5:2 G5:4 F5:2 E5:2', 'C#5:8 E5:4 A4:4',
+                       'D5:4 A5:4 F5:4 D5:4', 'Bb5:6 A5:2 G5:4 F5:4', 'G5:4 E5:4 C5:4 E5:4', 'A5:12 G5:2 E5:2'];
+        const fuego = { onda: 'saw', voces: 3, des: 11, a: 0.02, d: 0.3, s: 0.8, r: 0.15, corte: 2600, envF: 2200, decF: 0.2, q: 1, vib: 0.007, gan: 0.42, rev: 0.25, eco: 0.12, glide: 0.04 };
+        for (let c = 12; c < 20; c++){
+          const [r] = progB[(c - 12) % 4], g = r <= 40 ? r : r - 12;
+          guitarra(C, C.t(c, 0), C.T(6), g, 1, { gan: 0.2 });
+          for (const s of [8, 10, 12, 14]) guitarra(C, C.t(c, s), C.T(1.5), g, 0.85, { apagada: true, gan: 0.2 });
+          bajo(C, C.t(c, 0), C.T(6), g - 12, 1, { tipo: 'pulso', corte: 380, env: 700, dist: 2.5, gan: 0.42, bombea: false });
+          for (const s of [8, 10, 12, 14]) bajo(C, C.t(c, s), C.T(1.5), g - 12, 0.9, { tipo: 'pulso', corte: 300, env: 700, dec: 0.05, dist: 2.5, gan: 0.42, bombea: false });
+          rit(C, c, 'x..x..x.x..x..x.', (t, v)=> bombo(C, t, v*0.85, { dec: 0.22, f0: 190, f1: 52, dist: 2.2, gan: 0.75 }));
+          rit(C, c, '....x.......x...', (t, v)=> caja(C, t, v, { tono: 210, dec: 0.22, gan: 0.6 }));
+          rit(C, c, 'xxxxxxxxxxxxxxxx', (t, v, s)=> charles(C, t, s % 2 ? 0.5 : 0.85, { gan: 0.16 }));
+          if (c % 2 === 0) platillo(C, C.t(c, 0), 1);
+          mel(C, c, leadB[c - 12], (t, d, m)=> sinte(C, t, d*0.95, m, 1, fuego));
+        }
+        // ---- breakdown (20-23): medio tiempo, coro, timbales, llamas ----
+        coro(C, C.t(20), C.T(64), [nm('D3'), nm('A3'), nm('D4'), nm('F4')], 1, { vocal: 'o', gan: 0.55 });
+        for (let c = 20; c < 24; c++){
+          for (const s of [0, 3, 6, 10, 12]) guitarra(C, C.t(c, s), C.T(1.2), D2, s === 0 ? 1 : 0.85, { apagada: s !== 0, gan: 0.2 });
+          for (const s of [0, 3, 6, 10, 12]) bajo(C, C.t(c, s), C.T(1.2), D2 - 12, 1, { tipo: 'pulso', corte: 300, env: 900, dec: 0.06, dist: 2.5, gan: 0.45, bombea: false });
+          rit(C, c, 'x..x..x...x.x...', (t, v)=> bombo(C, t, v*0.9, { dec: 0.3, f0: 170, f1: 45, dist: 2, gan: 0.8 }));
+          rit(C, c, '........x.......', (t, v)=> caja(C, t, v*1.1, { tono: 190, dec: 0.35, gan: 0.65, rev: 0.35 }));
+          timbal(C, C.t(c, 0), D2, 0.9, { orquesta: true, dec: 1.4, gan: 0.55 });
+          if (c % 2 === 0) platillo(C, C.t(c, 0), 1.1);
+        }
+        barrido(C, C.t(21, 8), C.T(8), 0.8, { f0: 400, f1: 5000, gan: 0.25 });
+        barrido(C, C.t(23), C.T(16), 1, { f0: 150, f1: 9000, gan: 0.35 });
+        rit(C, 23, '........xxxxxxxx', (t, v, s)=> timbal(C, t, D2 + 12 - (s - 8), 0.7 + (s - 8)*0.04, { dec: 0.4, gan: 0.5 }));
+        // ---- riff A' (24-31): galope con el lead en terceras y coro ----
+        const leadA = ['D6:8 C6:4 Bb5:4', 'A5:8 G5:4 F5:4', 'G5:8 Ab5:4 G5:4', 'F5:8 E5:4 C#5:4',
+                       'D6:8 C6:4 Bb5:4', 'A5:8 Bb5:4 C6:4', 'D6:8 F6:4 E6:4', 'D6:12 -:4'];
+        for (let c = 24; c < 32; c++){
+          const ac = accA[(c - 24) >> 2][(c - 24) % 4];
+          galope(c, ac, c === 31); bateriaA(c, c % 2 === 0);
+          mel(C, c, leadA[c - 24], (t, d, m)=>{ sinte(C, t, d*0.95, m, 1, fuego); sinte(C, t, d*0.95, tercera(m, [2, 4, 5, 7, 9, 10, 0]), 0.6, Object.assign({}, fuego, { pan: -0.3, gan: 0.3 })); });
+        }
+        coro(C, C.t(24), C.T(128), [nm('D3'), nm('A3'), nm('D4')], 0.7, { vocal: 'a', gan: 0.4 });
+        // remate hacia la vuelta: redoble y bajada
+        rit(C, 31, '........xxxxxxxx', (t, v, s)=> caja(C, t, 0.5 + (s - 8)*0.07, { tono: 210, dec: 0.15, gan: 0.55 }));
+      } },
+
+    // =================================================================
+    // SUPER X2: persecución aérea a 164 (drum and bass a medio tiempo). Ping
+    // de radar, bajo reese que ondula, arpegio de cuerda pulsada con eco,
+    // metales militares en los contratiempos, un lead heroico y torcido en mi
+    // menor armónica y un puente "venenoso" con bajo ácido y burbujas.
+    // =================================================================
+    superx: { bpm: 164, compases: 32, bucle: 4, semilla: 23, master: { rms: 0.21, bombeo: 0.45, eco: { fb: 0.38 } },
+      compone(C){
+        const E1 = 28;
+        const dnb = (c, fill)=>{
+          rit(C, c, 'x.........x.....', (t, v)=> bombo(C, t, v, { dec: 0.32, f0: 150, f1: 46, dist: 1.8, gan: 0.85 }));
+          if ((c % 2) === 1) rit(C, c, '.......x........', (t, v)=> bombo(C, t, 0.7, { dec: 0.25, gan: 0.7 }));
+          rit(C, c, fill ? '....x..o.o..xxxx' : '....x..o.o..x..o', (t, v)=> caja(C, t, v, { tono: 220, dec: 0.16, gan: 0.6, rev: 0.12 }));
+          rit(C, c, 'xoxoxoxoxoxoxoxo', (t, v, s)=> charles(C, t, s % 4 === 2 ? 0.9 : v*0.7, { abierto: s === 14 && c % 2 === 1, gan: 0.2 }));
+        };
+        const progA = [28, 28, 29, 26];                     // Em Em F D (bajo)
+        const reese = (c, r)=>{
+          bajo(C, C.t(c, 0), C.T(6), r, 1, { tipo: 'reese', corte: 420, env: 500, dec: 0.3, dist: 2.2, gan: 0.55 });
+          bajo(C, C.t(c, 6), C.T(4), r + 12, 0.8, { tipo: 'reese', corte: 600, env: 900, dec: 0.12, dist: 2.2, gan: 0.5 });
+          bajo(C, C.t(c, 10), C.T(6), r, 1, { tipo: 'reese', corte: 380, env: 700, dec: 0.25, dist: 2.2, gan: 0.55 });
+        };
+        const arpeg = (c, raiz, tipo, br)=>{
+          const a = voz(raiz, tipo, 67), notas = [a[0], a[1], a[2], a[0] + 12, a[2], a[1], a[0] + 12, a[1] + 12];
+          for (let s = 0; s < 16; s++) pulsada(C, C.t(c, s), notas[s % 8], s % 4 === 0 ? 0.9 : 0.6, { brillo: br, dur: 0.5, gan: 0.22, eco: 0.3, pan: s % 2 ? 0.35 : -0.35 });
+        };
+        const metales = (c, raiz, tipo)=>{
+          for (const s of [3, 11]) sinte(C, C.t(c, s), C.T(1.5), voz(raiz, tipo, 64), 0.95, { onda: 'saw', voces: 3, des: 9, a: 0.004, d: 0.12, s: 0.25, r: 0.08, corte: 500, envF: 3200, decF: 0.07, gan: 0.5, rev: 0.2 });
+        };
+        // ---- intro (0-3): radar, redoble que crece, arpegio que se abre ----
+        for (let c = 0; c < 4; c++){
+          fm(C, C.t(c, 0), C.T(2), nm('E6'), 0.6, { razon: 2, indice: 1.5, dec: 0.5, eco: 0.5, gan: 0.22 });
+          if (c >= 1) arpeg(c, 52, 'm', 0.2 + c*0.15);
+          bajo(C, C.t(c, 0), C.T(16), E1, 0.7, { tipo: 'sub', gan: 0.45, bombea: false });
+        }
+        rit(C, 2, 'x...x...x...x...', (t, v)=> caja(C, t, 0.35, { tono: 230, dec: 0.12, gan: 0.45 }));
+        rit(C, 3, 'x.x.x.x.xxxxxxxx', (t, v, s)=> caja(C, t, 0.4 + s*0.04, { tono: 230, dec: 0.12, gan: 0.5 }));
+        barrido(C, C.t(2), C.T(32), 0.9, { f0: 300, f1: 9000, gan: 0.3 });
+        // ---- A (4-11): drum and bass, reese, arpegio y metales ----
+        const tipos = ['m', 'm', 'M', 'M'];
+        for (let c = 4; c < 12; c++){
+          const k = (c - 4) % 4, r = progA[k];
+          dnb(c, c === 11); reese(c, r); arpeg(c, r + 24, tipos[k], 0.6); metales(c, r + 24, tipos[k]);
+          if (k === 0) platillo(C, C.t(c, 0), 0.9);
+        }
+        // ---- B (12-19): Em C D B, supersierras y el lead ----
+        const progB = [[40, 'm'], [36, 'M'], [38, 'M'], [35, 'M']];
+        const leadB = ['E5:4 G5:2 B5:4 A5:2 G5:2 F#5:2', 'G5:6 E5:2 C5:4 D5:2 E5:2', 'F#5:6 D5:2 A5:4 G5:2 F#5:2', 'D#5:8 F#5:4 B4:4',
+                       'E5:2 F#5:2 G5:2 A5:2 B5:4 E6:4', 'D6:4 C6:4 B5:4 G5:4', 'A5:4 F#5:4 D5:4 F#5:4', 'B5:12 A5:2 F#5:2'];
+        const lead = { onda: 'saw', voces: 3, des: 14, a: 0.015, d: 0.2, s: 0.8, r: 0.18, corte: 2400, envF: 2200, decF: 0.18, q: 0.9, vib: 0.008, gan: 0.4, rev: 0.25, eco: 0.2, glide: 0.05 };
+        for (let c = 12; c < 20; c++){
+          const [r, tp] = progB[(c - 12) % 4];
+          dnb(c, c === 19); reese(c, r - 12);
+          sinte(C, C.t(c, 0), C.T(16), voz(r + 12, tp, 62), 0.8, { onda: 'saw', voces: 5, des: 18, a: 0.15, r: 0.4, corte: 2000, gan: 0.3, rev: 0.35, bombea: true });
+          metales(c, r + 12, tp);
+          mel(C, c, leadB[c - 12], (t, d, m)=> sinte(C, t, d*0.95, m, 1, lead));
+          if ((c - 12) % 4 === 0) platillo(C, C.t(c, 0), 1);
+        }
+        // ---- puente (20-23): veneno. Medio tiempo, bajo ácido y burbujas ----
+        coro(C, C.t(20), C.T(64), [nm('E3'), nm('B3'), nm('E4'), nm('G4')], 0.9, { vocal: 'o', gan: 0.45 });
+        const acid = [0, 0, 12, 0, 3, 0, 15, 0, 0, 12, 0, 1, 0, 13, 0, 7];
+        for (let c = 20; c < 24; c++){
+          rit(C, c, 'x.........x.....', (t, v)=> bombo(C, t, v, { dec: 0.35, f0: 150, f1: 44, gan: 0.85 }));
+          rit(C, c, '........x.......', (t, v)=> caja(C, t, v, { tono: 200, dec: 0.3, gan: 0.6, rev: 0.4 }));
+          for (let s = 0; s < 16; s++)
+            bajo(C, C.t(c, s), C.T(1)*0.8, 40 + acid[s], s % 4 === 0 ? 1 : 0.75, { tipo: 'acido', corte: 260 + (c - 20)*120, env: 2600, dec: 0.09, q: 5, dist: 2.4, gan: 0.36, desde: s && acid[s] !== acid[s - 1] ? 40 + acid[s - 1] : null, glide: 0.03 });
+          for (let k = 0; k < 4; k++){
+            const s = Math.floor(I.azar()*16);
+            fm(C, C.t(c, s), C.T(1), [76, 79, 81, 83, 84, 86, 88][Math.floor(I.azar()*7)], 0.4, { razon: 1.5, indice: 4, kd: 30, dec: 0.08, pluck: true, gan: 0.15, eco: 0.4, pan: I.azar()*1.4 - 0.7 });
+          }
+        }
+        rit(C, 23, 'xxxxxxxxxxxxxxxx', (t, v, s)=> caja(C, t, 0.25 + s*0.05, { tono: 230, dec: 0.1, gan: 0.45 }));
+        barrido(C, C.t(22), C.T(32), 1, { f0: 200, f1: 10000, gan: 0.32 });
+        // ---- A' (24-31): todo, con el gancho tóxico ----
+        const gancho = ['B5:3 B5:3 B5:2 C6:4 B5:4', 'A5:3 G5:3 F#5:2 G5:8', 'A5:3 A5:3 A5:2 C6:4 A5:4', 'F#5:6 E5:2 D5:4 F#5:4',
+                        'B5:3 B5:3 B5:2 C6:4 B5:4', 'A5:3 G5:3 F#5:2 G5:4 B5:4', 'C6:3 B5:3 A5:2 C6:4 E6:4', 'E6:12 -:4'];
+        for (let c = 24; c < 32; c++){
+          const k = (c - 24) % 4, r = progA[k];
+          dnb(c, c === 31); reese(c, r); arpeg(c, r + 24, tipos[k], 0.75); metales(c, r + 24, tipos[k]);
+          mel(C, c, gancho[c - 24], (t, d, m)=>{ sinte(C, t, d*0.95, m, 1, lead); sinte(C, t, d*0.95, m - 12, 0.55, Object.assign({}, lead, { gan: 0.25, pan: 0.25 })); });
+          if (k === 0) platillo(C, C.t(c, 0), 1);
+        }
+      } },
+
+    // =================================================================
+    // EL DESGARRADOR (kaiju cíborg): tecno industrial a 132. El ostinato
+    // frigio de Tres Cabezas convertido en bajo reese, bombo saturado,
+    // palmadas, golpes metálicos (FM), una "motosierra" que arpegia, metales
+    // y coro épicos, impactos orquestales y un parón con timbales.
+    // =================================================================
+    desgarrador: { bpm: 132, compases: 32, bucle: 4, semilla: 37, master: { rms: 0.22, bombeo: 0.6, bombeoRel: 0.13 },
+      compone(C){
+        const ESC = [40, 41, 43, 45, 47, 48, 50, 52];       // mi frigio (E2...)
+        const OST = [0, 1, 2, -1, 0, 1, 2, -1, 0, 1, 3, 2, 1, -1, -1, -1, 0, 1, 2, -1, 0, 1, 2, -1, 4, 3, 2, 1, 0, -1, -1, -1];
+        const ARP = [7, 4, 2, 4, 7, 5, 4, 2, 6, 4, 1, 4, 6, 5, 4, 1];
+        const tecno = (c, fill)=>{
+          rit(C, c, fill ? 'x...x...x...xxxx' : 'x...x...x...x...', (t, v)=> bombo(C, t, v, { dec: 0.35, f0: 140, f1: 44, dist: 3.2, gan: 0.85 }));
+          rit(C, c, '....x.......x...', (t, v)=> caja(C, t, v, { palma: true, dec: 0.2, gan: 0.55, rev: 0.25 }));
+          rit(C, c, '..x...x...x...x.', (t, v)=> charles(C, t, 0.9, { abierto: true, dec: 0.12, gan: 0.2 }));
+          rit(C, c, 'oxoooxoooxoooxoo', (t, v)=> charles(C, t, v*0.6, { gan: 0.16 }));
+          rit(C, c, '...x.......x..x.', (t, v)=> fm(C, t, C.T(1), nm('E5'), 0.7, { razon: 1.41, indice: 7, kd: 40, dec: 0.06, pluck: true, gan: 0.16, rev: 0.2, pan: 0.4 }));
+        };
+        const ostinato = (c, oct, gan)=>{          // 2 compases por vuelta, en corcheas
+          for (let k = 0; k < 16; k++){
+            const i = OST[((c % 2)*16 + k) % 32];
+            if (i < 0) continue;
+            bajo(C, C.t(c, k), C.T(2)*0.9, ESC[i] - 12 + oct, 1, { tipo: 'reese', corte: 500, env: 1400, dec: 0.12, dist: 2.8, gan: gan || 0.55 });
+          }
+        };
+        const sierra = (c, br)=>{
+          for (let s = 0; s < 16; s++) sinte(C, C.t(c, s), C.T(1)*0.85, ESC[ARP[s]] + 24, 0.9, { onda: 'saw', voces: 2, des: 8, a: 0.003, d: 0.08, s: 0.5, r: 0.05, corte: 900 + br, envF: 2500, decF: 0.05, q: 2.5, dist: 3, gan: 0.24, rev: 0.12, eco: 0.15, pan: s % 2 ? 0.3 : -0.3 });
+        };
+        const metal = { onda: 'saw', voces: 4, des: 8, a: 0.06, d: 0.4, s: 0.85, r: 0.3, corte: 800, envF: 1800, decF: 0.35, q: 0.8, vib: 0.004, gan: 0.42, rev: 0.4 };
+        // ---- intro (0-3): chasquidos de fábrica, motosierra lejana, trompas ----
+        mel(C, 0, 'E2:8 F2:8 G2:16 E2:8 F2:8 A2:8 G2:8', (t, d, m)=> sinte(C, t, d, [m, m + 12], 0.9, metal));
+        mel(C, 2, 'E2:8 F2:8 G2:16 B2:8 A2:8 G2:8 F2:8', (t, d, m)=> sinte(C, t, d, [m, m + 12], 1, metal));
+        for (let c = 0; c < 4; c++){
+          rit(C, c, 'x..x..x...x..x..', (t, v)=> fm(C, t, C.T(1), nm('A4'), 0.5, { razon: 1.41, indice: 6, kd: 30, dec: 0.08, pluck: true, gan: 0.14, rev: 0.45, pan: -0.4 }));
+          timbal(C, C.t(c, 0), 28 + 12, 0.7, { orquesta: true, dec: 1.4, gan: 0.55 });
+        }
+        sierra(2, 0); sierra(3, 600);
+        barrido(C, C.t(2), C.T(32), 1, { f0: 120, f1: 8000, gan: 0.32 });
+        rit(C, 3, '........x.x.xxxx', (t, v, s)=> caja(C, t, 0.5 + (s - 8)*0.06, { palma: true, dec: 0.12, gan: 0.5 }));
+        // ---- A (4-11): tecno con el ostinato ----
+        for (let c = 4; c < 12; c++){
+          tecno(c, c === 11); ostinato(c, 0);
+          if (c >= 8) sierra(c, (c - 8)*350);
+          if (c % 4 === 0) platillo(C, C.t(c, 0), 1);
+        }
+        // ---- B (12-19): épica. Metales, coro e impactos sobre el tecno ----
+        const progB = [[40, 'm'], [41, 'M'], [43, 'M'], [41, 'M'], [40, 'm'], [41, 'M'], [38, 'm'], [40, 'M']];
+        const tema = ['E4:8 B4:8', 'C5:8 A4:4 F4:4', 'D5:8 B4:4 G4:4', 'A4:12 F4:4', 'E4:4 G4:4 B4:4 E5:4', 'F5:8 E5:4 C5:4', 'D5:8 A4:4 F4:4', 'G#4:8 B4:4 E5:4'];
+        for (let c = 12; c < 20; c++){
+          const [r, tp] = progB[c - 12];
+          tecno(c, c === 19); ostinato(c, 0, 0.45);
+          mel(C, c, tema[c - 12], (t, d, m)=> sinte(C, t, d*0.97, [m, m - 12], 1, metal));
+          coro(C, C.t(c), C.T(16), voz(r + 12, tp, 60), 0.8, { vocal: 'a', gan: 0.4, a: 0.2, r: 0.3 });
+          if ((c - 12) % 2 === 0){ impacto(C, C.t(c, 0), 0.6); timbal(C, C.t(c, 0), r - 12 + 12, 1, { orquesta: true, dec: 1.2, gan: 0.55 }); platillo(C, C.t(c, 0), 1); }
+        }
+        // ---- parón (20-23): sin batería. Coro, timbales, gruñido y subida ----
+        coro(C, C.t(20), C.T(32), [nm('E3'), nm('B3'), nm('E4')], 1, { vocal: 'o', gan: 0.55 });
+        coro(C, C.t(22), C.T(32), [nm('F3'), nm('C4'), nm('F4')], 1, { vocal: 'o', gan: 0.55 });
+        impacto(C, C.t(20, 0), 1);
+        bajo(C, C.t(20), C.T(32), 28, 0.9, { tipo: 'reese', corte: 200, env: 300, dec: 1.2, dist: 3, gan: 0.5, bombea: false });
+        bajo(C, C.t(22), C.T(32), 29, 0.9, { tipo: 'reese', corte: 200, env: 300, dec: 1.2, dist: 3, gan: 0.5, bombea: false });
+        for (let c = 20; c < 24; c++) rit(C, c, 'x.....x...x.....', (t, v)=> timbal(C, t, 40, 0.8, { orquesta: true, dec: 1, gan: 0.5 }));
+        rit(C, 22, 'x...x...x...x...', (t, v)=> caja(C, t, 0.45, { palma: true, dec: 0.15, gan: 0.45 }));
+        rit(C, 23, 'x.x.x.x.xxxxxxxx', (t, v, s)=> caja(C, t, 0.5 + s*0.03, { palma: true, dec: 0.12, gan: 0.5 }));
+        rit(C, 23, 'x...x...x.x.xxxx', (t, v)=> bombo(C, t, 0.8, { dec: 0.25, dist: 3, gan: 0.75 }));
+        barrido(C, C.t(22), C.T(32), 1, { f0: 150, f1: 10000, gan: 0.35 });
+        sierra(23, 1200);
+        // ---- caída (24-31): todo junto, ostinato en octavas ----
+        for (let c = 24; c < 32; c++){
+          const [r, tp] = progB[c - 24];
+          tecno(c, c === 31); ostinato(c, 0); ostinato(c, 12, 0.25); sierra(c, 1500);
+          mel(C, c, tema[c - 24], (t, d, m)=> sinte(C, t, d*0.97, [m + 12, m], 0.9, metal));
+          if ((c - 24) % 2 === 0){ impacto(C, C.t(c, 0), 0.5); platillo(C, C.t(c, 0), 1); }
+          coro(C, C.t(c), C.T(16), voz(r + 12, tp, 60), 0.6, { vocal: 'a', gan: 0.3, a: 0.2, r: 0.3, bombea: true });
+        }
+      } },
+
+    // =================================================================
+    // LA CIUDAD, una pieza por hora del día. 16 compases en cuatro capas que
+    // se van sumando (base · + arpegio · + melodía · todo).
+    // =================================================================
+    ciudad_manana: { bpm: 120, compases: 16, bucle: 0, semilla: 51, master: { rms: 0.19, bombeo: 0.35 },
+      compone(C){
+        // DESPERTAR: pop luminoso en sol mayor. Piano eléctrico FM, bajo FM,
+        // arpegio de cuerda pulsada y un glockenspiel con la melodía.
+        const R = 43, prog = [[0, 'M'], [7, 'M'], [9, 'm'], [5, 'M']];
+        const BAJO = [0, -1, 0, 7, -1, 0, 12, -1, 0, -1, 0, 7, -1, 12, 7, 5];
+        const MEL = [12,-1,14,16, 19,-1,16,-1, 14,-1,12,14, 16,-1,-1,-1, 14,-1,16,19, 21,-1,19,-1, 18,-1,16,14, 14,-1,-1,-1,
+                     16,-1,19,21, 23,-1,21,19, 16,-1,19,-1, 21,-1,-1,-1, 24,-1,23,21, 19,-1,16,-1, 17,-1,16,14, 12,-1,-1,-1];
+        for (let c = 0; c < 16; c++){
+          const sec = c >> 2, [g, tp] = prog[c % 4], raiz = R + g;
+          rit(C, c, 'x.......x.x.....', (t, v)=> bombo(C, t, v*0.85, { dec: 0.3, f0: 140, f1: 50, dist: 1.2, gan: 0.75 }));
+          if (sec >= 1) rit(C, c, '....x.......x...', (t, v)=> caja(C, t, v*0.8, { palma: true, dec: 0.18, gan: 0.45, rev: 0.22 }));
+          rit(C, c, '..x...x...x...x.', (t, v, s)=> charles(C, t, 0.75, { abierto: s === 14, gan: 0.18 }));
+          if (sec >= 3) rit(C, c, 'oooooooooooooooo', (t, v)=> charles(C, t, 0.4, { dec: 0.03, hp: 9000, gan: 0.12, pan: 0.4 }));
+          for (let s = 0; s < 16; s++) if (BAJO[s] >= 0)
+            bajo(C, C.t(c, s), C.T(BAJO[s + 1] === -1 ? 2 : 1)*0.85, enEsc(raiz - 12, BAJO[s], [7, 9, 11, 0, 2, 4, 6]), 0.9, { tipo: 'fm', razon: 1, indice: 1.6, dec: 0.12, pluck: true, gan: 0.5 });
+          const ac = voz(raiz + 12, tp, 66);
+          for (const s of [2, 6, 10, 14]) for (const m of ac) fm(C, C.t(c, s), C.T(1.6), m, 0.55, { razon: 1, indice: 1.3, kd: 4, dec: 0.9, gan: 0.13, rev: 0.25 });
+          if (sec >= 1){ const a = voz(raiz + 24, tp, 74); for (let s = 0; s < 16; s += 2) pulsada(C, C.t(c, s), [a[0], a[1], a[2], a[1]][(s >> 1) % 4], 0.8, { brillo: 0.75, dur: 0.6, gan: 0.2, eco: 0.25, pan: 0.3 }); }
+          if (sec >= 2){
+            for (let s = 0; s < 16; s++){
+              const m = MEL[(c % 4)*16 + s]; if (m < 0) continue;
+              let l = 1; while (s + l < 16 && MEL[(c % 4)*16 + s + l] === -1) l++;
+              const nota = R + m + 12 + (sec === 3 ? 12 : 0);
+              fm(C, C.t(c, s), C.T(l), nota, 0.8, { razon: 3.5, indice: 1.8, kd: 6, dec: 0.5, gan: 0.2, rev: 0.3, eco: 0.15 });
+              if (sec === 3) sinte(C, C.t(c, s), C.T(l)*0.95, nota - 12, 0.7, { onda: 'tri', voces: 2, des: 6, a: 0.01, corte: 3000, gan: 0.3, rev: 0.2, vib: 0.005 });
+            }
+          }
+          if (sec >= 3) sinte(C, C.t(c), C.T(16), voz(raiz + 12, tp, 62), 0.6, { onda: 'saw', voces: 4, des: 14, a: 0.3, r: 0.4, corte: 1600, gan: 0.2, rev: 0.4, bombea: true });
+          if (c % 4 === 0 && c) platillo(C, C.t(c, 0), 0.6, { gan: 0.18 });
+        }
+      } },
+    ciudad_dia: { bpm: 150, compases: 16, bucle: 0, semilla: 52, master: { rms: 0.21, bombeo: 0.25 },
+      compone(C){
+        // PLENA LUZ: rock electrónico en mi menor. Guitarras de potencia, bajo
+        // en semicorcheas que salta de octava, batería de rock, redobles y un
+        // lead cuadrado.
+        const R = 40, prog = [[0, 'm'], [8, 'M'], [3, 'M'], [10, 'M']];
+        const BAJO = [0, 0, 12, 0, 0, 12, 0, 0, 0, 0, 12, 0, 7, 0, 12, 10];
+        const MEL = [12,-1,15,12, 19,-1,17,15, 12,-1,10,12, 15,-1,-1,-1, 12,-1,15,12, 20,-1,19,17, 15,-1,12,10, 12,-1,-1,-1,
+                     15,-1,19,15, 22,-1,19,22, 24,-1,22,19, 17,-1,15,-1, 17,-1,14,17, 22,-1,21,19, 17,-1,14,10, 14,-1,-1,-1];
+        for (let c = 0; c < 16; c++){
+          const sec = c >> 2, [g] = prog[c % 4], raiz = R + g, gr = raiz > 45 ? raiz - 12 : raiz;
+          const fill = c % 4 === 3;
+          rit(C, c, 'x...x...x.x.x...', (t, v)=> bombo(C, t, v*0.9, { dec: 0.26, f0: 170, f1: 50, dist: 1.8, gan: 0.8 }));
+          rit(C, c, fill ? '....x.......xoxx' : '....x.......x...', (t, v)=> caja(C, t, v, { tono: 200, dec: 0.2, gan: 0.6, rev: 0.2 }));
+          rit(C, c, 'xxxxxxxxxxxxxx.x', (t, v, s)=> charles(C, t, s % 2 ? 0.45 : 0.8, { gan: 0.17 }));
+          charles(C, C.t(c, 14), 0.8, { abierto: true });
+          if (fill && sec >= 1) rit(C, c, '........x.x.x...', (t, v, s)=> timbal(C, t, 52 - (s - 8), 0.7, { dec: 0.35, gan: 0.45 }));
+          for (let s = 0; s < 16; s++) bajo(C, C.t(c, s), C.T(1)*0.85, enEsc(gr - 12, BAJO[s], [4, 6, 7, 9, 11, 0, 2]), s % 4 === 0 ? 1 : 0.8, { tipo: 'pulso', corte: 500, env: 1400, dec: 0.06, dist: 1.8, gan: 0.42 });
+          if (sec === 0) for (let s = 0; s < 16; s += 2) guitarra(C, C.t(c, s), C.T(1.5), gr, 0.85, { apagada: true, gan: 0.15, gano: 6 });
+          else { guitarra(C, C.t(c, 0), C.T(7), gr, 1, { gan: 0.15, gano: 6 }); guitarra(C, C.t(c, 8), C.T(3), gr, 0.9, { gan: 0.15, gano: 6 }); guitarra(C, C.t(c, 11), C.T(5), gr, 0.9, { gan: 0.15, gano: 6 }); }
+          if (sec >= 1){ const a = voz(raiz + 24, prog[c % 4][1], 71); for (let s = 0; s < 16; s++) sinte(C, C.t(c, s), C.T(0.8), a[[0, 1, 2, 1][s % 4]] + (s >= 8 ? 12 : 0), 0.6, { onda: 'sq', voces: 1, a: 0.002, d: 0.08, s: 0.3, r: 0.04, corte: 2400, gan: 0.18, eco: 0.15, pan: 0.3 }); }
+          if (sec >= 2){
+            for (let s = 0; s < 16; s++){
+              const m = MEL[(c % 4)*16 + s]; if (m < 0) continue;
+              let l = 1; while (s + l < 16 && MEL[(c % 4)*16 + s + l] === -1) l++;
+              const nota = R + m + 12 + (sec === 3 ? 12 : 0);
+              sinte(C, C.t(c, s), C.T(l)*0.95, nota, 1, { onda: 'sq', voces: 2, des: 10, a: 0.005, d: 0.15, s: 0.75, r: 0.1, corte: 2800, envF: 1500, decF: 0.15, vib: 0.006, gan: 0.34, rev: 0.2, eco: 0.12 });
+              if (sec === 3) sinte(C, C.t(c, s), C.T(l)*0.95, tercera(nota, [4, 6, 7, 9, 11, 0, 2]), 0.55, { onda: 'saw', voces: 2, des: 10, corte: 2000, gan: 0.2, pan: -0.3 });
+            }
+          }
+          if (c % 4 === 0) platillo(C, C.t(c, 0), c ? 1 : 0.7);
+        }
+      } },
+    ciudad_atardecer: { bpm: 134, compases: 16, bucle: 0, semilla: 53, master: { rms: 0.19, bombeo: 0.4, reverb: { tam: 0.88 } },
+      compone(C){
+        // ÚLTIMA HORA: tenso y melancólico en re menor, sobre la cadencia
+        // andaluza (Dm C Bb A). Medio tiempo, cuerdas, arpegio pulsado y un
+        // lead de sierra que suena a violonchelo.
+        const R = 38, prog = [[0, 'm'], [10, 'M'], [8, 'M'], [7, 'M']];
+        const BAJO = [0, -1, 0, -1, 12, -1, 0, -1, 0, -1, 0, -1, 10, -1, 12, -1];
+        const MEL = [14,-1,-1,12, 14,-1,15,-1, 17,-1,15,14, 12,-1,-1,-1, 12,-1,-1,10, 12,-1,14,-1, 15,-1,14,12, 10,-1,-1,-1,
+                     10,-1,-1,8, 10,-1,12,-1, 14,-1,12,10, 8,-1,-1,-1, 7,-1,11,-1, 14,-1,11,-1, 19,-1,15,14, 11,-1,-1,-1];
+        for (let c = 0; c < 16; c++){
+          const sec = c >> 2, [g, tp] = prog[c % 4], raiz = R + g, br = raiz > 44 ? raiz - 12 : raiz;
+          rit(C, c, 'x.........x.....', (t, v)=> bombo(C, t, v, { dec: 0.4, f0: 140, f1: 44, dist: 1.4, gan: 0.8 }));
+          rit(C, c, c % 4 === 3 ? '........x.....oo' : '........x.......', (t, v)=> caja(C, t, v, { tono: 180, dec: 0.3, gan: 0.55, rev: 0.4 }));
+          rit(C, c, c % 2 ? 'x.x.x.x.x.x.xxxx' : 'x.x.x.x.x.x.x.x.', (t, v, s)=> charles(C, t, s % 4 === 0 ? 0.8 : 0.55, { gan: 0.15 }));
+          for (let s = 0; s < 16; s++) if (BAJO[s] >= 0)
+            bajo(C, C.t(c, s), C.T(2)*0.9, enEsc(br - 12, BAJO[s], [2, 4, 5, 7, 9, 10, 0, 1]), 1, { tipo: 'sub', gan: 0.5 });
+          sinte(C, C.t(c), C.T(16), voz(raiz + 12, tp, 60), 0.85, { onda: 'saw', voces: 4, des: 12, a: 0.5, r: 0.6, corte: 1300 + sec*250, gan: 0.26, rev: 0.45, bombea: true });
+          if (sec >= 1){ const a = voz(raiz + 24, tp, 69), seq = [0, 1, 2, 1, 0, 2, 1, 2]; for (let s = 0; s < 16; s++) pulsada(C, C.t(c, s), a[seq[s % 8]] + (s % 8 === 7 ? 12 : 0), s % 4 === 0 ? 0.8 : 0.55, { brillo: 0.45, dur: 0.7, gan: 0.2, eco: 0.28, pan: -0.3 }); }
+          if (sec >= 2){
+            for (let s = 0; s < 16; s++){
+              const m = MEL[(c % 4)*16 + s]; if (m < 0) continue;
+              let l = 1; while (s + l < 16 && MEL[(c % 4)*16 + s + l] === -1) l++;
+              const nota = R + m + 12 + (sec === 3 ? 12 : 0);
+              sinte(C, C.t(c, s), C.T(l)*0.97, nota, 1, { onda: 'saw', voces: 2, des: 7, a: 0.06, d: 0.3, s: 0.85, r: 0.25, corte: 1500, envF: 800, decF: 0.25, vib: 0.007, vibT: 0.18, gan: 0.36, rev: 0.4, eco: 0.1, glide: 0.06 });
+            }
+          }
+          if (sec >= 3) coro(C, C.t(c), C.T(16), voz(raiz + 12, tp, 64), 0.6, { vocal: 'o', gan: 0.3 });
+          if (c % 4 === 0 && c) platillo(C, C.t(c, 0), 0.7, { gan: 0.2 });
+        }
+      } },
+    ciudad_noche: { bpm: 127, compases: 16, bucle: 0, semilla: 54, master: { rms: 0.19, bombeo: 0.5, eco: { fb: 0.45 }, reverb: { tam: 0.9, amort: 0.25 } },
+      compone(C){
+        // HORA MUERTA: synthwave oscuro en la menor. Caja enorme con reverb,
+        // bajo que salta de octava, supersierras, arpegio con eco cruzado y
+        // un lead con vibrato.
+        const R = 33, prog = [[0, 'm'], [8, 'M'], [5, 'm'], [7, 'm']];
+        const BAJO = [0, -1, 12, -1, 0, -1, 12, -1, 0, -1, 12, -1, 0, -1, 12, 7];
+        const MEL = [24,-1,-1,-1, 23,-1,24,-1, 27,-1,-1,-1, 26,-1,24,-1, 24,-1,-1,-1, 20,-1,-1,-1, 19,-1,20,-1, 24,-1,-1,-1,
+                     20,-1,-1,-1, 19,-1,20,-1, 24,-1,-1,-1, 26,-1,-1,-1, 22,-1,-1,-1, 19,-1,-1,-1, 17,-1,19,-1, 26,-1,-1,-1];
+        for (let c = 0; c < 16; c++){
+          const sec = c >> 2, [g, tp] = prog[c % 4], raiz = R + g;
+          rit(C, c, 'x.......x.......', (t, v)=> bombo(C, t, v, { dec: 0.38, f0: 130, f1: 45, dist: 1.3, gan: 0.85 }));
+          if (sec >= 1) rit(C, c, '....x.......x...', (t, v)=> caja(C, t, v, { tono: 170, dec: 0.25, gan: 0.55, rev: 0.7, ruido: 1.1 }));
+          else rit(C, c, '............x...', (t, v)=> caja(C, t, v*0.8, { tono: 170, dec: 0.25, gan: 0.5, rev: 0.7 }));
+          rit(C, c, 'oxoxoxoxoxoxoxox', (t, v)=> charles(C, t, v*0.55, { gan: 0.14 }));
+          for (let s = 0; s < 16; s++) if (BAJO[s] >= 0)
+            bajo(C, C.t(c, s), C.T(2)*0.85, raiz + BAJO[s], 1, { tipo: 'pulso', corte: 380, env: 1500, dec: 0.12, q: 1.6, dist: 1.4, gan: 0.46 });
+          sinte(C, C.t(c), C.T(16), voz(raiz + 24, tp, 60), 0.8, { onda: 'saw', voces: 5, des: 20, a: 0.7, r: 1.0, corte: 1100 + sec*300, gan: 0.3, rev: 0.55, bombea: true });
+          if (sec >= 1){ const a = voz(raiz + 36, tp, 69); for (let s = 0; s < 16; s++) sinte(C, C.t(c, s), C.T(0.7), a[[0, 1, 2, 1][s % 4]] + (s % 8 >= 6 ? 12 : 0), 0.65, { onda: 'sq', voces: 1, a: 0.002, d: 0.1, s: 0.2, r: 0.05, corte: 1800, gan: 0.17, eco: 0.4, pan: 0.35, bombea: true }); }
+          if (sec >= 2){
+            for (let s = 0; s < 16; s++){
+              const m = MEL[(c % 4)*16 + s]; if (m < 0) continue;
+              let l = 1; while (s + l < 16 && MEL[(c % 4)*16 + s + l] === -1) l++;
+              const nota = R + m + 12 + (sec === 3 ? 12 : 0);
+              sinte(C, C.t(c, s), C.T(l)*0.95, nota, 1, { onda: 'saw', voces: 2, des: 9, a: 0.03, d: 0.4, s: 0.8, r: 0.35, corte: 2200, envF: 1200, decF: 0.3, vib: 0.009, vibT: 0.2, gan: 0.34, rev: 0.4, eco: 0.32, glide: 0.07 });
+            }
+          }
+          if (c % 4 === 0 && c) platillo(C, C.t(c, 0), 0.6, { gan: 0.2 });
+        }
+      } }
+  };
+}
+
 // Volumen de cada pieza, para que suenen como el resto de la música.
 const BB_GANANCIA = { alien:0.5, centurion:0.41, menu:0.31, tienda:0.18, aracnido:0.1, desgarrador:0.27 };
 // Mezcla y cambio de pista. Corre en el hilo de audio (AudioWorklet); si el
@@ -12036,20 +12932,136 @@ function bbPon(id, reinicia){
 }
 function bbSigue(bt){ bbPon(bt && bt.bb ? bt.bb : null, !!(bt && (bt.bbReinicia || bt === previewTrack))); }
 
+// ================= ESTUDIO: reproducción de las pistas sintetizadas =================
+// Las pistas del estudio se sintetizan en un Worker (no frena el juego) la
+// primera vez que hacen falta y se guardan; suenan en bucle sin cortes (la
+// intro de los jefes solo la primera vez). Mientras se generan, o si el
+// navegador no tiene Workers, suena su versión de antes (respaldo). Van por
+// una vía directa, sin el filtro paso bajo del resto de la música, con el
+// mismo volumen, silencio y fundidos.
+const ESTUDIO_SR = 32000, ESTUDIO_GAN = 0.36, ESTUDIO_MAX_BYTES = 60e6;
+const estudio = { w:null, roto:false, buf:{}, crudo:{}, falla:{}, cola:[], ocupado:null, id:null, src:null, g:null, uso:0 };
+function estudioWorker(){
+  if (estudio.w || estudio.roto) return estudio.w;
+  try {
+    if (typeof Worker === 'undefined' || typeof Blob === 'undefined') throw 0;
+    const fuente = 'const estudioPartituras = ' + estudioPartituras.toString() + ';\n' +
+      'const estudioMotor = ' + estudioMotor.toString() + ';\n' +
+      'const M = estudioMotor();\n' +
+      'onmessage = e => { const id = e.data.id;\n' +
+      '  try { const r = M.render(id, e.data.sr); postMessage({ id, L: r.L, R: r.R, bucle: r.bucle }, [r.L.buffer, r.R.buffer]); }\n' +
+      '  catch(err){ postMessage({ id, error: String(err && err.message || err) }); } };\n';
+    const url = URL.createObjectURL(new Blob([fuente], { type:'application/javascript' }));
+    const w = new Worker(url);
+    setTimeout(()=> URL.revokeObjectURL(url), 30000);
+    w.onmessage = e => estudioRecibe(e.data);
+    w.onerror = e => { if (e && e.preventDefault) e.preventDefault(); estudio.roto = true; estudio.cola.length = 0; estudio.ocupado = null; retuneMusic(); };
+    estudio.w = w;
+  } catch(e){ estudio.roto = true; }
+  return estudio.w;
+}
+function estudioListo(id){
+  if (estudio.buf[id]) return true;
+  if (estudio.crudo[id] && audio.ctx){ estudioBuffer(id); return !!estudio.buf[id]; }
+  return false;
+}
+// Pide una pista (si no está ya hecha, pedida o rota).
+function estudioPide(id, delante){
+  if (!id || estudio.buf[id] || estudio.crudo[id] || estudio.falla[id] || estudio.ocupado === id) return;
+  const i = estudio.cola.indexOf(id);
+  if (i >= 0){ if (delante && i > 0){ estudio.cola.splice(i, 1); estudio.cola.unshift(id); } return; }
+  if (!estudioWorker()) return;
+  if (delante) estudio.cola.unshift(id); else estudio.cola.push(id);
+  estudioSigueCola();
+}
+function estudioSigueCola(){
+  if (estudio.ocupado || !estudio.cola.length || !estudio.w) return;
+  estudio.ocupado = estudio.cola.shift();
+  estudio.w.postMessage({ id: estudio.ocupado, sr: ESTUDIO_SR });
+}
+function estudioRecibe(d){
+  if (d.id === estudio.ocupado) estudio.ocupado = null;
+  if (d.error){ estudio.falla[d.id] = true; }
+  else { estudio.crudo[d.id] = d; if (audio.ctx) estudioBuffer(d.id); }
+  estudioSigueCola();
+  if (audio.musicTimer) retuneMusic();                  // ya puede sonar la buena
+}
+// De los datos del Worker a un AudioBuffer (y fuera lo que menos se usa si
+// hay demasiado guardado).
+function estudioBuffer(id){
+  const d = estudio.crudo[id];
+  if (!d || !audio.ctx) return;
+  delete estudio.crudo[id];
+  try {
+    const b = audio.ctx.createBuffer(2, d.L.length, ESTUDIO_SR);
+    b.getChannelData(0).set(d.L); b.getChannelData(1).set(d.R);
+    estudio.buf[id] = { b, bucle: d.bucle, uso: ++estudio.uso, bytes: d.L.length*8 };
+  } catch(e){ estudio.falla[id] = true; return; }
+  let total = 0; for (const k in estudio.buf) total += estudio.buf[k].bytes;
+  while (total > ESTUDIO_MAX_BYTES){
+    let viejo = null;
+    for (const k in estudio.buf) if (k !== estudio.id && k !== id && (!viejo || estudio.buf[k].uso < estudio.buf[viejo].uso)) viejo = k;
+    if (!viejo) break;
+    total -= estudio.buf[viejo].bytes; delete estudio.buf[viejo];
+  }
+}
+// La vía directa: mismo volumen que la música, sin su filtro.
+function estudioVia(){
+  if (audio.musDir || !audio.ctx) return audio.musDir;
+  try {
+    audio.musDir = audio.ctx.createGain();
+    audio.musDir.gain.value = audio.musOn ? audio.musVol*0.5 : 0;
+    audio.musDir.connect(audio.musComp || audio.master);
+    if (audio.musAn) audio.musDir.connect(audio.musAn);     // las luces que laten con la música también la oyen
+  } catch(e){ audio.musDir = null; }
+  return audio.musDir;
+}
+// Suena una pista del estudio (null: ninguna), con fundido.
+function estudioPon(id){
+  if (id === estudio.id) return;
+  const ctx = audio.ctx, t = ctx ? ctx.currentTime : 0;
+  if (estudio.src){
+    const s = estudio.src, g = estudio.g;
+    try { g.gain.cancelScheduledValues(t); g.gain.setValueAtTime(g.gain.value, t); g.gain.setTargetAtTime(0, t, 0.15); s.stop(t + 0.8); } catch(e){}
+    s.onended = ()=>{ try { s.disconnect(); g.disconnect(); } catch(e){} };
+    estudio.src = estudio.g = null;
+  }
+  estudio.id = null;
+  if (!id || !ctx || !estudio.buf[id] || !estudioVia()) return;
+  const B = estudio.buf[id];
+  try {
+    const s = ctx.createBufferSource(), g = ctx.createGain();
+    s.buffer = B.b; s.loop = true; s.loopStart = B.bucle; s.loopEnd = B.b.duration;
+    g.gain.setValueAtTime(0, t); g.gain.setTargetAtTime(ESTUDIO_GAN, t + 0.02, 0.12);
+    s.connect(g); g.connect(audio.musDir);
+    s.start(t + 0.02);
+    B.uso = ++estudio.uso;
+    estudio.src = s; estudio.g = g; estudio.id = id;
+  } catch(e){ estudio.falla[id] = true; }
+}
+function estudioSigue(bt){ estudioPon(bt && bt.gen ? bt.gen : null); }
+
 // El tema que manda: muestra del registro, jefe, menú o, en el planeta
 // marciano, su propio tema futurista.
 function pistaBase(){
   const p = previewTrack || bossTrack || (menuMusica ? pistaMenu() : null) || (running && esAlien() ? pistaAlien() : null) || (running && esInfierno() ? (gameTime > INF_CAMBIO_T ? INFIERNO_TRACK2 : INFIERNO_TRACK) : null)
       || (running ? pistaCiudad() : null);                     // la ciudad: su tema de cada hora
-  return p && p.rec && musRec.falla[p.rec] ? (p.respaldo || null) : p;     // la grabada no carga: la de antes
+  if (p && p.rec && musRec.falla[p.rec]) return p.respaldo || null;       // la grabada no carga: la de antes
+  if (p && p.gen){                                                        // del estudio: la de antes mientras se genera
+    if (p.siguiente && running) estudioPide(p.siguiente());                          // (y ya se va preparando la que viene)
+    if (estudioListo(p.gen)) return p;
+    estudioPide(p.gen, true);
+    return p.respaldo || null;
+  }
+  return p;
 }
 function musicStep(){
   if (!audio.ctx || !audio.musOn) return;
   if (menuMusica && running) menuMusica = false;   // jugando manda la partida
   if (bossTrack && !running) bossTrack = null;     // ni un jefe suena en el menú
   const bt = pistaBase();
-  bbSigue(bt); recSigue(bt);
-  if (bt && (bt.bb || bt.rec)) return;             // suena dollchan o una grabada: el secuenciador calla
+  bbSigue(bt); recSigue(bt); estudioSigue(bt);
+  if (bt && (bt.bb || bt.rec || bt.gen)) return;   // suena dollchan, una grabada o el estudio: el secuenciador calla
   const key = (typeof phase === 'function') ? phase().id : 'dia';
   const sc = bt ? bt.scale : (MUSIC_SCALES[key] || MUSIC_SCALES.dia);
   const t0 = audio.ctx.currentTime;
@@ -12480,7 +13492,7 @@ function retuneMusic(){
   const bt = pistaBase();
   clearInterval(audio.musicTimer);
   audio.musicTimer = setInterval(musicStep, bt ? bt.tempo : 260);
-  bbSigue(bt); recSigue(bt);
+  bbSigue(bt); recSigue(bt); estudioSigue(bt);
 }
 
 // Suena el tema del jefe mientras siga en pie. Se revisa 3 veces por segundo:
@@ -12510,6 +13522,8 @@ function updateBossMusic(dt){
     if (e.type === 'rivalVil'){ cual = 'muerteVeloz'; break; }
   }
   if (!cual && refz) cual = 'refuerzos';
+  // a los 30 s de partida se van preparando las pistas de los jefes del mapa
+  if (gameTime > 30 && gameMode !== 'leyenda'){ if (esAlien()) estudioPide('desgarrador'); else if (!esInfierno()){ estudioPide('flametank'); estudioPide('superx'); } }
   const nuevo = cual ? BOSS_TRACKS[cual] : null;
   if (nuevo !== bossTrack){ bossTrack = nuevo; retuneMusic(); }
   const base = pistaBase();
@@ -12522,7 +13536,7 @@ function playBossPreview(id){
   if (!t) return;
   initAudio();
   if (previewTrack === t){ stopBossPreview(); return; }        // segundo toque: parar
-  previewTrack = t; previewT = 14;                                          // 14 s de muestra
+  previewTrack = t; previewT = 14 + (t.gen && !estudioListo(t.gen) ? 5 : 0);    // 14 s de muestra (y lo que tarde en generarse)
   if (!audio.musicTimer) startMusic();
   retuneMusic();
 }
@@ -12540,11 +13554,11 @@ function startMusic(){
   if (audio.musicTimer){ clearInterval(audio.musicTimer); audio.musicTimer = null; }
   const t = pistaBase();
   audio.musicTimer = setInterval(musicStep, t ? t.tempo : 260);
-  bbSigue(t); recSigue(t);
+  bbSigue(t); recSigue(t); estudioSigue(t);
 }
 function stopMusic(){
   if (audio.musicTimer){ clearInterval(audio.musicTimer); audio.musicTimer = null; }
-  bbPon(null); recPon(null);
+  bbPon(null); recPon(null); estudioPon(null);
 }
 
 // ================= REGISTRO (bestiario) =================
@@ -12744,13 +13758,13 @@ function achPopupNew(id){}                  // gancho reservado
 // ================= BANDA SONORA EN EL REGISTRO =================
 const OST_TEMAS = [
   { id:'manana',    icon:'\u{1F304}', name:'DESPERTAR',
-    desc:'El tema de la mañana. Pop luminoso y saltarín en tono mayor, con un arpegio que rebota: la ciudad todavía no sabe lo que le espera.' },
+    desc:'El tema de la mañana. Pop luminoso en sol mayor: piano eléctrico, bajo FM, un arpegio de cuerda pulsada y un glockenspiel con la melodía. La ciudad todavía no sabe lo que le espera.' },
   { id:'dia',       icon:'\u{2600}\u{FE0F}', name:'PLENA LUZ',
-    desc:'El tema del mediodía. El más frenético: rock electrónico a toda velocidad, con bombo constante, bajo que salta de octava, acordes de potencia y redobles.' },
+    desc:'El tema del mediodía. El más frenético: rock electrónico a 150 en mi menor, con guitarras distorsionadas, bajo en semicorcheas que salta de octava, redobles de toms y un lead cuadrado armonizado.' },
   { id:'atardecer', icon:'\u{1F305}', name:'ÚLTIMA HORA',
-    desc:'El tema del atardecer. Tenso y melancólico, con un bajo que desciende y una melodía de sierra que se va oscureciendo justo cuando llegan los blindados.' },
+    desc:'El tema del atardecer. Tenso y melancólico sobre la cadencia andaluza (re menor, do, si bemol, la): medio tiempo, cuerdas, arpegio pulsado, un lead que suena a violonchelo y un coro al final.' },
   { id:'noche',     icon:'\u{1F319}', name:'HORA MUERTA',
-    desc:'El tema nocturno. Synthwave oscuro: bajo profundo, arpegios con eco y una melodía inquietante, con las farolas encendidas y la ciudad a oscuras.' },
+    desc:'El tema nocturno. Synthwave oscuro en la menor: caja enorme con reverb, bajo que salta de octava, supersierras, arpegios con eco cruzado y una melodía con vibrato, con las farolas encendidas y la ciudad a oscuras.' },
   // Los temas de los otros mapas: se desbloquean jugando una partida en ellos.
   { id:'mapa_alien',    icon:'\u{1FA90}', name:'PLANETA ROJO', pista: ()=> ALIEN_TRACK,
     bloqueo:'Juega una partida en el MUNDO ALIENÍGENA para desbloquearlo. Toca el icono para ver otro tema.',
@@ -33724,6 +34738,7 @@ function musAgacha(k, tau){
   if (!audio.ctx || !audio.musGain) return;
   const g = audio.musGain.gain, t = audio.ctx.currentTime, base = audio.musOn ? audio.musVol*0.5 : 0;
   g.cancelScheduledValues(t); g.setValueAtTime(g.value, t); g.setTargetAtTime(base*k, t, tau);
+  if (audio.musDir){ const d = audio.musDir.gain; d.cancelScheduledValues(t); d.setValueAtTime(d.value, t); d.setTargetAtTime(base*k, t, tau); }
 }
 let jefePres = null;            // { tipo, def, t }
 let congelaT = 0;               // el mundo, detenido por la presentación
