@@ -27815,7 +27815,7 @@ function cambiaUltra(){
 }
 // ---- AUTO: decide con lo medido en partida, en tandas de 2 s ----
 // Fluido = 57 fps o más de media, casi sin tirones (el 95 % de los fotogramas
-// por debajo de 21 ms) y con margen de cálculo (el bucle en menos de 9 ms).
+// por debajo de 21 ms) y con margen de cálculo (el bucle en menos de 11 ms).
 // Para encender hacen falta 4 tandas fluidas seguidas (8 s); para apagar, 2
 // tandas seguidas claramente malas con ella puesta (menos de 48 fps de media o
 // tirones de más de 34 ms). Tras cada apagado espera más antes de volver a
@@ -27844,11 +27844,20 @@ function ultraVigila(ms, trabajo){
       ponUltra(false);
     }
   } else {
-    const fluido = media <= 1000/57 && p95 <= 21 && obra <= 9 && dprTope >= 1;
+    const fluido = media <= 1000/57 && p95 <= 21 && obra <= 11;
     A.bien = fluido ? A.bien + 1 : 0;
     if (A.bien >= 4 && A.espera <= 0){
-      storeSet('invasion_ultra_auto', 'on');
-      ponUltra(true);
+      if (dprTope < 1 - 0.001){
+        // Si una vez fue lento (p. ej. un tirón al cargar) quedó con menos
+        // resolución guardada: yendo fluido, primero se recupera la normal,
+        // paso a paso, y solo después se prueba la alta.
+        dprTope = DPR_PASOS.slice().reverse().find(d => d > dprTope + 0.001) || 1;
+        storeSet('invasion_dpr', String(dprTope)); resize();
+        A.bien = 0; A.calma = 2;
+      } else {
+        storeSet('invasion_ultra_auto', 'on');
+        ponUltra(true);
+      }
     }
   }
 }
@@ -37537,6 +37546,7 @@ const perf = { t:0, n:0, lento:0 };
 const DPR_PASOS = [1, 0.8, 0.67, 0.6];
 function vigilaRendimiento(ms){
   if (!running || document.hidden || ms <= 0 || ms > 250 || ultraOn) return;   // con ULTRA puesta decide ultraVigila
+  if (gameTime < 6) return;                      // los primeros segundos (cargas, cachés) no cuentan
   if (DPR <= DPR_PASOS[DPR_PASOS.length - 1] + 0.001) return;
   perf.t += ms; perf.n++;
   if (perf.t < 2000) return;
@@ -39345,6 +39355,8 @@ function startGame(mode){
   musPreview = false; clearTimeout(musPreviewT); musPreviewT = null;
   stopBossPreview();                    // la muestra del registro no invade la partida
   stopModeAnims();
+  ultraAuto.calma = 5; ultraAuto.v.length = 0; ultraAuto.t = 0; ultraAuto.trabajo = 0; ultraAuto.bien = ultraAuto.mal = 0;   // el arranque no cuenta para la alta resolución
+  perf.t = 0; perf.n = 0; perf.lento = 0;
   flushPendingScore();
   gameMode = (mode === 'vs') ? 'vs' : (mode === 'leyenda' && !Online.activo) ? 'leyenda' : 'invasion';
   // el mapa elegido vale para todos los modos; en línea manda el de quien
