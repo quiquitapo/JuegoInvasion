@@ -2230,13 +2230,13 @@
       <div class="pausacfg">
         <div class="volrow">
           <span class="vollbl">Volumen efectos</span>
-          <input type="range" id="pVolSfx" min="0" max="100" value="49">
-          <span class="volval" id="pVolSfxVal">49</span>
+          <input type="range" id="pVolSfx" min="0" max="100" value="45">
+          <span class="volval" id="pVolSfxVal">45</span>
         </div>
         <div class="volrow">
           <span class="vollbl">Volumen música</span>
-          <input type="range" id="pVolMus" min="0" max="100" value="100">
-          <span class="volval" id="pVolMusVal">100</span>
+          <input type="range" id="pVolMus" min="0" max="100" value="52">
+          <span class="volval" id="pVolMusVal">52</span>
         </div>
         <div class="volrow" id="pUiRow" style="display:none">
           <span class="vollbl">Mandos</span>
@@ -2396,8 +2396,8 @@
       </div>
       <div class="volrow">
         <span class="vollbl">Volumen efectos</span>
-        <input type="range" id="volSfx" min="0" max="100" value="49">
-        <span class="volval" id="volSfxVal">49</span>
+        <input type="range" id="volSfx" min="0" max="100" value="45">
+        <span class="volval" id="volSfxVal">45</span>
       </div>
       <div class="bindrow">
         <span class="bindname">Música</span>
@@ -2405,8 +2405,8 @@
       </div>
       <div class="volrow">
         <span class="vollbl">Volumen música</span>
-        <input type="range" id="volMus" min="0" max="100" value="100">
-        <span class="volval" id="volMusVal">100</span>
+        <input type="range" id="volMus" min="0" max="100" value="52">
+        <span class="volval" id="volMusVal">52</span>
       </div>
     </div>
 
@@ -11011,7 +11011,7 @@ function toastShop(msg){
 // ================= AUDIO (sintetizado, sin archivos) =================
 const audio = {
   ctx:null, master:null, sfxGain:null, musGain:null,
-  sfxOn:true, musOn:true, sfxVol:0.49, musVol:1,
+  sfxOn:true, musOn:true, sfxVol:0.45, musVol:0.52,
   musicTimer:null, step:0, started:false
 };
 
@@ -11024,6 +11024,8 @@ async function loadAudioPrefs(){
       if (typeof p.musOn === 'boolean') audio.musOn = p.musOn;
       if (typeof p.sfxVol === 'number') audio.sfxVol = clamp(p.sfxVol,0,1);
       if (typeof p.musVol === 'number') audio.musVol = clamp(p.musVol,0,1);
+      // quien seguía con el volumen de fábrica anterior (49 % / 100 %) pasa al nuevo
+      if (audio.sfxVol === 0.49 && audio.musVol === 1){ audio.sfxVol = 0.45; audio.musVol = 0.52; }
     }
   } catch(e){}
 }
@@ -18128,9 +18130,15 @@ const relRed = [], proyRed = [];
 const DRA_ORO = { cl:'#f0dc62', cm:'#b99a1c', co:'#5a480a', mem:'#8a7a1c', memO:'#3a320a',
                   vientre:'#f6e79a', cuerno:'#ffe98a', ojo:'#ff3b1f' };
 // Dorado por defecto (como en su lámina); con otra skin, sus colores.
+// ARMADURA CÓSMICA en el dragón: en vez de casi negro, un añil profundo con
+// el filo plateado, y las alas y el vientre llenos de nebulosas y estrellas
+// que titilan (ver draCosmos).
+const DRA_COSMICA = { cl:'#5a4fa6', cm:'#2a2160', co:'#0c0926', mem:'#221a52', memO:'#07051c',
+                      vientre:'#3b3380', cuerno:'#dfe9ff', ojo:'#8fd8ff', cosmic:true };
 function draPaleta(){
   const SK = skin();
   if (!SK || SK.id === 'verde') return DRA_ORO;
+  if (SK.cosmic) return DRA_COSMICA;
   const h = c => /^#[0-9a-f]{6}$/i.test(c) ? c : '#8a7a1c';
   return { cl:h(SK.c[0]), cm:h(SK.c[1]), co:h(SK.c[2]), mem:h(SK.limb), memO:shade(h(SK.limb), 0.45),
            vientre:shade(h(SK.c[0]), 1.3), cuerno:h(SK.tip), ojo:'#ff3b1f' };
@@ -18192,6 +18200,29 @@ function dibujaDragon(g, x, y, esc, st){
 }
 // Ala: brazo, muñeca y cuatro dedos con la membrana festoneada entre ellos. Se
 // define abierta hacia fuera y algo hacia atrás, y se proyecta en la vista.
+// Cielo estrellado dentro de lo que esté recortado: dos nebulosas que giran
+// despacio y estrellas en posiciones fijas que titilan. Todo por fórmula.
+function draCosmos(g, cx, cy, R, sem, n){
+  const t = gameTime*0.35;
+  for (let k = 0; k < 2; k++){
+    const a = t*(k ? -0.6 : 0.8) + sem + k*2.3;
+    g.globalAlpha = 0.42; g.fillStyle = k ? '#5b2f9e' : '#1f5aa8';
+    g.beginPath(); g.ellipse(cx + Math.cos(a)*R*0.35, cy + Math.sin(a)*R*0.25, R*0.55, R*0.3, a*0.5, 0, Math.PI*2); g.fill();
+  }
+  g.globalAlpha = 0.22; g.fillStyle = '#c86bff';
+  g.beginPath(); g.ellipse(cx + Math.sin(t + sem)*R*0.2, cy, R*0.28, R*0.14, 0.6, 0, Math.PI*2); g.fill();
+  g.fillStyle = '#ffffff';
+  for (let i = 0, N = n || 18; i < N; i++){
+    const u = Math.sin(i*12.9898 + sem*7.1)*43758.5453, v = Math.sin(i*78.233 + sem*3.7)*24634.6345;
+    const fx = u - Math.floor(u), fy = v - Math.floor(v);
+    const br = 0.45 + 0.55*Math.abs(Math.sin(gameTime*(1.5 + (i % 5)*0.6) + i));
+    g.globalAlpha = br;
+    const r = i % 6 === 0 ? 1.3 : 0.75;
+    g.fillRect(cx + (fx*2 - 1)*R - r/2, cy + (fy*2 - 1)*R - r/2, r, r);
+    if (i % 6 === 0){ g.globalAlpha = br*0.5; g.fillRect(cx + (fx*2 - 1)*R - 2.4, cy + (fy*2 - 1)*R - 0.25, 4.8, 0.5); g.fillRect(cx + (fx*2 - 1)*R - 0.25, cy + (fy*2 - 1)*R - 2.4, 0.5, 4.8); }
+  }
+  g.globalAlpha = 1;
+}
 function draAla(g, lado, flap, P, V, esp){
   // se abren hacia su lado y algo hacia atrás; si eso apunta a la cámara (o
   // lejos de ella), se tuercen hacia un lado para no verse de canto, como una raya
@@ -18217,6 +18248,7 @@ function draAla(g, lado, flap, P, V, esp){
   const [qx, qy] = pt(32, 30), [ex, ey] = pt(8, 6);
   g.quadraticCurveTo(qx, qy, ex, ey);
   g.closePath(); g.fill();
+  if (P.cosmic){ g.save(); g.clip(); draCosmos(g, (rx + tips[1][0])/2, (ry + tips[1][1])/2, 52, lado*1.7, 30); g.restore(); }   // la membrana, un trozo de cielo
   g.strokeStyle = P.co; g.lineWidth = 0.8; g.globalAlpha = 0.35;            // nervios de la membrana
   for (let k = 1; k < tips.length; k++){
     const mx = (tips[k-1][0] + tips[k][0])/2, my = (tips[k-1][1] + tips[k][1])/2;
@@ -18322,6 +18354,7 @@ function draCuerpo(g, P, V){
     }
     g.globalAlpha = 1;
   }
+  if (P.cosmic) draCosmos(g, 0, cy, 24, 0.4);                // estrellas en el cuerpo
   g.globalAlpha = 0.45; g.strokeStyle = P.co;               // escamas de los costados
   for (let k = 0; k < 6; k++){
     for (const lado of [-1, 1]){
@@ -28865,9 +28898,28 @@ const BOR_DIM = { muslo:11, pierna:11.5, torso:18, cuello:2.4, cabeza:6.4, brazo
 const BOR_POSE0 = { lean:0.06, cab:0, mF:0.16, rF:0.24, mB:-0.16, rB:0.22, bF:0.75, cF:1.6, bB:0.35, cB:1.8, rot:0, suelo:1, alto:22 };
 const BOR_ESC = 1.12;                                     // tamaño en el mundo (más o menos como el viltrumita)
 const BOR_ESTILO = [
-  { cuerpo:'#25338a', sombra:'#18215e', borde:'#050922', venas:'#66f2ff', grueso:4.8, torso:[7.4, 3.9], luz:'#3d52c4', brazal:'#121a52' },
+  { cuerpo:'#25338a', sombra:'#18215e', borde:'#050922', venas:'#66f2ff', grueso:4.8, torso:[7.4, 3.9], luz:'#3d52c4', brazal:'#121a52',
+    hombro:'#1b2566', hombroO:'#0f1648', hombroL:'#3c4cb8' },
   { cuerpo:'#f1ecf8', sombra:'#cbbfe0', borde:'#3a2b74', venas:'#5b3fc4', grueso:4.9, torso:[7.6, 4.0], luz:'#ffffff', brazal:'#b9a8e4' }
 ];
+// Con una skin de la tienda, Boros toma sus colores: el cuerpo del tono
+// medio, las venas del de los detalles; la forma meteórica, una versión clara.
+// El pelo de pinchos y la melena siguen siendo los suyos.
+let _borPalK = '', _borPalV = null;
+function borEstiloSkin(fo, SK){
+  if (!SK || SK.id === 'verde' || !SK.c) return BOR_ESTILO[fo];
+  const h = (c, d)=> /^#[0-9a-f]{6}$/i.test(c) ? c : d;
+  const c0 = h(SK.c[0], '#8a8f96'), c1 = h(SK.c[1], '#5d626a'), c2 = h(SK.c[2], '#2c3036'), tip = h(SK.tip, c0);
+  const k = fo + c0 + c1 + c2 + tip;
+  if (k === _borPalK) return _borPalV;
+  const B0 = BOR_ESTILO[fo];
+  const v = fo ? { cuerpo:shade(c0, 1.45), sombra:shade(c0, 1.08), borde:shade(c2, 0.5), venas:SK.cosmic ? '#cfe0ff' : shade(c1, 0.9), luz:'#ffffff', brazal:shade(c1, 1.25) }
+               : { cuerpo:c1, sombra:shade(c1, 0.68), borde:shade(c2, 0.35), venas:tip, luz:shade(c0, 1.15), brazal:shade(c2, 0.85),
+                   hombro:shade(c1, 0.72), hombroO:shade(c2, 0.6), hombroL:shade(c0, 1.05) };
+  v.grueso = B0.grueso; v.torso = B0.torso;
+  _borPalK = k;
+  return (_borPalV = v);
+}
 function borPoseN(o){ return Object.assign({}, BOR_POSE0, o); }
 function borMezcla(dst, src, k){
   for (const key in BOR_POSE0) if (key !== 'suelo' && key !== 'rot') dst[key] = lerp(dst[key], src[key] === undefined ? BOR_POSE0[key] : src[key], k);
@@ -28931,19 +28983,27 @@ function borVenas(g, a, b, sem, col, w, ancho){
   }
   g.stroke();
 }
-function borHombrera(g, p, s, C, B, k, E){
+function borHombrera(g, p, s, C, B, k, E, SK, cara){
   const r = 4.9*s*k;
-  g.fillStyle = C('#1b2566'); g.beginPath(); g.arc(p[0], p[1], r, 0, Math.PI*2); g.fill();
-  if (B){ g.strokeStyle = B; g.lineWidth = 1.5; g.stroke(); }
-  g.fillStyle = C('#0f1648');
+  g.fillStyle = C(E.hombro); g.beginPath(); g.arc(p[0], p[1], r, 0, Math.PI*2); g.fill();
+  let estampa = false;
+  if (SK && !SK.cosmic && B && g === ctx){                              // la skin, como un parche en la hombrera
+    g.save();
+    if (cara < 0){ g.translate(p[0], 0); g.scale(-1, 1); g.translate(-p[0], 0); }
+    estampa = skinEstampa(SK, p[0], p[1], r, 0.7) || (SK.imgRef ? (g.beginPath(), g.arc(p[0], p[1], r, 0, Math.PI*2), g.clip(), pintaImgSkin(SK.imgRef, p[0], p[1], r)) : false);
+    g.restore();
+  }
+  if (B){ g.strokeStyle = B; g.lineWidth = 1.5; g.beginPath(); g.arc(p[0], p[1], r, 0, Math.PI*2); g.stroke(); }
+  g.fillStyle = C(E.hombroO);
   for (const a of [-2.3, -1.6, -0.9]){
     const bx = p[0] + Math.cos(a)*r*0.85, by = p[1] + Math.sin(a)*r*0.85;
     g.beginPath(); g.moveTo(bx + Math.cos(a + 1.4)*1.6*s, by + Math.sin(a + 1.4)*1.6*s); g.lineTo(bx + Math.cos(a)*3.4*s, by + Math.sin(a)*3.4*s);
     g.lineTo(bx + Math.cos(a - 1.4)*1.6*s, by + Math.sin(a - 1.4)*1.6*s); g.fill();
   }
-  g.fillStyle = C('#3c4cb8'); g.beginPath(); g.arc(p[0] - r*0.3, p[1] - r*0.35, r*0.32, 0, Math.PI*2); g.fill();
+  if (estampa) return;
+  g.fillStyle = C(E.hombroL); g.beginPath(); g.arc(p[0] - r*0.3, p[1] - r*0.35, r*0.32, 0, Math.PI*2); g.fill();
   if (!B) return;
-  g.strokeStyle = '#66f2ff'; g.lineWidth = 1; g.beginPath(); g.moveTo(p[0] - r*0.5, p[1] + r*0.2); g.lineTo(p[0], p[1] - r*0.1); g.lineTo(p[0] + r*0.4, p[1] + r*0.4); g.stroke();
+  g.strokeStyle = E.venas; g.lineWidth = 1; g.beginPath(); g.moveTo(p[0] - r*0.5, p[1] + r*0.2); g.lineTo(p[0], p[1] - r*0.1); g.lineTo(p[0] + r*0.4, p[1] + r*0.4); g.stroke();
 }
 // Brazal oscuro con ribetes en el antebrazo (de la muñeca hacia el codo).
 function borBrazal(g, c, m, w, C, B, E){
@@ -28956,7 +29016,7 @@ function borBrazal(g, c, m, w, C, B, E){
   g.stroke();
 }
 // El torso en V: hombros anchos, cintura estrecha, pectorales, y abdomen.
-function borTorso(g, J, s, E, C, B, cC, cS){
+function borTorso(g, J, s, E, C, B, cC, cS, SK, cara){
   const a = J.cad, b = J.hom, dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy) || 1, ux = dx/L, uy = dy/L, nx = -uy, ny = ux;
   const w0 = E.torso[0]*s, w1 = E.torso[1]*s;
   const P = (u, n)=> [a[0] + ux*L*u + nx*n, a[1] + uy*L*u + ny*n];
@@ -28971,9 +29031,18 @@ function borTorso(g, J, s, E, C, B, cC, cS){
   g.fillStyle = cC; g.fill();
   if (!B) return;
   g.save(); forma(); g.clip();
-  g.fillStyle = cS;                                                     // sombra del lado de atrás
+  let estampa = false;
+  if (SK && g === ctx){                                                 // estampado de la skin (bandera, monograma...)
+    const c = P(0.56, 0), r = L*0.72;
+    g.save();
+    if (cara < 0){ g.translate(c[0], 0); g.scale(-1, 1); g.translate(-c[0], 0); }   // que no salga del revés al mirar a la izquierda
+    estampa = skinEstampa(SK, c[0], c[1], r, 1.3) || (SK.imgRef ? pintaImgSkin(SK.imgRef, c[0], c[1], r) : false);
+    g.restore();
+  }
+  g.fillStyle = cS; if (estampa) g.globalAlpha = 0.4;                   // sombra del lado de atrás
   g.beginPath(); const s0 = P(1, -w0), s1 = P(0, -w1*1.1), s2 = P(0, -w1*0.25), s3 = P(1, -w0*0.25);
   g.moveTo(s0[0], s0[1]); g.lineTo(s1[0], s1[1]); g.lineTo(s2[0], s2[1]); g.lineTo(s3[0], s3[1]); g.fill();
+  g.globalAlpha = 1;
   g.strokeStyle = E.luz; g.globalAlpha = 0.55; g.lineWidth = 1.3*s;      // brillo del pecho
   g.beginPath(); const l0 = P(0.92, w0*0.55), l1 = P(0.66, w0*0.75); g.moveTo(l0[0], l0[1]); g.lineTo(l1[0], l1[1]); g.stroke();
   g.globalAlpha = 1;
@@ -29060,7 +29129,7 @@ function borMelena(g, J, s, t, C, B, viento){
 // opts: { fantasma:'#color', alfa, blanco, t, esc }
 function borFigura(g, st, x, y, opts){
   opts = opts || {};
-  const fo = st.forma ? 1 : 0, E = BOR_ESTILO[fo], s = opts.esc || BOR_ESC;
+  const fo = st.forma ? 1 : 0, SK = opts.SK && !opts.fantasma ? opts.SK : null, E = SK ? borEstiloSkin(fo, SK) : BOR_ESTILO[fo], s = opts.esc || BOR_ESC;
   const J = borEsq(st.pose, s);
   const fan = opts.fantasma, blanco = opts.blanco;
   const C = (c)=> fan ? fan : blanco ? '#ffffff' : c;
@@ -29091,8 +29160,8 @@ function borFigura(g, st, x, y, opts){
   borTrazo(g, J.hom, J.cB, J.mB, w*0.92, cS, B);                       // brazo y pierna de atrás
   borTrazo(g, J.cad, J.rB, J.pB, w, cS, B);
   if (!fan) borBrazal(g, J.cB, J.mB, w*0.92, C, B, E);
-  if (!fo) borHombrera(g, [lerp(J.hom[0], J.cB[0], 0.16), lerp(J.hom[1], J.cB[1], 0.16)], s, C, B, 0.8, E);
-  borTorso(g, J, s, E, C, B, cC, cS);                                   // torso en V
+  if (!fo) borHombrera(g, [lerp(J.hom[0], J.cB[0], 0.16), lerp(J.hom[1], J.cB[1], 0.16)], s, C, B, 0.8, E, blanco ? null : SK, st.cara);
+  borTorso(g, J, s, E, C, B, cC, cS, blanco ? null : SK, st.cara);      // torso en V
   borTrazo(g, J.cad, J.rF, J.pF, w, cC, B);                            // pierna de delante
   if (!fan){                                                            // pies
     for (const [r, p] of [[J.rB, J.pB], [J.rF, J.pF]]){
@@ -29116,7 +29185,7 @@ function borFigura(g, st, x, y, opts){
     g.fillStyle = cC; g.beginPath(); g.arc(m[0], m[1], 3.1*s, 0, TAU); g.fill();
     if (B){ g.strokeStyle = B; g.lineWidth = 1.3; g.stroke(); }
   }
-  if (!fo) borHombrera(g, [lerp(J.hom[0], J.cF[0], 0.2), lerp(J.hom[1], J.cF[1], 0.2)], s, C, B, 0.92, E);
+  if (!fo) borHombrera(g, [lerp(J.hom[0], J.cF[0], 0.2), lerp(J.hom[1], J.cF[1], 0.2)], s, C, B, 0.92, E, blanco ? null : SK, st.cara);
   const bp = st.brilloPuno || 0;
   if (bp > 0 && !fan){                                                  // el puño cargado de energía (azul y morada)
     g.globalCompositeOperation = 'lighter';
@@ -29136,9 +29205,9 @@ function borPoseFija(nombre, t){
   return borPoseN({ lean:0.1 + Math.sin(t*3)*0.03, mF:0.22, rF:0.35, mB:-0.24, rB:0.3, bF:0.8, cF:1.75, bB:0.45, cB:1.95 });
 }
 // Retrato (para iconos, el holograma y las láminas): figura centrada en (x, pies).
-function borRetrato(g, x, pies, alto, forma, pose, t){
+function borRetrato(g, x, pies, alto, forma, pose, t, SK){
   const esc = alto/62;
-  borFigura(g, { pose: borPoseFija(pose, t || 0.3), cara:1, forma }, x, pies, { esc, t: t || 0.3 });
+  borFigura(g, { pose: borPoseFija(pose, t || 0.3), cara:1, forma }, x, pies, { esc, t: t || 0.3, SK });
 }
 
 // ================= BOROS =================
@@ -30243,7 +30312,7 @@ function drawBoros(){
   _borSt.cara = player.facing || 1; _borSt.forma = met; _borSt.cargaPecho = bor.cargaPecho; _borSt.brilloPuno = bor.brilloPuno;
   _borSt.viento = bor.corre || bor.est === 'teleSube' ? 0.5 : 0;
   const parpadea = bor.invT > 0 && bor.est === 'transforma' && Math.floor(bor.anim*30) % 2 === 0;
-  borFigura(ctx, _borSt, s.x, pies - z, { t:bor.anim, blanco: parpadea && bor.estT > 0.9 });
+  borFigura(ctx, _borSt, s.x, pies - z, { t:bor.anim, blanco: parpadea && bor.estT > 0.9, SK: skin() });
 }
 // Efectos: llamas meteóricas, puños de energía, dónde caerá el salto, la patada morada y el rayo.
 function drawBorosEfectos(){
@@ -37838,13 +37907,13 @@ function leyLamina(quien, esJugador, titulo){
       const k = Math.min(250/art.naturalWidth, 178/art.naturalHeight);
       g.drawImage(art, W/2 - art.naturalWidth*k/2, H - 30 - art.naturalHeight*k, art.naturalWidth*k, art.naturalHeight*k);
     } else if (esJugador){
-      const M = holoMide(quien), k = Math.min(2.1, 150/(M.alto/M.k));
+      const M = holoMide(quien), k = Math.min(2.1, 150/(M.alto/M.k))*(quien === 'dragon' ? LEY_DRAGON_K : 1);
       g.save(); g.translate(W/2, H - 34); g.scale(k, k); g.translate(-M.cx, -M.by);
       holoFigura(g, quien, 160, 190, 0.3); g.restore();
     } else {
       const im = RIVAL_CPU[quien] ? rivalRetrato(quien) : retratoJefe(quien, 0);
       if (im){
-        const iw = im.naturalWidth || im.width, ih = im.naturalHeight || im.height, k = Math.min(250/iw, 158/ih);
+        const iw = im.naturalWidth || im.width, ih = im.naturalHeight || im.height, k = Math.min(250/iw, 158/ih)*(quien === 'kaiyin' ? LEY_DRAGON_K : 1);
         g.imageSmoothingEnabled = false; g.drawImage(im, W/2 - iw*k/2, H - 30 - ih*k, iw*k, ih*k);
       }
     }
@@ -37901,10 +37970,14 @@ function leyPreparaArte(){
     }, { once:true });
   }
 }
+const LEY_DRAGON_K = 1.22;
 // Una figura en la carta: de pie sobre la franja del nombre, lo más grande que quepa en su hueco.
 function leyDibujaFig(g, H, quien, esJugador, cx, ancho, alto){
   if (quien === 'oleadaLoca'){ g.save(); g.translate(cx - ancho/2, 0); locaPintaCarta(g, ancho, H); g.restore(); return; }
   const pie = H*0.86, art = leyArteImg(leyArteClave(quien, esJugador));
+  // los dragones de tres cabezas, con las alas abiertas, quedaban chicos por
+  // lo anchos: algo más grandes, aunque la punta de las alas roce el borde
+  const dk = quien === 'dragon' || quien === 'kaiyin' ? LEY_DRAGON_K : 1;
   g.save();
   g.shadowColor = 'rgba(0,0,0,0.6)'; g.shadowBlur = 16; g.shadowOffsetY = 6;
   try {
@@ -37912,12 +37985,12 @@ function leyDibujaFig(g, H, quien, esJugador, cx, ancho, alto){
       const k = Math.min(alto/art.naturalHeight, ancho/art.naturalWidth);
       g.drawImage(art, cx - art.naturalWidth*k/2, pie - art.naturalHeight*k, art.naturalWidth*k, art.naturalHeight*k);
     } else if (esJugador){
-      const M = holoMide(quien), k = Math.min(4, alto*0.8/(M.altoR || M.alto/M.k), ancho/(M.anchoR || 999));
+      const M = holoMide(quien), k = Math.min(4, alto*0.8/(M.altoR || M.alto/M.k), ancho/(M.anchoR || 999))*dk;
       g.translate(cx, pie); g.scale(k, k); g.translate(-M.cx, -M.by); holoFigura(g, quien, 160, 190, 0.3);
     } else {
       const im = RIVAL_CPU[quien] ? rivalRetrato(quien) : retratoJefe(quien, 0);
       if (im){
-        const iw = im.naturalWidth || im.width, ih = im.naturalHeight || im.height, k = Math.min(ancho/iw, alto*0.85/ih);
+        const iw = im.naturalWidth || im.width, ih = im.naturalHeight || im.height, k = Math.min(ancho/iw, alto*0.85/ih)*dk;
         g.imageSmoothingEnabled = false; g.drawImage(im, cx - iw*k/2, pie - ih*k, iw*k, ih*k);
       }
     }
@@ -40336,7 +40409,7 @@ const holo = { raf:0, esperando:false, t:0, last:0, aparece:1, fig:null, medida:
 function miniBoros(g, x, y, r, t){
   const fo = Math.floor(t/3.2) % 2, ciclo = t % 3.2;
   const pose = ciclo < 1.4 ? (fo ? 'meteoro' : 'quieto') : ciclo < 1.9 ? 'golpe' : ciclo < 2.5 ? 'rafaga' : 'victoria';
-  borRetrato(g, x, y + r*0.62, r*2.3, fo, pose, t);
+  borRetrato(g, x, y + r*0.62, r*2.3, fo, pose, t, skin());          // con la skin equipada
 }
 function holoFigura(g, h, x, y, t){
   // los estampados de las skins (bandera, monograma...) se pintan en el lienzo
@@ -40352,7 +40425,7 @@ function holoFigura(g, h, x, y, t){
   } finally { ctx = c0; }
 }
 // Los héroes cuya figura no lleva el estampado de la skin (solo sus colores).
-const HOLO_SIN_ESTAMPA = { dragon:1, maquina:1, mago:1, boros:1 };
+const HOLO_SIN_ESTAMPA = { dragon:1, maquina:1, mago:1 };
 // Cuánto ocupa la figura (se mide una vez): así cada personaje cabe entero.
 function holoMide(h){
   if (holo.medida[h]) return holo.medida[h];
@@ -40639,7 +40712,7 @@ function marcaHeroeSala(h){
 // jugador se entera al momento por la conexión directa.
 function skinsPropias(){
   const l = SKINS.filter(k => ownedSkins.includes(k.id)).map(k => ({ id:k.id, name:k.name,
-    fondo: k.muestra || `radial-gradient(circle at 34% 30%, ${k.c[0]}, ${k.c[1]} 60%, ${k.c[2]})` }));
+    fondo: swatchEstampa(k) || k.muestra || `radial-gradient(circle at 34% 30%, ${k.c[0]}, ${k.c[1]} 60%, ${k.c[2]})` }));
   if (customBought){
     const c = customSkin.c;
     l.push({ id:'custom', name:'COLOR PROPIO', fondo:`radial-gradient(circle at 34% 30%, ${c[0]}, ${c[1]} 60%, ${c[2]})` });
