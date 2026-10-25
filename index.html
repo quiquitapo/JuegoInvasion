@@ -24658,6 +24658,10 @@ function magOrbita(o, i, dt, roca){
 // deja caer (sin=true).
 function magSueltaTK(sin){
   mag.tkOn = false;
+  // con el joystick del botón: exactamente hacia donde apuntaba al soltarlo
+  // (al soltar, el joystick ya se ha vuelto a centrar y apuntaría solo)
+  const u = draJoy.ultimo; draJoy.ultimo = null;
+  const apJoy = u && u.tipo === 'tk' && u.m >= 0.2 ? { a: Math.atan2(u.dy, u.dx), d: MAG_TK_ALC*clamp(u.m, 0.25, 1) } : null;
   if (sin){
     for (const o of mag.tk){
       o.tk = false;
@@ -24673,7 +24677,7 @@ function magSueltaTK(sin){
     return;
   }
   // a dónde: el punto al que se apunta al soltar; sale recto hacia él
-  const ap = magApunta(), d = clamp(ap.d, 90, MAG_RAYO_MAX);
+  const ap = apJoy || magApunta(), d = clamp(ap.d, 90, MAG_RAYO_MAX);
   mag.tkLX = player.x + Math.cos(ap.a)*d; mag.tkLY = player.y - 8 + Math.sin(ap.a)*d;
   mag._fija = null;
   const cola = mag._cola, n0 = cola.length;
@@ -25882,7 +25886,7 @@ function joystickBoton(id, tipo, alEmpezar, alSoltar, suyo){
   const empieza = (x, y, idToque)=>{
     if (!esSuyo() || !running || draJoy.tipo) return false;
     const r = b.getBoundingClientRect();
-    draJoy.tipo = tipo; draJoy.id = idToque;
+    draJoy.tipo = tipo; draJoy.id = idToque; draJoy.ultimo = null;
     draJoy.cx = r.left + r.width/2; draJoy.cy = r.top + r.height/2;
     if (draJoyBase) showJoy(draJoyBase, draJoy.cx, draJoy.cy);
     mover(x, y);
@@ -25891,6 +25895,7 @@ function joystickBoton(id, tipo, alEmpezar, alSoltar, suyo){
   };
   const acaba = (cancelado)=>{
     if (draJoy.tipo !== tipo) return;
+    draJoy.ultimo = { tipo, dx: draJoy.dx, dy: draJoy.dy, m: draJoy.m };   // hacia dónde apuntaba al soltar
     soltarDraJoy();
     if (esSuyo()) alSoltar(!!cancelado || !running);
   };
@@ -29499,7 +29504,7 @@ function vilPielCuello(g, P, t){
 function vilFigura(g, st){
   if (st.SK && st.SK.cosmic) return vilFiguraCosmica(g, st);
   const P = st.pal, t = st.t, pose = VIL_POSES[st.pose] || VIL_POSES.quieto, pie = VIL_PIERNAS[pose.p];
-  const brazos = vilBrazos(st, pose), rep = st.rep;
+  const brazos = vilBrazos(st, pose).slice(), rep = st.rep;   // copia: no tocar las poses compartidas
   if (rep && rep.mano > 0){                                       // reposo: se cruje los nudillos o el cuello
     const m = rep.mano, mezcla = (a, b)=> a.map((v, i)=> v + (b[i] - v)*m);
     if (rep.tipo === 'nudillos'){
