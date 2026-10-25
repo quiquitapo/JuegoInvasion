@@ -727,6 +727,26 @@
   .leyfizq, .leyfder { position:absolute; top:42%; z-index:3; }
   .leyfizq { left:6px; } .leyfder { right:6px; }
   .leydos { color:#ffd257; font-weight:900; letter-spacing:2px; font-size:0.7rem; text-align:center; text-shadow:0 1px 2px #000; }
+  /* el modificador del rival: una insignia que cae girando, rebota y luego late */
+  .leymod { --modcol:#ffb13a; position:relative; overflow:hidden; display:grid; grid-template-columns:auto 1fr; column-gap:7px; align-items:center;
+            width:100%; box-sizing:border-box; margin-top:5px; padding:5px 8px; border-radius:6px; text-align:left;
+            background:linear-gradient(135deg, rgba(30,8,8,0.92), rgba(10,4,4,0.92)); border:2px solid var(--modcol);
+            box-shadow:0 0 12px color-mix(in srgb, var(--modcol) 55%, transparent); }
+  .leymod.hidden { display:none; }
+  .leymodico { grid-row:1 / span 2; font-size:1.5rem; line-height:1; filter:drop-shadow(0 0 6px var(--modcol)); }
+  .leymod b { color:var(--modcol); font-size:0.66rem; letter-spacing:1.5px; }
+  .leymod small { color:#ffe9d0; font-size:0.56rem; line-height:1.25; }
+  .leymod::after { content:''; position:absolute; top:0; bottom:0; width:40%; left:-60%; transform:skewX(-20deg);
+                   background:linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent); }
+  .leymod.entra { animation:leyModCae .6s cubic-bezier(.2,1.5,.4,1) both 1s, leyModLate 1.6s ease-in-out infinite 1.7s; }
+  .leymod.entra::after { animation:leyModBrillo 2.4s ease-in-out infinite 1.5s; }
+  .leymod.entra .leymodico { animation:leyModIco 1.2s ease-in-out infinite 1.6s; }
+  @keyframes leyModCae { 0% { opacity:0; transform:translateY(-40px) rotate(-12deg) scale(1.6); } 100% { opacity:1; transform:none; } }
+  @keyframes leyModLate { 0%,100% { box-shadow:0 0 8px color-mix(in srgb, var(--modcol) 40%, transparent); } 50% { box-shadow:0 0 20px var(--modcol); } }
+  @keyframes leyModBrillo { 0% { left:-60%; } 60%,100% { left:130%; } }
+  @keyframes leyModIco { 0%,100% { transform:rotate(-8deg) scale(1); } 50% { transform:rotate(8deg) scale(1.15); } }
+  body.no-anim .leymod.entra, body.no-anim .leymod.entra::after, body.no-anim .leymod.entra .leymodico { animation:none; }
+  @media (max-height:520px){ .leymod { padding:3px 6px; margin-top:3px; } .leymod small { display:none; } .leymodico { font-size:1.1rem; grid-row:auto; } #leyVs .leydos { font-size:0.6rem; letter-spacing:1px; } }
   .leyvs { align-self:center; color:#ff5a3a; font-weight:900; font-size:clamp(1.6rem, 6vw, 3rem); letter-spacing:2px;
            text-shadow:0 0 14px rgba(255,60,30,0.7), 3px 3px 0 #2a0404; }
   .leysigue { display:flex; flex-direction:column; align-items:center; gap:4px; margin-top:10px; }
@@ -2099,6 +2119,7 @@
             <div class="leyban"><b id="leyVsRivNom"></b><small>CPU</small></div>
           </div>
           <div class="leydos hidden" id="leyVsDos">¡DOS A LA VEZ!</div>
+          <div class="leymod hidden" id="leyVsMod"><span class="leymodico"></span><b></b><small></small></div>
         </div>
       </div>
       <div class="leyrecfin" id="leyRecFin"></div>
@@ -8322,6 +8343,7 @@ const BUFF_RESIST = 0.05;
 function recibe(d){
   if (Online.objetivoInv){ Online.danoInv += d; return 0; }   // el golpe era para el invitado
   if (d > 0 && ley.armor && esLeyenda()) d *= 1 - ley.armor;  // ventaja de armadura del VS Legendario
+  if (d > 0 && esLeyenda()) d = leyModRecibe(d);               // el modificador del rival
   if (d > 0 && isMag() && mag.escudoT > 0) return 0;          // la burbuja del mago lo para todo
   if (d > 0 && isBor() && bor.invT > 0) return 0;             // Boros, en plena embestida o transformándose
   // el escudo de la sobrecarga convierte lo que absorbe en vida
@@ -9563,6 +9585,7 @@ function damageEnemy(e, dmg, fx, fy){
   addParticles(fx, fy, '#ff3b3b', 8, 90);
   if (e.hp > 0) return;
   e.dead = true;
+  if (e.locaGig) locaGiganteCae(e);               // oleada loca: cada gigante derribado da monedas
   if (culpaJug > 0 && !Online.culpaInv) vilSalpica(e, e.kind === 'civ' ? 'civ' : e.type);   // el viltrumita se mancha
   if (e.type === 'tripode') triSueltaPresa(e);   // lo que arrastraba queda libre
   const k = e.kind === 'civ' ? 'civ' : e.type;
@@ -32475,9 +32498,10 @@ function buscaCobertura(e, dJug, dt){
   if (!best) e.cubT = 1.6;                       // no hay nada cerca: lo vuelve a mirar más tarde
   return best;
 }
-function updateEnemies(dt){
+function updateEnemies(dtG){
   const tip = tentacleTip();
   for (let __i63 = 0, __a63 = enemies; __i63 < __a63.length; __i63++){ const e = __a63[__i63];
+    const dt = e.leyDt ? dtG*e.leyDt : dtG;      // el modificador del VS Legendario: jefes más rápidos o más lentos
     if (e.dead) continue;
     if (e.escMag > 0) e.escMag -= dt;            // escudo que pone el Héroe Mágico
     if (e.held){ { const pt = puntoAgarre(e, tip); e.x = pt.x; e.y = pt.y; } continue; }
@@ -35660,7 +35684,7 @@ function draw(){
   drawFlechasJefe();                               // encima de la oscuridad
   drawTelaAviso();
   if (flashPant > 0){ ctx.globalAlpha = flashPant*0.6; ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, CW, CH); ctx.globalAlpha = 1; }
-  drawVinetaVida(); drawBarrasJefe(); drawJefeCaido(); drawPresentacion(); drawCartelLeyenda();
+  drawVinetaVida(); drawBarrasJefe(); drawJefeCaido(); drawPresentacion(); drawCartelLeyenda(); drawRelojLoca();
 }
 
 // ---- estela de lo que lanzas ----
@@ -37783,10 +37807,54 @@ const LEY_PREMIOS = [
   { id:'furia',    r:'e', ico:'\u{1F525}',         n:'+25% DE DAÑO' },
   { id:'fenix',    r:'l', ico:'\u{1F426}\u{200D}\u{1F525}', n:'SEGUNDA VIDA: SI CAES, REVIVES UNA VEZ' }
 ];
+// ---- el modificador del rival: uno por combate (no se acumulan) ----
+// Se sortea con cada combate y se enseña con una pequeña animación en la
+// pantalla VS y al empezar. dt: lo rápido que corre todo en el jefe (moverse,
+// atacar); cd: cuánto antes recarga sus ataques; hp/dmg/esc: vida, daño y
+// tamaño; efecto: sus golpes pueden congelarte o quemarte.
+const LEY_MODS = {
+  veloces: { ico:'\u{26A1}', n:'JEFES VELOCES', d:'Más rápidos, pero más pequeños, con menos vida y menos fuerza', col:'#5ad8ff', dt:1.3, hp:0.8, dmg:0.8, esc:0.85 },
+  frenesi: { ico:'\u{23F1}\u{FE0F}', n:'FRENESÍ', d:'Recargan sus ataques mucho más rápido', col:'#ffb13a', cd:0.6 },
+  colosos: { ico:'\u{1F5FF}', n:'COLOSOS', d:'Más grandes, con más vida y más daño, pero más lentos', col:'#ff7a4a', dt:0.8, hp:1.3, dmg:1.2, esc:1.18 },
+  hielo:   { ico:'\u{2744}\u{FE0F}', n:'GOLPES GÉLIDOS', d:'Sus ataques pueden congelarte', col:'#9fe8ff', efecto:'hielo' },
+  fuego:   { ico:'\u{1F525}', n:'GOLPES ÍGNEOS', d:'Sus ataques pueden quemarte', col:'#ff8a3a', efecto:'fuego' }
+};
+const LEY_MOD_SUPERV = { ico:'\u{23F3}', n:'¡SOBREVIVE 45 S!', d:'No hace falta vencerlos: aguanta. Cada gigante que derribes da monedas', col:'#ffd257' };
+function leySorteaMod(){
+  const L = Object.keys(LEY_MODS).filter(k => k !== ley.mod);       // no repite el del combate anterior
+  return L[Math.floor(Math.random()*L.length)];
+}
+function leyModAhora(){ return ley.tipos[0] === 'oleadaLoca' ? null : LEY_MODS[ley.mod] || null; }
+function leyModAplica(e){
+  const M = leyModAhora(); if (!M || !e) return;
+  if (M.hp){ e.hp = e.maxhp = Math.round(e.maxhp*M.hp); }
+  if (M.dt) e.leyDt = M.dt;
+  if (M.esc && !e.esc){ e.esc = M.esc; e.w0 = e.w || 26; e.h0 = e.h || 30; e.w = e.w0*M.esc; e.h = e.h0*M.esc; }
+}
+// Frenesí: las recargas de los rivales (todo lo que acaba en Cd, o 'cd') corren más deprisa.
+function leyModEnfria(dt){
+  const M = leyModAhora(); if (!M || !M.cd) return;
+  for (let i = 0; i < enemies.length; i++){ const e = enemies[i];
+    if (!e.leyRival || e.dead) continue;
+    for (const k in e){ if ((k === 'cd' || (k.length > 2 && k.endsWith('Cd'))) && typeof e[k] === 'number' && e[k] > 0) e[k] = Math.max(0, e[k] - dt*M.cd); }
+  }
+}
+// Daño que te hacen con el modificador puesto (y la probabilidad de congelarte o quemarte).
+let leyModProcT = -9;
+function leyModRecibe(d){
+  const M = leyModAhora(); if (!M || ley.fase !== 'lucha' || !running) return d;
+  if (M.dmg) d *= M.dmg;
+  if (M.efecto && d > 0 && gameTime - leyModProcT > 3 && Math.random() < Math.min(0.3, d*0.0045)){
+    leyModProcT = gameTime;
+    if (M.efecto === 'hielo') congelar(1.1);
+    else { quemar(2.4); toast('¡TE QUEMAS!'); }
+  }
+  return d;
+}
 const LEY_RAREZA = { c:{ p:58, n:'COMÚN' }, r:{ p:28, n:'RARA' }, e:{ p:11, n:'ÉPICA' }, l:{ p:3, n:'LEGENDARIA' } };
 const ley = { rival:'rivalBoros', mapa:'ciudad', clima:'sol', r0:'rivalBoros', m0:'ciudad', c0:'sol',
               ganadas:0, vida:1, regen:0, ovni:0, dano:1, cd:0, armor:0, monedas:0, debil:0, fenix:0, premios:[], fase:'', t:0, tipos:[], ultimo:'',
-              empX:0, empY:0, rec:0, recHeroe:'', cartelT:0, verdugo:'', vetos:{}, guardada:null, salioGuardando:false };
+              empX:0, empY:0, rec:0, recHeroe:'', cartelT:0, verdugo:'', vetos:{}, guardada:null, salioGuardando:false, mod:'', locaMon:0 };
 // El rival que derrotas no vuelve en los dos combates siguientes (también entre
 // partidas), para que vayan saliendo todos.
 const LEY_VETO = 2;
@@ -37823,7 +37891,7 @@ async function leyLeeGuardada(){
 function leyGuardaPartida(){
   ley.guardada = { heroe:hero, ganadas:ley.ganadas, vida:ley.vida, regen:ley.regen, ovni:ley.ovni, dano:ley.dano, cd:ley.cd,
                    armor:ley.armor, monedas:ley.monedas, debil:ley.debil, fenix:ley.fenix,
-                   premios:ley.premios.slice(), tipos:ley.tipos.slice(), mapa:ley.mapa, clima:ley.clima };
+                   premios:ley.premios.slice(), tipos:ley.tipos.slice(), mapa:ley.mapa, clima:ley.clima, mod:ley.mod };
   storeSet(LEY_GUARDA_KEY, JSON.stringify(ley.guardada)); SaveIO.flush();
 }
 function leyBorraGuardada(){
@@ -37859,6 +37927,7 @@ function leyContinua(){
                        premios:Array.isArray(g.premios) ? g.premios : [], ultimo:'', verdugo:'' });
   ley.mapa = g.mapa; ley.clima = g.clima;
   ley.tipos = g.tipos.length ? g.tipos : [leySorteaRival()];
+  ley.mod = LEY_MODS[g.mod] ? g.mod : leySorteaMod();
   leyBorraGuardada();
   hide('leyenda');
   leyMuestraVs(null, true);
@@ -38096,8 +38165,8 @@ function leyCambiaHeroe(paso){
 function leyEmpieza(){
   leyBorraGuardada();                                          // empezar de cero borra la partida guardada
   Object.assign(ley, { ganadas:0, vida:1, regen:0, ovni:0, dano:1, cd:0, armor:0, monedas:0, debil:0, fenix:0, premios:[], ultimo:'', verdugo:'' });
-  ley.mapa = ley.m0; ley.clima = ley.c0;
-  ley.tipos = [leySorteaRival()]; leyCuentaVetos();
+  ley.mapa = ley.m0; ley.clima = ley.c0; ley.mod = '';
+  ley.tipos = [leySorteaRival()]; ley.mod = leySorteaMod(); leyCuentaVetos();
   hide('leyenda');
   leyMuestraVs(null);
 }
@@ -38122,6 +38191,7 @@ function leyPreparaSiguiente(){
     ley.tipos = [];
     while (ley.tipos.length < n) ley.tipos.push(leySorteaRival(ley.tipos));
   }
+  ley.mod = leySorteaMod();                                    // un modificador nuevo para el rival (no se acumulan)
   leyCuentaVetos();
   ley.mapa = MAPAS[Math.floor(Math.random()*MAPAS.length)];
   ley.clima = leySorteaClima(ley.mapa);
@@ -38129,7 +38199,7 @@ function leyPreparaSiguiente(){
 
 // ---- al empezar cada combate (desde startGame) ----
 function leyArranca(){
-  loca.olas = 0;
+  loca.olas = 0; loca.resto = 0; leyModProcT = -9;
   clima = ley.clima; nubeK = clima === 'sol' ? 0 : 1; lluviaK = clima === 'lluvia' ? 1 : 0; climaMostrado = null;
   ley.fase = 'espera'; ley.t = 0; ley.empX = ley.empY = 0; ley.cartelT = 0; ley.verdugo = ''; rivAgarre = null;
   ovniCd = Math.max(20, rand(55, 90) - ley.ovni*14);       // el OVNI también se deja ver por aquí
@@ -38153,12 +38223,12 @@ function leySueltaRivales(){
     const p = leySitio(i);
     if (t === 'criaColosal'){                                    // la camada entera; cada una con su vida
       const camada = lanzaCrias(p.x, p.y, i > 0);
-      for (const e of camada){ e.leyRival = true; e.oleada = true; e.hp = e.maxhp = Math.round(e.maxhp*extra); }
+      for (const e of camada){ e.leyRival = true; e.oleada = true; e.hp = e.maxhp = Math.round(e.maxhp*extra); leyModAplica(e); }
       return;
     }
     if (t === 'refuerzos'){                                      // la flota baja junto al rival
       lanzaRefuerzos(i > 0, p.x, p.y);
-      if (refz){ refz.ley = extra; refz.vs = true; refz.max *= extra; refz.hp = refz.max; }
+      if (refz){ const M = leyModAhora(); refz.ley = extra; refz.vs = true; refz.max *= extra*(M && M.hp || 1); refz.hp = refz.max; }
       return;
     }
     spawnEnemy(t, p.x, p.y);
@@ -38166,6 +38236,7 @@ function leySueltaRivales(){
     if (!e || e.type !== t) return;
     e.x = p.x; e.y = p.y; e.leyRival = true; e.oleada = true;
     e.hp = e.maxhp = Math.round(Math.max(e.maxhp, 1200)*extra);         // ninguno cae de un par de golpes
+    leyModAplica(e);
     if (i === 0) presentaJefe(e);
     if (t === 'kaiyin') sfx('trueno');
     if (t === 'desgarrador') sfx('sierra');
@@ -38173,20 +38244,21 @@ function leySueltaRivales(){
   ley.ultimo = ley.tipos[ley.tipos.length - 1];
   shake(20, 0.6);
 }
-// ---- OLEADA LOCA (solo en VS Legendario) ----
+// ---- OLEADA LOCA (solo en VS Legendario): SUPERVIVENCIA ----
 // Una mezcla de unidades de los tres mapas con tamaños cambiados: gigantes del
 // tamaño de un edificio (lentísimos, con muchísima vida y golpes enormes) y
-// otros diminutos y rápidos. Pocas a la vez: llegan en tres tandas cortas.
+// otros diminutos y rápidos. No se gana venciéndolos: llegan sin parar y hay
+// que aguantar 45 segundos. Cada gigante que derribes da monedas.
 const LOCA_TIPOS = ['police', 'military', 'minigun', 'tank', 'heli', 'siege', 'mbt', 'centinela', 'droide', 'murcielago', 'bicho', 'arana', 'machacador', 'acorazado', 'medico'];
 const LOCA_GIGANTES = ['tank', 'siege', 'mbt', 'arana', 'machacador', 'acorazado', 'bicho'];
-const LOCA_OLAS = 3, LOCA_ESPERA = 22;
-const loca = { olas: 0, t: 0, extra: 1 };
+const LOCA_DURA = 45, LOCA_CADA = 6.5, LOCA_TOPE = 9, LOCA_MON_GIG = 8;
+const loca = { olas: 0, t: 0, extra: 1, resto: 0, tanda: 0, gigantes: 0 };
 function escalaEnemigo(e, k){
   e.esc = k; e.w0 = e.w || 26; e.h0 = e.h || 30; e.w = e.w0*k; e.h = e.h0*k;
   if (k > 1){
-    e.hp = e.maxhp = Math.round(e.maxhp*k*k*1.5);
+    e.hp = e.maxhp = Math.round(e.maxhp*k*k*1.25);              // (antes ×1,5 y 1 + k·0,8: algo menos de vida y de daño)
     if (e.speed) e.speed /= k*0.9;
-    e.dmgK = 1 + k*0.8; e.grabbable = false;
+    e.dmgK = 1 + k*0.65; e.grabbable = false;
     e.caja = [e.w*0.42, e.h*0.55, e.h*0.3];
   } else {
     e.hp = e.maxhp = Math.max(20, Math.round(e.maxhp*k));
@@ -38206,27 +38278,74 @@ function locaUnidad(gigante, i){
   escalaEnemigo(e, gigante ? rand(2.4, 3) : Math.random() < 0.5 ? rand(0.5, 0.62) : rand(1.5, 1.85));
   e.hp = e.maxhp = Math.round(e.maxhp*loca.extra);
   e.leyRival = true; e.oleada = true;
+  if (gigante) e.locaGig = true;
   return e;
 }
+function locaVivos(){
+  let n = 0;
+  for (let i = 0; i < enemies.length; i++){ const e = enemies[i]; if (e.leyRival && !e.dead) n++; }
+  return n;
+}
 function locaTanda(){
-  loca.olas--; loca.t = 0;
-  locaUnidad(true, 0);                                           // siempre un gigante
-  const n = 2 + (Math.random() < 0.5 ? 1 : 0);
-  for (let i = 0; i < n; i++) locaUnidad(false, i + 1);
-  shake(14, 0.5); sfx('caidaGolpe');
-  toast('¡OLEADA LOCA! · TANDA ' + (LOCA_OLAS - loca.olas) + '/' + LOCA_OLAS, 2.5);
+  loca.t = 0; loca.tanda++;
+  const vivos = locaVivos(), hueco = LOCA_TOPE - vivos;
+  if (hueco <= 0) return;
+  let gig = 0;
+  for (let i = 0; i < enemies.length; i++){ const e = enemies[i]; if (e.locaGig && !e.dead) gig++; }
+  let k = 0;
+  if (gig < 3 && locaUnidad(true, k)) k++;                       // un gigante por tanda (como mucho tres a la vez)
+  const n = Math.min(hueco - k, 2 + (Math.random() < 0.5 ? 1 : 0) + (loca.tanda > 3 ? 1 : 0));
+  for (let i = 0; i < n; i++) locaUnidad(false, k + i + 1);
+  shake(12, 0.4); sfx('caidaGolpe');
 }
 function locaEmpieza(extra){
-  loca.olas = LOCA_OLAS; loca.extra = extra;
+  loca.olas = 1; loca.extra = extra; loca.resto = LOCA_DURA; loca.tanda = 0; loca.gigantes = 0; ley.locaMon = 0;
   locaTanda();
+  toast('¡OLEADA LOCA! · SOBREVIVE ' + LOCA_DURA + ' SEGUNDOS', 3);
   ley.ultimo = 'oleadaLoca';
 }
-// La siguiente tanda llega cuando casi no queda nadie o pasado un rato.
+// Llegan sin parar: una tanda cada pocos segundos, o antes si casi no queda
+// nadie. Al acabar el tiempo, los que quedan se retiran y has ganado.
 function locaActualiza(dt){
   loca.t += dt;
-  let vivos = 0;
-  for (let i = 0; i < enemies.length; i++){ const e = enemies[i]; if (e.leyRival && !e.dead) vivos++; }
-  if (vivos <= 1 || loca.t > LOCA_ESPERA) locaTanda();
+  loca.resto -= dt;
+  if (loca.resto <= 0){ locaFin(); return; }
+  if (locaVivos() <= 1 || loca.t > LOCA_CADA) locaTanda();
+}
+function locaFin(){
+  loca.olas = 0; loca.resto = 0;
+  for (let i = 0; i < enemies.length; i++){ const e = enemies[i];
+    if (!e.leyRival || e.dead) continue;
+    e.dead = true;                                                   // se retiran: sin puntos ni monedas
+    addSmoke(e.x, e.y - 10); addParticles(e.x, e.y - 10, '#ffe9a0', 6, 120);
+  }
+  toast('¡SOBREVIVISTE A LA OLEADA LOCA!', 3);
+  sfx('buy');
+}
+// Un gigante derribado: monedas al momento.
+function locaGiganteCae(e){
+  if (e.locaCobrado) return;
+  e.locaCobrado = true; loca.gigantes++;
+  coins += LOCA_MON_GIG; ley.locaMon += LOCA_MON_GIG; saveShop(); refreshCoinLabels();
+  toast('\u{1FA99} +' + LOCA_MON_GIG + ' MONEDAS · GIGANTE DERRIBADO', 2.2);
+  sfx('buy');
+}
+// El reloj de la supervivencia, arriba.
+function drawRelojLoca(){
+  if (!esLeyenda() || !running || !(loca.olas > 0) || ley.fase !== 'lucha') return;
+  const W = Math.min(CW - 24, 300), x = (CW - W)/2, y = (CW < 700 ? 136 : 76) + (ley.cartelT < 4.2 ? 72 : 0);
+  const k = clamp(loca.resto/LOCA_DURA, 0, 1), s = Math.ceil(loca.resto), urge = loca.resto < 10;
+  ctx.save();
+  ctx.fillStyle = 'rgba(4,8,6,0.82)'; ctx.fillRect(x, y, W, 40);
+  ctx.strokeStyle = urge ? '#7bffa0' : '#ffd257'; ctx.lineWidth = 2; ctx.strokeRect(x + 1, y + 1, W - 2, 38);
+  ctx.fillStyle = 'rgba(255,255,255,0.12)'; ctx.fillRect(x + 8, y + 28, W - 16, 6);
+  ctx.fillStyle = urge ? '#7bffa0' : '#ffd257'; ctx.fillRect(x + 8, y + 28, (W - 16)*k, 6);
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  ctx.font = '900 13px monospace'; ctx.fillStyle = '#fff3c4';
+  const pulso = urge ? 1 + Math.sin(gameTime*10)*0.06 : 1;
+  ctx.translate(CW/2, y + 6); ctx.scale(pulso, pulso);
+  ctx.fillText('\u{23F3} SOBREVIVE · ' + s + ' S' + (loca.gigantes ? '  \u{1FA99} ' + ley.locaMon : ''), 0, 0);
+  ctx.restore();
 }
 // La carta del rival en la pantalla VS: un tanque enorme y unidades diminutas.
 function locaPintaCarta(g, W, H){
@@ -38238,7 +38357,7 @@ function locaPintaCarta(g, W, H){
   g.restore();
 }
 function leyRivalesVivos(){
-  let n = loca.olas > 0 ? 1 : 0;                                   // la oleada loca no acaba hasta su última tanda
+  let n = loca.olas > 0 ? 1 : 0;                                   // la oleada loca no acaba hasta que se agota el tiempo
   for (let i = 0; i < enemies.length; i++){ const e = enemies[i]; if (e.leyRival && !e.dead) n++; }
   if (refz && ley.tipos.includes('refuerzos')) n++;               // la flota cuenta hasta que la repeles
   return n;
@@ -38258,6 +38377,7 @@ function updateLeyenda(dt){
     if (!vil.intro && ley.t > 0.8){ leySueltaRivales(); ley.fase = 'lucha'; ley.t = 0; }
   } else if (ley.fase === 'lucha'){
     if (loca.olas > 0) locaActualiza(dt);
+    leyModEnfria(dt);
     if (ley.t > 1 && leyRivalesVivos() === 0){
       ley.fase = 'gana'; ley.t = 0; ley.ganadas++;
       anotaRecordLeyenda();
@@ -38301,11 +38421,12 @@ function leyVictoria(){
   const mon = LEY_MONEDAS + (ley.monedas || 0);
   coins += mon; saveShop(); refreshCoinLabels();
   const vencidos = ley.tipos.map(leyNombre).join(' Y ');
+  const monLoca = ley.tipos[0] === 'oleadaLoca' ? ley.locaMon || 0 : 0;   // las de los gigantes ya se sumaron al derribarlos
   for (const t of ley.tipos) ley.vetos[t] = LEY_VETO;                  // los vencidos descansan los dos siguientes
   leyPreparaSiguiente();
   const skin = ley.skinNueva; ley.skinNueva = false;
   if (skin) setTimeout(()=> sfx('buy'), 700);
-  leyGacha(vencidos, mon, P => leyMuestraVs({ P, vencidos, skin, mon }));
+  leyGacha(vencidos, mon + monLoca, P => leyMuestraVs({ P, vencidos, skin, mon: mon + monLoca }));
 }
 function leyAplicaPremio(P){
   const id = P.id;
@@ -38332,10 +38453,12 @@ function leySorteaPremio(evita){
   for (const P of L){ x -= LEY_RAREZA[P.r].p; if (x <= 0) return P; }
   return L[L.length - 1];
 }
+// "Derrotaste a ..." o, en la oleada loca, "Sobreviviste a ...".
+function leyTxtVencidos(v){ return v === leyNombre('oleadaLoca') ? 'Sobreviviste a la OLEADA LOCA' : 'Derrotaste a ' + esc(v); }
 function leyGacha(vencidos, mon, alElegir){
   const $ = id => document.getElementById(id);
   leyFondo('leyGachaBg', ley.mapa);
-  $('leyGachaTit').innerHTML = '¡COMBATE ' + ley.ganadas + ' GANADO!<small>Derrotaste a ' + esc(vencidos) + ' · +' + mon + ' monedas</small>';
+  $('leyGachaTit').innerHTML = '¡COMBATE ' + ley.ganadas + ' GANADO!<small>' + leyTxtVencidos(vencidos) + ' · +' + mon + ' monedas</small>';
   const fila = document.querySelector('#leyGacha .gachafila'), cas = Array.from(fila.querySelectorAll('.gachacas'));
   const fin = [];
   for (let i = 0; i < 3; i++) fin.push(leySorteaPremio(fin.map(P => P.id)));
@@ -38420,7 +38543,7 @@ function leyMuestraVs(gana, sigue){
   $('leyVsTop').textContent = 'COMBATE ' + (ley.ganadas + 1) + ' · ' + MAPA_NOMBRE[ley.mapa] + ' · ' + CLIMAS[ley.clima].icon + ' ' + leyClimaNombre(ley.mapa, ley.clima);
   const gn = $('leyVsGana');
   if (gana){
-    gn.innerHTML = '¡COMBATE ' + ley.ganadas + ' GANADO!<small>Derrotaste a ' + esc(gana.vencidos) + ' · +' + (gana.mon || LEY_MONEDAS) + ' monedas'
+    gn.innerHTML = '¡COMBATE ' + ley.ganadas + ' GANADO!<small>' + leyTxtVencidos(gana.vencidos) + ' · +' + (gana.mon || LEY_MONEDAS) + ' monedas'
       + ' · <span class="nueva">' + gana.P.ico + ' NUEVA VENTAJA: ' + esc(gana.P.n) + '</span>'
       + (gana.skin ? '<br>\u{1F513} SKIN NUEVA: <b>REGENTE</b> · úsala desde la TIENDA' : '') + '</small>';
     gn.classList.remove('hidden');
@@ -38437,6 +38560,7 @@ function leyMuestraVs(gana, sigue){
   $('leyVsYoNom').classList.toggle('largo', heroName(hero).length > 14);
   $('leyVsDos').classList.toggle('hidden', ley.tipos.length < 2 && ley.tipos[0] !== 'oleadaLoca');
   $('leyVsDos').textContent = ley.tipos[0] === 'oleadaLoca' ? '¡ENEMIGOS DE TODOS LOS MAPAS!' : ley.tipos.length > 2 ? '¡TRES A LA VEZ!' : '¡DOS A LA VEZ!';
+  leyPintaMod();
   leyPreparaArte();
   $('leyRecFin').textContent = gana ? (ley.ganadas >= ley.rec ? '¡NUEVO RÉCORD!' : 'Récord: ' + ley.rec) : '';
   $('btnLeyRetira').classList.toggle('hidden', !gana && !sigue);
@@ -38445,6 +38569,19 @@ function leyMuestraVs(gana, sigue){
   show('leyVs'); setTimeout(()=> sfx('caidaGolpe'), 380);
   _leyVsCuenta = LEY_VS_ESPERA[gana || sigue ? 1 : 0];
   leyVsCuentaAtras();
+}
+// La insignia del modificador del rival (o de la supervivencia en la oleada loca).
+function leyPintaMod(){
+  const el = document.getElementById('leyVsMod'); if (!el) return;
+  if (!ley.mod && ley.tipos[0] !== 'oleadaLoca') ley.mod = leySorteaMod();
+  const M = ley.tipos[0] === 'oleadaLoca' ? LEY_MOD_SUPERV : LEY_MODS[ley.mod];
+  if (!M){ el.classList.add('hidden'); return; }
+  el.querySelector('.leymodico').textContent = M.ico;
+  el.querySelector('b').textContent = M === LEY_MOD_SUPERV ? M.n : 'RIVAL: ' + M.n;
+  el.querySelector('small').textContent = M.d;
+  el.style.setProperty('--modcol', M.col);
+  el.classList.remove('hidden', 'entra'); void el.offsetWidth; el.classList.add('entra');
+  setTimeout(()=>{ if (!document.getElementById('leyVs').classList.contains('hidden')) sfx('deny'); }, 1150);
 }
 function leyVsCuentaAtras(){
   leyVsBoton();
@@ -38509,6 +38646,22 @@ function drawCartelLeyenda(){
   ctx.font = '900 12px monospace'; ctx.fillStyle = '#ff8a6a';
   const txt = heroName(hero) + '  VS  ' + ley.tipos.map(leyNombre).join(' + ');
   ctx.fillText(txt.length > 46 ? txt.slice(0, 45) + '…' : txt, x + 102, y + 43);
+  // debajo, el modificador del rival: entra de golpe, crece y late
+  const M = leyModAhora();
+  if (M){
+    const tt = Math.max(0, t - 0.25), pop = tt < 0.3 ? easeBack(tt/0.3) : 1 + Math.sin(t*6)*0.03;
+    const my = y + 72, mh = 36;
+    ctx.save(); ctx.translate(CW/2, my + mh/2); ctx.scale(pop, pop); ctx.translate(-CW/2, -(my + mh/2));
+    ctx.fillStyle = 'rgba(20,6,6,0.88)'; ctx.fillRect(x, my, W, mh);
+    ctx.strokeStyle = M.col; ctx.lineWidth = 2; ctx.strokeRect(x + 1, my + 1, W - 2, mh - 2);
+    ctx.globalAlpha *= 0.25 + 0.2*Math.sin(t*8); ctx.fillStyle = M.col; ctx.fillRect(x + 2, my + 2, W - 4, mh - 4); ctx.globalAlpha = a;
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    ctx.font = '20px sans-serif'; ctx.fillText(M.ico, x + 10, my + mh/2 + 1);
+    ctx.font = '900 12px monospace'; ctx.fillStyle = M.col; ctx.fillText('RIVAL CON ' + M.n, x + 40, my + 12);
+    ctx.font = '10px monospace'; ctx.fillStyle = '#ffe9d0';
+    ctx.fillText(M.d.length > 60 ? M.d.slice(0, 59) + '…' : M.d, x + 40, my + 26);
+    ctx.restore();
+  }
   ctx.restore();
 }
 
