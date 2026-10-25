@@ -280,6 +280,23 @@
             border-radius:5px; padding:3px 8px; margin-left:2px; }
   .ostbtn:hover { border-color:#c9a6ff; color:#fff; }
   .ostbtn.on { background:#6b4a9c; color:#fff; }
+  .dexstats { flex-wrap:wrap; row-gap:6px; align-items:center; }
+  /* la barra para avanzar y retroceder la música que suena (jefes y temas) */
+  .ostseek { --sk:#c9a6ff; display:flex; align-items:center; gap:8px; flex:1 1 100%; width:100%; box-sizing:border-box;
+             padding:5px 8px; border:1px solid color-mix(in srgb, var(--sk) 60%, transparent); border-radius:6px;
+             background:rgba(40,20,70,0.55); animation:ostSeekEntra .25s ease-out both; }
+  .ostseek.tema { --sk:#3aa7ff; margin-top:8px; background:rgba(6,16,24,0.6); }
+  .ostseekstop { flex:0 0 auto; width:26px; height:24px; padding:0; border-radius:5px; cursor:pointer; font-size:0.7rem; line-height:1;
+                 border:1px solid var(--sk); background:var(--sk); color:#140a22; }
+  .ostseek.tema .ostseekstop { color:#06121c; }
+  .ostseekbar { flex:1 1 auto; min-width:60px; height:18px; margin:0; accent-color:var(--sk); cursor:pointer; }
+  .ostseektit { flex:0 1 auto; min-width:0; max-width:34%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+                color:#fff; font-size:0.46rem; letter-spacing:1px; }
+  .ostseektime { flex:0 0 auto; color:#e6dcff; font-size:0.48rem; letter-spacing:0.5px; font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .ostseek.tema .ostseektime { color:#cfe8ff; }
+  @keyframes ostSeekEntra { from { opacity:0; transform:scaleX(0.6); } to { opacity:1; transform:none; } }
+  body.no-anim .ostseek { animation:none; }
+  @media (max-width:520px){ .ostseektit { display:none; } }
 
   /* ---- Keybinds ---- */
   .bindrow { display:flex; justify-content:space-between; align-items:center; gap:16px; padding:6px 0;
@@ -2323,6 +2340,7 @@
       <div class="uniqsub" style="color:#6f95ac">Los de la ciudad se desbloquean jugando a cada hora del día; los de los otros mapas, siempre disponibles</div>
       <div id="ostTemas" class="osttemas"></div>
       <div id="ostcard" class="ostcard"></div>
+      <div id="ostSeek"></div>
     </div>
     <div id="dexlist" class="dexlist"></div>
     <button class="small" id="btnDexBack">Volver</button>
@@ -11676,6 +11694,9 @@ BOSS_TRACKS.superx = Object.assign({}, BOSS_TRACKS.superx, { name:'VENENO EN EL 
 BOSS_TRACKS.desgarrador = Object.assign({}, BOSS_TRACKS.desgarrador, { name:'SIERRA DE GUERRA', gen:'desgarrador', respaldo: BOSS_TRACKS.desgarrador });
 // y también el Artillero, Desesperación, Kaiyin y el trípode marciano (mismos nombres, música nueva)
 for (const k of ['artillero', 'desesperacion', 'kaiyin', 'tripode']) BOSS_TRACKS[k] = Object.assign({}, BOSS_TRACKS[k], { gen: k, respaldo: BOSS_TRACKS[k] });
+// El viltrumita rival del VS Legendario (con el traje del Regente) tiene su
+// propio tema; antes tomaba prestado el de Muerte Veloz.
+BOSS_TRACKS.rivalVil = { tempo: 148, name:'SANGRE DEL IMPERIO', gen:'rivalVil', scale: BOSS_TRACKS.muerteVeloz.scale, respaldo: BOSS_TRACKS.muerteVeloz };
 // Castigo Divino: sus dos temas (el primero prepara el segundo, que entra al alargarse la partida)
 { const a = Object.assign({}, INFIERNO_TRACK), b = Object.assign({}, INFIERNO_TRACK2);
   Object.assign(INFIERNO_TRACK, { gen:'infierno', respaldo: a, siguiente: ()=> 'infierno2' });
@@ -13400,6 +13421,96 @@ function estudioPartituras(I){
       } },
 
     // =================================================================
+    // EL VILTRUMITA (rival del VS Legendario, con el traje del Regente):
+    // marcha imperial en re menor a 148. Cuerdas en semicorcheas, taikos,
+    // guitarras en quintas y batería de rock debajo de un tema de metales
+    // heroico pero amenazante; coro, golpes de orquesta y un puente a medio
+    // tiempo ("la presa") que sube hasta re mayor antes de volver.
+    // =================================================================
+    rivalVil: { bpm: 148, compases: 32, bucle: 4, semilla: 121, master: { rms: 0.22, bombeo: 0.3, reverb: { tam: 0.86, amort: 0.35 } },
+      compone(C){
+        const PROG = [[38, 'm'], [34, 'M'], [31, 'm'], [33, 'M']];          // Rem Sib Solm La
+        const PROG_B = [[38, 'm'], [34, 'M'], [31, 'm'], [33, 'M'], [38, 'm'], [34, 'M'], [33, 'M'], [38, 'm']];
+        const bronce = { onda: 'saw', voces: 3, des: 8, a: 0.02, d: 0.25, s: 0.75, r: 0.16, corte: 750, envF: 1500, decF: 0.18, q: 0.9, gan: 0.42, rev: 0.32 };
+        const trompa = { onda: 'saw', voces: 4, des: 9, a: 0.05, d: 0.35, s: 0.85, r: 0.3, corte: 1150, envF: 1000, decF: 0.25, vib: 0.006, gan: 0.42, rev: 0.4, glide: 0.03 };
+        const spicc = { onda: 'saw', voces: 3, des: 10, a: 0.003, d: 0.09, s: 0.18, r: 0.05, corte: 2000, envF: 1200, decF: 0.06, gan: 0.19, rev: 0.25 };
+        const bateria = (c, fill)=>{
+          rit(C, c, 'x.....x.x.......', (t, v)=> bombo(C, t, v, { dec: 0.3, f0: 160, f1: 48, dist: 1.6, gan: 0.8 }));
+          rit(C, c, fill ? '....x.......xxxx' : '....x.......x...', (t, v)=> caja(C, t, v, { tono: 215, dec: 0.2, gan: 0.6, rev: 0.25 }));
+          rit(C, c, 'x.x.x.x.x.x.x.x.', (t, v, s)=> charles(C, t, s % 4 === 0 ? 0.8 : 0.55, { gan: 0.16 }));
+        };
+        const taikos = (c, fill)=>{
+          rit(C, c, fill ? 'x...x...x.x.xxxx' : 'x.......x.x.....', (t, v)=> timbal(C, t, 38, v, { orquesta: true, dec: 0.8, gan: 0.5, rev: 0.35 }));
+        };
+        const cuerdas = (c, raiz, tipo)=>{
+          const a = voz(raiz + 24, tipo, 62), p = [a[0], a[1], a[2], a[1], a[0] + 12, a[2], a[1], a[2]];
+          for (let s = 0; s < 16; s++) sinte(C, C.t(c, s), C.T(0.7), p[s % 8], s % 4 === 0 ? 1 : 0.7, Object.assign({}, spicc, { pan: s % 2 ? 0.3 : -0.3 }));
+        };
+        const guitarras = (c, raiz)=>{
+          for (const [s, l] of [[0, 3], [3, 3], [6, 2], [8, 3], [11, 3], [14, 2]])
+            guitarra(C, C.t(c, s), C.T(l)*0.9, raiz + 12, s === 0 ? 1 : 0.85, { apagada: s !== 0 && s !== 8, notas: [raiz + 12, raiz + 19], gan: 0.17, gano: 9 });
+          bajo(C, C.t(c, 0), C.T(8), raiz, 1, { tipo: 'pulso', corte: 380, env: 600, dist: 2, gan: 0.4, bombea: false });
+          bajo(C, C.t(c, 8), C.T(8), raiz, 0.95, { tipo: 'pulso', corte: 380, env: 600, dist: 2, gan: 0.4, bombea: false });
+        };
+        const golpe = (c, raiz, tipo)=>{
+          impacto(C, C.t(c, 0), 0.8); platillo(C, C.t(c, 0), 1.1);
+          sinte(C, C.t(c, 0), C.T(3), voz(raiz + 24, tipo, 60), 1, Object.assign({}, bronce, { corte: 1000, envF: 2600, gan: 0.5 }));
+          timbal(C, C.t(c, 0), 26, 1, { orquesta: true, dec: 1.4, gan: 0.55 });
+        };
+        // ---- intro (0-3): redoble de timbales, coro y la llamada de trompas ----
+        coro(C, C.t(0), C.T(64), [50, 57, 62], 0.9, { vocal: 'a', gan: 0.48, a: 1.4 });
+        sinte(C, C.t(0), C.T(64), [26, 38], 0.8, { onda: 'saw', voces: 3, des: 10, a: 1.5, r: 0.5, corte: 420, q: 1.2, gan: 0.32, rev: 0.4 });
+        rit(C, 0, 'x...............', (t, v)=> timbal(C, t, 26, 1, { orquesta: true, dec: 2, gan: 0.6 }));
+        mel(C, 0, 'A3:4 D4:4 E4:4 F4:8 E4:4 D4:4 A3:4', (t, d, m)=> sinte(C, t, d*0.96, [m, m - 12], 1, trompa));
+        mel(C, 2, 'A3:4 D4:4 F4:4 A4:8 G4:4 F4:4 E4:4', (t, d, m)=> sinte(C, t, d*0.96, [m, m - 12], 1, trompa));
+        rit(C, 2, 'x...x...x...x...', (t, v)=> timbal(C, t, 38, 0.5, { orquesta: true, dec: 0.5, gan: 0.45 }));
+        rit(C, 3, 'x.x.x.x.xxxxxxxx', (t, v, s)=> { caja(C, t, 0.35 + s*0.04, { tono: 225, dec: 0.12, gan: 0.5, rev: 0.3 }); if (s % 2 === 0) timbal(C, t, 38, 0.5 + s*0.03, { orquesta: true, dec: 0.4, gan: 0.42 }); });
+        barrido(C, C.t(2), C.T(32), 1, { f0: 160, f1: 8000, gan: 0.3 });
+        // ---- A (4-11): cuerdas, guitarras, batería y golpes de metales ----
+        for (let c = 4; c < 12; c++){
+          const [r, tp] = PROG[(c - 4) % 4];
+          bateria(c, c === 11); taikos(c, c === 11); cuerdas(c, r, tp); guitarras(c, r);
+          for (const s of [0, 6, 10]) sinte(C, C.t(c, s), C.T(1.5), voz(r + 24, tp, 57), s ? 0.8 : 1, bronce);
+          if (c % 4 === 0) golpe(c, r, tp);
+        }
+        // ---- B (12-19): el tema de los metales, con coro ----
+        const tema = ['D4:6 A4:2 A4:4 G4:2 F4:2', 'F4:6 D4:2 Bb4:8', 'G4:6 A4:2 Bb4:4 C5:2 Bb4:2', 'A4:12 C#5:4',
+                      'D5:6 A4:2 A4:4 Bb4:2 C5:2', 'D5:6 F5:2 F5:4 E5:2 D5:2', 'E5:6 D5:2 C#5:4 D5:2 E5:2', 'D5:16'];
+        for (let c = 12; c < 20; c++){
+          const [r, tp] = PROG_B[c - 12];
+          bateria(c, c === 19); taikos(c); cuerdas(c, r, tp); guitarras(c, r);
+          mel(C, c, tema[c - 12], (t, d, m)=> sinte(C, t, d*0.96, [m, m - 12], 1, trompa));
+          coro(C, C.t(c), C.T(16), voz(r + 12, tp, 55), 0.75, { vocal: 'a', gan: 0.38, a: 0.25, r: 0.4 });
+          if (c % 4 === 0) golpe(c, r, tp);
+        }
+        // ---- puente (20-23): la presa. Medio tiempo y sube a re mayor ----
+        const PUENTE = [[34, 'M'], [36, 'M'], [34, 'M'], [38, 'M']];
+        for (let c = 20; c < 24; c++){
+          const [r, tp] = PUENTE[c - 20];
+          rit(C, c, 'x.......x.x.....', (t, v)=> bombo(C, t, 1, { dec: 0.4, f0: 150, f1: 42, dist: 1.8, gan: 0.85 }));
+          rit(C, c, '........x.......', (t, v)=> caja(C, t, 1.1, { tono: 190, dec: 0.4, gan: 0.65, rev: 0.45 }));
+          rit(C, c, 'x...x...x...x...', (t, v)=> timbal(C, t, r, v, { orquesta: true, dec: 0.9, gan: 0.55, rev: 0.4 }));
+          guitarra(C, C.t(c, 0), C.T(15), r + 12, 1, { notas: [r + 12, r + 19, r + 24], gan: 0.2, gano: 10 });
+          bajo(C, C.t(c, 0), C.T(16), r, 1, { tipo: 'sub', gan: 0.5, bombea: false });
+          sinte(C, C.t(c, 0), C.T(16), voz(r + 24, tp, 62), 0.9, { onda: 'saw', voces: 5, des: 16, a: 0.3, r: 0.5, corte: 1600, trem: 12, tremP: 0.6, gan: 0.28, rev: 0.45 });
+          coro(C, C.t(c), C.T(16), voz(r + 24, tp, 62), 1, { vocal: 'o', gan: 0.5, a: 0.2 });
+          impacto(C, C.t(c, 0), 0.7);
+        }
+        rit(C, 23, 'xxxxxxxxxxxxxxxx', (t, v, s)=> caja(C, t, 0.3 + s*0.05, { tono: 230, dec: 0.1, gan: 0.5 }));
+        barrido(C, C.t(22), C.T(32), 1, { f0: 200, f1: 10000, gan: 0.32 });
+        // ---- A' (24-31): todo, con el tema una octava arriba y su contracanto ----
+        const contra = ['F3:8 E3:8', 'D3:8 F3:8', 'D3:8 E3:8', 'C#3:8 E3:8', 'F3:8 E3:8', 'D3:8 F3:8', 'E3:8 G3:8', 'F3:16'];
+        for (let c = 24; c < 32; c++){
+          const [r, tp] = PROG_B[c - 24];
+          bateria(c, c === 31); taikos(c, c === 31); cuerdas(c, r, tp); guitarras(c, r);
+          mel(C, c, tema[c - 24], (t, d, m)=>{ sinte(C, t, d*0.96, m + 12, 0.95, Object.assign({}, trompa, { corte: 1500, gan: 0.36 })); sinte(C, t, d*0.96, m, 0.8, Object.assign({}, trompa, { gan: 0.3, pan: -0.2 })); });
+          mel(C, c, contra[c - 24], (t, d, m)=> sinte(C, t, d*0.96, m + 12, 0.8, Object.assign({}, bronce, { gan: 0.32, pan: 0.25 })));
+          if (c % 2 === 0) coro(C, C.t(c), C.T(32), voz(r + 24, tp, 62), 0.8, { vocal: 'a', gan: 0.4 });
+          if (c % 4 === 0) golpe(c, r, tp);
+        }
+      } },
+
+    // =================================================================
     // LA CIUDAD, una pieza por hora del día. 16 compases en cuatro capas que
     // se van sumando (base · + arpegio · + melodía · todo).
     // =================================================================
@@ -13560,6 +13671,11 @@ function bbMezclador(G, sr, GAN){
   };
   return {
     msg(m){
+      if (m && m.salta != null){                                 // la barra del registro: a otro punto de la pieza
+        const x = inst[m.id]; if (!x) return;
+        if (x.def.sr){ x.pos = m.salta*x.def.sr; x.idx = -1; } else x.n = Math.floor(m.salta*sr);
+        return;
+      }
       if (!m || m.id == null){ sig = null; obj = 0; return; }
       if (!G[m.id]) return;
       if (cur && cur.id === m.id && !m.reinicia){ sig = null; obj = 1; return; }
@@ -13627,6 +13743,7 @@ function bbManda(){
 function bbPon(id, reinicia){
   if (id === bbMus.id) return;
   bbMus.id = id; bbMus.reinicia = !!reinicia;
+  if (id != null && audio.ctx) bbMus.t0 = audio.ctx.currentTime;     // (para la barra del registro)
   if (id != null) bbArranca();
   bbManda();
 }
@@ -13869,13 +13986,14 @@ function estudioVia(){
   } catch(e){ audio.musDir = null; }
   return audio.musDir;
 }
-// Suena una pista del estudio (null: ninguna), con fundido.
-function estudioPon(id){
-  if (id === estudio.id) return;
-  const ctx = audio.ctx, t = ctx ? ctx.currentTime : 0;
+// Suena una pista del estudio (null: ninguna), con fundido. desde: segundo
+// por el que empieza (la barra del registro); sin él, la que ya suena sigue.
+function estudioPon(id, desde){
+  if (id === estudio.id && desde == null) return;
+  const ctx = audio.ctx, t = ctx ? ctx.currentTime : 0, salto = desde != null;
   if (estudio.src){
     const s = estudio.src, g = estudio.g;
-    try { g.gain.cancelScheduledValues(t); g.gain.setValueAtTime(g.gain.value, t); g.gain.setTargetAtTime(0, t, 0.15); s.stop(t + 0.8); } catch(e){}
+    try { g.gain.cancelScheduledValues(t); g.gain.setValueAtTime(g.gain.value, t); g.gain.setTargetAtTime(0, t, salto ? 0.03 : 0.15); s.stop(t + (salto ? 0.25 : 0.8)); } catch(e){}
     s.onended = ()=>{ try { s.disconnect(); g.disconnect(); } catch(e){} };
     estudio.src = estudio.g = null;
   }
@@ -13885,11 +14003,12 @@ function estudioPon(id){
   try {
     const s = ctx.createBufferSource(), g = ctx.createGain();
     s.buffer = B.b; s.loop = true; s.loopStart = B.bucle; s.loopEnd = B.b.duration;
-    g.gain.setValueAtTime(0, t); g.gain.setTargetAtTime(ESTUDIO_GAN, t + 0.02, 0.12);
+    g.gain.setValueAtTime(0, t); g.gain.setTargetAtTime(ESTUDIO_GAN, t + 0.02, salto ? 0.04 : 0.12);
     s.connect(g); g.connect(audio.musDir);
-    s.start(t + 0.02);
+    const off = salto ? clamp(desde, 0, Math.max(0, B.b.duration - 0.05)) : 0;
+    s.start(t + 0.02, off);
     B.uso = ++estudio.uso;
-    estudio.src = s; estudio.g = g; estudio.id = id;
+    estudio.src = s; estudio.g = g; estudio.id = id; estudio.t0 = t + 0.02; estudio.off = off;
   } catch(e){ estudio.falla[id] = true; }
 }
 function estudioSigue(bt){ estudioPon(bt && bt.gen ? bt.gen : null); }
@@ -14375,7 +14494,7 @@ function updateBossMusic(dt){
     if (e.type === 'desesperacion'){ cual = 'desesperacion'; break; }
     if (e.type === 'rivalBoros'){ cual = 'centurion'; break; }
     if (e.type === 'criaColosal' || e.type === 'criaJefe'){ cual = 'omni'; break; }       // los rivales de la CPU toman prestado un tema
-    if (e.type === 'rivalVil'){ cual = 'muerteVeloz'; break; }
+    if (e.type === 'rivalVil'){ cual = 'rivalVil'; break; }
   }
   if (!cual && refz) cual = 'refuerzos';
   const nuevo = cual ? BOSS_TRACKS[cual] : null;
@@ -14633,6 +14752,9 @@ const OST_TEMAS = [
     desc:'La música del Registro: suena mientras repasas todo lo que has derrotado.' },
   { id:'ajustes', icon:'\u{2699}\u{FE0F}', name:'A PUÑETAZOS', pista: ()=> AJUSTES_TRACK, grupo:'MENÚS',
     desc:'La música de Ajustes: para reasignar teclas y cuadrar el volumen sin aburrirte.' },
+  // VS Legendario: el tema del viltrumita rival.
+  { id:'rivalVil', icon:'\u{1F451}', name:'SANGRE DEL IMPERIO', pista: ()=> BOSS_TRACKS.rivalVil, grupo:'VS LEGENDARIO',
+    desc:'El tema del viltrumita rival del VS Legendario, con el traje del Regente: marcha imperial en re menor con cuerdas en semicorcheas, taikos, guitarras, coro y un tema de metales heroico pero amenazante. A medio camino, la presa: un puente a medio tiempo que sube hasta re mayor.' },
   // Eventos: la música de los Refuerzos alienígenas (stagas), que no tiene ficha propia.
   { id:'refuerzos', icon:'\u{1F6F8}', name:'MENTE VELOZ', pista: ()=> BOSS_TRACKS.refuerzos, grupo:'EVENTOS',
     desc:'La música de los Refuerzos alienígenas: cuando la flota del planeta rojo baja a por ti. Mind swift, de stagas (funcbeat): rápida, nerviosa y sin respiro.' }
@@ -14674,8 +14796,93 @@ function renderOST(){
   const ico = document.getElementById('ostIco');
   if (ico) ico.addEventListener('click', ()=>{ ostSel = (ostSel+1) % OST_TEMAS.length; sfx('ui'); renderOST(); });
   const pl = document.getElementById('ostPlay');
-  if (pl && on) pl.addEventListener('click', ()=>{ ostToggle(t); sfx('ui'); renderOST(); });
+  if (pl && on) pl.addEventListener('click', ()=>{ ostToggle(t); sfx('ui'); renderDex(); });   // (renderDex repinta también esto)
+  const sk = document.getElementById('ostSeek');
+  if (sk){
+    sk.innerHTML = sonando && ostListo(previewTrack) ? ostSeekHTML('', true) : '';
+    ostSeekEnlaza(sk, renderDex);
+  }
 }
+
+// ---- la barra de la música en el registro ----
+// Dónde va la que suena y cuánto dura, sea del estudio (el búfer), grabada
+// (el <audio>), de dollchan (el tiempo desde que empezó) o del secuenciador
+// (sus pasos, en ciclos de 64).
+let _bbMeta = null;
+function bbMeta(id){ if (!_bbMeta){ try { _bbMeta = bbGeneradores(); } catch(e){ _bbMeta = {}; } } return _bbMeta[id] || null; }
+const BB_DUR = 90, SEC_PASOS = 64;
+function musPos(){
+  if (!audio.ctx) return null;
+  const bt = pistaBase(); if (!bt) return null;
+  const ahora = audio.ctx.currentTime;
+  if (bt.gen){
+    const B = estudio.buf[bt.gen];
+    if (estudio.id !== bt.gen || !B) return null;
+    const dur = B.b.duration, L = dur - B.bucle;
+    let t = Math.max(0, ahora - estudio.t0) + estudio.off;
+    if (t > dur) t = L > 0.5 ? B.bucle + (t - B.bucle) % L : t % dur;
+    return { t, dur, bt };
+  }
+  if (bt.rec){
+    const a = musRec.id === bt.rec ? musRec.el[bt.rec] : null;
+    return a && a.duration > 0 && isFinite(a.duration) ? { t: a.currentTime, dur: a.duration, bt } : null;
+  }
+  if (bt.bb){
+    if (bbMus.id !== bt.bb) return null;
+    const d = bbMeta(bt.bb), b0 = d && d.bucle ? d.bucle[0]/d.sr : 0, b1 = d && d.bucle ? d.bucle[1]/d.sr : 0;
+    let t = Math.max(0, ahora - (bbMus.t0 || ahora));
+    if (b0 && t > b0) t = b1 + (t - b1) % (b0 - b1);
+    return { t, dur: b0 || BB_DUR, bt, sinFin: !b0 };
+  }
+  if (!audio.musicTimer) return null;
+  const dt = (bt.tempo || 260)/1000;
+  return { t: (audio.step % SEC_PASOS)*dt, dur: SEC_PASOS*dt, bt };
+}
+function musSalta(k){
+  const p = musPos(); if (!p) return;
+  const sec = clamp(k, 0, 0.995)*p.dur, bt = p.bt;
+  if (bt.gen) estudioPon(bt.gen, sec);
+  else if (bt.rec){ try { musRec.el[bt.rec].currentTime = sec; } catch(e){} }
+  else if (bt.bb){ bbMus.t0 = audio.ctx.currentTime - sec; if (bbMus.estado === 'listo') bbMus.nodo.port.postMessage({ id: bt.bb, salta: sec }); }
+  else audio.step = Math.floor(sec/((bt.tempo || 260)/1000));
+}
+const mmss = s => { s = Math.max(0, Math.floor(s)); return Math.floor(s/60) + ':' + String(s % 60).padStart(2, '0'); };
+// La barra, en lugar del botón de la música (jefes) o bajo la tarjeta (temas).
+function ostSeekHTML(nombre, tema){
+  return `<div class="ostseek${tema ? ' tema' : ''}" data-seek><button type="button" class="ostseekstop" data-seekstop title="Parar" aria-label="Parar">\u{25A0}</button>`
+    + (nombre ? `<span class="ostseektit">\u{266A} ${esc(nombre)}</span>` : '')
+    + `<input type="range" class="ostseekbar" min="0" max="1000" step="1" value="0" aria-label="Avanzar o retroceder la música">`
+    + `<span class="ostseektime">0:00 / 0:00</span></div>`;
+}
+let _ostSeekT = null;
+function ostSeekEnlaza(raiz, alParar){
+  raiz.querySelectorAll('[data-seek]').forEach(w=>{
+    const r = w.querySelector('.ostseekbar'), tx = w.querySelector('.ostseektime');
+    w.querySelector('[data-seekstop]').addEventListener('click', ev=>{ ev.stopPropagation(); stopBossPreview(); sfx('ui'); alParar(); });
+    r.addEventListener('pointerdown', ()=>{ r._arrastra = true; });
+    r.addEventListener('input', ()=>{ r._arrastra = true; const p = musPos(); if (p && tx) tx.textContent = mmss(r.value/1000*p.dur) + ' / ' + mmss(p.dur); });
+    r.addEventListener('change', ()=>{ musSalta(r.value/1000); r._arrastra = false; });
+    r.addEventListener('click', ev=> ev.stopPropagation());
+  });
+  ostSeekPinta();
+  if (!_ostSeekT) _ostSeekT = setInterval(ostSeekPinta, 200);
+}
+// Mueve las barras visibles al ritmo de la música (y se apaga cuando no hay ninguna).
+function ostSeekPinta(){
+  const ws = document.querySelectorAll('#registro [data-seek]');
+  const reg = document.getElementById('registro');
+  if (!ws.length || !previewTrack || !reg || reg.classList.contains('hidden')){ clearInterval(_ostSeekT); _ostSeekT = null; return; }
+  const p = musPos();
+  if (p && p.sinFin && p.t >= p.dur - 0.1) musSalta(0);            // las de dollchan sin fin: en el registro, vuelven a empezar
+  ws.forEach(w=>{
+    const r = w.querySelector('.ostseekbar'), tx = w.querySelector('.ostseektime');
+    if (!p){ if (tx) tx.textContent = '--:-- / --:--'; return; }
+    if (!r._arrastra) r.value = Math.round(p.t/p.dur*1000);
+    if (tx && !r._arrastra) tx.textContent = mmss(p.t) + ' / ' + mmss(p.dur);
+  });
+}
+// ¿Ya suena de verdad la muestra (no se está generando)?
+function ostListo(t){ return !(t.gen && !estudioListo(t.gen) && !estudio.falla[t.gen] && !estudio.roto); }
 
 // Reproduce el tema ambiente elegido usando el mismo bucle de la música.
 function ostToggle(t){
@@ -14849,11 +15056,13 @@ function renderDex(){
         <div class="dexname">${b.name}</div>
         <div class="dexdesc">${b.desc}</div>
         <div class="dexstats"><span class="hpv">HP ${b.hp}</span><span class="dmv">DAÑO ${b.dmg}</span>
-          ${BOSS_TRACKS[b.id] && n > 0 ? `<button type="button" class="ostbtn" data-ost="${b.id}">${previewTrack === BOSS_TRACKS[b.id] && previewTrack.gen && !estudioListo(previewTrack.gen) && !estudio.falla[previewTrack.gen] && !estudio.roto ? '\u{23F3} GENERANDO…' : '\u{266A} ' + esc(BOSS_TRACKS[b.id].name)}</button>` : ''}
+          ${BOSS_TRACKS[b.id] && n > 0 ? (previewTrack === BOSS_TRACKS[b.id] && ostListo(previewTrack) ? ostSeekHTML(BOSS_TRACKS[b.id].name)
+            : `<button type="button" class="ostbtn" data-ost="${b.id}">${previewTrack === BOSS_TRACKS[b.id] ? '\u{23F3} GENERANDO…' : '\u{266A} ' + esc(BOSS_TRACKS[b.id].name)}</button>`) : ''}
           <span class="cntv">${b.verb || 'ELIMINADOS'}: ${n}</span></div>
       </div></div>`;
   }).join('');
   renderOST();
+  ostSeekEnlaza(el, renderDex);
   el.querySelectorAll('[data-ost]').forEach(node=>{
     node.addEventListener('click', (ev)=>{
       ev.stopPropagation();
@@ -38561,6 +38770,7 @@ function leyMuestraVs(gana, sigue){
   $('leyVsDos').classList.toggle('hidden', ley.tipos.length < 2 && ley.tipos[0] !== 'oleadaLoca');
   $('leyVsDos').textContent = ley.tipos[0] === 'oleadaLoca' ? '¡ENEMIGOS DE TODOS LOS MAPAS!' : ley.tipos.length > 2 ? '¡TRES A LA VEZ!' : '¡DOS A LA VEZ!';
   leyPintaMod();
+  for (const t of ley.tipos) estudioPide(pistaDeJefe(t), true);      // la música del rival ya se va preparando
   leyPreparaArte();
   $('leyRecFin').textContent = gana ? (ley.ganadas >= ley.rec ? '¡NUEVO RÉCORD!' : 'Récord: ' + ley.rec) : '';
   $('btnLeyRetira').classList.toggle('hidden', !gana && !sigue);
@@ -38673,7 +38883,7 @@ const RIV_BOR_RAYO_DPS = [0, 0, 95, 150], RIV_BOR_RAYO_ANCHO = [0, 0, 22, 46], R
 const RIV_VIL_RAYO_DPS = 70;
 function rivalBase(type, base){
   if (type === 'rivalBoros') Object.assign(base, { hp:RIV_BOR_HP, maxhp:RIV_BOR_HP, speed:175, w:46, h:84, grabbable:false,
-    fase:'', ft:0, cd:1.2, fo:2, anim:0, pose:null, ph:0, paso:0, golpeT:0, lado:0, combo:0, zCd:3, vCd:6, bCd:5, agCd:4, invT:0, rA:0, vx2:0, vy2:0, tx:0, ty:0, golpeo:0, z:0 });
+    fase:'', ft:0, cd:1.2, fo:2, anim:0, pose:null, ph:0, paso:0, golpeT:0, lado:0, combo:0, zCd:3, bCd:5, agCd:4, invT:0, rA:0, vx2:0, vy2:0, tx:0, ty:0, golpeo:0, z:0 });
   if (type === 'rivalVil') Object.assign(base, { hp:RIV_VIL_HP, maxhp:RIV_VIL_HP, speed:230, w:30, h:52, grabbable:false,
     fase:'', ft:0, cd:1, anim:0, vuela:0, fx:1, fy:0, punchT:0, lado:1, combo:0, embCd:2.5, rayoCd:7, presaCd:5, aterrizaT:0, rA:0, vx2:0, vy2:0, golpeo:0, furia:0, giro:0 });
 }
@@ -38719,7 +38929,7 @@ function rivAgarreRevisa(){
 // ---- Boros de la CPU ----
 function updateRivalBoros(e, dt, a, ang){
   e.anim += dt;
-  for (const k of ['golpeT', 'zCd', 'vCd', 'bCd', 'agCd', 'invT']) if (e[k] > 0) e[k] = Math.max(0, e[k] - dt);
+  for (const k of ['golpeT', 'zCd', 'bCd', 'agCd', 'invT']) if (e[k] > 0) e[k] = Math.max(0, e[k] - dt);
   if (e.hieloT > 0) return;
   // a media vida pasa a la forma meteórica
   if (e.fo === 2 && e.hp < e.maxhp*0.45 && !e.fase) rivBorTransforma(e, 3);
@@ -38767,10 +38977,6 @@ function updateRivalBoros(e, dt, a, ang){
     if (e.ft <= 0){ e.fase = ''; e.cd = 0.9; e.zCd = rand(5, 7); }
     return;
   }
-  if (e.fase === 'vAviso'){
-    if (e.ft <= 0){ e.fase = 'v'; e.ft = 0.7; e.n = 0; }
-    return;
-  }
   if (e.fase === 'ag'){                            // te sujeta delante...
     rivSujeta(e.x + (e.facing || 1)*40, e.y + 2);
     if (e.ft <= 0){                                // ...y la primera patada te despega
@@ -38805,18 +39011,6 @@ function updateRivalBoros(e, dt, a, ang){
     if (e.ft <= 0){ e.z = 0; e.fase = ''; e.cd = 0.9; e.agCd = rand(6, 9); anilloPolvo(e.x, e.y + 14, 40, 14, '#9a9288'); sfxEn('aterriza', e.x, e.y, 0.8); }
     return;
   }
-  if (e.fase === 'v'){
-    const n = Math.floor((0.7 - e.ft)/0.07);
-    while (e.n < n && e.n < 10){
-      e.n++;
-      const ox = e.tx + rand(-48, 48), oy = e.ty + rand(-36, 36);
-      addParticles(ox, oy - 10, e.fo === 3 ? '#c4a8ff' : '#ffe9a0', 5, 150);
-      if (dist(player.x, player.y, e.tx, e.ty) < 66) rivPega(e, 6 + e.fo*2, 60, Math.atan2(player.y - e.ty, player.x - e.tx));
-      sfxEn('hit', e.tx, e.ty, 0.4);
-    }
-    if (e.ft <= 0){ e.fase = ''; e.cd = 0.8; e.vCd = rand(6, 9); shake(8, 0.2); }
-    return;
-  }
   if (e.fase === 'bAviso'){
     // durante la carga corrige la puntería, despacio
     let d = ang - e.rA; d = Math.atan2(Math.sin(d), Math.cos(d)); e.rA += clamp(d, -dt*1.2, dt*1.2);
@@ -38849,7 +39043,6 @@ function updateRivalBoros(e, dt, a, ang){
     if (a < 64){ e.fase = 'golpe'; e.ft = 0.24; e.golpeo = 0; e.lado = 1 - e.lado; return; }
     if (e.fo >= 2 && e.bCd <= 0 && a > 160 && a < 560){ e.fase = 'bAviso'; e.ft = 0.75; return; }
     if (e.zCd <= 0 && a > 90 && a < 320){ e.fase = 'zAviso'; e.ft = RIV_BOR_Z.aviso; return; }
-    if (e.vCd <= 0 && a < 260){ e.fase = 'vAviso'; e.ft = 0.6; e.tx = player.x; e.ty = player.y; return; }
   }
   if (a > 52 && !parado){
     e.x += Math.cos(ang)*vel*dt; e.y += Math.sin(ang)*vel*dt;
@@ -38916,7 +39109,6 @@ function rivBorPoseObj(e){
     case 'zFin':
       if (e.ft > 0.3) return P({ lean:-0.18, mF:0.45, rF:0.5, mB:-0.4, rB:0.4, bF:-0.85, cF:0.9, bB:0.9, cB:1.8, cab:0.1 });
       return P({ lean:0.55, mF:0.85, rF:0.2, mB:-0.75, rB:0.15, bF:1.66, cF:0, bB:0.1, cB:1.4 });
-    case 'vAviso': return P({ lean:-0.18, mF:0.45, rF:0.5, mB:-0.4, rB:0.4, bF:-0.85, cF:0.9, bB:0.9, cB:1.8, cab:0.1 });
     case 'v': { const k = Math.floor(t*16) % 2, j = Math.sin(t*90)*0.15;
       return k ? P({ lean:0.32, mF:0.55, rF:0.4, mB:-0.55, rB:0.3, bF:1.55 + j, cF:0.08, bB:0.6, cB:1.8 }) : P({ lean:0.32, mF:0.55, rF:0.4, mB:-0.55, rB:0.3, bF:0.6, cF:1.8, bB:1.5 - j, cB:0.1 }); }
     case 'bAviso': return P({ lean:-0.18, cab:-0.15, mF:0.4, rF:0.5, mB:-0.4, rB:0.4, bF:-0.5, cF:1.2, bB:-0.7, cB:1.0 });
@@ -38958,18 +39150,6 @@ function drawRivalBoros(e){
     ctx.beginPath(); ctx.ellipse(cx, cy, Z.R, Z.R*0.72, 0, 0, Math.PI*2); ctx.stroke();
     ctx.restore();
   }
-  if (e.fase === 'vAviso' || e.fase === 'v'){
-    const p = S(e.tx, e.ty);
-    ctx.save(); ctx.globalAlpha = e.fase === 'v' ? 0.5 : 0.3 + Math.sin(e.anim*24)*0.15;
-    ctx.fillStyle = 'rgba(130,100,255,0.32)'; ctx.strokeStyle = '#b48aff'; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.ellipse(p.x, p.y, 66, 46, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke(); ctx.restore();
-    if (e.fase === 'v'){                                       // los puños de energía
-      ctx.save(); ctx.globalCompositeOperation = 'lighter';
-      for (let i = 0; i < 5; i++){ const q = (e.anim*9 + i*0.37) % 1, fx = p.x + Math.sin(i*2.3 + e.anim*13)*44, fy = p.y - 8 + Math.cos(i*1.7 + e.anim*11)*28;
-        ctx.globalAlpha = (1 - q)*0.8; ctx.drawImage(borAura(), fx - 12, fy - 12, 24, 24); }
-      ctx.restore();
-    }
-  }
   const pecho = pies - 40*RIV_BOR_ESC;
   if (e.fase === 'bAviso'){
     ctx.save(); ctx.globalAlpha = 0.25 + (0.75 - e.ft)*0.5; ctx.strokeStyle = met ? '#c48aff' : '#58ecff'; ctx.lineWidth = 2; ctx.setLineDash([6, 6]);
@@ -38978,7 +39158,7 @@ function drawRivalBoros(e){
   if (e.invT > 0 && Math.floor(e.anim*20) % 2) ctx.globalAlpha = 0.7;
   _rivBorSt.pose = e.pose; _rivBorSt.cara = e.facing || 1; _rivBorSt.forma = met ? 1 : 0;
   _rivBorSt.cargaPecho = e.fase === 'bAviso' ? clamp(1 - e.ft/0.75, 0, 1) : e.fase === 'b' ? 1 : 0;
-  _rivBorSt.brilloPuno = e.fase === 'v' || e.fase === 'vAviso' || e.fase === 'zFin' ? 0.8 : 0; _rivBorSt.viento = 0;
+  _rivBorSt.brilloPuno = e.fase === 'zFin' ? 0.8 : 0; _rivBorSt.viento = 0;
   const z = e.z || 0;
   borFigura(ctx, _rivBorSt, s.x, pies - z, { t:e.anim, esc:RIV_BOR_ESC });
   ctx.globalAlpha = 1;
@@ -39280,7 +39460,8 @@ async function endGame(){
   // Cada desenlace tiene su lámina: derrota, victoria del alien o del J2.
   const gimg = document.getElementById('derrotaimg');
   limpiaPresentacion(); numsDano.length = 0; bocadillos.length = 0; charcosAgua.length = 0; polvos.length = 0; evoT = 0;
-  fanfarria(gameMode === 'vs' ? 'victoria' : 'derrota');
+  const retirada = gameMode === 'leyenda' && hp > 0;            // te retiras del VS Legendario: sin música de derrota
+  if (!retirada) fanfarria(gameMode === 'vs' ? 'victoria' : 'derrota');
   if (gameMode === 'leyenda'){
     hide('leyVs');
     anotaRecordLeyenda();
@@ -39322,7 +39503,7 @@ async function endGame(){
   const ce = document.getElementById('finalcoins');
   if (ce) ce.textContent = '+' + earned;
   if (earned > 0) sfx('coin');
-  sfx('over');
+  if (!retirada) sfx('over');
   stopMusic();
   if (gameMode === 'leyenda'){
     hide('namebox');                       // el duelo legendario guarda su récord, no un puntaje
