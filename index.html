@@ -40050,12 +40050,29 @@ document.getElementById('btnShopBack').addEventListener('click', ()=>{
 
 // --- audio settings ---
 // ---- Pantalla completa ----
-function enPantallaCompleta(){
+// Puede ser la del juego (API) o la del navegador (F11), que no avisa con fullscreenchange
+// ni se puede quitar desde la página: para esa se pide pulsar F11.
+function pantallaApi(){
   return !!(document.fullscreenElement || document.webkitFullscreenElement);
 }
+function pantallaNavegador(){
+  if (pantallaApi()) return false;
+  try { if (matchMedia('(pointer: coarse)').matches) return false; } catch(e){}   // en el móvil solo cuenta la del juego
+  try { if (matchMedia('(display-mode: fullscreen)').matches) return true; } catch(e){}
+  // F11: la ventana ocupa toda la pantalla y no le queda barra del navegador
+  // (se comparan proporciones para que el zoom de la página no engañe)
+  const ow = window.outerWidth, oh = window.outerHeight, iw = window.innerWidth, ih = window.innerHeight;
+  return screen.width > 0 && oh > 0 && ih > 0 && Math.abs(ow - screen.width) <= 2 && Math.abs(oh - screen.height) <= 2
+      && !(window.screenX || window.screenY) && Math.abs(iw/ih - ow/oh) < 0.015;
+}
+function enPantallaCompleta(){ return pantallaApi() || pantallaNavegador(); }
+let fullPistaHasta = 0;                  // mientras tanto, los botones dicen "PULSA F11"
 function alternarPantallaCompleta(){
   try {
-    if (!enPantallaCompleta()){
+    if (pantallaNavegador()){
+      fullPistaHasta = performance.now() + 2600;
+      refreshFullUI(); setTimeout(refreshFullUI, 2700);
+    } else if (!pantallaApi()){
       const el = document.documentElement;
       const p = el.requestFullscreen ? el.requestFullscreen()
               : el.webkitRequestFullscreen ? el.webkitRequestFullscreen() : null;
@@ -40078,9 +40095,12 @@ function refreshFullUI(){
     bm.title = on ? 'Salir de pantalla completa' : 'Pantalla completa';
     bm.setAttribute('aria-label', bm.title);
   });
+  const pista = on && !pantallaApi() && performance.now() < fullPistaHasta;
+  const bp = document.getElementById('btnPantalla');
+  if (bp) bp.textContent = pista ? 'PULSA F11 PARA SALIR' : on ? 'SALIR DE PANTALLA COMPLETA' : 'PANTALLA COMPLETA';
   const b = document.getElementById('tgFull');
   if (!b) return;
-  b.textContent = on ? 'SALIR' : 'ACTIVAR';
+  b.textContent = pista ? 'PULSA F11' : on ? 'APAGAR' : 'ACTIVAR';
   b.classList.toggle('off', !on);
 }
 
@@ -40313,26 +40333,7 @@ function refreshAudioUI(){
   const ps = document.getElementById('pVolSfx'), pm = document.getElementById('pVolMus');
   if (ps){ ps.value = Math.round(audio.sfxVol*100); document.getElementById('pVolSfxVal').textContent = ps.value; }
   if (pm){ pm.value = Math.round(audio.musVol*100); document.getElementById('pVolMusVal').textContent = pm.value; }
-  const bp = document.getElementById('btnPantalla');
-  if (bp) bp.textContent = enPantallaCompleta() ? 'SALIR DE PANTALLA COMPLETA' : 'PANTALLA COMPLETA';
-}
-
-// ---- pantalla completa ----
-function enPantallaCompleta(){
-  return !!(document.fullscreenElement || document.webkitFullscreenElement);
-}
-function alternaPantalla(){
-  try {
-    if (enPantallaCompleta()){
-      if (document.exitFullscreen) document.exitFullscreen();
-      else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
-    } else {
-      const el = document.documentElement;
-      if (el.requestFullscreen) el.requestFullscreen();
-      else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
-    }
-  } catch(e){}
-  setTimeout(refreshAudioUI, 120);       // el botón se reetiqueta solo
+  refreshFullUI();
 }
 for (const [ia, im, ip] of [['tgUiAuto', 'uiMenos', 'uiMas'], ['pUiAuto', 'pUiMenos', 'pUiMas']]){
   const a = document.getElementById(ia), m = document.getElementById(im), pl = document.getElementById(ip);
@@ -40371,6 +40372,7 @@ document.querySelectorAll('.btnfull').forEach(b=> b.addEventListener('click', ()
 refreshFullUI();
 document.addEventListener('fullscreenchange', ()=>{ resize(); refreshFullUI(); });
 document.addEventListener('webkitfullscreenchange', ()=>{ resize(); refreshFullUI(); });
+window.addEventListener('resize', refreshFullUI);          // F11 solo se nota como cambio de tamaño
 const _edV = document.getElementById('uiEdVert');
 if (_edV) _edV.addEventListener('click', ()=>{ uiEdOrient='v'; uiEdRender(); sfx('ui'); });
 const _edH = document.getElementById('uiEdHoriz');
@@ -40450,7 +40452,7 @@ if (_pvm) _pvm.addEventListener('input', e=>{
   applyAudioVolumes(); saveAudioPrefs(); refreshAudioUI();
 });
 const _bpc = document.getElementById('btnPantalla');
-if (_bpc) _bpc.addEventListener('click', ()=>{ alternaPantalla(); sfx('ui'); });
+if (_bpc) _bpc.addEventListener('click', ()=>{ alternarPantallaCompleta(); sfx('ui'); });
 document.getElementById('volMus').addEventListener('input', e=>{
   resumeAudio();
   audio.musVol = (+e.target.value)/100;
