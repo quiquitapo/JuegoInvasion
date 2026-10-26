@@ -2,38 +2,64 @@
   "format_version": 2,
   "header": {
     "name": "§l§5Magic§6Powers §r§7By Quiquitapo §8[BP]",
-    "description": "§7Libros mágicos de §cFuego§7, §bHielo§7, §fViento§7, §eElectricidad §7y §dGravedad§7.\n§8Mata enemigos, sube de nivel y desbloquea nuevas habilidades.",
+    "description": "§7Libros mágicos de §cFuego§7, §bHielo§7, §fViento§7, §eElectricidad §7y §dGravedad§7, y un §5Libro Mágico Vacío§7 para crear tu propio grimorio.\n§8Mata enemigos, sube de nivel y desbloquea hasta 4 habilidades por libro.",
     "uuid": "36733743-c50a-4035-b753-8505d9e5bfaa",
-    "version": [1, 0, 0],
-    "min_engine_version": [1, 26, 50]
+    "version": [
+      1,
+      1,
+      0
+    ],
+    "min_engine_version": [
+      1,
+      26,
+      50
+    ]
   },
   "modules": [
     {
       "description": "MagicPowers - datos",
       "type": "data",
       "uuid": "c920a05e-a756-4802-82e9-f0e95146d137",
-      "version": [1, 0, 0]
+      "version": [
+        1,
+        1,
+        0
+      ]
     },
     {
       "description": "MagicPowers - scripts",
       "type": "script",
       "language": "javascript",
       "uuid": "f3e2878d-5385-4c3f-8ebc-97810dd888c7",
-      "version": [1, 0, 0],
+      "version": [
+        1,
+        1,
+        0
+      ],
       "entry": "scripts/main.js"
     }
   ],
   "dependencies": [
     {
       "uuid": "45043c6d-15bf-448b-a971-19c819c13d93",
-      "version": [1, 0, 0]
+      "version": [
+        1,
+        1,
+        0
+      ]
     },
     {
       "module_name": "@minecraft/server",
       "version": "2.10.0"
+    },
+    {
+      "module_name": "@minecraft/server-ui",
+      "version": "2.2.0"
     }
   ],
   "metadata": {
-    "authors": ["Quiquitapo"]
+    "authors": [
+      "Quiquitapo"
+    ]
   }
 }

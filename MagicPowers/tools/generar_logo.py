@@ -240,9 +240,9 @@ def logo():
     img.alpha_composite(title, (20, 0))
     # fila de libros centrada bajo el título
     gap = 18
-    row_w = len(ELEMENTS) * books_h + (len(ELEMENTS) - 1) * gap
+    row_w = (len(ELEMENTS) + 1) * books_h + len(ELEMENTS) * gap
     x = (W - row_w) // 2
-    for el in ELEMENTS:
+    for el in ELEMENTS + ["arcane"]:
         b = Image.open(os.path.join(ITEMS, f"mp_book_{el}.png")).resize((books_h, books_h), Image.NEAREST)
         img.alpha_composite(b, (x, title.height + 6))
         x += books_h + gap

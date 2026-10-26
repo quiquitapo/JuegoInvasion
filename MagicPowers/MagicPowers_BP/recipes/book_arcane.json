@@ -1,0 +1,36 @@
+{
+  "format_version": "1.21.60",
+  "minecraft:recipe_shaped": {
+    "description": {
+      "identifier": "magicpowers:book_arcane"
+    },
+    "tags": [
+      "crafting_table"
+    ],
+    "pattern": [
+      "#P#",
+      "PBP",
+      "#P#"
+    ],
+    "key": {
+      "#": {
+        "item": "minecraft:gold_ingot"
+      },
+      "P": {
+        "item": "minecraft:amethyst_shard"
+      },
+      "B": {
+        "item": "minecraft:book"
+      }
+    },
+    "unlock": [
+      {
+        "item": "minecraft:book"
+      }
+    ],
+    "result": {
+      "item": "magicpowers:book_arcane",
+      "count": 1
+    }
+  }
+}

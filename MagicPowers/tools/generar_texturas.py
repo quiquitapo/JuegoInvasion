@@ -104,6 +104,16 @@ EMBLEMS = {
         "..vvvv..",
         "........",
     ],
+    "arcane": [
+        "..gggg..",
+        ".g....g.",
+        "g..WW..g",
+        "g.WllW.g",
+        "g.WllW.g",
+        "g..WW..g",
+        ".g....g.",
+        "..gggg..",
+    ],
 }
 
 BOOKS = {
@@ -113,6 +123,8 @@ BOOKS = {
     "wind": ("#3f8f7a", {"w": hexc("#ffffff"), "W": hexc("#c9f5e6")}),
     "lightning": ("#3a2f73", {"Y": hexc("#ffd400"), "W": hexc("#fffbd0")}),
     "gravity": ("#4b2470", {"v": hexc("#d18cff"), "V": hexc("#a24fe8"), "b": hexc("#120a1c"), "B": hexc("#5e3a85")}),
+    # Libro Mágico Vacío: tapa gris pizarra con un círculo rúnico dorado
+    "arcane": ("#4d4a63", {"g": hexc("#f8d34a"), "W": hexc("#c9a8ff"), "l": hexc("#f4ecff")}),
 }
 
 
@@ -265,6 +277,63 @@ def make_particles():
     grid_image(STAR, {"y": hexc("#ffd23f"), "W": hexc("#ffffff")}).save(os.path.join(out, "mp_star.png"))
 
 
+PLASMA = [
+    "..cccc..",
+    ".cWWWWc.",
+    "cWWwwWWc",
+    "cWwwwwWc",
+    "cWwwwwWc",
+    "cWWwwWWc",
+    ".cWWWWc.",
+    "..cccc..",
+]
+ICE_SPIKE = [
+    "...W....",
+    "...W....",
+    "...Ww...",
+    "..bWw...",
+    "..bWw...",
+    "..bWwb..",
+    "..bWwb..",
+    ".bbWwb..",
+    ".bbWwbb.",
+    ".bBWwbb.",
+    ".bBWwBb.",
+    ".bBWwBb.",
+    "bbBWwBbb",
+    "bbBWwBbb",
+    "bBBWwBBb",
+    "bBBWwBBb",
+]
+
+
+def make_extra_particles():
+    out = os.path.join(RP, "particle")
+    grid_image(PLASMA, {"c": hexc("#3fd8ff", 170), "W": hexc("#bff6ff"), "w": hexc("#ffffff")}).save(
+        os.path.join(out, "mp_plasma.png"))
+    grid_image(ICE_SPIKE, {"W": hexc("#ffffff", 235), "w": hexc("#d8f6ff", 230), "b": hexc("#7fd3ff", 220),
+                           "B": hexc("#4aa8e8", 220)}).save(os.path.join(out, "mp_ice_spike.png"))
+
+
+def make_boulder():
+    """Textura 64x32 de la Roca Colosal: piedra oscura con grietas y vetas moradas."""
+    rnd = random.Random(21)
+    img = Image.new("RGBA", (64, 32))
+    base = hexc("#6e6a72")
+    for y in range(32):
+        for x in range(64):
+            img.putpixel((x, y), shade(base, rnd.choice([0.72, 0.84, 0.95, 1.0, 1.0, 1.08, 1.15])))
+    for _ in range(12):  # grietas
+        x, y = rnd.randrange(64), rnd.randrange(32)
+        for _ in range(rnd.randint(3, 6)):
+            img.putpixel((x % 64, y % 32), hexc("#2e2a33"))
+            x += rnd.choice([-1, 0, 1])
+            y += rnd.choice([0, 1])
+    for _ in range(48):  # vetas de energía gravitatoria
+        img.putpixel((rnd.randrange(64), rnd.randrange(32)), rnd.choice([hexc("#b77ef0"), hexc("#d9b3ff")]))
+    img.save(os.path.join(RP, "entity", "mp_boulder.png"))
+
+
 def make_pebble():
     rnd = random.Random(7)
     img = Image.new("RGBA", (16, 16))
@@ -302,6 +371,8 @@ def main():
         make_book(el).save(os.path.join(RP, "items", f"mp_book_{el}.png"))
     make_particles()
     make_pebble()
+    make_boulder()
+    make_extra_particles()
     make_hud_slot()
     print("Texturas generadas en", os.path.normpath(RP))
 

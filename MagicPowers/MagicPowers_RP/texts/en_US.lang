@@ -6,3 +6,5 @@ item.magicpowers.book_wind.name=Wind Tome
 item.magicpowers.book_lightning.name=Lightning Tome
 item.magicpowers.book_gravity.name=Gravity Tome
 entity.magicpowers:pebble.name=Arcane Pebble
+item.magicpowers.book_arcane.name=Empty Magic Book
+entity.magicpowers:boulder.name=Colossal Boulder

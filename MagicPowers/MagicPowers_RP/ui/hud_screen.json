@@ -10,11 +10,14 @@
   //
   // Formato:  mpw:<esquina><elemento><texto>
   //   esquina  -> ^TL ^TR ^BL ^BR   (arriba-izq, arriba-der, abajo-izq, abajo-der)
-  //   elemento -> @fire @ice @wind @elec @grav
+  //   elemento -> @fire @ice @wind @elec @grav @arc
   //   'mpw:' a secas oculta el panel.
   // ---------------------------------------------------------------------------
 
+  // El title de MagicPowers se crea ya oculto: sin esto se ve un fotograma en el
+  // centro de la pantalla cada vez que el panel se actualiza (parpadeo).
   "hud_title_text": {
+    "visible": false,
     "bindings": [
       { "binding_name": "#hud_title_text_string" },
       {
@@ -107,9 +110,10 @@
       { "binding_type": "view", "source_property_name": "(not ((#mp_text - '@wind') = #mp_text))", "target_property_name": "#mp_wind" },
       { "binding_type": "view", "source_property_name": "(not ((#mp_text - '@elec') = #mp_text))", "target_property_name": "#mp_elec" },
       { "binding_type": "view", "source_property_name": "(not ((#mp_text - '@grav') = #mp_text))", "target_property_name": "#mp_grav" },
+      { "binding_type": "view", "source_property_name": "(not ((#mp_text - '@arc') = #mp_text))", "target_property_name": "#mp_arc" },
       {
         "binding_type": "view",
-        "source_property_name": "((((((((((#mp_text - 'mpw:') - '^TL') - '^TR') - '^BL') - '^BR') - '@fire') - '@ice') - '@wind') - '@elec') - '@grav')",
+        "source_property_name": "(((((((((((#mp_text - 'mpw:') - '^TL') - '^TR') - '^BL') - '^BR') - '@fire') - '@ice') - '@wind') - '@elec') - '@grav') - '@arc')",
         "target_property_name": "#mp_label"
       }
     ]
@@ -157,7 +161,8 @@
                   { "ice@hud.mp_hud_icon": { "$mp_tex": "textures/items/mp_book_ice", "$mp_el": "#mp_ice" } },
                   { "wind@hud.mp_hud_icon": { "$mp_tex": "textures/items/mp_book_wind", "$mp_el": "#mp_wind" } },
                   { "elec@hud.mp_hud_icon": { "$mp_tex": "textures/items/mp_book_lightning", "$mp_el": "#mp_elec" } },
-                  { "grav@hud.mp_hud_icon": { "$mp_tex": "textures/items/mp_book_gravity", "$mp_el": "#mp_grav" } }
+                  { "grav@hud.mp_hud_icon": { "$mp_tex": "textures/items/mp_book_gravity", "$mp_el": "#mp_grav" } },
+                  { "arc@hud.mp_hud_icon": { "$mp_tex": "textures/items/mp_book_arcane", "$mp_el": "#mp_arc" } }
                 ]
               }
             },
@@ -165,7 +170,8 @@
             {
               "mp_label": {
                 "type": "label",
-                "size": [ "default", "default" ],
+                // Ancho fijo: el recuadro no cambia de tamaño al cambiar los textos.
+                "size": [ 150, "default" ],
                 "text": "#text",
                 "color": [ 1.0, 1.0, 1.0 ],
                 "shadow": true,

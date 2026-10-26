@@ -66,9 +66,9 @@ export function particle(dim, id, loc) {
   }
 }
 
-export function sound(dim, id, loc, volume = 1, pitch = 1) {
+export function sound(dim, id, loc, volume = 1, pitch = 1, variation = 0) {
   try {
-    dim.playSound(id, loc, { volume, pitch });
+    dim.playSound(id, loc, { volume, pitch: variation ? pitch + rand(-variation, variation) : pitch });
   } catch {
     // Ignorado
   }
@@ -108,7 +108,7 @@ const FRIENDLY_TYPES = new Set([
 const EXCLUDE_TYPES = ["minecraft:item", "minecraft:xp_orb", "magicpowers:pebble", ...FRIENDLY_TYPES];
 const EXCLUDE_FAMILIES = ["player", "inanimate", "projectile"];
 
-/** Último golpe mágico recibido por cada entidad: id -> { pid, el, tick } */
+/** Último golpe mágico recibido por cada entidad: id -> { pid, book, tick } */
 export const lastHit = new Map();
 
 export function isTarget(entity, player) {
@@ -149,11 +149,12 @@ export function targetsInCone(player, range, halfAngleDeg) {
   });
 }
 
-export function hurt(target, amount, player, el, cause) {
+/** Daña a un objetivo en nombre del jugador y recuerda qué libro lo golpeó. */
+export function hurt(target, amount, ctx, cause) {
   try {
     if (!target.isValid) return false;
-    lastHit.set(target.id, { pid: player.id, el, tick: system.currentTick });
-    return target.applyDamage(amount, { cause, damagingEntity: player });
+    lastHit.set(target.id, { pid: ctx.player.id, book: ctx.kind, tick: system.currentTick });
+    return target.applyDamage(amount, { cause, damagingEntity: ctx.player });
   } catch {
     return false;
   }
@@ -217,30 +218,19 @@ export function groundAt(dim, loc) {
 /**
  * Proyectil simulado por script (sin entidad): avanza cada tick, comprueba
  * bloques y entidades con raycasts y llama a onHit al chocar.
+ * Con pierce: true atraviesa enemigos (onEntity se llama una vez por enemigo)
+ * y solo se detiene en bloques o al alcanzar maxDistance.
  */
 export function launchOrb(opts) {
-  const { player, dim, dir, speed, maxDistance, onTrail, onHit } = opts;
+  const { player, dim, dir, speed, maxDistance, onTrail, onHit, onEntity, pierce } = opts;
   let pos = opts.start;
   let travelled = 0;
   const pid = player.id;
-  addTask(() => {
+  const pierced = new Set();
+  addTask((age) => {
     if (!player.isValid) return true;
+    opts.onTick?.(pos, age);
     const step = Math.min(speed, maxDistance - travelled);
-    let hitEntity;
-    let hitDist = step;
-    try {
-      const hits = dim.getEntitiesFromRay(pos, dir, { maxDistance: step + 0.3, ignoreBlockCollision: false });
-      hits.sort((a, b) => a.distance - b.distance);
-      for (const h of hits) {
-        if (h.entity.id !== pid && isTarget(h.entity, player) && h.distance < hitDist + 0.3) {
-          hitEntity = h.entity;
-          hitDist = Math.min(h.distance, step);
-          break;
-        }
-      }
-    } catch {
-      // Ignorado
-    }
     let blockDist;
     try {
       const b = dim.getBlockFromRay(pos, dir, { maxDistance: step, includePassableBlocks: false, includeLiquidBlocks: false });
@@ -248,16 +238,38 @@ export function launchOrb(opts) {
     } catch {
       blockDist = 0; // fuera del mundo / chunk sin cargar
     }
-    if (blockDist !== undefined && (!hitEntity || blockDist < hitDist)) {
-      const p = add(pos, scale(dir, Math.max(0, blockDist - 0.2)));
-      onTrail?.(pos, p);
-      onHit(p, undefined);
-      return true;
+    const reach = blockDist ?? step;
+    let hitEntity;
+    let hitDist = reach;
+    try {
+      const hits = dim.getEntitiesFromRay(pos, dir, { maxDistance: reach + 0.3, ignoreBlockCollision: true });
+      hits.sort((h1, h2) => h1.distance - h2.distance);
+      for (const h of hits) {
+        if (h.entity.id === pid || h.distance > reach + 0.3 || !isTarget(h.entity, player)) continue;
+        if (pierce) {
+          if (!pierced.has(h.entity.id)) {
+            pierced.add(h.entity.id);
+            onEntity?.(h.entity, add(pos, scale(dir, Math.min(h.distance, reach))));
+          }
+          continue;
+        }
+        hitEntity = h.entity;
+        hitDist = Math.min(h.distance, reach);
+        break;
+      }
+    } catch {
+      // Ignorado
     }
     if (hitEntity) {
       const p = add(pos, scale(dir, hitDist));
       onTrail?.(pos, p);
-      onHit(p, hitEntity);
+      onHit?.(p, hitEntity);
+      return true;
+    }
+    if (blockDist !== undefined) {
+      const p = add(pos, scale(dir, Math.max(0, blockDist - 0.2)));
+      onTrail?.(pos, p);
+      onHit?.(p, undefined);
       return true;
     }
     const next = add(pos, scale(dir, step));
@@ -265,7 +277,7 @@ export function launchOrb(opts) {
     pos = next;
     travelled += step;
     if (travelled >= maxDistance - 1e-3) {
-      onHit(pos, undefined);
+      onHit?.(pos, undefined);
       return true;
     }
     return false;

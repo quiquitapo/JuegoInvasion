@@ -1,0 +1,48 @@
+{
+  "format_version": "1.21.50",
+  "minecraft:entity": {
+    "description": {
+      "identifier": "magicpowers:boulder",
+      "runtime_identifier": "minecraft:snowball",
+      "is_spawnable": false,
+      "is_summonable": true
+    },
+    "components": {
+      "minecraft:type_family": {
+        "family": [
+          "projectile",
+          "magicpowers_boulder"
+        ]
+      },
+      "minecraft:collision_box": {
+        "width": 0.6,
+        "height": 0.6
+      },
+      "minecraft:physics": {},
+      "minecraft:projectile": {
+        "anchor": "eye_height",
+        "offset": [
+          0,
+          -0.1,
+          0
+        ],
+        "power": 1.6,
+        "gravity": 0.06,
+        "angle_offset": 0.0,
+        "on_hit": {
+          "remove_on_hit": {}
+        }
+      },
+      "minecraft:despawn": {
+        "despawn_from_distance": {
+          "min_distance": 64,
+          "max_distance": 96
+        }
+      },
+      "minecraft:pushable": {
+        "is_pushable": false,
+        "is_pushable_by_piston": true
+      }
+    }
+  }
+}

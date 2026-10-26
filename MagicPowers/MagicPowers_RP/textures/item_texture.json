@@ -16,6 +16,9 @@
     },
     "mp_book_gravity": {
       "textures": "textures/items/mp_book_gravity"
+    },
+    "mp_book_arcane": {
+      "textures": "textures/items/mp_book_arcane"
     }
   }
 }

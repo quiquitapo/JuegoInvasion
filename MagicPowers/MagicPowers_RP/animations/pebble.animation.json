@@ -5,7 +5,23 @@
       "loop": true,
       "bones": {
         "stone": {
-          "rotation": ["query.life_time * 720", "query.life_time * 540", 0]
+          "rotation": [
+            "query.life_time * 720",
+            "query.life_time * 540",
+            0
+          ]
+        }
+      }
+    },
+    "animation.magicpowers.boulder.spin": {
+      "loop": true,
+      "bones": {
+        "rock": {
+          "rotation": [
+            "query.life_time * 360",
+            "query.life_time * 120",
+            0
+          ]
         }
       }
     }
