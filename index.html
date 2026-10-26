@@ -5300,8 +5300,9 @@ let DPR = 1, dprTope = 1.5;                  // en pantallas muy densas basta 1,
 // Alta resolución (ULTRA; Ajustes > Pantalla y sonido): lo único que cambia
 // es la resolución, 1,5 veces la de la pantalla (hasta 3x y unos 8
 // megapíxeles). Tres modos: ENCENDIDO y APAGADO no cambian nunca solos; AUTO
-// (el de fábrica) la enciende solo si el juego ya va fluido y la apaga solo
-// si con ella deja de ir fluido (ver ultraVigila).
+// (el de fábrica) empieza siempre con ella puesta, la apaga si con ella el
+// juego no va fluido y solo la vuelve a probar si después va sobrado (ver
+// ultraVigila).
 let ultraOn = false, ultraModo = 'auto';
 function dprUltra(dprPant){
   let d = Math.min(3, Math.max(1, dprPant)*1.5);
@@ -27822,7 +27823,7 @@ async function loadCalidad(){
   // los fallos de otras sesiones pesan menos cada vez que se vuelve a jugar
   ultraAuto.fallos = Math.max(0, Math.min(6, parseInt(await storeGet('invasion_ultra_fallos'), 10) || 0) - 1);
   storeSet('invasion_ultra_fallos', String(ultraAuto.fallos));
-  ultraOn = m === 'on' || (m === 'auto' && (await storeGet('invasion_ultra_auto')) === 'on');   // AUTO empieza como quedó
+  ultraOn = m === 'on' || m === 'auto';              // AUTO empieza siempre con la alta resolución puesta (y la quita si va mal)
   refreshUltraUI();
   let d = parseFloat(await storeGet('invasion_dpr'));
   if (!(d > 0.5 && d < 1)) d = equipoFlojo ? 0.8 : dprTope;
@@ -27848,7 +27849,7 @@ function cambiaUltra(){
   ultraModo = ultraModo === 'auto' ? 'on' : ultraModo === 'on' ? 'off' : 'auto';
   storeSet('invasion_ultra2', ultraModo);
   if (ultraModo === 'auto'){ ultraAuto.espera = 0; ultraAuto.fallos = 0; storeSet('invasion_ultra_fallos', '0'); }
-  ponUltra(ultraModo === 'on' || (ultraModo === 'auto' && ultraOn));
+  ponUltra(ultraModo === 'on' || ultraModo === 'auto');     // al elegir AUTO, también empieza puesta
   refreshUltraUI();
 }
 // El AUTO cambia: se avisa con un cartel corto (así se ve que está trabajando).
