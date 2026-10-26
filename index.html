@@ -2732,6 +2732,14 @@ function dibujaRedonda(img, x, y, r){
   const q = Math.pow(2, Math.round(Math.log2(r)*12)/12);
   dibujaImg(img, x - q, y - q, q*2, q*2);
 }
+// Lo mismo para lo que crece o encoge cada fotograma (las bolas de fuego):
+// cada tamaño se usa una o dos veces, así que guardar una copia escalada de
+// cada uno solo creaba lienzos (hasta 10 por fotograma con una cisterna).
+// Se pinta escalado directamente.
+function dibujaRedondaViva(img, x, y, r){
+  if (!(r > 0.5)) return;
+  ctx.drawImage(img, x - r, y - r, r*2, r*2);
+}
 // Un trazo para todo: el mobiliario (árboles, farolas, bancos...) lleva el
 // mismo contorno oscuro de un píxel que la gente, la tropa y los autos. Se
 // pinta una vez, al hacer la copia escalada: en partida no cuesta nada.
@@ -4109,17 +4117,23 @@ function edifEntradaLateral(g, b, P, rh){
 // ---------- canvas por etapa ----------
 function edifClave(b){ return b.set + '|' + (b.seed|0) + '|' + b.w + '|' + b.h + '|' + (b.frente || 's') + '|' + (b.cat || ''); }
 let edifNuevosT = -1, edifNuevos = 0;
-function edifPresupuesto(){
+// Como mucho 2 lienzos grandes por fotograma. Los escombros cuestan el doble
+// (hasta 10 ms): van solos, así una cisterna que tumba dos edificios a la vez
+// los reparte en fotogramas seguidos en vez de dar un tirón.
+function edifPresupuesto(peso){
   let ahora = 0; try { ahora = gameTime; } catch(e){}
   if (edifNuevosT !== ahora){ edifNuevosT = ahora; edifNuevos = 0; }
-  return ++edifNuevos <= 2;                                          // como mucho 2 lienzos grandes por fotograma
+  const p = peso || 1;
+  if (edifNuevos > 0 && edifNuevos + p > 2) return false;
+  edifNuevos += p;
+  return true;
 }
 function edifCanvas(b, etapa, forzar){
   const k = edifClave(b);
   if (!b._cv || b._cvK !== k){ b._cv = [null, null, null]; b._cvK = k; b._int = null; b._win = null; b._humos = null; b._gente = null; }
   if (etapa === 0 && esInfierno()) etapa = 1;                 // en el infierno todo está en ruinas
   if (b._cv[etapa]) return b._cv[etapa];
-  if (!forzar && !edifPresupuesto()) return null;
+  if (!forzar && !edifPresupuesto(etapa === 2 ? 2 : 1)) return null;
   const R = mulberry32(((b.seed || 1)*1000) | 0);
   const c = document.createElement('canvas'); c.width = b.w; c.height = b.h;
   const g = c.getContext('2d');
@@ -7435,7 +7449,19 @@ let chainDepth = 0;
 // Mientras > 0, la explosión viene de un proyectil (suena con boomD).
 let _boomDisparo = 0;
 function bumDisparo(fn){ _boomDisparo++; try { return fn(); } finally { _boomDisparo--; } }
+// Explosiones anidadas: los autos que revientan dentro de la onda de otra
+// (la cisterna se lleva media calle) estallan dentro de esta misma llamada.
+// Hacen el mismo daño, pero su fuego queda tapado por la grande: se pintan
+// con menos bolas, chispas y humo, sin fogonazo, sin luz propia y sin sonido
+// aparte. Antes cada una sumaba lo suyo y la cisterna amontonaba hasta 28
+// luces enormes a la vez, que era lo que daba el tirón.
+let _explAnid = 0;
 function explode(x, y, radius, dmg, big, hurtPlayer){
+  _explAnid++;
+  try { explodeAqui(x, y, radius, dmg, big, hurtPlayer, _explAnid > 1); }
+  finally { _explAnid--; }
+}
+function explodeAqui(x, y, radius, dmg, big, hurtPlayer, anidada){
   const chain = [];
   avesEnPunto(x, y - 10, radius + 10, 'quemado');               // los pájaros alcanzados: chamuscados
   // Doble Invasión: también alcanzan al invasor del otro (si no se está ya
@@ -7459,33 +7485,36 @@ function explode(x, y, radius, dmg, big, hurtPlayer){
   if (dmg > 0 && culpaJug <= 0 && zombis.length){
     for (let __i94 = 0, __a94 = zombis; __i94 < __a94.length; __i94++){ const z = __a94[__i94]; if (z.sube <= 0 && dist(x, y, z.x, z.y) < radius) z.hp -= dmg; }
   }
-  if (chainDepth === 0){
+  if (chainDepth === 0 && !anidada){
     sfxEn(_boomDisparo ? (big ? 'bigboomD' : 'boomD') : (big ? 'bigboom' : 'boom'), x, y);
     if (big && Math.abs(x - camX - VW/2) < VW*0.6 && Math.abs(y - camY - VH/2) < VH*0.6) hitstop(0.05);
   }
-  booms.push({x,y,r:6,max:radius,life:0.42,maxlife:0.42});
+  // la luz: la de la explosión principal (y la de otra cisterna en cadena), no la de cada auto
+  const conLuz = !anidada || big;
+  booms.push({x,y,r:6,max:radius,life:0.42,maxlife:0.42, luz:conLuz});
   // dos bolas más pequeñas, algo desplazadas y más lentas: el fuego no es una esfera perfecta
-  for (let i = 0; i < (big ? 3 : 2); i++)
-    booms.push({ x: x + rand(-radius*0.32, radius*0.32), y: y + rand(-radius*0.22, radius*0.12), r: 4, max: radius*rand(0.38, 0.55), life: rand(0.5, 0.7), maxlife: 0.7 });
+  for (let i = 0, nb = anidada ? 1 : big ? 3 : 2; i < nb; i++)
+    booms.push({ x: x + rand(-radius*0.32, radius*0.32), y: y + rand(-radius*0.22, radius*0.12), r: 4, max: radius*rand(0.38, 0.55), life: rand(0.5, 0.7), maxlife: 0.7, luz:false });
   if (chainDepth < 2){
-    lanzaChatarra(x, y, big ? 12 : 7, big ? 1.15 : 0.9);
+    lanzaChatarra(x, y, anidada ? 4 : big ? 12 : 7, big ? 1.15 : 0.9);
     quemadura(x, y, radius*(big ? 0.62 : 0.52));
   }
   // Onda de choque: anillo fino que se abre más allá de la bola de fuego.
   booms.push({x, y, r:radius*0.25, max:radius*1.7, life:0.42, maxlife:0.42, ring:true});
-  // Fogonazo inicial, muy breve
-  booms.push({x, y, r:radius*0.2, max:radius*0.55, life:0.11, maxlife:0.11, flash:true});
+  // Fogonazo inicial, muy breve (el de la grande ya cubre a las anidadas)
+  if (conLuz) booms.push({x, y, r:radius*0.2, max:radius*0.55, life:0.11, maxlife:0.11, flash:true, luz:true});
   // La onda llega mucho más lejos que las astillas: los árboles que arden
   // (hasta 0.8 del radio) desaparecen, y los de alrededor se doblan. Antes la
   // sacudida apenas rebasaba la zona de destrucción y no se veía a nadie
   // moverse, porque justo ahí ya no quedaba ningún árbol en pie.
-  sacudeArboles(x, y, radius * (big ? 2.6 : 2.2), big ? 0.34 : 0.22);
+  // (la de una anidada cae dentro de la de la grande)
+  if (!anidada) sacudeArboles(x, y, radius * (big ? 2.6 : 2.2), big ? 0.34 : 0.22);
   // Columna de humo tras el estallido
-  const nh = big ? 7 : 4;
+  const nh = anidada ? 2 : big ? 7 : 4, kp = anidada ? 0.5 : 1;
   for (let i=0;i<nh;i++) addSmoke(x + rand(-radius*0.35, radius*0.35), y + rand(-8, 6));
-  addParticles(x,y,'#ffca4d', big?26:16, big?260:180);
-  addParticles(x,y,'#ff6a2b', big?18:10, big?220:150);
-  addParticles(x,y,'#fff4d0', big?10:6, big?340:260);            // chispas blancas que salen disparadas
+  addParticles(x,y,'#ffca4d', Math.round((big?26:16)*kp), big?260:180);
+  addParticles(x,y,'#ff6a2b', Math.round((big?18:10)*kp), big?220:150);
+  addParticles(x,y,'#fff4d0', Math.round((big?10:6)*kp), big?340:260);            // chispas blancas que salen disparadas
   shake(big?18:11, big?0.42:0.26);
   for (let __i95 = 0, __a95 = enemies; __i95 < __a95.length; __i95++){ const e = __a95[__i95];
     if (e.dead || e.held) continue;
@@ -34099,7 +34128,7 @@ function lucesJefes(L, k, mx, Mx, my, My, tinta){
     luz(T.x, T.y, 80, luzAmarilla, 0.75);
   }
   for (let __i27 = 0, __a27 = booms; __i27 < __a27.length; __i27++){ const b = __a27[__i27];
-    if (b.ring) continue;
+    if (b.ring || b.luz === false) continue;          // una luz por explosión (ver explode)
     const a = clamp(b.life / b.maxlife, 0, 1);
     luz(b.x, b.y, b.max*1.6, b.flash ? luzBlanca : luzFuego, a);
   }
@@ -35872,14 +35901,14 @@ function drawFX(){
     }
     if (b.flash){                                  // fogonazo inicial
       ctx.globalAlpha = a*0.9;
-      dibujaRedonda(bs, bx, by, r*1.4);
+      dibujaRedondaViva(bs, bx, by, r*1.4);
       ctx.globalAlpha = 1;
       continue;
     }
     ctx.globalAlpha = a*0.8;
-    dibujaRedonda(bs, bx, by, r);
+    dibujaRedondaViva(bs, bx, by, r);
     ctx.globalAlpha = a*0.5;                       // núcleo blanco que se apaga
-    dibujaRedonda(bs, bx, by, r*0.45);
+    dibujaRedondaViva(bs, bx, by, r*0.45);
     ctx.globalAlpha = 1;
   }
   // Las chispas se agrupan por color y por franja de transparencia, de modo
@@ -36754,7 +36783,9 @@ function drawCharcosAgua(){
 // resplandor sumado; de noche, además, abren claros en la oscuridad (ver
 // lucesJefes). Como mucho unas 28 luces por fotograma.
 function lucesDinamicas(luz){
-  for (let __i52 = 0, __a52 = booms; __i52 < __a52.length; __i52++){ const b = __a52[__i52]; if (b.ring) continue; const k = clamp(b.life/b.maxlife, 0, 1); luz(b.x, b.y, Math.max(70, b.max*1.5), b.flash ? luzBlanca : luzFuego, 0.95*k); }
+  // una luz por explosión (la bola principal y su fogonazo): las bolas
+  // secundarias y los autos que revientan dentro de la grande caen en su luz
+  for (let __i52 = 0, __a52 = booms; __i52 < __a52.length; __i52++){ const b = __a52[__i52]; if (b.ring || b.luz === false) continue; const k = clamp(b.life/b.maxlife, 0, 1); luz(b.x, b.y, clamp(b.max*1.5, 70, 300), b.flash ? luzBlanca : luzFuego, 0.95*k); }   // (la de la cisterna, con tope: abarcaba más que la pantalla)
   for (let __i53 = 0, __a53 = relampagos; __i53 < __a53.length; __i53++){ const r = __a53[__i53]; luz(r.x, r.y, 130, r.col === 2 ? luzBlanca : luzAzul, clamp(r.t/r.max, 0, 1)); }
   for (let __i54 = 0, __a54 = rayos; __i54 < __a54.length; __i54++){ const r = __a54[__i54]; const k = clamp(r.t/r.max, 0, 1); for (const f of [0.15, 0.5, 0.85]) luz(r.x + Math.cos(r.ang)*MBT_ALCANCE*f, r.y + Math.sin(r.ang)*MBT_ALCANCE*f, 90, r.frio ? luzAzul : luzAmarilla, 0.8*k); }
   for (let __i55 = 0, __a55 = enemies; __i55 < __a55.length; __i55++){ const e = __a55[__i55];
