@@ -27860,8 +27860,8 @@ function ultraAvisa(on){
 // Fluido = 55 fps o más de media, casi sin tirones (el 95 % de los fotogramas
 // por debajo de 25 ms) y con margen de cálculo (el bucle en menos de 14 ms).
 // Para encender hacen falta 3 tandas fluidas seguidas (6 s; 5 tandas en
-// equipos modestos); para apagar, 2 tandas seguidas claramente malas con ella
-// puesta (menos de 48 fps de media o tirones de más de 34 ms). Tras cada
+// equipos modestos); para apagar, 3 tandas seguidas claramente malas con ella
+// puesta (menos de 42 fps de media o tirones de más de 42 ms). Tras cada
 // apagado espera más antes de volver a probar (30 s, 60 s... hasta 2,5 min).
 const ULTRA_TANDA = 2000;
 function ultraEspera(f){ return Math.min(150, 30*Math.pow(2, Math.max(0, f - 1))); }
@@ -27879,10 +27879,12 @@ function ultraVigila(ms, trabajo){
   const media = A.t/n, p95 = v[Math.min(n - 1, Math.floor(n*0.95))], obra = A.trabajo/n;
   A.v.length = 0; A.t = 0; A.trabajo = 0;
   if (ultraOn){
-    const malo = media > 1000/48 || p95 > 34;
+    // Para quitarla tiene que ir algo peor que "justo": menos de 42 fps de
+    // media o tirones de más de 42 ms, y 3 tandas seguidas (6 s).
+    const malo = media > 1000/42 || p95 > 42;
     A.mal = malo ? A.mal + 1 : 0;
     if (!malo && ++A.estable >= 30){ A.estable = 0; if (A.fallos > 0){ A.fallos--; storeSet('invasion_ultra_fallos', String(A.fallos)); } }   // un minuto bien: se le perdona un fallo
-    if (A.mal >= 2){
+    if (A.mal >= 3){
       A.fallos = Math.min(6, A.fallos + 1); A.espera = ultraEspera(A.fallos);
       storeSet('invasion_ultra_fallos', String(A.fallos)); storeSet('invasion_ultra_auto', 'off');
       ponUltra(false); ultraAvisa(false);
