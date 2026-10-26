@@ -3719,7 +3719,37 @@ function edifFachada(b){ return Math.min(Math.round(b.h*0.62), edifBajo(b) + (ed
 // Baja la saturación y el brillo de un lienzo ya pintado, para que la
 // ciudad no compita con los personajes.
 const EDIF_SAT = 0.72, EDIF_LUZ = 0.9;
+// Apaga los colores (algo menos de saturación y de luz) con modos de fusión,
+// sin leer los píxeles: getImageData/putImageData obligan a bajar la imagen
+// de la tarjeta gráfica y volver a subirla, y eso daba un tirón cada vez que
+// se hacía un edificio nuevo (por ejemplo, al derrumbarse en pleno vuelo).
+// La fusión 'saturation' usa la misma luminancia (0,3·R + 0,59·G + 0,11·B).
+let _apagaTmp = null, _apagaFusion = null;
 function apagaColores(c){
+  const W = c.width, H = c.height;
+  if (_apagaFusion === null){
+    try { const t = document.createElement('canvas').getContext('2d'); t.globalCompositeOperation = 'saturation'; _apagaFusion = t.globalCompositeOperation === 'saturation'; }
+    catch(e){ _apagaFusion = false; }
+  }
+  if (_apagaFusion && W > 0 && H > 0){
+    try {
+      if (!_apagaTmp) _apagaTmp = document.createElement('canvas');
+      if (_apagaTmp.width < W || _apagaTmp.height < H){ _apagaTmp.width = Math.max(W, _apagaTmp.width); _apagaTmp.height = Math.max(H, _apagaTmp.height); }
+      const t = _apagaTmp.getContext('2d');
+      t.globalCompositeOperation = 'copy'; t.drawImage(c, 0, 0);             // la silueta original (para conservar la transparencia)
+      t.globalCompositeOperation = 'source-over';
+      const g = c.getContext('2d'), v = Math.round(255*EDIF_LUZ);
+      g.save(); g.setTransform(1, 0, 0, 1, 0, 0);
+      g.globalCompositeOperation = 'saturation'; g.globalAlpha = 1 - EDIF_SAT; g.fillStyle = '#808080'; g.fillRect(0, 0, W, H);
+      g.globalAlpha = 1; g.globalCompositeOperation = 'multiply'; g.fillStyle = 'rgb(' + v + ',' + v + ',' + v + ')'; g.fillRect(0, 0, W, H);
+      g.globalCompositeOperation = 'destination-in'; g.drawImage(_apagaTmp, 0, 0, W, H, 0, 0, W, H);
+      g.restore();
+      return;
+    } catch(e){}
+  }
+  apagaColoresPx(c);
+}
+function apagaColoresPx(c){
   try {
     const g = c.getContext('2d'), d = g.getImageData(0, 0, c.width, c.height), p = d.data;
     for (let i = 0; i < p.length; i += 4){
@@ -4128,6 +4158,7 @@ function edifCanvas(b, etapa, forzar){
   for (const pts of holes){ g.beginPath(); pts.forEach((p, i)=> i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1])); g.closePath(); g.fill(); }
   g.globalCompositeOperation = 'source-over';
   if (esInfierno()) tinteInfierno(c);
+  c._opaco = false;                                  // con los agujeros de la azotea nunca es opaco (sin leer píxeles)
   b._cv[1] = c;
   return c;
 }
@@ -4238,6 +4269,7 @@ function edifInterior(b){
   eR(g, '#5a5048', 0, 0, w, 3); eR(g, '#5a5048', 0, h - 3, w, 3); eR(g, '#5a5048', 0, 0, 3, h); eR(g, '#5a5048', w - 3, 0, 3, h);   // muros de carga
   apagaColores(c);
   if (esInfierno()) tinteInfierno(c);
+  c._opaco = true;                                   // el suelo lo cubre entero: no hace falta leer sus píxeles
   b._int = c;
   return c;
 }
@@ -5273,7 +5305,10 @@ let DPR = 1, dprTope = 1.5;                  // en pantallas muy densas basta 1,
 let ultraOn = false, ultraModo = 'auto';
 function dprUltra(dprPant){
   let d = Math.min(3, Math.max(1, dprPant)*1.5);
-  const px = CW*CH*d*d, tope = 8.3e6;
+  // en el móvil, menos píxeles: la memoria de la tarjeta gráfica es justa y,
+  // si se agota, el navegador descarta los lienzos (la pantalla se va a negro)
+  const tactil = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
+  const px = CW*CH*d*d, tope = tactil ? 5e6 : 8.3e6;
   if (px > tope) d = Math.sqrt(tope/(CW*CH));
   return Math.max(1, d);
 }
@@ -31222,6 +31257,29 @@ function edifBoquete(b, x, y, r, golpe){
   const dx = lx <= 0 ? 1 : lx >= b.w ? -1 : 0, dy = ly <= 0 ? 1 : ly >= b.h ? -1 : 0;
   L.push({ x: lx + dx*r*0.4, y: ly + dy*r*0.4, bx: lx, by: ly, r, s: (Math.random()*1e9) | 0 });
 }
+// Volando (viltrumita) o corriendo (Boros) se atraviesan edificios a toda
+// velocidad: el interior y los escombros de los que vienen por delante se
+// preparan antes, de uno en uno y dentro del presupuesto de lienzos, en vez
+// de hacerse todos de golpe en el fotograma en que se entra.
+function edifPreparaAdelante(){
+  if (!((isVil() && vil.flying) || (isBor() && bor.corre))) return;
+  const v = Math.hypot(player.vx || 0, player.vy || 0); if (v < 150) return;
+  const ux = player.vx/v, uy = player.vy/v;
+  let mejor = null, md = 1e9;
+  for (let i = 0; i < buildings.length; i++){ const b = buildings[i];
+    if (b.stage >= 2) continue;
+    const cx = b.x + b.w/2 - player.x, cy = b.y + b.h/2 - player.y, delante = cx*ux + cy*uy;
+    if (delante < -40 || delante > 900 || delante >= md) continue;
+    if (Math.abs(cx*uy - cy*ux) > Math.max(b.w, b.h)/2 + 60) continue;      // fuera de la trayectoria
+    if (b._int && b._cv && b._cvK === edifClave(b) && b._cv[2]) continue;  // ya está todo
+    md = delante; mejor = b;
+  }
+  if (!mejor) return;
+  const b = mejor;
+  if (!b._cv || b._cvK !== edifClave(b) || !b._cv[b.stage]){ edifCanvas(b, b.stage); return; }
+  if (!b._int){ if (edifPresupuesto()) edifInterior(b); return; }
+  if (!b._cv[2]) edifCanvas(b, 2);
+}
 // Copia del dibujo del edificio con sus boquetes recortados.
 function edifAgujereado(b, base){
   if (b._agCv && b._agBase === base && b._agN === b._aguj.length) return b._agCv;
@@ -37591,11 +37649,17 @@ function reparaLienzo(){
   try { if (ctx.reset) ctx.reset(); else canvas.width = canvas.width; } catch(_){ canvas.width = canvas.width; }
   ctx.imageSmoothingQuality = 'low';
 }
+// La alta resolución se decide ANTES de pintar (con lo que costó el fotograma
+// anterior): si cambia el tamaño del lienzo después de pintar, el navegador
+// enseña ese fotograma vacío (negro) y, mientras el siguiente rehace todo a la
+// nueva resolución, la pantalla se quedaba en negro un momento.
+let _obraUlt = 0;
 function loop(t){
-  const ms = t - lastT, t0 = performance.now();
+  try { ultraVigila(t - lastT, _obraUlt); } catch(e){}
+  const t0 = performance.now();
   try { pasoBucle(t); }
   catch(e){ anotaError('bucle', e); reparaLienzo(); try { rivAgarre = null; } catch(_){} }
-  try { ultraVigila(ms, performance.now() - t0); } catch(e){}
+  _obraUlt = performance.now() - t0;
   requestAnimationFrame(loop);
 }
 function pasoBucle(t){
@@ -37631,6 +37695,7 @@ function pasoBucle(t){
     // y se restaura después, en vez de parchear las cinco vías de daño.
     const vidaIntro = vil.intro ? hp : -1;          // cualquier personaje, mientras entra
     { const px0 = player.x, py0 = player.y; updatePlayer(dt); frenaJugador(px0, py0); leyEmpuja(dt); }
+    edifPreparaAdelante();
     updateProyJ(dt); updateCongelados(dt);
     updateCivilians(dt); updateCars(dt); updateTrees(dt); updateRam(dt); updateThrown(dt);
     Online.culpaInv = false;
@@ -42280,6 +42345,7 @@ function lienzosPerdidos(){
   } catch(e){ return false; }
 }
 function rehazLienzos(){
+  ultraSinMemoria();
   walkPat = walkPatAlien = walkPatInf = null; sbInvalida(); escVacia();
   for (const p of parques){ p._cv = p._cvA = p._cvI = null; }
   for (const b of buildings){
@@ -42291,7 +42357,16 @@ function rehazLienzos(){
 }
 function revisaLienzos(){ if (lienzosPerdidos()) rehazLienzos(); }
 canvas.addEventListener('contextrestored', ()=>{ rehazLienzos(); reparaLienzo(); });
-setInterval(()=>{ if (!document.hidden) revisaLienzos(); }, 3000);
+setInterval(()=>{ if (!document.hidden) revisaLienzos(); }, 1000);
+canvas.addEventListener('contextlost', e=>{ e.preventDefault(); ultraSinMemoria(); });   // que el navegador lo devuelva (y se repinta al volver)
+// Si el navegador descarta lienzos es que falta memoria gráfica: en AUTO se
+// apaga la alta resolución y tarda mucho más en volver a probarla.
+function ultraSinMemoria(){
+  if (ultraModo !== 'auto' || !ultraOn) return;
+  ultraAuto.fallos = Math.min(6, ultraAuto.fallos + 2); ultraAuto.espera = 45*Math.pow(2, ultraAuto.fallos - 1);
+  storeSet('invasion_ultra_fallos', String(ultraAuto.fallos)); storeSet('invasion_ultra_auto', 'off');
+  setTimeout(()=>{ try { ponUltra(false); } catch(e){} }, 0);
+}
 // al cambiar de pestaña se corta el audio para que no quede un tono colgado
 document.addEventListener('visibilitychange', ()=>{
   if (!document.hidden){ revisaLienzos(); _congelado = false; }
