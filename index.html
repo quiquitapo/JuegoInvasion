@@ -5308,7 +5308,8 @@ function dprUltra(dprPant){
   // en el móvil, menos píxeles: la memoria de la tarjeta gráfica es justa y,
   // si se agota, el navegador descarta los lienzos (la pantalla se va a negro)
   const tactil = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
-  const px = CW*CH*d*d, tope = tactil ? 5e6 : 8.3e6;
+  const flojo = (navigator.hardwareConcurrency || 4) <= 2 || (navigator.deviceMemory > 0 && navigator.deviceMemory <= 2);   // (como equipoFlojo, que se declara más abajo)
+  const px = CW*CH*d*d, tope = flojo ? 3e6 : tactil ? 5e6 : 8.3e6;
   if (px > tope) d = Math.sqrt(tope/(CW*CH));
   return Math.max(1, d);
 }
@@ -27818,8 +27819,10 @@ async function loadCalidad(){
   let m = await storeGet('invasion_ultra2');
   if (m !== 'auto' && m !== 'on' && m !== 'off') m = (await storeGet('invasion_ultra')) === 'on' ? 'on' : 'auto';   // de la versión de dos estados
   ultraModo = m;
-  ultraAuto.fallos = Math.min(6, parseInt(await storeGet('invasion_ultra_fallos'), 10) || 0);
-  ultraOn = m === 'on' || (m === 'auto' && !equipoFlojo && (await storeGet('invasion_ultra_auto')) === 'on');   // AUTO empieza como quedó
+  // los fallos de otras sesiones pesan menos cada vez que se vuelve a jugar
+  ultraAuto.fallos = Math.max(0, Math.min(6, parseInt(await storeGet('invasion_ultra_fallos'), 10) || 0) - 1);
+  storeSet('invasion_ultra_fallos', String(ultraAuto.fallos));
+  ultraOn = m === 'on' || (m === 'auto' && (await storeGet('invasion_ultra_auto')) === 'on');   // AUTO empieza como quedó
   refreshUltraUI();
   let d = parseFloat(await storeGet('invasion_dpr'));
   if (!(d > 0.5 && d < 1)) d = equipoFlojo ? 0.8 : dprTope;
@@ -27845,20 +27848,25 @@ function cambiaUltra(){
   ultraModo = ultraModo === 'auto' ? 'on' : ultraModo === 'on' ? 'off' : 'auto';
   storeSet('invasion_ultra2', ultraModo);
   if (ultraModo === 'auto'){ ultraAuto.espera = 0; ultraAuto.fallos = 0; storeSet('invasion_ultra_fallos', '0'); }
-  ponUltra(ultraModo === 'on' || (ultraModo === 'auto' && ultraOn && !equipoFlojo));
+  ponUltra(ultraModo === 'on' || (ultraModo === 'auto' && ultraOn));
   refreshUltraUI();
 }
+// El AUTO cambia: se avisa con un cartel corto (así se ve que está trabajando).
+function ultraAvisa(on){
+  if (running) toast(on ? '\u{2728} ALTA RESOLUCIÓN ACTIVADA (AUTO)' : 'ALTA RESOLUCIÓN DESACTIVADA (AUTO): EL JUEGO NO IBA FLUIDO', 2.2);
+}
 // ---- AUTO: decide con lo medido en partida, en tandas de 2 s ----
-// Fluido = 57 fps o más de media, casi sin tirones (el 95 % de los fotogramas
-// por debajo de 21 ms) y con margen de cálculo (el bucle en menos de 11 ms).
-// Para encender hacen falta 4 tandas fluidas seguidas (8 s); para apagar, 2
-// tandas seguidas claramente malas con ella puesta (menos de 48 fps de media o
-// tirones de más de 34 ms). Tras cada apagado espera más antes de volver a
-// probar (45 s, 90 s, 3 min...) y lo aprendido se recuerda: no va y viene.
+// Fluido = 55 fps o más de media, casi sin tirones (el 95 % de los fotogramas
+// por debajo de 25 ms) y con margen de cálculo (el bucle en menos de 14 ms).
+// Para encender hacen falta 3 tandas fluidas seguidas (6 s; 5 tandas en
+// equipos modestos); para apagar, 2 tandas seguidas claramente malas con ella
+// puesta (menos de 48 fps de media o tirones de más de 34 ms). Tras cada
+// apagado espera más antes de volver a probar (30 s, 60 s... hasta 2,5 min).
 const ULTRA_TANDA = 2000;
+function ultraEspera(f){ return Math.min(150, 30*Math.pow(2, Math.max(0, f - 1))); }
 const ultraAuto = { v:[], t:0, trabajo:0, bien:0, mal:0, calma:0, espera:0, fallos:0, estable:0 };
 function ultraVigila(ms, trabajo){
-  if (ultraModo !== 'auto' || equipoFlojo) return;
+  if (ultraModo !== 'auto') return;
   if (!running || document.hidden || ms <= 0) return;
   const A = ultraAuto;
   if (ms > 250){ A.v.length = 0; A.t = 0; A.trabajo = 0; return; }   // pestaña dormida o una carga: no es el ritmo real
@@ -27874,24 +27882,24 @@ function ultraVigila(ms, trabajo){
     A.mal = malo ? A.mal + 1 : 0;
     if (!malo && ++A.estable >= 30){ A.estable = 0; if (A.fallos > 0){ A.fallos--; storeSet('invasion_ultra_fallos', String(A.fallos)); } }   // un minuto bien: se le perdona un fallo
     if (A.mal >= 2){
-      A.fallos = Math.min(6, A.fallos + 1); A.espera = 45*Math.pow(2, A.fallos - 1);
+      A.fallos = Math.min(6, A.fallos + 1); A.espera = ultraEspera(A.fallos);
       storeSet('invasion_ultra_fallos', String(A.fallos)); storeSet('invasion_ultra_auto', 'off');
-      ponUltra(false);
+      ponUltra(false); ultraAvisa(false);
     }
   } else {
-    const fluido = media <= 1000/57 && p95 <= 21 && obra <= 11;
+    const fluido = media <= 1000/55 && p95 <= 25 && obra <= 14;
     A.bien = fluido ? A.bien + 1 : 0;
-    if (A.bien >= 4 && A.espera <= 0){
+    if (A.bien >= (equipoFlojo ? 5 : 3) && A.espera <= 0){
       if (dprTope < 1 - 0.001){
         // Si una vez fue lento (p. ej. un tirón al cargar) quedó con menos
-        // resolución guardada: yendo fluido, primero se recupera la normal,
-        // paso a paso, y solo después se prueba la alta.
-        dprTope = DPR_PASOS.slice().reverse().find(d => d > dprTope + 0.001) || 1;
-        storeSet('invasion_dpr', String(dprTope)); resize();
+        // resolución guardada: yendo fluido, primero se recupera la normal
+        // y solo después se prueba la alta.
+        dprTope = 1;
+        storeSet('invasion_dpr', '1'); resize();
         A.bien = 0; A.calma = 2;
       } else {
         storeSet('invasion_ultra_auto', 'on');
-        ponUltra(true);
+        ponUltra(true); ultraAvisa(true);
       }
     }
   }
@@ -42355,15 +42363,27 @@ function rehazLienzos(){
   _congelado = false;
   marcaTestigo();
 }
-function revisaLienzos(){ if (lienzosPerdidos()) rehazLienzos(); }
+// Algunos navegadores (protección contra el rastreo) devuelven los píxeles
+// vacíos o alterados: entonces el testigo siempre parece perdido y se
+// rehacía todo cada segundo. Si recién marcado ya sale perdido, no se usa.
+let _testigoFiable = null;
+function revisaLienzos(){
+  if (_testigoFiable === null){ marcaTestigo(); _testigoFiable = !lienzosPerdidos(); }
+  if (_testigoFiable && lienzosPerdidos()) rehazLienzos();
+}
 canvas.addEventListener('contextrestored', ()=>{ rehazLienzos(); reparaLienzo(); });
 setInterval(()=>{ if (!document.hidden) revisaLienzos(); }, 1000);
 canvas.addEventListener('contextlost', e=>{ e.preventDefault(); ultraSinMemoria(); });   // que el navegador lo devuelva (y se repinta al volver)
 // Si el navegador descarta lienzos es que falta memoria gráfica: en AUTO se
 // apaga la alta resolución y tarda mucho más en volver a probarla.
+let _ocultoT = -1e9;
+document.addEventListener('visibilitychange', ()=>{ _ocultoT = Date.now(); });   // al irse y al volver
 function ultraSinMemoria(){
   if (ultraModo !== 'auto' || !ultraOn) return;
-  ultraAuto.fallos = Math.min(6, ultraAuto.fallos + 2); ultraAuto.espera = 45*Math.pow(2, ultraAuto.fallos - 1);
+  // al volver de otra app o pestaña el navegador suele soltar los lienzos: eso
+  // no es falta de memoria por la alta resolución, no cuenta
+  if (!running || document.hidden || Date.now() - _ocultoT < 5000) return;
+  ultraAuto.fallos = Math.min(6, ultraAuto.fallos + 1); ultraAuto.espera = ultraEspera(ultraAuto.fallos);
   storeSet('invasion_ultra_fallos', String(ultraAuto.fallos)); storeSet('invasion_ultra_auto', 'off');
   setTimeout(()=>{ try { ponUltra(false); } catch(e){} }, 0);
 }
