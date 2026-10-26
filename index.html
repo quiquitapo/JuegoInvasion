@@ -1370,6 +1370,14 @@
      van en una columna para que la explicación quede siempre bajo el título */
   #toastCaja { position:absolute; top:34%; left:50%; transform:translateX(-50%); z-index:9; pointer-events:none;
                width:max-content; max-width:92vw; display:flex; flex-direction:column; align-items:center; }
+  /* medidor de FPS (Ajustes > Pantalla y sonido): arriba al centro, encima de todo y sin estorbar */
+  #fpsMedidor { position:fixed; top:calc(4px + env(safe-area-inset-top, 0px)); left:50%; transform:translateX(-50%); z-index:9999;
+                pointer-events:none; padding:2px 8px; border-radius:6px; background:rgba(0,0,0,0.62); border:1px solid rgba(255,255,255,0.18);
+                color:#7bffa0; font:900 11px/1.3 monospace; letter-spacing:1px; white-space:nowrap; font-variant-numeric:tabular-nums; }
+  #fpsMedidor.hidden { display:none; }
+  #fpsMedidor.medio { color:#ffd257; }
+  #fpsMedidor.bajo { color:#ff6a5a; }
+  #fpsMedidor small { margin-left:6px; font-size:9px; font-weight:700; color:#b8c8d0; letter-spacing:0.5px; }
   #toast { position:relative; max-width:92vw;
            color:#7bffa0; font-size:clamp(1.2rem,4vw,2.2rem); font-weight:900; letter-spacing:4px;
            text-shadow:0 0 18px #23ff6b, 2px 2px 0 #052b12; opacity:0; transition:opacity .4s ease; text-align:center; }
@@ -1692,6 +1700,7 @@
     <div class="combobar"><div id="combofill"></div></div>
   </div>
   <div id="toastCaja"><div id="toast"></div><div id="avisoRegalo"></div></div>
+  <div id="fpsMedidor" class="hidden" aria-hidden="true"><b>--</b> FPS<small></small></div>
   <div id="tutPanel" class="hidden"></div>
   <div id="achtoast"></div>
 
@@ -2411,6 +2420,10 @@
       <div class="bindrow">
         <span class="bindname">Temblor de pantalla</span>
         <button type="button" class="togglebtn" id="tgTemblor">ON</button>
+      </div>
+      <div class="bindrow">
+        <span class="bindname">Medidor de FPS</span>
+        <button type="button" class="togglebtn off" id="tgFps">OFF</button>
       </div>
       <div class="bindrow">
         <span class="bindname">Tamaño de los mandos <b id="uiSizeWho" style="color:#8fd7ff"></b></span>
@@ -27908,6 +27921,31 @@ function ultraVigila(ms, trabajo){
   }
 }
 let temblorOn = true;
+// ---- medidor de FPS ----
+// Cuenta los fotogramas de verdad (los de requestAnimationFrame) y cada medio
+// segundo enseña la media, el peor fotograma y si la alta resolución está
+// puesta. Es un solo elemento de texto: no cuesta nada.
+let fpsOn = false;
+const fpsMed = { n:0, t:0, peor:0, ult:0 };
+async function loadFps(){ fpsOn = (await storeGet('invasion_fps')) === 'on'; refreshFpsUI(); }
+function refreshFpsUI(){
+  const b = document.getElementById('tgFps');
+  if (b){ b.textContent = fpsOn ? 'ON' : 'OFF'; b.classList.toggle('off', !fpsOn); }
+  const m = document.getElementById('fpsMedidor'); if (m) m.classList.toggle('hidden', !fpsOn);
+  fpsMed.n = 0; fpsMed.t = 0; fpsMed.peor = 0;
+}
+function cambiaFps(){ fpsOn = !fpsOn; storeSet('invasion_fps', fpsOn ? 'on' : 'off'); refreshFpsUI(); }
+function fpsCuenta(ms){
+  if (!fpsOn || !(ms > 0) || ms > 1000) return;
+  fpsMed.n++; fpsMed.t += ms; if (ms > fpsMed.peor) fpsMed.peor = ms;
+  if (fpsMed.t < 500) return;
+  const fps = Math.round(1000*fpsMed.n/fpsMed.t), peor = Math.round(fpsMed.peor);
+  fpsMed.n = 0; fpsMed.t = 0; fpsMed.peor = 0;
+  const m = document.getElementById('fpsMedidor'); if (!m) return;
+  m.firstChild.textContent = fps;
+  m.lastChild.textContent = peor + ' ms' + (ultraOn ? ' · ALTA RES.' : '');
+  m.classList.toggle('bajo', fps < 30); m.classList.toggle('medio', fps >= 30 && fps < 50);
+}
 async function loadTemblor(){ const v = await storeGet('invasion_temblor'); temblorOn = v !== 'off'; refreshTemblorUI(); }
 function saveTemblor(){ storeSet('invasion_temblor', temblorOn ? 'on' : 'off'); }
 function refreshTemblorUI(){
@@ -37667,6 +37705,7 @@ function reparaLienzo(){
 let _obraUlt = 0;
 function loop(t){
   try { ultraVigila(t - lastT, _obraUlt); } catch(e){}
+  fpsCuenta(t - lastT);
   const t0 = performance.now();
   try { pasoBucle(t); }
   catch(e){ anotaError('bucle', e); reparaLienzo(); try { rivAgarre = null; } catch(_){} }
@@ -39770,7 +39809,7 @@ document.getElementById('importFile').addEventListener('change', e=>{
       SaveIO.data = obj;
       SaveIO.flush();
       await loadDex(); await loadBinds(); await loadShop(); await loadAudioPrefs();
-      await loadTouchPref(); await loadBindsP2(); await loadMenuAnim(); await loadHpBars(); await loadNumeros(); await loadTemblor(); await loadCalidad(); await loadMapa();
+      await loadTouchPref(); await loadBindsP2(); await loadMenuAnim(); await loadHpBars(); await loadNumeros(); await loadTemblor(); await loadFps(); await loadCalidad(); await loadMapa();
       sanitizeBinds(); renderBinds(); renderBindsP2();
       refreshCoinLabels(); refreshAudioUI(); refreshTouchUI(); refreshAnimUI(); refreshHpUI(); refreshNumUI();
       applyAudioVolumes(); await renderScoreList();
@@ -40345,6 +40384,7 @@ if (_edB) _edB.addEventListener('click', ()=>{ hide('uieditor'); show('controles
 
 document.getElementById('tgUltra').addEventListener('click', ()=>{ cambiaUltra(); sfx('ui'); });
 document.getElementById('tgTemblor').addEventListener('click', ()=>{ temblorOn = !temblorOn; saveTemblor(); refreshTemblorUI(); sfx('ui'); });
+document.getElementById('tgFps').addEventListener('click', ()=>{ cambiaFps(); sfx('ui'); });
 document.getElementById('tgHp').addEventListener('click', ()=>{
   showHpBars = !showHpBars;
   saveHpBars(); refreshHpUI(); sfx('ui');
@@ -42287,7 +42327,7 @@ document.getElementById('btnMenu').addEventListener('click', async ()=>{
     ['Cargando controles',        async ()=>{ await loadBinds(); await loadBindsP2(); }],
     ['Cargando monedas y tienda', async ()=>{ await loadShop(); await loadImgSkins(); }],
     ['Cargando preferencias',     async ()=>{ await loadAudioPrefs(); await loadTouchPref();
-                                              await loadMenuAnim(); await loadHpBars(); await loadNumeros(); await loadTemblor(); await loadCalidad(); await loadHero(); await loadMapa(); await loadLeyenda();
+                                              await loadMenuAnim(); await loadHpBars(); await loadNumeros(); await loadTemblor(); await loadFps(); await loadCalidad(); await loadHero(); await loadMapa(); await loadLeyenda();
                                               await loadOvniVs(); refreshOvniVsUI();
                                               await loadOnlinePrefs(); refreshOnlineUI();
                                               await loadUICfg(); }],
