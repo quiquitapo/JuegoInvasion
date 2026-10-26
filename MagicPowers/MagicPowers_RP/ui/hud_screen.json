@@ -1,0 +1,210 @@
+{
+  "namespace": "hud",
+
+  // ---------------------------------------------------------------------------
+  // MagicPowers By Quiquitapo - HUD de habilidades
+  //
+  // El script envía un "title" que empieza por 'mpw:'. Ese title nunca se ve en
+  // el centro de la pantalla: se oculta y su texto se conserva en mp_hud_data,
+  // que lo reparte a un panel fijo en la esquina elegida.
+  //
+  // Formato:  mpw:<esquina><elemento><texto>
+  //   esquina  -> ^TL ^TR ^BL ^BR   (arriba-izq, arriba-der, abajo-izq, abajo-der)
+  //   elemento -> @fire @ice @wind @elec @grav
+  //   'mpw:' a secas oculta el panel.
+  // ---------------------------------------------------------------------------
+
+  "hud_title_text": {
+    "bindings": [
+      { "binding_name": "#hud_title_text_string" },
+      {
+        "binding_type": "view",
+        "source_property_name": "((#hud_title_text_string - 'mpw:') = #hud_title_text_string)",
+        "target_property_name": "#visible"
+      }
+    ]
+  },
+
+  "root_panel": {
+    "modifications": [
+      {
+        "array_name": "controls",
+        "operation": "insert_back",
+        "value": { "mp_hud_data@hud.mp_hud_data": {} }
+      },
+      {
+        "array_name": "controls",
+        "operation": "insert_back",
+        "value": {
+          "mp_hud_tl@hud.mp_hud_corner": {
+            "$mp_anchor": "top_left",
+            "$mp_offset": [ 4, 4 ],
+            "$mp_flag": "#mp_tl"
+          }
+        }
+      },
+      {
+        "array_name": "controls",
+        "operation": "insert_back",
+        "value": {
+          "mp_hud_tr@hud.mp_hud_corner": {
+            "$mp_anchor": "top_right",
+            "$mp_offset": [ -4, 4 ],
+            "$mp_flag": "#mp_tr"
+          }
+        }
+      },
+      {
+        "array_name": "controls",
+        "operation": "insert_back",
+        "value": {
+          "mp_hud_bl@hud.mp_hud_corner": {
+            "$mp_anchor": "bottom_left",
+            "$mp_offset": [ 4, -4 ],
+            "$mp_flag": "#mp_bl"
+          }
+        }
+      },
+      {
+        "array_name": "controls",
+        "operation": "insert_back",
+        "value": {
+          "mp_hud_br@hud.mp_hud_corner": {
+            "$mp_anchor": "bottom_right",
+            "$mp_offset": [ -4, -4 ],
+            "$mp_flag": "#mp_br"
+          }
+        }
+      }
+    ]
+  },
+
+  // Guarda el último title de MagicPowers aunque el title original desaparezca.
+  "mp_hud_data": {
+    "type": "panel",
+    "size": [ 0, 0 ],
+    "property_bag": {
+      "#mp_text": ""
+    },
+    "bindings": [
+      { "binding_name": "#hud_title_text_string" },
+      {
+        "binding_name": "#hud_title_text_string",
+        "binding_name_override": "#mp_text",
+        "binding_condition": "visibility_changed"
+      },
+      {
+        "binding_type": "view",
+        "source_property_name": "((not (#hud_title_text_string = #mp_text)) and (not ((#hud_title_text_string - 'mpw:') = #hud_title_text_string)))",
+        "target_property_name": "#visible"
+      },
+      { "binding_type": "view", "source_property_name": "(not ((#mp_text - '^TL') = #mp_text))", "target_property_name": "#mp_tl" },
+      { "binding_type": "view", "source_property_name": "(not ((#mp_text - '^TR') = #mp_text))", "target_property_name": "#mp_tr" },
+      { "binding_type": "view", "source_property_name": "(not ((#mp_text - '^BL') = #mp_text))", "target_property_name": "#mp_bl" },
+      { "binding_type": "view", "source_property_name": "(not ((#mp_text - '^BR') = #mp_text))", "target_property_name": "#mp_br" },
+      { "binding_type": "view", "source_property_name": "(not ((#mp_text - '@fire') = #mp_text))", "target_property_name": "#mp_fire" },
+      { "binding_type": "view", "source_property_name": "(not ((#mp_text - '@ice') = #mp_text))", "target_property_name": "#mp_ice" },
+      { "binding_type": "view", "source_property_name": "(not ((#mp_text - '@wind') = #mp_text))", "target_property_name": "#mp_wind" },
+      { "binding_type": "view", "source_property_name": "(not ((#mp_text - '@elec') = #mp_text))", "target_property_name": "#mp_elec" },
+      { "binding_type": "view", "source_property_name": "(not ((#mp_text - '@grav') = #mp_text))", "target_property_name": "#mp_grav" },
+      {
+        "binding_type": "view",
+        "source_property_name": "((((((((((#mp_text - 'mpw:') - '^TL') - '^TR') - '^BL') - '^BR') - '@fire') - '@ice') - '@wind') - '@elec') - '@grav')",
+        "target_property_name": "#mp_label"
+      }
+    ]
+  },
+
+  "mp_hud_corner": {
+    "type": "panel",
+    "size": [ "100%c", "100%c" ],
+    "anchor_from": "$mp_anchor",
+    "anchor_to": "$mp_anchor",
+    "offset": "$mp_offset",
+    "layer": 20,
+    "bindings": [
+      {
+        "binding_type": "view",
+        "source_control_name": "mp_hud_data",
+        "source_property_name": "$mp_flag",
+        "target_property_name": "#visible"
+      }
+    ],
+    "controls": [
+      { "mp_box@hud.mp_hud_box": {} }
+    ]
+  },
+
+  "mp_hud_box": {
+    "type": "image",
+    "texture": "textures/ui/hud_tip_text_background",
+    "alpha": 0.85,
+    "size": [ "100%c + 10px", "100%c + 8px" ],
+    "controls": [
+      {
+        "mp_row": {
+          "type": "stack_panel",
+          "orientation": "horizontal",
+          "size": [ "100%c", "100%cm" ],
+          "controls": [
+            {
+              "mp_icon": {
+                "type": "panel",
+                "size": [ 20, 20 ],
+                "controls": [
+                  { "mp_icon_frame@hud.mp_hud_icon_frame": {} },
+                  { "fire@hud.mp_hud_icon": { "$mp_tex": "textures/items/mp_book_fire", "$mp_el": "#mp_fire" } },
+                  { "ice@hud.mp_hud_icon": { "$mp_tex": "textures/items/mp_book_ice", "$mp_el": "#mp_ice" } },
+                  { "wind@hud.mp_hud_icon": { "$mp_tex": "textures/items/mp_book_wind", "$mp_el": "#mp_wind" } },
+                  { "elec@hud.mp_hud_icon": { "$mp_tex": "textures/items/mp_book_lightning", "$mp_el": "#mp_elec" } },
+                  { "grav@hud.mp_hud_icon": { "$mp_tex": "textures/items/mp_book_gravity", "$mp_el": "#mp_grav" } }
+                ]
+              }
+            },
+            { "mp_gap": { "type": "panel", "size": [ 4, 4 ] } },
+            {
+              "mp_label": {
+                "type": "label",
+                "size": [ "default", "default" ],
+                "text": "#text",
+                "color": [ 1.0, 1.0, 1.0 ],
+                "shadow": true,
+                "localize": false,
+                "text_alignment": "left",
+                "bindings": [
+                  {
+                    "binding_type": "view",
+                    "source_control_name": "mp_hud_data",
+                    "source_property_name": "#mp_label",
+                    "target_property_name": "#text"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    ]
+  },
+
+  "mp_hud_icon_frame": {
+    "type": "image",
+    "texture": "textures/ui/mp_hud_slot",
+    "size": [ 20, 20 ]
+  },
+
+  "mp_hud_icon": {
+    "type": "image",
+    "texture": "$mp_tex",
+    "size": [ 16, 16 ],
+    "layer": 1,
+    "bindings": [
+      {
+        "binding_type": "view",
+        "source_control_name": "mp_hud_data",
+        "source_property_name": "$mp_el",
+        "target_property_name": "#visible"
+      }
+    ]
+  }
+}

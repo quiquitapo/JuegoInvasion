@@ -1,0 +1,13 @@
+{
+  "format_version": "1.8.0",
+  "animations": {
+    "animation.magicpowers.pebble.spin": {
+      "loop": true,
+      "bones": {
+        "stone": {
+          "rotation": ["query.life_time * 720", "query.life_time * 540", 0]
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "format_version": "1.10.0",
+  "minecraft:client_entity": {
+    "description": {
+      "identifier": "magicpowers:pebble",
+      "materials": {
+        "default": "entity_alphatest"
+      },
+      "textures": {
+        "default": "textures/entity/mp_pebble"
+      },
+      "geometry": {
+        "default": "geometry.magicpowers.pebble"
+      },
+      "animations": {
+        "spin": "animation.magicpowers.pebble.spin"
+      },
+      "scripts": {
+        "animate": ["spin"]
+      },
+      "render_controllers": ["controller.render.default"]
+    }
+  }
+}
