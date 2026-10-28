@@ -1,0 +1,24 @@
+{
+  "format_version": "1.21.90",
+  "minecraft:item": {
+    "description": {
+      "identifier": "quiquitapo:montura_submarino",
+      "menu_category": {
+        "category": "equipment"
+      }
+    },
+    "components": {
+      "minecraft:icon": {
+        "textures": {
+          "default": "quiquitapo_montura_submarino"
+        }
+      },
+      "minecraft:display_name": {
+        "value": "item.quiquitapo:montura_submarino.name"
+      },
+      "minecraft:max_stack_size": 1,
+      "minecraft:hand_equipped": false,
+      "minecraft:glint": false
+    }
+  }
+}

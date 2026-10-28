@@ -1,0 +1,44 @@
+{
+  "format_version": "1.10.0",
+  "minecraft:client_entity": {
+    "description": {
+      "identifier": "quiquitapo:barco_volador",
+      "materials": {
+        "default": "entity_alphablend"
+      },
+      "textures": {
+        "end": "textures/entity/quiquitapo/barco_end",
+        "ovni": "textures/entity/quiquitapo/ovni",
+        "alfombra": "textures/entity/quiquitapo/alfombra"
+      },
+      "geometry": {
+        "end": "geometry.quiquitapo.barco_end",
+        "ovni": "geometry.quiquitapo.ovni",
+        "alfombra": "geometry.quiquitapo.alfombra"
+      },
+      "animations": {
+        "flotar": "animation.quiquitapo.barco.flotar",
+        "banderas": "animation.quiquitapo.barco.banderas",
+        "luces": "animation.quiquitapo.ovni.luces",
+        "ondas": "animation.quiquitapo.alfombra.ondas"
+      },
+      "scripts": {
+        "animate": [
+          "flotar",
+          {
+            "banderas": "query.property('quiquitapo:skin') == 0"
+          },
+          {
+            "luces": "query.property('quiquitapo:skin') == 1"
+          },
+          {
+            "ondas": "query.property('quiquitapo:skin') == 2"
+          }
+        ]
+      },
+      "render_controllers": [
+        "controller.render.quiquitapo.barco"
+      ]
+    }
+  }
+}

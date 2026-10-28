@@ -1,0 +1,36 @@
+{
+  "format_version": "1.10.0",
+  "minecraft:client_entity": {
+    "description": {
+      "identifier": "quiquitapo:submarino_guardian",
+      "materials": {
+        "default": "entity_alphatest"
+      },
+      "textures": {
+        "anciano": "textures/entity/quiquitapo/guardian_anciano",
+        "guardian": "textures/entity/quiquitapo/guardian",
+        "fishron": "textures/entity/quiquitapo/fishron"
+      },
+      "geometry": {
+        "guardian": "geometry.quiquitapo.guardian",
+        "guardian2": "geometry.quiquitapo.guardian",
+        "fishron": "geometry.quiquitapo.fishron"
+      },
+      "animations": {
+        "nadar": "animation.quiquitapo.sub.nadar",
+        "aletas": "animation.quiquitapo.sub.aletas"
+      },
+      "scripts": {
+        "animate": [
+          "nadar",
+          {
+            "aletas": "query.property('quiquitapo:skin') == 2"
+          }
+        ]
+      },
+      "render_controllers": [
+        "controller.render.quiquitapo.submarino"
+      ]
+    }
+  }
+}

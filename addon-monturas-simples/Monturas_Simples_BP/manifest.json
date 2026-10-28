@@ -1,0 +1,32 @@
+{
+  "format_version": 2,
+  "header": {
+    "name": "Monturas simples Por Quiquitapo",
+    "description": "Monturas crafteables: Slime saltarín, Barco volador del End y Submarino Guardián. Agáchate + usar para configurarlas. ¡Por Quiquitapo!",
+    "uuid": "41a14bd3-b352-4b9f-a0e0-e8492e3166d7",
+    "version": [1, 0, 0],
+    "min_engine_version": [1, 21, 90]
+  },
+  "modules": [
+    {
+      "type": "data",
+      "uuid": "3ae31c91-7f2c-4a28-aafb-39774e110324",
+      "version": [1, 0, 0]
+    },
+    {
+      "type": "script",
+      "language": "javascript",
+      "uuid": "33c3fc3f-2dd1-40cc-8404-eb625e18b642",
+      "entry": "scripts/main.js",
+      "version": [1, 0, 0]
+    }
+  ],
+  "dependencies": [
+    { "uuid": "2ad11d33-543a-44ce-aa94-f8c10dedabce", "version": [1, 0, 0] },
+    { "module_name": "@minecraft/server", "version": "2.0.0" },
+    { "module_name": "@minecraft/server-ui", "version": "2.0.0" }
+  ],
+  "metadata": {
+    "authors": ["Quiquitapo"]
+  }
+}

@@ -1,0 +1,8 @@
+item.quiquitapo:montura_slime.name=Montura de Slime
+item.quiquitapo:montura_barco.name=Barco Volador del End
+item.quiquitapo:montura_submarino.name=Submarino Guardián
+entity.quiquitapo:slime_montura.name=Montura de Slime
+entity.quiquitapo:barco_volador.name=Barco Volador del End
+entity.quiquitapo:submarino_guardian.name=Submarino Guardián
+action.interact.quiquitapo.recoger=Recoger montura
+action.interact.quiquitapo.montar=Montar

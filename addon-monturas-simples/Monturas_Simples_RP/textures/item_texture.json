@@ -1,0 +1,15 @@
+{
+  "resource_pack_name": "monturas_simples",
+  "texture_name": "atlas.items",
+  "texture_data": {
+    "quiquitapo_montura_slime": {
+      "textures": "textures/items/quiquitapo/montura_slime"
+    },
+    "quiquitapo_montura_barco": {
+      "textures": "textures/items/quiquitapo/montura_barco"
+    },
+    "quiquitapo_montura_submarino": {
+      "textures": "textures/items/quiquitapo/montura_submarino"
+    }
+  }
+}

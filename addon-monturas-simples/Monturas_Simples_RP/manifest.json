@@ -1,0 +1,23 @@
+{
+  "format_version": 2,
+  "header": {
+    "name": "Monturas simples Por Quiquitapo (Recursos)",
+    "description": "Modelos, texturas y skins (vanilla y estilo Terraria) de las Monturas simples. ¡Por Quiquitapo!",
+    "uuid": "2ad11d33-543a-44ce-aa94-f8c10dedabce",
+    "version": [1, 0, 0],
+    "min_engine_version": [1, 21, 90]
+  },
+  "modules": [
+    {
+      "type": "resources",
+      "uuid": "a964a320-442c-41e2-ad2c-ba621f241a4c",
+      "version": [1, 0, 0]
+    }
+  ],
+  "dependencies": [
+    { "uuid": "41a14bd3-b352-4b9f-a0e0-e8492e3166d7", "version": [1, 0, 0] }
+  ],
+  "metadata": {
+    "authors": ["Quiquitapo"]
+  }
+}

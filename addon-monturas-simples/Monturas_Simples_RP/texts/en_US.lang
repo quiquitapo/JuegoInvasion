@@ -1,0 +1,8 @@
+item.quiquitapo:montura_slime.name=Slime Mount
+item.quiquitapo:montura_barco.name=Flying End Ship
+item.quiquitapo:montura_submarino.name=Guardian Submarine
+entity.quiquitapo:slime_montura.name=Slime Mount
+entity.quiquitapo:barco_volador.name=Flying End Ship
+entity.quiquitapo:submarino_guardian.name=Guardian Submarine
+action.interact.quiquitapo.recoger=Pick up mount
+action.interact.quiquitapo.montar=Ride

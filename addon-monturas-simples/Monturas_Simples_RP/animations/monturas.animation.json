@@ -1,0 +1,178 @@
+{
+  "format_version": "1.8.0",
+  "animations": {
+    "animation.quiquitapo.slime.idle": {
+      "loop": true,
+      "bones": {
+        "body": {
+          "scale": [
+            "1 + math.sin(query.anim_time * 200) * 0.03 - math.clamp(math.abs(query.vertical_speed) * 0.015, 0, 0.15)",
+            "1 - math.sin(query.anim_time * 200) * 0.03 + math.clamp(math.abs(query.vertical_speed) * 0.03, 0, 0.3)",
+            "1 + math.sin(query.anim_time * 200) * 0.03 - math.clamp(math.abs(query.vertical_speed) * 0.015, 0, 0.15)"
+          ]
+        }
+      }
+    },
+    "animation.quiquitapo.slime.alas": {
+      "loop": true,
+      "bones": {
+        "wing_l": {
+          "rotation": [
+            0,
+            "math.sin(query.anim_time * 600) * 20",
+            0
+          ]
+        },
+        "wing_r": {
+          "rotation": [
+            0,
+            "-math.sin(query.anim_time * 600) * 20",
+            0
+          ]
+        }
+      }
+    },
+    "animation.quiquitapo.barco.flotar": {
+      "loop": true,
+      "bones": {
+        "root": {
+          "position": [
+            0,
+            "math.sin(query.anim_time * 90) * 0.8",
+            0
+          ]
+        }
+      }
+    },
+    "animation.quiquitapo.barco.banderas": {
+      "loop": true,
+      "bones": {
+        "flag_l": {
+          "rotation": [
+            "math.sin(query.anim_time * 240) * 6",
+            0,
+            0
+          ]
+        },
+        "flag_r": {
+          "rotation": [
+            "math.sin(query.anim_time * 240 + 60) * 6",
+            0,
+            0
+          ]
+        }
+      }
+    },
+    "animation.quiquitapo.ovni.luces": {
+      "loop": true,
+      "bones": {
+        "ring": {
+          "rotation": [
+            0,
+            "query.anim_time * 120",
+            0
+          ]
+        }
+      }
+    },
+    "animation.quiquitapo.alfombra.ondas": {
+      "loop": true,
+      "bones": {
+        "seg0": {
+          "position": [
+            0,
+            "math.sin(query.anim_time * 300 - 0) * 0.7",
+            0
+          ]
+        },
+        "seg1": {
+          "position": [
+            0,
+            "math.sin(query.anim_time * 300 - 60) * 0.7",
+            0
+          ]
+        },
+        "seg2": {
+          "position": [
+            0,
+            "math.sin(query.anim_time * 300 - 120) * 0.7",
+            0
+          ]
+        },
+        "seg3": {
+          "position": [
+            0,
+            "math.sin(query.anim_time * 300 - 180) * 0.7",
+            0
+          ]
+        },
+        "seg4": {
+          "position": [
+            0,
+            "math.sin(query.anim_time * 300 - 240) * 0.7",
+            0
+          ]
+        },
+        "seg5": {
+          "position": [
+            0,
+            "math.sin(query.anim_time * 300 - 300) * 0.7",
+            0
+          ]
+        }
+      }
+    },
+    "animation.quiquitapo.sub.nadar": {
+      "loop": true,
+      "bones": {
+        "root": {
+          "position": [
+            0,
+            "math.sin(query.anim_time * 80) * 0.5",
+            0
+          ]
+        },
+        "tail0": {
+          "rotation": [
+            0,
+            "math.sin(query.anim_time * 160) * 8",
+            0
+          ]
+        },
+        "tail1": {
+          "rotation": [
+            0,
+            "math.sin(query.anim_time * 160 - 40) * 14",
+            0
+          ]
+        },
+        "tail2": {
+          "rotation": [
+            0,
+            "math.sin(query.anim_time * 160 - 80) * 20",
+            0
+          ]
+        }
+      }
+    },
+    "animation.quiquitapo.sub.aletas": {
+      "loop": true,
+      "bones": {
+        "wing_l": {
+          "rotation": [
+            0,
+            0,
+            "math.sin(query.anim_time * 300) * 20"
+          ]
+        },
+        "wing_r": {
+          "rotation": [
+            0,
+            0,
+            "-math.sin(query.anim_time * 300) * 20"
+          ]
+        }
+      }
+    }
+  }
+}

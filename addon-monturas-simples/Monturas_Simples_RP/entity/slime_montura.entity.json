@@ -1,0 +1,38 @@
+{
+  "format_version": "1.10.0",
+  "minecraft:client_entity": {
+    "description": {
+      "identifier": "quiquitapo:slime_montura",
+      "materials": {
+        "default": "entity_alphablend"
+      },
+      "textures": {
+        "vanilla": "textures/entity/quiquitapo/slime_vanilla",
+        "azul": "textures/entity/quiquitapo/slime_azul",
+        "rey": "textures/entity/quiquitapo/slime_rey",
+        "reina": "textures/entity/quiquitapo/slime_reina"
+      },
+      "geometry": {
+        "cubo": "geometry.quiquitapo.slime_cubo",
+        "redondo": "geometry.quiquitapo.slime_redondo",
+        "rey": "geometry.quiquitapo.slime_rey",
+        "reina": "geometry.quiquitapo.slime_reina"
+      },
+      "animations": {
+        "idle": "animation.quiquitapo.slime.idle",
+        "alas": "animation.quiquitapo.slime.alas"
+      },
+      "scripts": {
+        "animate": [
+          "idle",
+          {
+            "alas": "query.property('quiquitapo:skin') == 3"
+          }
+        ]
+      },
+      "render_controllers": [
+        "controller.render.quiquitapo.slime"
+      ]
+    }
+  }
+}

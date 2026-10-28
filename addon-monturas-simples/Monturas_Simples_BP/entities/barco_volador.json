@@ -1,0 +1,235 @@
+{
+  "format_version": "1.21.90",
+  "minecraft:entity": {
+    "description": {
+      "identifier": "quiquitapo:barco_volador",
+      "is_spawnable": false,
+      "is_summonable": true,
+      "properties": {
+        "quiquitapo:skin": {
+          "type": "int",
+          "range": [
+            0,
+            2
+          ],
+          "default": 0,
+          "client_sync": true
+        },
+        "quiquitapo:velocidad": {
+          "type": "int",
+          "range": [
+            0,
+            1
+          ],
+          "default": 0,
+          "client_sync": true
+        }
+      }
+    },
+    "component_groups": {
+      "quiquitapo:vida_normal": {
+        "minecraft:health": {
+          "value": 30,
+          "max": 30
+        }
+      },
+      "quiquitapo:vida_blindaje": {
+        "minecraft:health": {
+          "value": 60,
+          "max": 60
+        }
+      }
+    },
+    "components": {
+      "minecraft:type_family": {
+        "family": [
+          "quiquitapo_montura",
+          "montura_barco",
+          "inanimate"
+        ]
+      },
+      "minecraft:collision_box": {
+        "width": 2.0,
+        "height": 1.0
+      },
+      "minecraft:pushable": {
+        "is_pushable": false,
+        "is_pushable_by_piston": true
+      },
+      "minecraft:knockback_resistance": {
+        "value": 1.0
+      },
+      "minecraft:breathable": {
+        "total_supply": 15,
+        "suffocate_time": 0,
+        "breathes_air": true,
+        "breathes_water": true
+      },
+      "minecraft:nameable": {},
+      "minecraft:persistent": {},
+      "minecraft:conditional_bandwidth_optimization": {},
+      "minecraft:hurt_on_condition": {
+        "damage_conditions": [
+          {
+            "filters": {
+              "test": "in_lava",
+              "subject": "self",
+              "operator": "==",
+              "value": true
+            },
+            "cause": "lava",
+            "damage_per_tick": 4
+          }
+        ]
+      },
+      "minecraft:damage_sensor": {
+        "triggers": [
+          {
+            "cause": "fall",
+            "deals_damage": "no"
+          },
+          {
+            "cause": "fly_into_wall",
+            "deals_damage": "no"
+          },
+          {
+            "on_damage": {
+              "filters": {
+                "all_of": [
+                  {
+                    "test": "rider_count",
+                    "subject": "self",
+                    "operator": "equals",
+                    "value": 0
+                  },
+                  {
+                    "test": "is_family",
+                    "subject": "other",
+                    "operator": "not",
+                    "value": "player"
+                  }
+                ]
+              }
+            },
+            "deals_damage": "no"
+          },
+          {
+            "cause": "entity_explosion",
+            "on_damage": {
+              "filters": {
+                "test": "rider_count",
+                "subject": "self",
+                "operator": "equals",
+                "value": 0
+              }
+            },
+            "deals_damage": "no"
+          },
+          {
+            "cause": "block_explosion",
+            "on_damage": {
+              "filters": {
+                "test": "rider_count",
+                "subject": "self",
+                "operator": "equals",
+                "value": 0
+              }
+            },
+            "deals_damage": "no"
+          }
+        ]
+      },
+      "minecraft:interact": {
+        "interactions": [
+          {
+            "on_interact": {
+              "filters": {
+                "all_of": [
+                  {
+                    "test": "is_sneak_held",
+                    "subject": "other",
+                    "value": true
+                  },
+                  {
+                    "test": "rider_count",
+                    "subject": "self",
+                    "operator": "equals",
+                    "value": 0
+                  }
+                ]
+              },
+              "event": "quiquitapo:recoger",
+              "target": "self"
+            },
+            "interact_text": "action.interact.quiquitapo.recoger"
+          }
+        ]
+      },
+      "minecraft:rideable": {
+        "seat_count": 1,
+        "crouching_skip_interact": true,
+        "pull_in_entities": false,
+        "family_types": [
+          "player"
+        ],
+        "interact_text": "action.interact.quiquitapo.montar",
+        "seats": {
+          "position": [
+            0.0,
+            0.3,
+            0.0
+          ]
+        }
+      },
+      "minecraft:physics": {
+        "has_gravity": false
+      },
+      "minecraft:can_fly": {},
+      "minecraft:fire_immune": true
+    },
+    "events": {
+      "quiquitapo:recoger": {},
+      "quiquitapo:blindaje_on": {
+        "remove": {
+          "component_groups": [
+            "quiquitapo:vida_normal"
+          ]
+        },
+        "add": {
+          "component_groups": [
+            "quiquitapo:vida_blindaje"
+          ]
+        }
+      },
+      "quiquitapo:blindaje_off": {
+        "remove": {
+          "component_groups": [
+            "quiquitapo:vida_blindaje"
+          ]
+        },
+        "add": {
+          "component_groups": [
+            "quiquitapo:vida_normal"
+          ]
+        }
+      },
+      "quiquitapo:velocidad_normal": {
+        "set_property": {
+          "quiquitapo:velocidad": 0
+        }
+      },
+      "quiquitapo:velocidad_alta": {
+        "set_property": {
+          "quiquitapo:velocidad": 1
+        }
+      },
+      "minecraft:entity_spawned": {
+        "add": {
+          "component_groups": [
+            "quiquitapo:vida_normal"
+          ]
+        }
+      }
+    }
+  }
+}

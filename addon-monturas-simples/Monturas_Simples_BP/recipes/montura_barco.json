@@ -1,0 +1,37 @@
+{
+  "format_version": "1.21.90",
+  "minecraft:recipe_shaped": {
+    "description": {
+      "identifier": "quiquitapo:receta_montura_barco"
+    },
+    "tags": [
+      "crafting_table"
+    ],
+    "pattern": [
+      "MWM",
+      "PPP"
+    ],
+    "key": {
+      "M": {
+        "item": "minecraft:phantom_membrane"
+      },
+      "W": {
+        "item": "minecraft:wind_charge"
+      },
+      "P": {
+        "item": "minecraft:purpur_block"
+      }
+    },
+    "unlock": [
+      {
+        "item": "minecraft:wind_charge"
+      },
+      {
+        "item": "minecraft:purpur_block"
+      }
+    ],
+    "result": {
+      "item": "quiquitapo:montura_barco"
+    }
+  }
+}

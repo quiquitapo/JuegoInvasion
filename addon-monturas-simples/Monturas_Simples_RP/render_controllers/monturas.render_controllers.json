@@ -1,0 +1,88 @@
+{
+  "format_version": "1.8.0",
+  "render_controllers": {
+    "controller.render.quiquitapo.slime": {
+      "arrays": {
+        "textures": {
+          "Array.skins": [
+            "Texture.vanilla",
+            "Texture.azul",
+            "Texture.rey",
+            "Texture.reina"
+          ]
+        },
+        "geometries": {
+          "Array.geos": [
+            "Geometry.cubo",
+            "Geometry.redondo",
+            "Geometry.rey",
+            "Geometry.reina"
+          ]
+        }
+      },
+      "geometry": "Array.geos[query.property('quiquitapo:skin')]",
+      "materials": [
+        {
+          "*": "Material.default"
+        }
+      ],
+      "textures": [
+        "Array.skins[query.property('quiquitapo:skin')]"
+      ]
+    },
+    "controller.render.quiquitapo.barco": {
+      "arrays": {
+        "textures": {
+          "Array.skins": [
+            "Texture.end",
+            "Texture.ovni",
+            "Texture.alfombra"
+          ]
+        },
+        "geometries": {
+          "Array.geos": [
+            "Geometry.end",
+            "Geometry.ovni",
+            "Geometry.alfombra"
+          ]
+        }
+      },
+      "geometry": "Array.geos[query.property('quiquitapo:skin')]",
+      "materials": [
+        {
+          "*": "Material.default"
+        }
+      ],
+      "textures": [
+        "Array.skins[query.property('quiquitapo:skin')]"
+      ]
+    },
+    "controller.render.quiquitapo.submarino": {
+      "arrays": {
+        "textures": {
+          "Array.skins": [
+            "Texture.anciano",
+            "Texture.guardian",
+            "Texture.fishron"
+          ]
+        },
+        "geometries": {
+          "Array.geos": [
+            "Geometry.guardian",
+            "Geometry.guardian2",
+            "Geometry.fishron"
+          ]
+        }
+      },
+      "geometry": "Array.geos[query.property('quiquitapo:skin')]",
+      "materials": [
+        {
+          "*": "Material.default"
+        }
+      ],
+      "textures": [
+        "Array.skins[query.property('quiquitapo:skin')]"
+      ]
+    }
+  }
+}

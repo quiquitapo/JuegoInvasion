@@ -1,0 +1,30 @@
+{
+  "format_version": "1.21.90",
+  "minecraft:recipe_shapeless": {
+    "description": {
+      "identifier": "quiquitapo:receta_montura_slime"
+    },
+    "tags": [
+      "crafting_table"
+    ],
+    "ingredients": [
+      {
+        "item": "minecraft:slime"
+      },
+      {
+        "item": "minecraft:lead"
+      }
+    ],
+    "unlock": [
+      {
+        "item": "minecraft:slime"
+      },
+      {
+        "item": "minecraft:lead"
+      }
+    ],
+    "result": {
+      "item": "quiquitapo:montura_slime"
+    }
+  }
+}
