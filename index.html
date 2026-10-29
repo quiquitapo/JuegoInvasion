@@ -24273,9 +24273,31 @@ function danoCharcosLava(dt){
     break;
   }
 }
-function drawCharcosLava(){
+// Los charcos van al suelo, debajo de los edificios. Pero también se abren en
+// los solares de los derribados, y ahí el solar y los escombros (que se pintan
+// con los edificios) los tapaban: esos se vuelven a pintar en una segunda
+// pasada, justo después de los edificios, recortados al solar (lo que asoma a
+// la calle ya salió en la primera, y así no pisan la pared de un vecino).
+// pase: false = suelo (todos), true = solo lo que cae dentro de un solar.
+function charcoEnSolar(c){
+  if (c._lote === undefined){
+    c._lote = null;
+    for (const b of buildings) if (b.stage >= 2 && c.x > b.x && c.x < b.x + b.w && c.y > b.y && c.y < b.y + b.h){ c._lote = b; break; }
+  }
+  return !!(c._lote && c._lote.stage >= 2);    // si lo reconstruyen, vuelve al suelo (bajo el edificio)
+}
+function charcoTapado(c){                        // mientras el edificio se viene abajo, no asoma por encima
+  const b = c._lote;
+  return b.caeT !== undefined && gameTime - b.caeT < EDIF_CAE;
+}
+function charcoRecorta(c){
+  const b = c._lote, s = S(b.x, b.y);
+  ctx.save(); ctx.beginPath(); ctx.rect(s.x, s.y, b.w, b.h); ctx.clip();
+}
+function drawCharcosLava(pase){
   for (const c of charcosLava){
     if (c.x < camX - 60 || c.x > camX + VW + 60 || c.y < camY - 60 || c.y > camY + VH + 60) continue;
+    if (pase){ if (!charcoEnSolar(c) || charcoTapado(c)) continue; charcoRecorta(c); }
     const s = S(c.x, c.y), abre = clamp(c.t/0.8, 0, 1), frio = clamp((c.max - c.t)/1.2, 0, 1), r = c.r*abre;
     ctx.fillStyle = '#1a0806'; ctx.beginPath(); ctx.ellipse(s.x, s.y, r + 4, (r + 4)*0.6, 0, 0, Math.PI*2); ctx.fill();
     ctx.globalAlpha = frio; ctx.fillStyle = '#c8320c'; ctx.beginPath(); ctx.ellipse(s.x, s.y, r, r*0.6, 0, 0, Math.PI*2); ctx.fill();
@@ -24284,6 +24306,7 @@ function drawCharcosLava(){
     const k = (gameTime*0.8 + c.x*0.01) % 1;
     ctx.globalAlpha = frio*(1 - k); ctx.beginPath(); ctx.arc(s.x + r*0.3, s.y - k*4, 1.5 + k*2.5, 0, Math.PI*2); ctx.fill();
     ctx.globalAlpha = 1;
+    if (pase) ctx.restore();
   }
 }
 // ---------- disparo del tanque araña: estallido y ralentizado ----------
@@ -35958,9 +35981,11 @@ function draw(){
   escK = conBufer ? ZOOM*DPR : 0; _escNuevos = 0; _escF++;      // volcado 1:1 de imágenes (solo con la escala quieta)
   if (conBufer){ sbVuelca(); if (esAlien()) drawRoadsAlien('lineas'); }
   else { preparaHuecosSuelo(); drawBackground(); drawRoads(); }
-  if (esInfierno()){ drawRestosJefes(); drawCraterInf(); drawCharcosLava(); } else drawCharcosAgua();
+  if (esInfierno()){ drawRestosJefes(); drawCraterInf(); drawCharcosLava(false); } else drawCharcosAgua(false);
   if (!conBufer) drawManchasLuz();     // profundidad del suelo, un solo relleno (con el búfer, ya va en él)
-  drawBuildings(); drawPlanters(); drawLamps();
+  drawBuildings();
+  if (esInfierno()) drawCharcosLava(true); else drawCharcosAgua(true);   // los de los solares derribados, encima de sus escombros
+  drawPlanters(); drawLamps();
   // Las zonas marcadas del Artillero van DESPUÉS de los edificios: si no, los
   // escombros las tapaban justo donde más falta hace verlas.
   drawRestosSuelo(); drawFuegos(); drawArtAvisos(); drawTriAvisos(); drawDragonAvisos(); drawVilAvisos(); drawMaquinaAvisos(); drawMagoAvisos(); drawMbtRayos(); drawJefes2Avisos(); drawAlienSuelo(); drawCenturionAvisos(); drawAmalgamaAvisos(); drawDesgarradorAvisos(); drawRefuerzosSuelo(); drawAracnidoSuelo(); drawDesesperacionAvisos(); drawMuerteVelozSuelo(); drawCenizasSuelo(); drawNubesNegras();
@@ -36750,14 +36775,16 @@ function updateCharcosAgua(dt){
     else if (dist(c.x, c.y, player.x, player.y) > 1600) charcosAgua.splice(i, 1);   // lejos: fuera
   }
 }
-function drawCharcosAgua(){
+function drawCharcosAgua(pase){
   if (!charcosAgua.length) return;
   const al = esAlien(), noche = oscuridadAhora();
   const llueve = lluviaK > 0.4;
   for (const c of charcosAgua){
     if (c.x < camX - 60 || c.x > camX + VW + 60 || c.y < camY - 60 || c.y > camY + VH + 60) continue;
+    if (pase && (!charcoEnSolar(c) || charcoTapado(c))) continue;      // (ver drawCharcosLava)
     const s = S(c.x, c.y), r = c.r*c.k, ry = r*0.55*c.f;
     if (r < 2) continue;
+    if (pase) charcoRecorta(c);
     ctx.globalAlpha = 0.55*c.k;
     ctx.fillStyle = al ? '#1c2a3a' : '#26303a';
     ctx.beginPath(); ctx.ellipse(s.x, s.y, r, ry, 0, 0, Math.PI*2); ctx.fill();
@@ -36775,6 +36802,7 @@ function drawCharcosAgua(){
         ctx.beginPath(); ctx.ellipse(s.x + ox, s.y, 2 + ph*r*0.35, (2 + ph*r*0.35)*0.5, 0, 0, Math.PI*2); ctx.stroke();
       }
     }
+    if (pase) ctx.restore();
   }
   ctx.globalAlpha = 1;
 }
