@@ -11169,11 +11169,21 @@ function pararMuestraMusica(){
   stopMusic();
 }
 
+// ---- volumen ----
+// El oído percibe el volumen de forma logarítmica: con la ganancia lineal, la
+// mitad de arriba del control apenas cambiaba nada. Ahora el control va en
+// decibelios (40 dB de recorrido, y al llegar a 0 se apaga del todo), así que
+// cada paso se oye igual de grande, y la salida (ver initAudio) tiene margen
+// para sonar tan fuerte como un vídeo de YouTube al 100 %.
+const SFX_NIVEL = 1.6, MUS_NIVEL = 0.85;
+function volCurva(v){ return v > 0 ? Math.pow(10, (Math.min(1, v) - 1)*2) * Math.min(1, v*10) : 0; }
+function ganSfx(){ return audio.sfxOn ? volCurva(audio.sfxVol)*SFX_NIVEL : 0; }
+function ganMus(){ return audio.musOn ? volCurva(audio.musVol)*MUS_NIVEL : 0; }
 function applyAudioVolumes(){
   if (!audio.ctx) return;
-  audio.sfxGain.gain.value = audio.sfxOn ? audio.sfxVol : 0;
+  audio.sfxGain.gain.value = ganSfx();
   audio.musGain.gain.cancelScheduledValues(audio.ctx.currentTime);       // por si había un fundido en curso
-  audio.musGain.gain.value = audio.musOn ? audio.musVol * 0.5 : 0;
+  audio.musGain.gain.value = ganMus();
   if (audio.musDir){ audio.musDir.gain.cancelScheduledValues(audio.ctx.currentTime); audio.musDir.gain.value = audio.musGain.gain.value; }
 }
 
@@ -11184,13 +11194,23 @@ function initAudio(){
   if (!AC) return;
   try {
     audio.ctx = new AC();
-    audio.master  = audio.ctx.createGain(); audio.master.gain.value = 0.75;
+    audio.master  = audio.ctx.createGain(); audio.master.gain.value = 1;
     audio.sfxGain = audio.ctx.createGain();
     audio.musGain = audio.ctx.createGain();
-    // limitador: evita que varias explosiones a la vez saturen y suenen a zumbido
+    // Salida: compresor suave -> realce -> limitador -> altavoces.
+    // Antes era un compresor muy fuerte (umbral -18 dB, 12:1) sin ganancia de
+    // compensación y con el maestro a 0,75: aplastaba todo y al 100 % el juego
+    // quedaba unos 10 dB por debajo de un vídeo. Ahora el compresor solo
+    // empasta (varias explosiones a la vez no saturan), el realce devuelve el
+    // nivel y el limitador del final impide que nada recorte.
     const comp = audio.ctx.createDynamicsCompressor();
-    comp.threshold.value = -18; comp.knee.value = 24; comp.ratio.value = 12;
-    comp.attack.value = 0.003; comp.release.value = 0.22;
+    comp.threshold.value = -14; comp.knee.value = 12; comp.ratio.value = 4;
+    comp.attack.value = 0.003; comp.release.value = 0.25;
+    const realce = audio.ctx.createGain(); realce.gain.value = 1.8;
+    const lim = audio.ctx.createDynamicsCompressor();
+    lim.threshold.value = -3; lim.knee.value = 0; lim.ratio.value = 20;
+    lim.attack.value = 0.001; lim.release.value = 0.12;
+    comp.connect(realce); realce.connect(lim);
     // Cadena de la música: filtro suave + eco corto. Se crea una sola vez y
     // da profundidad sin coste por nota.
     const musFlt = audio.ctx.createBiquadFilter();
@@ -11220,9 +11240,9 @@ function initAudio(){
       audio.rev = audio.ctx.createGain(); audio.rev.gain.value = 0.32;
       audio.rev.connect(conv); conv.connect(audio.sfxGain);
     } catch(e){ audio.rev = null; }
-    comp.connect(audio.master);
+    lim.connect(audio.master);
     audio.master.connect(audio.ctx.destination);
-    audio.comp = comp;
+    audio.comp = comp; audio.lim = lim;
     applyAudioVolumes();
     cargaRugido3();
   } catch(e){ audio.ctx = null; }
@@ -14059,7 +14079,7 @@ function estudioVia(){
   if (audio.musDir || !audio.ctx) return audio.musDir;
   try {
     audio.musDir = audio.ctx.createGain();
-    audio.musDir.gain.value = audio.musOn ? audio.musVol*0.5 : 0;
+    audio.musDir.gain.value = ganMus();
     audio.musDir.connect(audio.musComp || audio.master);
     if (audio.musAn) audio.musDir.connect(audio.musAn);     // las luces que laten con la música también la oyen
   } catch(e){ audio.musDir = null; }
@@ -24242,6 +24262,23 @@ function drawAmalgamaAvisos(){
 // que queman mucho al pisarlos. Duran unos segundos y se enfrían.
 const charcosLava = [];
 let charcoT = 0;
+// Un charco nunca va debajo de un edificio en pie (en el solar de uno
+// derribado, sí). Se mira la elipse entera y no solo el centro: antes bastaba
+// con que el centro quedara a 20 px de la pared, y los charcos grandes
+// asomaban cortados por debajo del edificio.
+function charcoBajo(b, x, y, r){
+  const mx = r + 6, my = r*0.75 + 6;           // el borde oscuro y lo alto de la elipse
+  return x > b.x - mx && x < b.x + b.w + mx && y > b.y - my && y < b.y + b.h + my;
+}
+function charcoLibre(x, y, r){
+  for (let i = 0; i < buildings.length; i++){ const b = buildings[i]; if (b.stage < 2 && charcoBajo(b, x, y, r)) return false; }
+  return true;
+}
+// Al reconstruirse un edificio, los charcos de su solar se van.
+function quitaCharcosBajo(b){
+  for (const arr of [charcosLava, charcosAgua])
+    for (let i = arr.length - 1; i >= 0; i--){ const c = arr[i]; if (charcoBajo(b, c.x, c.y, c.r)) arr.splice(i, 1); }
+}
 const LAVA_DPS = 34;
 function updateCharcosLava(dt, crea){
   if (crea && esInfierno() && lluviaK > 0.5 && !vil.caida){
@@ -24252,8 +24289,9 @@ function updateCharcosLava(dt, crea){
         for (let t = 0; t < 6; t++){
           const an = Math.random()*Math.PI*2, d = rand(90, 520);
           const x = clamp(player.x + Math.cos(an)*d, 40, WORLD_W - 40), y = clamp(player.y + Math.sin(an)*d*0.7, 40, WORLD_H - 40);
-          if (dentroDeEdificio(x, y, 20) || charcosLava.some(c=> dist(c.x, c.y, x, y) < 60)) continue;
-          charcosLava.push({ x, y, r: rand(18, 30), t: 0, max: rand(9, 14) });
+          const r = rand(18, 30);
+          if (charcosLava.some(c=> dist(c.x, c.y, x, y) < 60) || !charcoLibre(x, y, r)) continue;
+          charcosLava.push({ x, y, r, t: 0, max: rand(9, 14) });
           break;
         }
       }
@@ -33311,6 +33349,7 @@ function updateRegen(dt){
     b.seed = Math.floor(Math.random()*1000);       // otra silueta
     b.maxhp = edifVidaMax(b); b.tier = clamp(Math.round(edifPisos(b)/2) + 1, 2, 5);
     b.stage = 0; b.hp = b.maxhp; b.hitFlash = 0; b.downAt = undefined;   // reconstruido
+    quitaCharcosBajo(b);
   }
   regenPool('tree',  treeSpots,  trees);
   regenPool('lamp',  lampSpots,  lamps);
@@ -36146,7 +36185,7 @@ let rampa = null;               // { x, y, imp }
 let flashPant = 0;              // destello blanco de pantalla (0..1)
 function musAgacha(k, tau){
   if (!audio.ctx || !audio.musGain) return;
-  const g = audio.musGain.gain, t = audio.ctx.currentTime, base = audio.musOn ? audio.musVol*0.5 : 0;
+  const g = audio.musGain.gain, t = audio.ctx.currentTime, base = ganMus();
   g.cancelScheduledValues(t); g.setValueAtTime(g.value, t); g.setTargetAtTime(base*k, t, tau);
   if (audio.musDir){ const d = audio.musDir.gain; d.cancelScheduledValues(t); d.setValueAtTime(d.value, t); d.setTargetAtTime(base*k, t, tau); }
 }
@@ -36761,8 +36800,9 @@ function updateCharcosAgua(dt){
         for (let t = 0; t < 6; t++){
           const an = Math.random()*Math.PI*2, d = rand(60, 640);
           const x = clamp(player.x + Math.cos(an)*d, 40, WORLD_W - 40), y = clamp(player.y + Math.sin(an)*d*0.7, 40, WORLD_H - 40);
-          if (dentroDeEdificio(x, y, 24) || charcosAgua.some(c=> dist(c.x, c.y, x, y) < 70)) continue;
-          charcosAgua.push({ x, y, r: rand(14, 34), k: 0, f: rand(0.75, 1.3), sem: Math.random()*100 });
+          const r = rand(14, 34);
+          if (charcosAgua.some(c=> dist(c.x, c.y, x, y) < 70) || !charcoLibre(x, y, r)) continue;     // (ver charcoBajo)
+          charcosAgua.push({ x, y, r, k: 0, f: rand(0.75, 1.3), sem: Math.random()*100 });
           break;
         }
       }
