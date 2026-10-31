@@ -5951,7 +5951,7 @@ function resetGame(){
   quemaT = 0; hieloT = 0; lentoT = 0;
   miniOleada = null;
   refz = null; refzRed = null; tela = null; electroT = 0; gravT = 0;
-  clima = 'sol'; nubeK = 0; lluviaK = 0; climaMostrado = null;
+  clima = 'sol'; nubeK = 0; lluviaK = 0; climaMostrado = null; horaDesfase = 0;
   auraTxts.length = 0;
   buffT = 0; buffTipo = null; ovniCd = rand(50, 90); rayosOn = false; sueltaChoque();
   for (let __i78 = 0, __a78 = buildings; __i78 < __a78.length; __i78++){ const b = __a78[__i78]; b.stage=0; b.hp=b.maxhp; b.hitFlash=0; b.downAt=undefined; b._aguj = null; b._agCv = null; b._agBase = null; b._agFin = null; b._pisX = undefined; }
@@ -35035,6 +35035,7 @@ function updateSpawns(dt){
 // ================= CICLO DÍA / NOCHE =================
 // Cada fase dura PHASE_LEN segundos; el reloj del HUD indica cuánto falta para la siguiente.
 const PHASE_LEN = 45;
+let horaDesfase = 0;             // lo que se ha adelantado el reloj con el código nexth
 // ---- Temas desbloqueados por haber jugado a esa hora ----
 let musicDex = {};
 async function loadMusicDex(){
@@ -35066,10 +35067,10 @@ function lucesEncendidas(){
   return phase().id === 'atardecer' && phaseTimeLeft() <= LUZ_ANTES;
 }
 function isNight(){ return phase().id === 'noche'; }
-function phaseTimeLeft(){ return PHASE_LEN - (gameTime % PHASE_LEN); }
+function phaseTimeLeft(){ return PHASE_LEN - ((gameTime + horaDesfase) % PHASE_LEN); }
 function updateCycle(){
   const antes = phaseIdx;
-  phaseIdx = (1 + Math.floor(gameTime / PHASE_LEN)) % PHASES.length;
+  phaseIdx = (1 + Math.floor((gameTime + horaDesfase) / PHASE_LEN)) % PHASES.length;
   if (running) discoverMusic(PHASES[phaseIdx].id);   // se apunta la hora vivida
   if (phaseIdx !== antes) sorteaClima();             // con cada hora, otro cielo
 }
@@ -35740,7 +35741,7 @@ function updateFocos(dt){
 // Cuánto llevamos recorrido de la fase actual (0 a 1). Sirve para pasar de
 // una hora del día a la siguiente sin saltos bruscos.
 function faseProgreso(){
-  const t = gameTime % PHASE_LEN;
+  const t = (gameTime + horaDesfase) % PHASE_LEN;
   return clamp(t / PHASE_LEN, 0, 1);
 }
 // La mezcla ocupa el último tercio de cada fase.
@@ -41566,6 +41567,78 @@ async function commitName(){
   sfx('coin');
   // El local ya está guardado. El global es decisión suya, y solo en invasión.
   if (gameMode === 'invasion') ofrecerGlobal(name, sc);
+}
+
+// --- códigos secretos (solo en el versus local) ---
+// Escribiendo "secretcodes" en plena partida se abre un menú pequeño (la
+// partida queda en pausa). Ahí: money (el jugador 2 pasa a 9999 monedas),
+// nextc (el siguiente clima) y nexth (la siguiente hora del día).
+let _codBuf = '', codigosAbierto = false;
+function codigosPermitidos(){ return gameMode === 'vs' && !Online.activo; }
+window.addEventListener('keydown', e=>{
+  if (codigosAbierto || !running || pausedForQuit || !codigosPermitidos() || escribiendo(e) || !e.key || e.key.length !== 1 || e.repeat) return;
+  _codBuf = (_codBuf + e.key.toLowerCase()).slice(-11);
+  if (_codBuf === 'secretcodes'){ _codBuf = ''; abreCodigos(); }
+});
+function codigosPanel(){
+  let pn = document.getElementById('codigosSecretos');
+  if (pn) return pn;
+  pn = document.createElement('div'); pn.id = 'codigosSecretos';
+  pn.style.cssText = 'position:fixed;left:50%;top:18%;transform:translateX(-50%);z-index:9999;width:min(330px,calc(100vw - 32px));box-sizing:border-box;' +
+    'background:rgba(8,12,18,0.95);border:2px solid #4dff9a;border-radius:10px;padding:14px 16px;font:13px monospace;color:#d8ffe8;box-shadow:0 0 24px rgba(77,255,154,0.35);text-align:center';
+  pn.innerHTML = '<div style="font-weight:bold;letter-spacing:3px;color:#4dff9a;margin-bottom:8px">CÓDIGOS SECRETOS</div>' +
+    '<input id="codigosIn" type="text" autocomplete="off" spellcheck="false" maxlength="20" placeholder="escribe un código y pulsa Intro" ' +
+    'style="width:100%;box-sizing:border-box;padding:7px 9px;background:#02060a;border:1px solid #2c7a52;border-radius:6px;color:#eafff2;font:14px monospace;outline:none">' +
+    '<div id="codigosMsg" style="min-height:18px;margin-top:8px;color:#ffe27a"></div>' +
+    '<div style="margin-top:6px;color:#7fae94;font-size:11px">money · nextc · nexth &nbsp;—&nbsp; Esc para cerrar</div>' +
+    '<button id="codigosX" style="position:absolute;top:6px;right:8px;background:none;border:0;color:#7fae94;font:bold 16px monospace;cursor:pointer">✕</button>';
+  document.body.appendChild(pn);
+  const inp = pn.querySelector('#codigosIn');
+  inp.addEventListener('keydown', ev=>{
+    ev.stopPropagation();                                // las teclas no llegan al juego
+    if (ev.key === 'Enter'){ aplicaCodigo(inp.value); inp.value = ''; }
+    else if (ev.key === 'Escape') cierraCodigos();
+  });
+  pn.querySelector('#codigosX').addEventListener('click', cierraCodigos);
+  return pn;
+}
+function abreCodigos(){
+  if (codigosAbierto || !running) return;
+  codigosAbierto = true;
+  running = false;                                       // pausa mientras está abierto
+  for (const k in keys) keys[k] = false;                 // nada se queda pulsado
+  const pn = codigosPanel(); pn.style.display = 'block';
+  pn.querySelector('#codigosMsg').textContent = '';
+  const inp = pn.querySelector('#codigosIn'); inp.value = ''; setTimeout(()=> inp.focus(), 0);
+  sfx('ui');
+}
+function cierraCodigos(){
+  if (!codigosAbierto) return;
+  codigosAbierto = false;
+  const pn = document.getElementById('codigosSecretos'); if (pn) pn.style.display = 'none';
+  for (const k in keys) keys[k] = false;
+  if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+  running = true; lastT = performance.now();             // sin salto de dt tras la pausa
+  sfx('ui');
+}
+function aplicaCodigo(txt){
+  const c = String(txt || '').trim().toLowerCase(), msg = document.getElementById('codigosMsg');
+  let r = '';
+  if (c === 'money'){ p2.mat = 9999; r = 'Jugador 2: 9999 monedas'; }
+  else if (c === 'nextc'){
+    const orden = esInfierno() ? ['sol', 'lluvia'] : ['sol', 'nube', 'lluvia'];
+    clima = orden[(orden.indexOf(clima) + 1) % orden.length];
+    nubeK = clima === 'sol' ? 0 : 1; lluviaK = clima === 'lluvia' ? 1 : 0; climaMostrado = null;   // sin esperar a la transición
+    r = 'Clima: ' + CLIMAS[clima].name;
+  }
+  else if (c === 'nexth'){
+    horaDesfase += phaseTimeLeft() + 0.01;               // salta al principio de la hora siguiente
+    updateCycle();
+    r = 'Hora: ' + phase().name;
+  }
+  if (msg){ msg.style.color = r ? '#ffe27a' : '#ff7a6a'; msg.textContent = r || 'Código desconocido'; }
+  if (r){ try { pintaHUD(); if (gameMode === 'vs') renderP2Panel(); } catch(e){} }   // el marcador, al día aunque esté en pausa
+  sfx(r ? 'coin' : 'deny');
 }
 
 // --- salir de la partida ---
