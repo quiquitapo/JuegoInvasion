@@ -2851,12 +2851,21 @@ function drawSprite(key, sx, sy, w, h, facing, rot){
 // minigun y el tambor de munición giran (lo mismo, en vertical) y el chasis
 // rebota un píxel. Se hacen una vez, al primer uso, y quedan guardados.
 // h: [y0, y1, x0, x1, paso por fotograma] filas que corren a lo largo;
-// v: [x0, x1, y0, y1, paso] columnas que giran; bote: filas por encima que rebotan.
+// v: [x0, x1, y0, y1, paso] columnas que giran; bote: filas por encima que rebotan;
+// r: [cx, cy, radio, giro por fotograma] ruedas que giran sobre su eje;
+// esc: [y0, y1, x0, x1, eje] tramos de aspa que se acortan hacia el mástil
+// según k (el rotor visto de lado: larga, corta, larga...); rotor: va solo, sin moverse.
 const SPR_ANIM = {
   flametank: { n: 4, h: [[88, 97, 6, 128, -2], [70, 74, 14, 126, 2]], bote: 69 },
+  tank:      { n: 4, r: [[16, 72, 6, 0.4], [75, 73, 6, 0.4], [22, 86, 5, 0.5], [36, 86, 5, 0.5], [55, 86, 5, 0.5], [69, 86, 5, 0.5]], h: [[92, 95, 6, 120, -2], [62, 65, 8, 118, 2]], bote: 59 },
+  mbt:       { n: 4, r: [[25, 63, 5, 0.6], [45, 63, 6, 0.6], [62, 65, 6, 0.6], [80, 65, 7, 0.6]], bote: 55 },
+  siege:     { n: 4, h: [[75, 80, 4, 148, -2]], bote: 58 },
+  heli:      { n: 4, rotor: true, esc: [[28, 36, 0, 31, 52], [22, 28, 66, 84, 52]], k: [1, 0.7, 0.4, 0.7] },
+  gunship:   { n: 4, rotor: true, esc: [[0, 13, 14, 62, 67], [0, 13, 72, 119, 67]], k: [1, 0.7, 0.4, 0.7] },
   artOk:     { n: 4, h: [[171, 183, 18, 162, -2], [157, 165, 30, 150, 2]], v: [[132, 186, 122, 137, 2], [71, 101, 129, 148, 3]], bote: 104 }
 };
 SPR_ANIM.artRun = SPR_ANIM.artHeal = SPR_ANIM.artOk;
+SPR_ANIM.mbtFrio = SPR_ANIM.mbt;
 const _sprAnim = new Map();
 function sprAnimFrame(key, f){
   const A = SPR_ANIM[key], s = sprites[key];
@@ -2869,7 +2878,7 @@ function sprAnimFrame(key, f){
   c = document.createElement('canvas'); c.width = W; c.height = H;
   const g = c.getContext('2d'); g.drawImage(s.img, 0, 0);
   if (f){
-    const d = g.getImageData(0, 0, W, H), px = d.data, src = new Uint32Array(px.buffer), tmp = new Uint32Array(Math.max(W, H));
+    const d = g.getImageData(0, 0, W, H), px = d.data, src = new Uint32Array(px.buffer), tmp = new Uint32Array(Math.max(W, H)), orig = src.slice();
     const op = (i)=> (src[i] >>> 24) !== 0;                  // ¿píxel opaco? (little endian: el alfa va arriba)
     // gira el tramo opaco [a, b] de una fila o columna: i0 + paso*j
     const gira = (i0, paso, a, b, k)=>{
@@ -2882,6 +2891,22 @@ function sprAnimFrame(key, f){
     };
     for (const [y0, y1, x0, x1, p] of A.h || []) for (let y = y0; y <= Math.min(y1, H - 1); y++) gira(y*W, 1, x0, Math.min(x1, W - 1), p*f);
     for (const [x0, x1, y0, y1, p] of A.v || []) for (let x = x0; x <= Math.min(x1, W - 1); x++) gira(x, W, y0, Math.min(y1, H - 1), p*f);
+    for (const [cx, cy, R, paso] of A.r || []){                // la rueda gira: cada píxel del círculo toma el del ángulo anterior
+      const a = -paso*f, ca = Math.cos(a), sa = Math.sin(a), R2 = (R + 0.5)*(R + 0.5);
+      for (let dy = -R; dy <= R; dy++) for (let dx = -R; dx <= R; dx++){
+        if (dx*dx + dy*dy > R2) continue;
+        const x = cx + dx, y = cy + dy, sx = Math.round(cx + dx*ca - dy*sa), sy = Math.round(cy + dx*sa + dy*ca);
+        if (x < 0 || y < 0 || x >= W || y >= H || sx < 0 || sy < 0 || sx >= W || sy >= H) continue;
+        if (orig[sy*W + sx] >>> 24) src[y*W + x] = orig[sy*W + sx];
+      }
+    }
+    if (A.esc){                                               // las aspas se acortan hacia el mástil
+      const k = A.k[f];
+      for (const [y0, y1, x0, x1, eje] of A.esc) for (let y = y0; y <= Math.min(y1, H - 1); y++) for (let x = x0; x <= Math.min(x1, W - 1); x++){
+        const sx = Math.round(eje + (x - eje)/k);
+        src[y*W + x] = sx >= x0 && sx <= x1 ? orig[y*W + sx] : 0;
+      }
+    }
     if (A.bote && f % 2){                                    // el chasis rebota: lo de arriba baja un píxel
       for (let y = A.bote; y >= 1; y--) src.copyWithin(y*W, (y - 1)*W, y*W);
       src.fill(0, 0, W);
@@ -3676,7 +3701,89 @@ function autoPerfil(g, m, M, col, estado, f){
 }
 // De frente o de espaldas: la cara del vehículo abajo y el techo alejándose
 // hacia arriba (la misma perspectiva inclinada que el resto de la ciudad).
+// La cisterna de frente o de espaldas: el tanque es un cilindro, no una caja.
+// Visto desde arriba se sombrea como un tubo (bordes oscuros, brillo en el
+// centro) con su pasillo y sus bocas de carga. De frente, abajo va la cabina
+// con su parrilla cromada; de espaldas, la tapa trasera redonda del tanque
+// (aro, rombo de inflamable, válvula y escalera) y, al fondo, la cabina.
+function cisternaFrente(g, M, col, estado, frente, prof){
+  const W = M.an, H = Math.round(M.H*0.82) + prof;
+  const quem = estado === 2, base = quem ? autoMezcla(col, -0.62) : col, luz = autoMezcla(base, 0.35), osc = autoMezcla(base, -0.3);
+  const tq = quem ? '#3a3228' : '#c8b478', tqL = autoMezcla(tq, 0.28), tqLL = autoMezcla(tq, 0.5), tqO = autoMezcla(tq, -0.28), tqOO = autoMezcla(tq, -0.5);
+  const cromo = '#9aa0a8', cromoL = '#dfe3e8', neg = '#18181a', rojo = '#c8323a', blanco = '#f4f0e8';
+  // el cilindro desde arriba, entre y0 e y1 (en el lado lejano, redondeado)
+  const tubo = (y0, y1, redArriba)=>{
+    const x0 = 2, x1 = W - 2, w = x1 - x0;
+    g.save(); g.beginPath(); g.roundRect(x0, y0, w, y1 - y0, redArriba ? [9, 9, 0, 0] : 0); g.clip();
+    const bandas = [[0, tqOO], [0.08, tqO], [0.2, tq], [0.34, tqL], [0.44, tqLL], [0.56, tqL], [0.68, tq], [0.82, tqO], [0.93, tqOO]];
+    bandas.forEach(([k, c], i)=>{ const a = x0 + w*k, b = x0 + w*(i + 1 < bandas.length ? bandas[i + 1][0] : 1); apx(g, c, a, y0, b - a + 0.5, y1 - y0); });
+    if (redArriba){ g.fillStyle = 'rgba(0,0,0,0.18)'; g.beginPath(); g.ellipse(W/2, y0 + 4, w/2, 4, 0, Math.PI, 0); g.fill(); }
+    g.restore();
+    if (!quem) for (let y = y0 + 6; y < y1 - 2; y += 4){ apx(g, rojo, x0 + 0.6, y, 1.2, 2); apx(g, blanco, x0 + 0.6, y + 2, 1.2, 2); apx(g, rojo, x1 - 1.8, y, 1.2, 2); apx(g, blanco, x1 - 1.8, y + 2, 1.2, 2); }   // la franja a cuadros, en los costados
+    // el pasillo del techo con su barandilla y las bocas de carga
+    apx(g, '#5a5a5e', W/2 - 3, y0 + 4, 6, y1 - y0 - 6); for (let y = y0 + 5; y < y1 - 2; y += 2) apx(g, '#7a7a80', W/2 - 3, y, 6, 0.7);
+    apx(g, '#3a3a3e', W/2 - 4, y0 + 4, 1, y1 - y0 - 6); apx(g, '#3a3a3e', W/2 + 3, y0 + 4, 1, y1 - y0 - 6);
+    for (const k of [0.3, 0.7]){ const y = y0 + (y1 - y0)*k; g.fillStyle = tqOO; g.beginPath(); g.ellipse(W/2, y, 5.5, 3.6, 0, 0, Math.PI*2); g.fill(); g.fillStyle = tqL; g.beginPath(); g.ellipse(W/2, y - 0.4, 4.2, 2.6, 0, 0, Math.PI*2); g.fill(); apx(g, tqO, W/2 - 1, y - 1, 2, 2); }
+  };
+  if (frente){
+    // ---- de frente: el tanque detrás, la cabina delante (abajo) ----
+    tubo(1, 38, true);
+    const cy0 = 35;                                          // techo de la cabina, visto desde arriba
+    g.fillStyle = luz; g.beginPath(); g.roundRect(1, cy0, W - 2, 7, [3, 3, 0, 0]); g.fill();
+    if (!quem){ apx(g, '#f0a020', W/2 - 6, cy0 + 1, 3, 1.6); apx(g, '#f0a020', W/2 - 1.5, cy0 + 1, 3, 1.6); apx(g, '#f0a020', W/2 + 3, cy0 + 1, 3, 1.6); }   // luces del techo
+    const fy = cy0 + 6, hc = H - fy;
+    g.fillStyle = base; g.beginPath(); g.roundRect(0, fy, W, hc, 3); g.fill();
+    apx(g, luz, 1, fy, W - 2, 1.2); apx(g, osc, 0, fy + hc - 6, W, 3);
+    g.fillStyle = quem ? '#0e0c0a' : '#243240'; g.beginPath(); g.roundRect(3, fy + 2, W - 6, 9, 2); g.fill();          // parabrisas
+    if (!quem){ g.fillStyle = '#8ab0c8'; g.beginPath(); g.moveTo(6, fy + 11); g.lineTo(9, fy + 2); g.lineTo(12, fy + 2); g.lineTo(9, fy + 11); g.fill(); apx(g, '#3a4c5c', W/2 - 0.5, fy + 2, 1, 9); }
+    if (estado === 1){ g.strokeStyle = '#e8f0f4'; g.lineWidth = 0.7; for (const a of [0.4, 1.8, 3, 4.4]){ g.beginPath(); g.moveTo(W*0.65, fy + 5); g.lineTo(W*0.65 + Math.cos(a)*4, fy + 5 + Math.sin(a)*4); g.stroke(); } }
+    // la parrilla cromada, grande, de camión, y los faros a los lados
+    apx(g, neg, W/2 - 9, fy + 13, 18, 9); apx(g, cromo, W/2 - 8, fy + 13.6, 16, 7.8);
+    for (let x = W/2 - 7; x < W/2 + 8; x += 2) apx(g, '#4a4e56', x, fy + 14.4, 1, 6.4);
+    apx(g, cromoL, W/2 - 8, fy + 13.6, 16, 0.8);
+    if (!quem){ apx(g, '#fff4c0', 1.5, fy + 14, 5, 3.4); apx(g, '#fff4c0', W - 6.5, fy + 14, 5, 3.4); apx(g, '#ffffff', 2.4, fy + 14.6, 2, 1); apx(g, '#ffffff', W - 5.6, fy + 14.6, 2, 1); }
+    else { apx(g, neg, 1.5, fy + 14, 5, 3.4); apx(g, neg, W - 6.5, fy + 14, 5, 3.4); }
+    apx(g, cromo, 0, H - 6, W, 2.6); apx(g, cromoL, 1, H - 6, W - 2, 0.8);                                            // parachoques
+    apx(g, neg, 1, H - 3.4, 6, 4); apx(g, neg, W - 7, H - 3.4, 6, 4);                                                 // ruedas
+    // los retrovisores de camión, con su brazo
+    apx(g, cromo, -2, fy + 3, 2, 1); apx(g, neg, -3, fy + 1, 2, 7); apx(g, cromo, W, fy + 3, 2, 1); apx(g, neg, W + 1, fy + 1, 2, 7);
+  } else {
+    // ---- de espaldas: al fondo la cabina, el tanque y su tapa redonda (abajo) ----
+    g.fillStyle = luz; g.beginPath(); g.roundRect(5, 0, W - 10, 7, [3, 3, 0, 0]); g.fill(); apx(g, osc, 5, 5, W - 10, 2);
+    if (!quem){ apx(g, '#f0a020', W/2 - 4, 1, 3, 1.4); apx(g, '#f0a020', W/2 + 1, 1, 3, 1.4); }
+    tubo(5, 40, false);
+    // la tapa trasera: un disco con su aro, un poco abombado
+    const cx = W/2, cy = 44, rx = W/2 - 1, ry = 15;
+    g.fillStyle = tqOO; g.beginPath(); g.ellipse(cx, cy, rx + 0.5, ry + 0.5, 0, 0, Math.PI*2); g.fill();
+    g.fillStyle = tqO; g.beginPath(); g.ellipse(cx, cy, rx - 1, ry - 1, 0, 0, Math.PI*2); g.fill();
+    g.fillStyle = tq; g.beginPath(); g.ellipse(cx - 1, cy - 1, rx - 4, ry - 4, 0, 0, Math.PI*2); g.fill();
+    g.fillStyle = tqL; g.beginPath(); g.ellipse(cx - 4, cy - 5, rx - 10, ry - 9, 0, 0, Math.PI*2); g.fill();
+    g.strokeStyle = tqOO; g.lineWidth = 0.8; g.beginPath(); g.ellipse(cx, cy, rx - 2.5, ry - 2.5, 0, 0, Math.PI*2); g.stroke();   // la soldadura del aro
+    if (!quem){                                                                                                      // el rombo de inflamable
+      g.fillStyle = blanco; g.beginPath(); g.moveTo(cx, cy - 8); g.lineTo(cx + 6, cy - 2); g.lineTo(cx, cy + 4); g.lineTo(cx - 6, cy - 2); g.closePath(); g.fill();
+      g.fillStyle = rojo; g.beginPath(); g.moveTo(cx, cy - 6.6); g.lineTo(cx + 4.6, cy - 2); g.lineTo(cx, cy + 2.6); g.lineTo(cx - 4.6, cy - 2); g.closePath(); g.fill();
+      g.fillStyle = blanco; g.beginPath(); g.moveTo(cx, cy - 4.6); g.quadraticCurveTo(cx + 2.2, cy - 1.6, cx, cy + 0.6); g.quadraticCurveTo(cx - 2.2, cy - 1.6, cx, cy - 4.6); g.fill();   // la llama
+    }
+    apx(g, '#4a4a4e', cx - 1.5, cy + 8, 3, 6); apx(g, cromo, cx - 3, cy + 12, 6, 2.4); apx(g, rojo, cx + 2, cy + 11, 2, 1.4);   // la válvula de descarga
+    for (const x of [W - 7, W - 4]) apx(g, '#6a6a6c', x, cy - 12, 1, 26); for (let y = cy - 10; y < cy + 13; y += 3) apx(g, '#6a6a6c', W - 7, y, 4, 1);   // la escalera
+    // el chasis: parachoques con los pilotos y la barra reflectante, y las ruedas dobles
+    apx(g, neg, 0, H - 9, W, 5); 
+    if (!quem){ for (let x = 1; x < W - 1; x += 4){ apx(g, rojo, x, H - 8.4, 2, 1.6); apx(g, blanco, x + 2, H - 8.4, 2, 1.6); } apx(g, '#e02a2a', 1, H - 6.4, 5, 3); apx(g, '#e02a2a', W - 6, H - 6.4, 5, 3); apx(g, '#ff8a6a', 1.6, H - 6, 2, 1.2); apx(g, '#ff8a6a', W - 5.4, H - 6, 2, 1.2); }
+    apx(g, cromo, 0, H - 3.6, W, 1.6);
+    apx(g, neg, 0, H - 2.4, 8, 4); apx(g, neg, W - 8, H - 2.4, 8, 4); apx(g, '#2a2a2e', 3.6, H - 2.4, 0.8, 4); apx(g, '#2a2a2e', W - 4.4, H - 2.4, 0.8, 4);
+  }
+  // abollado o calcinado
+  if (estado >= 1){
+    g.save(); g.beginPath(); g.rect(0, 0, W, H); g.clip();
+    g.fillStyle = quem ? 'rgba(8,6,4,0.75)' : autoMezcla(tq, -0.45);
+    const P = quem ? [[0.3, 0.2, 4], [0.7, 0.35, 4.5], [0.4, 0.5, 3], [0.65, 0.7, 3.5], [0.25, 0.8, 3]] : [[0.3, 0.25, 2.4], [0.68, 0.4, 2], [0.4, 0.62, 2.2]];
+    for (const [px, py, r] of P){ g.beginPath(); g.ellipse(W*px, H*py, r*1.3, r*0.8, px*3, 0, Math.PI*2); g.fill(); }
+    if (quem){ apx(g, '#6a2a10', W*0.6, H*0.3, 2, 2); apx(g, '#c86020', W*0.61, H*0.31, 1, 1); }
+    g.restore();
+  }
+}
 function autoFrente(g, m, M, col, estado, frente, prof){
+  if (m === 'cisterna'){ cisternaFrente(g, M, col, estado, frente, prof); return; }
   const W = M.an, hc = Math.round(M.H*0.82);
   const base = estado === 2 ? autoMezcla(col, -0.62) : col;
   const luz = autoMezcla(base, 0.35), osc = autoMezcla(base, -0.3), muyOsc = autoMezcla(base, -0.55);
@@ -36144,7 +36251,10 @@ function drawEnemyBase(e){
         return;
       }
     }
-    if (!(e.type === 'flametank' ? drawSpriteAnim('flametank', sprAnimPaso(e, false), s.x, dy, e.w, e.h, e.facing, e.rot) : drawSprite(e.type, s.x, dy, e.w, e.h, e.facing, e.rot))){
+    // tanques y helicópteros con sus fotogramas: las orugas y ruedas según lo
+    // recorrido; el rotor, siempre girando
+    const anim = SPR_ANIM[e.type];
+    if (!(anim ? drawSpriteAnim(e.type, anim.rotor ? Math.floor(gameTime*22 + e.x*0.01) : sprAnimPaso(e, false), s.x, dy, e.w, e.h, e.facing, e.rot) : drawSprite(e.type, s.x, dy, e.w, e.h, e.facing, e.rot))){
       ctx.fillStyle = e.type==='flametank' ? '#5a4a22' : e.type==='tank' ? '#8a7a3a' : e.type==='siege' ? '#3a3f4a'
                     : e.type==='gunship' ? '#b84a1e' : '#5a5f45';
       ctx.fillRect(s.x-e.w/2, dy-e.h/2, e.w, e.h);
