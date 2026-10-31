@@ -11796,6 +11796,8 @@ for (const k of ['artillero', 'desesperacion', 'kaiyin', 'tripode']) BOSS_TRACKS
 // El viltrumita rival del VS Legendario (con el traje del Regente) tiene su
 // propio tema; antes tomaba prestado el de Muerte Veloz.
 BOSS_TRACKS.rivalVil = { tempo: 148, name:'SANGRE DEL IMPERIO', gen:'rivalVil', scale: BOSS_TRACKS.muerteVeloz.scale, respaldo: BOSS_TRACKS.muerteVeloz };
+// Muerte Veloz, con su tema nuevo del estudio (el de antes queda de respaldo).
+BOSS_TRACKS.muerteVeloz = Object.assign({}, BOSS_TRACKS.muerteVeloz, { gen:'muerteVeloz', respaldo: BOSS_TRACKS.muerteVeloz });
 // Castigo Divino: sus dos temas (el primero prepara el segundo, que entra al alargarse la partida)
 { const a = Object.assign({}, INFIERNO_TRACK), b = Object.assign({}, INFIERNO_TRACK2);
   Object.assign(INFIERNO_TRACK, { gen:'infierno', respaldo: a, siguiente: ()=> 'infierno2' });
@@ -13606,6 +13608,92 @@ function estudioPartituras(I){
           mel(C, c, contra[c - 24], (t, d, m)=> sinte(C, t, d*0.96, m + 12, 0.8, Object.assign({}, bronce, { gan: 0.32, pan: 0.25 })));
           if (c % 2 === 0) coro(C, C.t(c), C.T(32), voz(r + 24, tp, 62), 0.8, { vocal: 'a', gan: 0.4 });
           if (c % 4 === 0) golpe(c, r, tp);
+        }
+      } },
+
+    // =================================================================
+    // MUERTE VELOZ: drum'n'bass oscuro a 174 en mi frigio (la escala de su
+    // tema de antes). Breakbeat rápido, bajo reese que ruge, arpegio en
+    // semicorcheas como un motor a tope, chirridos de sierra de plasma y
+    // estampidos supersónicos. El motivo del tema viejo pasa a ser el lead;
+    // un puente a medio tiempo (frena y carga) y vuelve todo, más alto.
+    // =================================================================
+    muerteVeloz: { bpm: 174, compases: 32, bucle: 4, semilla: 131, master: { rms: 0.22, bombeo: 0.4, reverb: { tam: 0.7, amort: 0.45 } },
+      compone(C){
+        const PROG = [[40, 'm'], [41, 'M'], [40, 'm'], [38, 'm']];                     // Mim Fa Mim Rem (el semitono frigio)
+        const lead = { onda: 'saw', voces: 3, des: 14, a: 0.005, d: 0.18, s: 0.7, r: 0.12, corte: 1700, envF: 2600, decF: 0.12, q: 1.4, glide: 0.04, gan: 0.34, rev: 0.22, eco: 0.18 };
+        const arpS = { onda: 'sq', voces: 2, des: 7, a: 0.002, d: 0.07, s: 0.15, r: 0.04, corte: 2200, envF: 2400, decF: 0.05, q: 2.2, gan: 0.16, rev: 0.15, eco: 0.12 };
+        const pad = { onda: 'saw', voces: 5, des: 18, a: 0.4, r: 0.6, corte: 1100, q: 0.9, gan: 0.2, rev: 0.5 };
+        const bateria = (c, fill, ligera)=>{
+          rit(C, c, ligera ? 'x...............' : 'x.........x.....', (t, v)=> bombo(C, t, v, { dec: 0.28, f0: 180, f1: 50, dist: 2.2, gan: 0.85 }));
+          rit(C, c, fill ? '....x..o.o..xxxx' : '....x..o.o..x..o', (t, v)=> caja(C, t, v, { tono: 230, dec: 0.17, gan: 0.62, rev: 0.2 }));
+          rit(C, c, 'x.xxx.xxx.xxx.xx', (t, v, s)=> charles(C, t, s % 4 === 2 ? 0.9 : 0.5, { gan: 0.15, pan: s % 2 ? 0.2 : -0.2 }));
+          if (!ligera) rit(C, c, '..x...x...x...x.', (t, v)=> ride(C, t, 0.6, { gan: 0.09 }));
+        };
+        // el riff del reese: (paso, semitonos sobre la raíz, duración)
+        const RIFF = [[0, 0, 3], [3, 0, 2], [6, 3, 2], [8, 1, 4], [12, 0, 2], [14, -2, 2]];
+        const RIFF2 = [[0, 0, 3], [3, 0, 2], [6, 3, 2], [8, 5, 2], [10, 3, 2], [12, 1, 4]];
+        const reese = (c, raiz, var2)=>{
+          for (const [st, n, l] of (var2 ? RIFF2 : RIFF))
+            bajo(C, C.t(c, st), C.T(l)*0.95, raiz - 12 + n, st === 0 ? 1 : 0.9, { tipo: 'reese', corte: 260, env: 1400, dec: 0.12, q: 1.6, dist: 2.4, gan: 0.42, glide: 0.03 });
+          bajo(C, C.t(c, 0), C.T(16), raiz - 24, 0.8, { tipo: 'sub', gan: 0.36 });
+        };
+        const arpegio = (c, raiz, tipo, alto)=>{
+          const a = voz(raiz + (alto ? 36 : 24), tipo, alto ? 74 : 64), p = [a[0], a[1], a[2], a[1] + 12, a[2], a[1], a[0] + 12, a[2]];
+          for (let st = 0; st < 16; st++) sinte(C, C.t(c, st), C.T(0.6), p[st % 8], st % 4 === 0 ? 1 : 0.65, Object.assign({}, arpS, { pan: st % 2 ? 0.35 : -0.35 }));
+        };
+        // la sierra de plasma: un chirrido metálico FM que cae
+        const sierra = (t, m, v)=> fm(C, t, C.T(3), m, v, { razon: 6.73, indice: 7, kd: 1.4, dec: 0.25, gan: 0.13, rev: 0.25, eco: 0.2 });
+        // rompe la barrera del sonido: golpe grave, platillo y un barrido que cae
+        const estampido = c => { impacto(C, C.t(c, 0), 0.9); platillo(C, C.t(c, 0), 1.1); barrido(C, C.t(c, 0), C.T(8), 0.9, { f0: 9000, f1: 200, baja: true, gan: 0.28 }); };
+        // ---- intro (0-3): la turbina arranca, el reese despierta y el charles acelera ----
+        sinte(C, C.t(0), C.T(64), [28, 40], 0.9, { onda: 'saw', voces: 3, des: 12, a: 2, r: 0.4, corte: 300, envF: 0, q: 2, gan: 0.3, rev: 0.35 });
+        barrido(C, C.t(0), C.T(64), 1, { f0: 120, f1: 6000, q: 3, gan: 0.3 });
+        for (let c = 0; c < 4; c++){
+          const paso = c < 2 ? 4 : c < 3 ? 2 : 1;
+          for (let st = 0; st < 16; st += paso) charles(C, C.t(c, st), 0.4 + c*0.12, { gan: 0.14 });
+          if (c >= 2) reese(c, 40, c === 3);
+          sierra(C.t(c, 12), 76 - c, 0.5 + c*0.15);
+        }
+        rit(C, 3, 'x.x.x.x.xxxxxxxx', (t, v, s)=> caja(C, t, 0.3 + s*0.05, { tono: 240, dec: 0.1, gan: 0.5 }));
+        // ---- A (4-11): breakbeat, reese y el arpegio del motor ----
+        for (let c = 4; c < 12; c++){
+          const [r, tp] = PROG[(c - 4) % 4];
+          bateria(c, c === 11); reese(c, r, c % 4 === 3); arpegio(c, r, tp);
+          if (c % 4 === 0) estampido(c);
+          if (c % 2 === 1) sierra(C.t(c, 14), 79, 0.7);
+        }
+        // ---- B (12-19): el tema, con un pad que se abre detrás ----
+        const tema = ['E4:2 G4:2 B4:2 G4:2 C5:2 B4:2 G4:2 E4:2', 'E4:2 G4:2 B4:2 E5:2 D5:2 B4:2 C5:4',
+                      'E4:2 G4:2 B4:2 G4:2 C5:2 B4:2 G4:2 E4:2', 'E5:2 D5:2 C5:2 B4:2 G4:4 -:2 E4:2',
+                      'B4:2 C5:2 E5:2 C5:2 F5:2 E5:2 C5:2 B4:2', 'B4:2 C5:2 E5:2 G5:2 F5:2 E5:2 D5:4',
+                      'E5:3 D5:1 C5:2 B4:2 C5:3 B4:1 G4:2 F4:2', 'E4:12 -:4'];
+        for (let c = 12; c < 20; c++){
+          const [r, tp] = PROG[(c - 12) % 4];
+          bateria(c, c === 19); reese(c, r, c % 4 === 3); arpegio(c, r, tp);
+          mel(C, c, tema[c - 12], (t, d, m)=> sinte(C, t, d*0.95, [m, m + 12], 1, lead));
+          sinte(C, C.t(c), C.T(16), voz(r + 24, tp, 60), 0.8, pad);
+          if (c % 4 === 0) estampido(c);
+        }
+        // ---- puente (20-23): frena a medio tiempo, las sierras chirrían y vuelve a cargar ----
+        for (let c = 20; c < 24; c++){
+          const [r, tp] = PROG[c - 20];
+          rit(C, c, 'x.......x.......', (t, v)=> bombo(C, t, 1, { dec: 0.45, f0: 150, f1: 40, dist: 2, gan: 0.85 }));
+          rit(C, c, '........x.......', (t, v)=> caja(C, t, 1.1, { tono: 200, dec: 0.35, gan: 0.62, rev: 0.45 }));
+          bajo(C, C.t(c, 0), C.T(16), r - 12, 0.8, { tipo: 'reese', corte: 160, env: 600, dec: 1.2, q: 1.8, dist: 2.2, gan: 0.32 });
+          sinte(C, C.t(c), C.T(16), voz(r + 24, tp, 62), 0.85, Object.assign({}, pad, { trem: 10.875, tremP: 0.7, gan: 0.2 }));
+          for (const st of [4, 10, 14]) sierra(C.t(c, st), 74 + (st % 3), 0.6);
+          impacto(C, C.t(c, 0), 0.6);
+        }
+        rit(C, 23, 'xxxxxxxxxxxxxxxx', (t, v, s)=> caja(C, t, 0.3 + s*0.05, { tono: 240, dec: 0.09, gan: 0.5 }));
+        barrido(C, C.t(22), C.T(32), 1, { f0: 200, f1: 10000, gan: 0.32 });
+        // ---- A' (24-31): todo junto, el tema una octava arriba y el arpegio doble ----
+        for (let c = 24; c < 32; c++){
+          const [r, tp] = PROG[(c - 24) % 4];
+          bateria(c, c === 31); reese(c, r, c % 4 === 3); arpegio(c, r, tp); arpegio(c, r, tp, true);
+          mel(C, c, tema[c - 24], (t, d, m)=>{ sinte(C, t, d*0.95, m + 12, 0.9, Object.assign({}, lead, { corte: 2300, gan: 0.3 })); sinte(C, t, d*0.95, m, 0.75, Object.assign({}, lead, { gan: 0.26, pan: -0.25 })); });
+          if (c % 4 === 0) estampido(c);
+          if (c % 2 === 1) sierra(C.t(c, 14), 81, 0.75);
         }
       } },
 
@@ -21550,8 +21638,11 @@ function dibAracnido(g, pose, f, roto){
 // Los ojos: barras de LED rojos (como un ecualizador) que siguen la música
 // que suena. Sin música, se mueven solas despacio.
 const _aracEq = { t:0, n:7, v:new Float32Array(7), pico:new Float32Array(7).fill(0.3), buf:null };
-function aracEq(){
-  const E = _aracEq, now = performance.now();
+// el anillo del abdomen: el mismo ecualizador, con más bandas
+const _aracAnillo = { t:0, n:16, v:new Float32Array(16), pico:new Float32Array(16).fill(0.3), buf:null };
+function aracEq(E){
+  E = E || _aracEq;
+  const now = performance.now(), paso = 8.05/E.n;
   if (now - E.t < 14) return E.v;
   const dt = Math.min(0.1, E.t ? (now - E.t)/1000 : 0.016); E.t = now;
   const an = audio.musAn;
@@ -21561,7 +21652,7 @@ function aracEq(){
     an.getByteFrequencyData(E.buf);
     const hz = audio.ctx.sampleRate/an.fftSize;
     for (let b = 0; b < E.n; b++){
-      const f0 = 50*Math.pow(2, b*1.15), f1 = 50*Math.pow(2, (b + 1)*1.15);
+      const f0 = 50*Math.pow(2, b*paso), f1 = 50*Math.pow(2, (b + 1)*paso);
       let s = 0, c = 0;
       for (let i = Math.max(1, Math.floor(f0/hz)); i <= Math.min(E.buf.length - 1, Math.ceil(f1/hz)); i++){ s += E.buf[i]; c++; }
       const x = c ? s/(c*255) : 0;
@@ -21614,6 +21705,47 @@ function nivelMusica(){
   }
   m.v += (k - m.v)*Math.min(1, dt*(k > m.v ? 40 : 8));
   return m.v;
+}
+// Los golpes de la música: cada subida brusca de los graves (el bombo) es un
+// golpe; n los cuenta y env salta a 1 y cae en un cuarto de segundo. Sirve
+// para que un jefe se mueva al ritmo de su pista sin coste.
+const _latido = { t:0, prev:0, env:0, n:0, ult:0 };
+function latidoMusica(){
+  const L = _latido, now = performance.now();
+  if (now - L.t < 6) return L;
+  const dt = Math.min(0.1, L.t ? (now - L.t)/1000 : 0.016); L.t = now;
+  const v = nivelMusica();
+  if (v > 0.62 && L.prev <= 0.62 && now - L.ult > 180){ L.ult = now; L.n++; L.env = 1; }
+  L.prev = v;
+  L.env = Math.max(0, L.env - dt*4);
+  return L;
+}
+// Centro de la cúpula del abdomen en el dibujo (como en dibAracnido).
+function aracAbdomen(pose, f){
+  return { x: -24 + (pose === 'embiste' ? 6 : 0) - 4, y: aracCuerpoY(pose) - 24 + (pose === 'lluvia' ? (f ? -7 : -2) : 0) + (pose === 'salta' ? 4 : 0) - 18 };
+}
+// Un ecualizador circular sobre el abdomen: barras rojas que salen de un
+// núcleo y siguen la música, como un altavoz que late.
+function pintaAracAnillo(pose, f, lat){
+  const v = aracEq(_aracAnillo), c = aracAbdomen(pose, f), n = v.length, rx = 21, ry = 9;
+  ctx.save(); ctx.lineCap = 'round';
+  ctx.strokeStyle = '#1a0605'; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(c.x, c.y, rx, ry, 0, 0, Math.PI*2); ctx.stroke();
+  ctx.globalCompositeOperation = 'lighter';
+  for (let pase = 0; pase < 2; pase++){
+    ctx.strokeStyle = pase ? '#ff6a4a' : '#ff2414'; ctx.lineWidth = pase ? 1.6 : 4; ctx.globalAlpha = pase ? 0.95 : 0.35;
+    ctx.beginPath();
+    for (let b = 0; b < n; b++){
+      const a = (b/n)*Math.PI*2 - Math.PI/2, cs = Math.cos(a), sn = Math.sin(a), l = 2 + v[b]*15;
+      const x0 = c.x + cs*rx, y0 = c.y + sn*ry;
+      ctx.moveTo(x0, y0); ctx.lineTo(x0 + cs*l, y0 + sn*l*0.45 - (sn < 0 ? l*0.35 : 0));
+    }
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 0.5 + lat*0.5; ctx.fillStyle = '#ff3a24';
+  ctx.beginPath(); ctx.ellipse(c.x, c.y, 5.5 + lat*4, 2.6 + lat*1.8, 0, 0, Math.PI*2); ctx.fill();
+  ctx.globalAlpha = 0.6 + lat*0.4; ctx.fillStyle = '#ffd6c8';
+  ctx.beginPath(); ctx.ellipse(c.x, c.y, 2.2 + lat*1.6, 1.1 + lat*0.8, 0, 0, Math.PI*2); ctx.fill();
+  ctx.restore();
 }
 // Las luces rojas de un fotograma, aparte: una capa oscura para apagarlas y
 // otra con resplandor para encenderlas al ritmo de la música.
@@ -21918,9 +22050,10 @@ function drawAracnido(e){
              : (fa === 'telaAviso' || fa === 'tela' || fa === 'arrastra') ? 'teje' : 'anda';
   const f = pose === 'anda' ? Math.floor(e.paso || 0) % 4 : pose === 'embiste' ? Math.floor(e.paso || 0) % 2
           : pose === 'lluvia' ? Math.floor(t*8) % 2 : pose === 'muerde' ? (e.muerde > 0.15 ? 1 : 0) : 0;
-  const c = aracFrame(pose, f, !!e.roto), [W, H, cx, py] = ARAC_TAM;
+  const c = aracFrame(pose, f, !!e.roto), [W, H, cx, py] = ARAC_TAM, lat = latidoMusica().env;
   ctx.save(); ctx.translate(s.x, s.y - alt);
   if ((e.facing || 1) < 0) ctx.scale(-1, 1);
+  if (pose !== 'salta') ctx.scale(1 + 0.03*lat, 1 - 0.05*lat);           // con cada golpe se agacha, pesada, al ritmo
   if (pose === 'embiste') ctx.rotate(0.07);                         // se lanza inclinada hacia delante
   if (fa === 'aterriza') ctx.scale(1 + 0.05*clamp(e.ft/0.5, 0, 1), 1 - 0.07*clamp(e.ft/0.5, 0, 1));   // el golpe al caer
   if (fa === 'saltoAviso' || fa === 'embAviso') ctx.translate(Math.sin(t*60)*0.8, 0);                    // tiembla cargando
@@ -21933,6 +22066,7 @@ function drawAracnido(e){
   ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
   // los ojos: barras de LED al ritmo de la música; encendidos del todo al disparar los láseres
   pintaAracEq(aracCara(pose), fa === 'laser' && Math.floor(t*14) % 2 === 0);
+  pintaAracAnillo(pose, f, lat);
   ctx.imageSmoothingEnabled = suave;
   ctx.restore();
   if (e.fase === 'telaAviso'){ const m = S(aracBoca(e).x, aracBoca(e).y); ctx.fillStyle = 'rgba(255,255,255,' + (0.5 + Math.sin(gameTime*20)*0.4) + ')'; ctx.beginPath(); ctx.arc(m.x, m.y, 5, 0, Math.PI*2); ctx.fill(); }
@@ -21950,6 +22084,23 @@ function dibRed(x, y, R, a){
 function drawAracnidoSuelo(){
   for (let __i160 = 0, __a160 = enemies; __i160 < __a160.length; __i160++){ const e = __a160[__i160];
     if (e.dead || e.type !== 'aracnido') continue;
+    { // cada golpe de la música suelta una onda roja por el suelo
+      const L = latidoMusica(), now = performance.now(), O = e._ondas || (e._ondas = []);
+      if (e._latN !== L.n){ e._latN = L.n; if (alturaVisible(e) < 20){ O.push(now); if (O.length > 4) O.shift(); } }
+      if (O.length){
+        const t0 = S(e.x, e.y);
+        ctx.save();
+        for (let i = O.length - 1; i >= 0; i--){
+          const k = (now - O[i])/650;
+          if (k >= 1){ O.splice(i, 1); continue; }
+          const r = 80 + k*190;
+          ctx.globalAlpha = (1 - k)*0.5; ctx.strokeStyle = '#ff3a24'; ctx.lineWidth = 1 + (1 - k)*3;
+          ctx.beginPath(); ctx.ellipse(t0.x, t0.y, r, r*0.62, 0, 0, Math.PI*2); ctx.stroke();
+          ctx.globalAlpha = (1 - k)*0.08; ctx.fillStyle = '#ff2a1a'; ctx.fill();
+        }
+        ctx.restore();
+      }
+    }
     for (let k = 0; k < ARAC_REDES; k++){ const t = e['p' + k + 't']; if (t > 0){ const s = S(e['p' + k + 'x'], e['p' + k + 'y']); dibRed(s.x, s.y, ARAC_RED_R, 0.7*clamp(t/1.5, 0, 1)); } }
     ctx.save();
     if (e.fase === 'telaAviso'){
@@ -22062,6 +22213,13 @@ function mvFrame(pose, f){
   mvCache.set(k, c);
   return c;
 }
+// Los propulsores de la espalda: arranque (b) y boca (x, y), en coordenadas
+// del dibujo (mirando a +x). La llama se pinta en partida, según la velocidad.
+function mvTobera(pose){
+  const ag = pose === 'carga' ? 8 : 0, hx = -6, hy = -50 + ag, sx = 20, sy = -80 + ag*1.5;
+  const bx = hx + (sx - hx)*0.55 - 6.8, by = hy + (sy - hy)*0.55 - 5.9;
+  return { bx, by, x: bx - 13, y: by + 2.5 };
+}
 // Mira a +x, inclinada hacia delante como un velocista en la salida.
 function dibMuerteVeloz(g, pose, f){
   const neg = '#0e1216', borde = '#5a5a78', tur = '#3f9fae', turL = '#7fd4de', turO = '#246a76', bla = '#e6ecee', blaO = '#a8b0b6', rueda = '#7a7e8c', ruedaO = '#3a3e4a';
@@ -22078,6 +22236,7 @@ function dibMuerteVeloz(g, pose, f){
     jL(g, c, w, bz(t0, ...X), bz(t0, ...Y), bz(t1, ...X), bz(t1, ...Y));
   }
   g.fillStyle = neg; g.beginPath(); g.moveTo(-70, -10); g.lineTo(-58, 8); g.lineTo(-64, -12); g.closePath(); g.fill();
+  g.fillStyle = tur; g.beginPath(); g.moveTo(-67, -7); g.lineTo(-59.5, 5); g.lineTo(-63.5, -8); g.closePath(); g.fill();
   // piernas: muslo negro, espinilla turquesa, una rueda por pie
   const pierna = (fs, cerca)=>{
     const sw = pose === 'corre' ? Math.sin(ph + fs) : carga ? 0.2 : 0, cs = pose === 'corre' ? Math.cos(ph + fs) : 0;
@@ -22088,15 +22247,25 @@ function dibMuerteVeloz(g, pose, f){
     jL(g, cerca ? neg : '#1c2228', cerca ? 10 : 9, hx, hy, kx, ky);
     jL(g, cerca ? neg : '#1c2228', 7, kx, ky, ax, ay);
     jL(g, cerca ? tur : turO, 7, ax, ay, fx, fy - 2);
-    jO(g, ruedaO, fx, fy, 7.5, 7.5); jO(g, rueda, fx - 1, fy - 1, 6, 6); jO(g, '#c8ccd6', fx - 2.5, fy - 2.5, 1.8, 1.8);
+    // la rueda: neumático oscuro, aro de energía turquesa y radios que giran con cada fotograma
+    jO(g, ruedaO, fx, fy, 7.8, 7.8); jO(g, '#161a22', fx, fy, 6.4, 6.4);
+    g.strokeStyle = cerca ? turL : tur; g.lineWidth = 1.7; g.beginPath(); g.arc(fx, fy, 5.3, 0, Math.PI*2); g.stroke();
+    for (let k = 0; k < 2; k++){ const a = ph*0.5 + fs + k*Math.PI/2, cx = Math.cos(a)*4.4, cy = Math.sin(a)*4.4; jL(g, rueda, 1.1, fx - cx, fy - cy, fx + cx, fy + cy); }
+    jO(g, cerca ? '#e6fbff' : turL, fx, fy, 1.7, 1.7);
   };
   pierna(Math.PI, false);
   // torso inclinado: negro con el pecho blanco
   const hx = -6, hy = -50 + agach, sx = 20, sy = -80 + agach*1.5;
+  // los propulsores, detrás del torso (la llama se pinta aparte, ver mvTobera)
+  const T = mvTobera(pose);
+  jL(g, borde, 9, T.bx, T.by, T.x + 2, T.y); jL(g, '#1c2430', 7, T.bx, T.by, T.x + 2, T.y); jL(g, '#34404e', 2, T.bx, T.by - 2.4, T.x + 3, T.y - 2.2);
+  jO(g, borde, T.x + 1, T.y, 3.6, 4.4); jO(g, tur, T.x + 0.6, T.y, 2.6, 3.4); jO(g, '#e6fbff', T.x, T.y, 1.2, 1.8);
   jL(g, borde, 20, hx, hy, sx, sy); jL(g, neg, 17, hx, hy, sx, sy);
+  jL(g, '#26303c', 5, hx - 4.2, hy - 3.6, sx - 4.2, sy - 3.6); jL(g, '#3c4858', 1.3, hx - 5.6, hy - 5, sx - 5.4, sy - 4.8);   // placa dorsal con su filo
+  jL(g, tur, 1.6, hx + 3, hy - 6, sx - 3, sy + 7);                                                                          // veta de energía
   g.fillStyle = bla; g.beginPath(); g.moveTo(sx + 6, sy - 4); g.lineTo(sx + 9, sy + 10); g.lineTo(hx + 12, hy - 4); g.lineTo(hx + 8, hy - 10); g.closePath(); g.fill();
   jR(g, blaO, sx + 4, sy + 6, 3, 6);
-  jO(g, neg, sx - 3, sy + 14, 5, 5); jO(g, tur, sx - 3, sy + 14, 3.2, 3.2); jL(g, neg, 1.2, sx - 5, sy + 12, sx - 1, sy + 16);   // emblema del imperio
+  jO(g, borde, sx - 3, sy + 14, 6, 6); jO(g, turO, sx - 3, sy + 14, 4.6, 4.6); jO(g, turL, sx - 3, sy + 14, 3.2, 3.2); jO(g, '#ffffff', sx - 3.6, sy + 13.4, 1.4, 1.4);   // núcleo del imperio
   // aletas turquesa en la espalda
   for (const [x, y, L] of [[sx - 16, sy + 10, 26], [sx - 8, sy + 2, 20]]){
     g.fillStyle = turO; g.beginPath(); g.moveTo(x, y); g.lineTo(x - L, y - 16); g.lineTo(x - 2, y - 5); g.closePath(); g.fill();
@@ -22107,7 +22276,9 @@ function dibMuerteVeloz(g, pose, f){
     const ex = sx + 6 + dx, ey = sy + 14, wx = ex + 14 + (carga ? -6 : 0), wy = ey + 12 + (carga ? 6 : 0);
     jL(g, cerca ? neg : '#1c2228', 6, sx + dx, sy + 2, ex, ey);
     jL(g, cerca ? tur : turO, 5.5, ex, ey, wx, wy);
+    jL(g, '#1c2430', 6.5, ex + (wx - ex)*0.45, ey + (wy - ey)*0.45, wx, wy); jL(g, '#34404e', 1.2, ex + (wx - ex)*0.45, ey + (wy - ey)*0.45 - 2, wx, wy - 2);   // guantelete
     for (const d of [-0.4, 0, 0.4]){ const a = 0.6 + d; jL(g, neg, 1.6, wx, wy, wx + Math.cos(a)*8, wy + Math.sin(a)*8); }
+    jO(g, cerca ? turL : tur, wx, wy, 2.2, 2.2);                                                                              // el emisor de la sierra
   };
   brazo(-4, false);
   // cabeza: casco negro con cresta hacia atrás, cara turquesa, visor verde
@@ -22116,8 +22287,9 @@ function dibMuerteVeloz(g, pose, f){
   g.fillStyle = neg; g.beginPath(); g.moveTo(cx - 6, cy + 3); g.lineTo(cx - 14, cy - 27); g.lineTo(cx + 5, cy - 8); g.lineTo(cx + 10, cy + 2); g.closePath(); g.fill();
   g.fillStyle = tur; g.beginPath(); g.moveTo(cx + 2, cy - 4); g.lineTo(cx + 14, cy + 2); g.lineTo(cx + 12, cy + 12); g.lineTo(cx + 2, cy + 10); g.closePath(); g.fill();
   jR(g, turL, cx + 4, cy - 3, 6, 1.4);
-  g.fillStyle = '#a8f040'; g.beginPath(); g.moveTo(cx + 5, cy); g.lineTo(cx + 12, cy + 3); g.lineTo(cx + 6, cy + 4); g.closePath(); g.fill();
-  jR(g, neg, cx + 8, cy + 1.5, 2, 2);
+  g.fillStyle = '#b8ff48'; g.beginPath(); g.moveTo(cx + 4, cy - 0.6); g.lineTo(cx + 13, cy + 2.6); g.lineTo(cx + 6, cy + 4.6); g.closePath(); g.fill();
+  jR(g, '#f2ffd0', cx + 6, cy + 0.6, 3, 1.1);
+  jR(g, neg, cx + 9, cy + 1.6, 1.6, 1.6);
   g.fillStyle = blaO; g.beginPath(); g.moveTo(cx + 6, cy + 9); g.lineTo(cx + 15, cy + 10); g.lineTo(cx + 12, cy + 15); g.lineTo(cx + 5, cy + 13); g.closePath(); g.fill();
   jL(g, neg, 1, cx + 8, cy + 12, cx + 14, cy + 12);
   pierna(0, true);
@@ -22269,6 +22441,62 @@ function updateMuerteVeloz(e, dt, a, ang){
   }
 }
 // ---- dibujo ----
+// Brillo de las partes de energía de un fotograma (vetas y aros turquesa,
+// núcleo y visor): se calcula una vez por fotograma y se suma encima con más
+// o menos fuerza según lo que esté haciendo (ver mvIntensidad).
+function mvLuces(pose, f){
+  const k = pose + f + 'L';
+  let L = mvCache.get(k);
+  if (L) return L;
+  const c = mvFrame(pose, f), W = c.width, H = c.height;
+  const src = c.getContext('2d').getImageData(0, 0, W, H).data;
+  const luz = document.createElement('canvas'); luz.width = W; luz.height = H;
+  const gl = luz.getContext('2d'), il = gl.createImageData(W, H), B = il.data;
+  for (let i = 0; i < src.length; i += 4){
+    if (src[i + 3] === 0) continue;
+    const r = src[i], g = src[i + 1], b = src[i + 2];
+    const cian = b > r*1.3 && g > r*1.2 && g + b > 260, verde = g > 170 && g > r*1.12 && g > b*1.5;
+    if (cian || verde){ B[i] = r; B[i + 1] = g; B[i + 2] = b; B[i + 3] = 255; }
+  }
+  gl.putImageData(il, 0, 0);
+  L = document.createElement('canvas'); L.width = W; L.height = H;
+  const gb = L.getContext('2d');
+  try { gb.filter = 'blur(3px)'; gb.drawImage(luz, 0, 0); gb.filter = 'none'; } catch(e){}
+  gb.globalCompositeOperation = 'lighter'; gb.drawImage(luz, 0, 0);
+  mvCache.set(k, L);
+  return L;
+}
+const MV_AVISOS = { zonaAviso:1, embAviso:1, linAviso:1, giroAviso:1, tornadoAviso:1 };
+// Cuánto brilla: cargando parpadea cada vez más deprisa, a toda velocidad
+// arde, y en reposo respira (y sube un poco con cada golpe de la música).
+function mvIntensidad(e){
+  const fa = e.fase;
+  if (MV_AVISOS[fa]) return 0.55 + 0.45*Math.abs(Math.sin(gameTime*(e.roto ? 34 : 26)));
+  if (fa === 'zona' || fa === 'embiste' || fa === 'linea') return 1;
+  if (fa === 'frena') return 0.3;
+  return 0.35 + 0.15*Math.sin(gameTime*4) + nivelMusica()*0.3 + (e.roto ? 0.15 : 0);
+}
+// La llama de los propulsores: corta al trotar, larga a toda velocidad y a
+// trompicones mientras carga. (x, y) es la boca; dir, hacia dónde sale (+1/-1).
+function mvLlama(x, y, dir, L){
+  if (L < 2) return;
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  const h = 3.4 + L*0.06;
+  ctx.globalAlpha = 0.45; ctx.fillStyle = '#3fb4ff';
+  ctx.beginPath(); ctx.moveTo(x, y - h); ctx.quadraticCurveTo(x + dir*L*0.55, y - h*0.9, x + dir*L, y); ctx.quadraticCurveTo(x + dir*L*0.55, y + h*0.9, x, y + h); ctx.closePath(); ctx.fill();
+  ctx.globalAlpha = 0.85; ctx.fillStyle = '#c8f4ff';
+  ctx.beginPath(); ctx.moveTo(x, y - h*0.5); ctx.quadraticCurveTo(x + dir*L*0.35, y - h*0.4, x + dir*L*0.6, y); ctx.quadraticCurveTo(x + dir*L*0.35, y + h*0.4, x, y + h*0.5); ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+// El cono de choque al romper la barrera del sonido, por delante, apuntando adonde va.
+function mvCono(x, y, an, k){
+  ctx.save(); ctx.translate(x, y); ctx.rotate(an); ctx.lineCap = 'round';
+  ctx.globalAlpha = 0.5*k; ctx.strokeStyle = '#e8f8ff'; ctx.lineWidth = 2.5;
+  for (const sg of [-1, 1]){ ctx.beginPath(); ctx.moveTo(34, 0); ctx.quadraticCurveTo(6, sg*20, -46, sg*42); ctx.stroke(); }
+  ctx.globalAlpha = 0.22*k; ctx.lineWidth = 9; ctx.strokeStyle = '#7fd4ff';
+  ctx.beginPath(); ctx.arc(26, 0, 26, -1.1, 1.1); ctx.stroke();
+  ctx.restore();
+}
 function sierraPlasma(x, y, r, giro){
   ctx.save(); ctx.translate(x, y);
   ctx.globalAlpha = 0.35; ctx.fillStyle = '#7fc8ff'; ctx.beginPath(); ctx.arc(0, 0, r + 6, 0, Math.PI*2); ctx.fill();
@@ -22316,17 +22544,27 @@ function drawMuerteVeloz(e){
   }
   const pose = (e.fase === 'zonaAviso' || e.fase === 'embAviso' || e.fase === 'linAviso' || e.fase === 'giroAviso' || e.fase === 'frena') ? 'carga' : 'corre';
   const f = pose === 'corre' ? Math.floor(e.paso || 0) % 4 : 0;
-  const c = mvFrame(pose, f), [W, H, cx, py] = MV_TAM;
-  const pinta = (x, y, aph)=>{
-    ctx.save(); ctx.globalAlpha = aph; ctx.translate(x, y); if ((e.facing || 1) < 0) ctx.scale(-1, 1);
+  const c = mvFrame(pose, f), [W, H, cx, py] = MV_TAM, fc = e.facing || 1, brillo = mvIntensidad(e);
+  const pinta = (x, y, aph, luz)=>{
+    ctx.save(); ctx.globalAlpha = aph; ctx.translate(x, y); if (fc < 0) ctx.scale(-1, 1);
     const suave = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(c, -cx, -py); ctx.imageSmoothingEnabled = suave; ctx.restore();
+    ctx.drawImage(c, -cx, -py);
+    if (luz > 0){ ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = aph*luz; ctx.drawImage(mvLuces(pose, f), -cx, -py); }
+    ctx.imageSmoothingEnabled = suave; ctx.restore();
   };
-  if (e.fase === 'zona' || e.fase === 'embiste' || e.fase === 'linea'){   // a esa velocidad deja copias de sí misma
+  const veloz = e.fase === 'zona' || e.fase === 'embiste' || e.fase === 'linea';
+  const T = mvTobera(pose), tx = s.x + fc*T.x, ty = s.y - alt + T.y;
+  if (veloz){                                                // a esa velocidad deja copias de sí misma
     const an = Math.atan2(e.dty - e.d0y, e.dtx - e.d0x);
-    for (let i = 3; i >= 1; i--) pinta(s.x - Math.cos(an)*i*26, s.y - alt - Math.sin(an)*i*26, 0.12 + (3 - i)*0.08);
+    for (let i = 3; i >= 1; i--) pinta(s.x - Math.cos(an)*i*26, s.y - alt - Math.sin(an)*i*26, 0.12 + (3 - i)*0.08, 0.6);
+    mvLlama(tx, ty, -fc, 40 + Math.random()*14);
+    pinta(s.x, s.y - alt, 1, brillo);
+    mvCono(s.x + Math.cos(an)*30, s.y - alt - 46 + Math.sin(an)*30, an, 1);
+  } else {
+    const L = MV_AVISOS[e.fase] ? 6 + Math.random()*16 : e.fase === 'frena' ? 4 : 12 + Math.sin(gameTime*30)*3;
+    mvLlama(tx, ty, -fc, L);
+    pinta(s.x, s.y - alt, 1, brillo);
   }
-  pinta(s.x, s.y - alt, 1);
   for (const m of mvManos(e)){ const sm = S(m.x, m.y); sierraPlasma(sm.x, sm.y, 9, giro); }
 }
 function drawMuerteVelozSuelo(){
