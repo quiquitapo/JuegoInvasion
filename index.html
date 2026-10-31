@@ -21703,20 +21703,6 @@ function nivelMusica(){
   m.v += (k - m.v)*Math.min(1, dt*(k > m.v ? 40 : 8));
   return m.v;
 }
-// Los golpes de la música: cada subida brusca de los graves (el bombo) es un
-// golpe; n los cuenta y env salta a 1 y cae en un cuarto de segundo. Sirve
-// para que un jefe se mueva al ritmo de su pista sin coste.
-const _latido = { t:0, prev:0, env:0, n:0, ult:0 };
-function latidoMusica(){
-  const L = _latido, now = performance.now();
-  if (now - L.t < 6) return L;
-  const dt = Math.min(0.1, L.t ? (now - L.t)/1000 : 0.016); L.t = now;
-  const v = nivelMusica();
-  if (v > 0.62 && L.prev <= 0.62 && now - L.ult > 180){ L.ult = now; L.n++; L.env = 1; }
-  L.prev = v;
-  L.env = Math.max(0, L.env - dt*4);
-  return L;
-}
 // Las luces rojas de un fotograma, aparte: una capa oscura para apagarlas y
 // otra con resplandor para encenderlas al ritmo de la música.
 function aracLuces(pose, f, roto){
@@ -22020,10 +22006,9 @@ function drawAracnido(e){
              : (fa === 'telaAviso' || fa === 'tela' || fa === 'arrastra') ? 'teje' : 'anda';
   const f = pose === 'anda' ? Math.floor(e.paso || 0) % 4 : pose === 'embiste' ? Math.floor(e.paso || 0) % 2
           : pose === 'lluvia' ? Math.floor(t*8) % 2 : pose === 'muerde' ? (e.muerde > 0.15 ? 1 : 0) : 0;
-  const c = aracFrame(pose, f, !!e.roto), [W, H, cx, py] = ARAC_TAM, lat = latidoMusica().env;
+  const c = aracFrame(pose, f, !!e.roto), [W, H, cx, py] = ARAC_TAM;
   ctx.save(); ctx.translate(s.x, s.y - alt);
   if ((e.facing || 1) < 0) ctx.scale(-1, 1);
-  if (pose !== 'salta') ctx.scale(1 + 0.03*lat, 1 - 0.05*lat);           // con cada golpe se agacha, pesada, al ritmo
   if (pose === 'embiste') ctx.rotate(0.07);                         // se lanza inclinada hacia delante
   if (fa === 'aterriza') ctx.scale(1 + 0.05*clamp(e.ft/0.5, 0, 1), 1 - 0.07*clamp(e.ft/0.5, 0, 1));   // el golpe al caer
   if (fa === 'saltoAviso' || fa === 'embAviso') ctx.translate(Math.sin(t*60)*0.8, 0);                    // tiembla cargando
@@ -22233,17 +22218,41 @@ function dibMuerteVeloz(g, pose, f){
     jO(g, cerca ? turL : tur, wx, wy, 2.2, 2.2);                                                                              // el emisor de la sierra
   };
   brazo(-4, false);
-  // cabeza: casco negro con cresta hacia atrás, cara turquesa, visor verde
+  // cabeza: la máscara. Un casco negro brillante en forma de gota, con la
+  // punta hacia arriba y algo echada atrás (por la velocidad), el borde del
+  // visor y la mancha turquesa en forma de mariposa que brilla con su energía.
   const cx = sx + 10, cy = sy - 12 + agach*0.3;
-  g.fillStyle = borde; g.beginPath(); g.moveTo(cx - 8, cy + 4); g.lineTo(cx - 16, cy - 30); g.lineTo(cx + 6, cy - 8); g.lineTo(cx + 12, cy + 2); g.closePath(); g.fill();
-  g.fillStyle = neg; g.beginPath(); g.moveTo(cx - 6, cy + 3); g.lineTo(cx - 14, cy - 27); g.lineTo(cx + 5, cy - 8); g.lineTo(cx + 10, cy + 2); g.closePath(); g.fill();
-  g.fillStyle = tur; g.beginPath(); g.moveTo(cx + 2, cy - 4); g.lineTo(cx + 14, cy + 2); g.lineTo(cx + 12, cy + 12); g.lineTo(cx + 2, cy + 10); g.closePath(); g.fill();
-  jR(g, turL, cx + 4, cy - 3, 6, 1.4);
-  g.fillStyle = '#b8ff48'; g.beginPath(); g.moveTo(cx + 4, cy - 0.6); g.lineTo(cx + 13, cy + 2.6); g.lineTo(cx + 6, cy + 4.6); g.closePath(); g.fill();
-  jR(g, '#f2ffd0', cx + 6, cy + 0.6, 3, 1.1);
-  jR(g, neg, cx + 9, cy + 1.6, 1.6, 1.6);
-  g.fillStyle = blaO; g.beginPath(); g.moveTo(cx + 6, cy + 9); g.lineTo(cx + 15, cy + 10); g.lineTo(cx + 12, cy + 15); g.lineTo(cx + 5, cy + 13); g.closePath(); g.fill();
-  jL(g, neg, 1, cx + 8, cy + 12, cx + 14, cy + 12);
+  const gota = (col, k)=>{
+    g.fillStyle = col; g.beginPath();
+    g.moveTo(cx - 7 - k, cy - 34 - k);                                                                      // la punta
+    g.bezierCurveTo(cx + 6 + k, cy - 24, cx + 15 + k, cy - 8, cx + 14 + k, cy + 5);                         // la frente
+    g.bezierCurveTo(cx + 13 + k, cy + 13 + k, cx + 6, cy + 16 + k, cx, cy + 15 + k);                        // la barbilla
+    g.bezierCurveTo(cx - 7 - k, cy + 13 + k, cx - 10 - k, cy + 3, cx - 9 - k, cy - 8);                      // la nuca
+    g.bezierCurveTo(cx - 9 - k, cy - 18, cx - 8 - k, cy - 28, cx - 7 - k, cy - 34 - k);
+    g.closePath(); g.fill();
+  };
+  gota(borde, 1.4); gota('#07080b', 0);
+  g.strokeStyle = '#4a5466'; g.lineWidth = 1.4;                                                             // el brillo del casco
+  g.beginPath(); g.moveTo(cx - 6, cy - 27); g.bezierCurveTo(cx - 8, cy - 16, cx - 8.5, cy - 6, cx - 6.5, cy + 4); g.stroke();
+  jO(g, '#8a94a8', cx + 3.5, cy - 13, 1.1, 2.8); jO(g, '#d8e0ec', cx + 3.2, cy - 14.5, 0.6, 1.2);
+  g.strokeStyle = '#262c36'; g.lineWidth = 1.3;                                                             // el borde del visor
+  g.beginPath(); g.ellipse(cx + 6.5, cy + 3.5, 7.6, 9, 0, -Math.PI*0.62, Math.PI*0.62); g.stroke();
+  // la mariposa (de frente en la máscara; aquí, de tres cuartos)
+  const bx = cx + 7, by = cy + 3, ex = 0.8;
+  const mancha = (col, k)=>{
+    g.fillStyle = col;
+    for (const sg of [-1, 1]){
+      g.beginPath(); g.ellipse(bx + sg*3.8*ex, by - 3.2, 3.8*k, 2.9*k, sg*0.5, 0, Math.PI*2); g.fill();    // alas de arriba
+      g.beginPath(); g.ellipse(bx + sg*2.2*ex, by + 3.4, 1.6*k, 1.4*k, -sg*0.4, 0, Math.PI*2); g.fill();    // lóbulos de abajo
+    }
+    g.beginPath(); g.ellipse(bx, by + 0.6, 1.5*k, 2.6*k, 0, 0, Math.PI*2); g.fill();                        // el cuerpo
+    g.beginPath(); g.ellipse(bx, by + 6, 1*k, 1.6*k, 0, 0, Math.PI*2); g.fill();                            // la cola
+  };
+  mancha('#10394a', 1.25); mancha('#2fb8f0', 1); mancha('#9eeaff', 0.45);
+  // el corte en V que separa las alas, y las muescas entre las alas y los lóbulos
+  g.fillStyle = '#07080b'; g.beginPath(); g.moveTo(bx - 1.9, by - 7); g.lineTo(bx + 1.9, by - 7); g.lineTo(bx, by - 2.2); g.closePath(); g.fill();
+  for (const sg of [-1, 1]){ g.beginPath(); g.ellipse(bx + sg*3.6*ex, by + 1.3, 1.3, 0.8, sg*0.6, 0, Math.PI*2); g.fill(); }
+  jL(g, '#2a303a', 1, cx + 3, cy + 12.5, cx + 6, cy + 15);                                                  // la barbilla, en punta
   pierna(0, true);
   brazo(4, true);
 }
@@ -22394,7 +22403,7 @@ function updateMuerteVeloz(e, dt, a, ang){
 }
 // ---- dibujo ----
 // Brillo de las partes de energía de un fotograma (vetas y aros turquesa,
-// núcleo y visor): se calcula una vez por fotograma y se suma encima con más
+// núcleo y la mariposa de la máscara): se calcula una vez por fotograma y se suma encima con más
 // o menos fuerza según lo que esté haciendo (ver mvIntensidad).
 function mvLuces(pose, f){
   const k = pose + f + 'L';
@@ -22407,8 +22416,7 @@ function mvLuces(pose, f){
   for (let i = 0; i < src.length; i += 4){
     if (src[i + 3] === 0) continue;
     const r = src[i], g = src[i + 1], b = src[i + 2];
-    const cian = b > r*1.3 && g > r*1.2 && g + b > 260, verde = g > 170 && g > r*1.12 && g > b*1.5;
-    if (cian || verde){ B[i] = r; B[i + 1] = g; B[i + 2] = b; B[i + 3] = 255; }
+    if (b > r*1.3 && g > r*1.2 && g + b > 260){ B[i] = r; B[i + 1] = g; B[i + 2] = b; B[i + 3] = 255; }
   }
   gl.putImageData(il, 0, 0);
   L = document.createElement('canvas'); L.width = W; L.height = H;
