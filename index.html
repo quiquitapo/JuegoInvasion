@@ -5692,7 +5692,7 @@ function resetGame(){
   civilians=[]; enemies=[]; cars=[]; trees=[]; planters=[]; trash=[]; benches=[]; bullets=[]; booms=[]; heldObject=null;
   partN = 0; polvos.length = 0; avesVuelo.length = 0; avesSuelo.length = 0; plumas.length = 0; avesMuertas.length = 0; for (const q of parques){ q.avesSuelo = undefined; q.avesN = 0; q.avesT = 0; }                      // el depósito de chispas se reutiliza, no se tira
   sonicRings.length = 0; windRings.length = 0; fuegos.length = 0; rayos.length = 0; bossTrack = null;
-  limpiaPresentacion(); charcosAgua.length = 0; evoT = 0; numsDano.length = 0; bocadillos.length = 0;
+  limpiaPresentacion(); charcosAgua.length = 0; marcasLaser.length = 0; evoT = 0; numsDano.length = 0; bocadillos.length = 0;
   humosNegros.length = 0;
   planters = [];
   lamps = lampSpots.map((l,i)=>({ si:i, kind:'lamp', x:l.x, y:l.y, w:26, h:58, hp:30, maxhp:30,
@@ -8075,9 +8075,10 @@ function updateRayosOjos(dt){
   for (let __i104 = 0, __a104 = cars; __i104 < __a104.length; __i104++){ const c = __a104[__i104];
     if (c.dead || c.held) continue;
     if (!enLinea(c.x, c.y, ox, oy, a, largo, RAYO_ANCHO)) continue;
-    c.hp -= RAYO_DPS*dt; toca(c.x, c.y);
+    c.hp -= RAYO_DPS*dt; toca(c.x, c.y); calientaAuto(c, dt*1.6);
     if (c.hp <= 0) porJugador(()=> autoAbatido(c));
   }
+  let edifB = null, dB = 1e9;                           // el edificio en el que entra antes el haz
   for (let __i105 = 0, __a105 = buildings; __i105 < __a105.length; __i105++){ const b = __a105[__i105];
     if (b.stage >= 2) continue;
     const cx = clamp(ox + ca*largo*0.5, b.x, b.x+b.w);
@@ -8086,9 +8087,12 @@ function updateRayosOjos(dt){
       porJugador(()=> damageBuilding(b, RAYO_DPS*0.7*dt));
       // por dónde entra el haz en el edificio (o donde nace, si está dentro)
       const tx = ca > 0 ? (b.x - ox)/ca : ca < 0 ? (b.x + b.w - ox)/ca : 0, ty = sa > 0 ? (b.y - oy)/sa : sa < 0 ? (b.y + b.h - oy)/sa : 0;
-      toca(ox + ca*Math.max(4, tx, ty), oy + sa*Math.max(4, tx, ty));
+      const de = Math.max(4, tx, ty);
+      toca(ox + ca*de, oy + sa*de);
+      if (de > 6 && de < dB){ dB = de; edifB = b; }
     }
   }
+  if (edifB && !ch && dB <= dmin + 0.5) marcaLaser(ox + ca*dB, oy + sa*dB, edifB);   // lo primero que toca es el muro
   ojosVil.d = ch ? Math.min(dmin, largo) : dmin;
   laserChoca(ojosVil, ox, oy, ca, sa, ojosVil.d, ch ? choque.col : '#ff8a4a');
   if (Math.random() < 0.6){
@@ -8135,6 +8139,55 @@ function drawRayosOjos(){
     ctx.globalCompositeOperation = 'source-over';
   }
   ctx.globalAlpha = 1;
+}
+
+// ============ MARCAS DEL LÁSER ============
+// Donde el rayo del viltrumita o del dragón da en un edificio queda una
+// marca: al rojo blanco mientras lo toca, se enfría a naranja y luego a
+// hollín, y se borra; barrer con el rayo deja un surco. Los autos se ponen al
+// rojo (el calor se va solo) y humean. Todo son dos estampas fijas, como mucho
+// MARCA_MAX marcas a la vez y un número por auto: casi no cuesta nada.
+const MARCA_MAX = 40, MARCA_VIDA = 7, MARCA_R = 9;
+const marcasLaser = [];
+let _marcaSp = null;
+function marcaSp(){
+  return _marcaSp || (_marcaSp = {
+    hollin: makeRadial(24, [[0, 'rgba(16,9,5,0.92)'], [0.55, 'rgba(28,18,12,0.55)'], [1, 'rgba(28,18,12,0)']]),
+    brasa:  makeRadial(24, [[0, 'rgba(255,246,214,1)'], [0.3, 'rgba(255,150,50,0.9)'], [0.65, 'rgba(255,60,10,0.35)'], [1, 'rgba(255,40,0,0)']])
+  });
+}
+function marcaLaser(x, y, b){
+  const u = marcasLaser[marcasLaser.length - 1];
+  if (u && u.b === b && Math.abs(u.x - x) < 7 && Math.abs(u.y - y) < 7){ u.t0 = gameTime; return; }   // en el mismo sitio: la recalienta
+  if (marcasLaser.length >= MARCA_MAX) marcasLaser.shift();
+  marcasLaser.push({ x, y, b, t0: gameTime });
+  if (Math.random() < 0.5) addParticles(x, y, '#ffb24a', 2, 110);
+}
+// el calor de un auto se apaga solo en 2,5 s (sin tocar el bucle de los autos)
+function calorAuto(c){ return c.calor ? c.calor*Math.max(0, 1 - (gameTime - c._calT)/2.5) : 0; }
+function calientaAuto(c, k){
+  c.calor = Math.min(1, calorAuto(c) + k); c._calT = gameTime;
+  if (c.calor > 0.55 && Math.random() < k*3) addSmoke(c.x + rand(-10, 10), c.y - 8);
+}
+function drawMarcasLaser(){
+  if (!marcasLaser.length) return;
+  for (let i = marcasLaser.length - 1; i >= 0; i--){ const m = marcasLaser[i]; if (gameTime - m.t0 > MARCA_VIDA || (m.b && m.b.stage >= 2)) marcasLaser.splice(i, 1); }
+  const sp = marcaSp(), x0 = camX - 30, x1 = camX + VW + 30, y0 = camY - 30, y1 = camY + VH + 30;
+  ctx.save();
+  for (const m of marcasLaser){                                   // el hollín
+    if (m.x < x0 || m.x > x1 || m.y < y0 || m.y > y1) continue;
+    const e = gameTime - m.t0, a = Math.min(1, e/0.5 + 0.3)*Math.min(1, (MARCA_VIDA - e)/1.5);
+    if (a <= 0.02) continue;
+    ctx.globalAlpha = a*0.85; dibujaRedonda(sp.hollin, m.x - camX, m.y - camY, MARCA_R*1.25);
+  }
+  ctx.globalCompositeOperation = 'lighter';
+  for (const m of marcasLaser){                                   // la brasa, que se enfría
+    if (m.x < x0 || m.x > x1 || m.y < y0 || m.y > y1) continue;
+    const k = 1 - (gameTime - m.t0)/1.8;
+    if (k <= 0) continue;
+    ctx.globalAlpha = k*k; dibujaRedonda(sp.brasa, m.x - camX, m.y - camY, MARCA_R);
+  }
+  ctx.restore();
 }
 
 // ============ CHOQUE DE RAYOS ============
@@ -18497,13 +18550,14 @@ function draRayosDanan(){
     for (const h of haces) if (enLinea(c.x, c.y, h.x, h.y, h.ang, h.len + 10, 16)) n++;
     if (suelo && n < 3 && enLinea(c.x, c.y, player.x, player.y, sAng, sLen + 10, 18)) n = 3;
     if (!n) continue;
-    c.hp -= dmg*n;
+    c.hp -= dmg*n; calientaAuto(c, DRA_RAYO_TICK*n*0.6);
     if (c.hp <= 0) porJugador(()=> autoAbatido(c));
   }
   for (let __i124 = 0, __a124 = buildings; __i124 < __a124.length; __i124++){ const b = __a124[__i124];
     if (b.stage >= 2) continue;
     if (T.x < b.x || T.x > b.x+b.w || T.y < b.y || T.y > b.y+b.h) continue;
     porJugador(()=> damageBuilding(b, dmg*3*1.2));
+    if (b.stage < 2) marcaLaser(T.x, T.y, b);
     break;
   }
   if (Math.random() < 0.8) addParticles(T.x, T.y, '#ffe98a', 3, 120);
@@ -35177,6 +35231,39 @@ function vilInquilinos(x, y, R){
   }
   return n;
 }
+// ---- vecinos que salen huyendo ----
+// Con la cría coloso encima o el viltrumita dentro de un edificio, pasados
+// SALEN_ESPERA segundos algunos vecinos salen corriendo por el lado más lejos
+// del invasor: se descuentan de los que se ven dentro (rayos X) y pasan a ser
+// civiles de la calle. Se mira una vez por fotograma y solo un edificio.
+const SALEN_ESPERA = 3, SALEN_CADA = 0.8, SALEN_PROB = 0.5;
+const salen = { b:null, t:0, cd:0 };
+function updateSalenVecinos(dt){
+  if (dobleInv() || esVisorVs()) return;
+  const b = (isVil() && !vil.intro && !vil.caida) || (hero === 'alien' && F().breaker > 0) ? edifEn(player.x, player.y) : null;
+  if (b !== salen.b){ salen.b = b; salen.t = 0; salen.cd = 0; return; }
+  if (!b) return;
+  salen.t += dt;
+  if (salen.t < SALEN_ESPERA || (salen.cd -= dt) > 0) return;
+  salen.cd = SALEN_CADA;
+  if (Math.random() > SALEN_PROB || civilians.length >= 30) return;
+  const g = gentePreparada(b);
+  // los lados, del más lejos al más cerca del invasor
+  const lados = [[player.x - b.x, 0], [b.x + b.w - player.x, 1], [player.y - b.y, 2], [b.y + b.h - player.y, 3]].sort((p, q)=> q[0] - p[0]);
+  for (let n = Math.min(g.length, Math.random() < 0.35 ? 2 : 1); n > 0; n--){
+    for (const [, l] of lados){
+      const u = 0.15 + Math.random()*0.7;
+      const x = l === 0 ? b.x - 12 : l === 1 ? b.x + b.w + 12 : b.x + b.w*u, y = l === 2 ? b.y - 12 : l === 3 ? b.y + b.h + 12 : b.y + b.h*u;
+      if (x < 20 || x > WORLD_W - 20 || y < 20 || y > WORLD_H - 20 || edifEn(x, y)) continue;   // pegado a otro edificio: por otro lado
+      g.pop();
+      spawnCivilian(x, y);
+      const p = civilians[civilians.length - 1];
+      p.panicoT = 5; p.panX = player.x; p.panY = player.y;
+      addParticles(x, y, '#c8c0b0', 4, 60);
+      break;
+    }
+  }
+}
 // ¿Está el invasor dentro de la planta de este edificio (volando a través)?
 function dentroDeEste(b){
   return player.x > b.x + 4 && player.x < b.x + b.w - 4 && player.y > b.y + 4 && player.y < b.y + b.h - 4;
@@ -35634,6 +35721,14 @@ function drawCarBase(c){
     ctx.restore();
   }
   ctx.imageSmoothingEnabled = suave;
+  const ka = calorAuto(c);
+  if (ka > 0.03){                                       // al rojo por el láser
+    const sp = marcaSp().brasa;
+    ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = ka*0.6;
+    if (vertical) ctx.drawImage(sp, s.x - M.an*0.55, s.y + M.L*0.3 - M.H - 2, M.an*1.1, M.H*0.9 + 4);
+    else ctx.drawImage(sp, s.x - M.L*0.5, s.y - M.H*0.62, M.L, M.H*0.95);
+    ctx.restore();
+  }
   // con la alarma sonando parpadean los intermitentes
   if (c.alarmaT > 0 && estado < 2 && !c.held && !c.thrown && Math.floor(gameTime*4) % 2){
     const ls = vertical ? [s.x - M.an/2 + 1, s.x + M.an/2 - 1] : [s.x - M.L/2 + 1, s.x + M.L/2 - 1], ly = vertical ? s.y + M.L*0.3 - 5 : s.y;
@@ -36222,6 +36317,7 @@ function draw(){
   if (!conBufer) drawManchasLuz();     // profundidad del suelo, un solo relleno (con el búfer, ya va en él)
   drawBuildings();
   if (esInfierno()) drawCharcosLava(true); else drawCharcosAgua(true);   // los de los solares derribados, encima de sus escombros
+  drawMarcasLaser();
   drawPlanters(); drawLamps();
   // Las zonas marcadas del Artillero van DESPUÉS de los edificios: si no, los
   // escombros las tapaban justo donde más falta hace verlas.
@@ -37590,7 +37686,7 @@ function limpiaRestosPartida(){
   const ts = document.getElementById('toast'); if (ts){ ts.style.opacity = '0'; ts.textContent = ''; }
   quitaAvisoRegalo();
   const im = document.getElementById('introMapa'); if (im) im.classList.add('hidden');
-  limpiaPresentacion(); numsDano.length = 0; bocadillos.length = 0; charcosAgua.length = 0; polvos.length = 0;
+  limpiaPresentacion(); numsDano.length = 0; bocadillos.length = 0; charcosAgua.length = 0; marcasLaser.length = 0; polvos.length = 0;
   const tp = document.getElementById('tutPanel');
   refz = null; refzRed = null; tela = null; electroT = 0; gravT = 0; if (tp && !TUT.activo) tp.classList.add('hidden');
 }
@@ -38044,7 +38140,7 @@ function pasoBucle(t){
     // y se restaura después, en vez de parchear las cinco vías de daño.
     const vidaIntro = vil.intro ? hp : -1;          // cualquier personaje, mientras entra
     { const px0 = player.x, py0 = player.y; updatePlayer(dt); frenaJugador(px0, py0); leyEmpuja(dt); }
-    edifPreparaAdelante();
+    edifPreparaAdelante(); updateSalenVecinos(dt);
     updateProyJ(dt); updateCongelados(dt);
     updateCivilians(dt); updateCars(dt); updateTrees(dt); updateRam(dt); updateThrown(dt);
     Online.culpaInv = false;
@@ -39885,7 +39981,7 @@ async function endGame(){
   const gs = q('#gameover .subtitle');
   // Cada desenlace tiene su lámina: derrota, victoria del alien o del J2.
   const gimg = document.getElementById('derrotaimg');
-  limpiaPresentacion(); numsDano.length = 0; bocadillos.length = 0; charcosAgua.length = 0; polvos.length = 0; evoT = 0;
+  limpiaPresentacion(); numsDano.length = 0; bocadillos.length = 0; charcosAgua.length = 0; marcasLaser.length = 0; polvos.length = 0; evoT = 0;
   const retirada = gameMode === 'leyenda' && hp > 0;            // te retiras del VS Legendario: sin música de derrota
   if (!retirada) fanfarria(gameMode === 'vs' ? 'victoria' : 'derrota');
   if (gameMode === 'leyenda'){
