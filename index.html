@@ -2843,6 +2843,76 @@ function drawSprite(key, sx, sy, w, h, facing, rot){
   return true;
 }
 
+// ---- fotogramas nuevos sacados de un PNG ----
+// El Artillero y el tanque de fuego son dibujos fijos. Sus fotogramas de
+// animación salen de esa misma imagen, píxel a píxel, sin redibujar nada:
+// los eslabones de las orugas corren (cada fila de la banda se desplaza
+// dentro de su propio tramo, así la silueta no cambia), los cañones de la
+// minigun y el tambor de munición giran (lo mismo, en vertical) y el chasis
+// rebota un píxel. Se hacen una vez, al primer uso, y quedan guardados.
+// h: [y0, y1, x0, x1, paso por fotograma] filas que corren a lo largo;
+// v: [x0, x1, y0, y1, paso] columnas que giran; bote: filas por encima que rebotan.
+const SPR_ANIM = {
+  flametank: { n: 4, h: [[88, 97, 6, 128, -2], [70, 74, 14, 126, 2]], bote: 69 },
+  artOk:     { n: 4, h: [[171, 183, 18, 162, -2], [157, 165, 30, 150, 2]], v: [[132, 186, 122, 137, 2], [71, 101, 129, 148, 3]], bote: 104 }
+};
+SPR_ANIM.artRun = SPR_ANIM.artHeal = SPR_ANIM.artOk;
+const _sprAnim = new Map();
+function sprAnimFrame(key, f){
+  const A = SPR_ANIM[key], s = sprites[key];
+  if (!A || !s || !s.img.complete || !s.img.naturalWidth) return null;
+  f = ((f % A.n) + A.n) % A.n;
+  const k = key + '#' + f;
+  let c = _sprAnim.get(k);
+  if (c) return c;
+  const W = s.img.naturalWidth, H = s.img.naturalHeight;
+  c = document.createElement('canvas'); c.width = W; c.height = H;
+  const g = c.getContext('2d'); g.drawImage(s.img, 0, 0);
+  if (f){
+    const d = g.getImageData(0, 0, W, H), px = d.data, src = new Uint32Array(px.buffer), tmp = new Uint32Array(Math.max(W, H));
+    const op = (i)=> (src[i] >>> 24) !== 0;                  // ¿píxel opaco? (little endian: el alfa va arriba)
+    // gira el tramo opaco [a, b] de una fila o columna: i0 + paso*j
+    const gira = (i0, paso, a, b, k)=>{
+      let l = a, r = b;
+      while (l <= r && !op(i0 + l*paso)) l++;
+      while (r >= l && !op(i0 + r*paso)) r--;
+      const n = r - l + 1; if (n < 3) return;
+      for (let j = 0; j < n; j++) tmp[j] = src[i0 + (l + j)*paso];
+      for (let j = 0; j < n; j++) src[i0 + (l + j)*paso] = tmp[(((j - k) % n) + n) % n];
+    };
+    for (const [y0, y1, x0, x1, p] of A.h || []) for (let y = y0; y <= Math.min(y1, H - 1); y++) gira(y*W, 1, x0, Math.min(x1, W - 1), p*f);
+    for (const [x0, x1, y0, y1, p] of A.v || []) for (let x = x0; x <= Math.min(x1, W - 1); x++) gira(x, W, y0, Math.min(y1, H - 1), p*f);
+    if (A.bote && f % 2){                                    // el chasis rebota: lo de arriba baja un píxel
+      for (let y = A.bote; y >= 1; y--) src.copyWithin(y*W, (y - 1)*W, y*W);
+      src.fill(0, 0, W);
+    }
+    g.putImageData(d, 0, 0);
+  }
+  if (CONTORNO_SPR[key]) c._contorno = CONTORNO_SPR[key];
+  _sprAnim.set(k, c);
+  return c;
+}
+// Como drawSprite, pero con el fotograma f (si no hay animación, el PNG tal cual).
+function drawSpriteAnim(key, f, sx, sy, w, h, facing, rot){
+  const im = sprAnimFrame(key, f);
+  if (!im) return drawSprite(key, sx, sy, w, h, facing, rot);
+  const s = sprites[key];
+  ctx.save(); ctx.translate(sx, sy);
+  if (rot) ctx.rotate(rot);
+  if (facing !== s.face) ctx.scale(-1, 1);
+  dibujaImg(im, -w/2, -h/2, w, h);
+  ctx.restore();
+  return true;
+}
+// El fotograma según lo que hace: las orugas avanzan con lo recorrido y la
+// minigun gira mientras dispara; quieto, no se mueve nada.
+function sprAnimPaso(e, disparando){
+  const mov = e._apx === undefined ? 0 : Math.hypot(e.x - e._apx, e.y - e._apy);
+  e._apx = e.x; e._apy = e.y;
+  e._af = (e._af || 0) + Math.min(mov, 30)/5 + (disparando ? 0.4 : 0);
+  return Math.floor(e._af);
+}
+
 // ================= TROPA DIBUJADA POR CÓDIGO =================
 // Policía, soldado y minigunero, en el estilo de los antiguos PNG (pixel
 // art con contorno oscuro), pero con todas sus posturas animadas: andar
@@ -11846,6 +11916,8 @@ BOSS_TRACKS.superx = Object.assign({}, BOSS_TRACKS.superx, { name:'VENENO EN EL 
 BOSS_TRACKS.desgarrador = Object.assign({}, BOSS_TRACKS.desgarrador, { name:'SIERRA DE GUERRA', gen:'desgarrador', respaldo: BOSS_TRACKS.desgarrador });
 // y también el Artillero, Desesperación, Kaiyin y el trípode marciano (mismos nombres, música nueva)
 for (const k of ['artillero', 'desesperacion', 'kaiyin', 'tripode']) BOSS_TRACKS[k] = Object.assign({}, BOSS_TRACKS[k], { gen: k, respaldo: BOSS_TRACKS[k] });
+// El Héroe Mágico: su marcha, ahora con orquesta y coro del estudio (mismo nombre; la de antes, de respaldo).
+BOSS_TRACKS.heroe = Object.assign({}, BOSS_TRACKS.heroe, { gen: 'heroe', respaldo: BOSS_TRACKS.heroe });
 // El viltrumita rival del VS Legendario (con el traje del Regente) tiene su
 // propio tema; antes tomaba prestado el de Muerte Veloz.
 BOSS_TRACKS.rivalVil = { tempo: 148, name:'SANGRE DEL IMPERIO', gen:'rivalVil', scale: BOSS_TRACKS.muerteVeloz.scale, respaldo: BOSS_TRACKS.muerteVeloz };
@@ -13747,6 +13819,89 @@ function estudioPartituras(I){
           mel(C, c, tema[c - 24], (t, d, m)=>{ sinte(C, t, d*0.95, m + 12, 0.9, Object.assign({}, lead, { corte: 2300, gan: 0.3 })); sinte(C, t, d*0.95, m, 0.75, Object.assign({}, lead, { gan: 0.26, pan: -0.25 })); });
           if (c % 4 === 0) estampido(c);
           if (c % 2 === 1) sierra(C.t(c, 14), 81, 0.75);
+        }
+      } },
+
+    // =================================================================
+    // EL HÉROE MÁGICO: marcha épica de fantasía en re dórico a 132. Coro,
+    // metales, cuerdas en corcheas, arpa, campanas de cristal, órgano y
+    // tambores de guerra. El tema es la melodía de su pista de antes, que
+    // sube por grados; el puente es un conjuro (órgano, campanas y arpa a medio
+    // tiempo) y al final vuelve todo, con el tema arriba en trompetas y coro.
+    // =================================================================
+    heroe: { bpm: 132, compases: 32, bucle: 4, semilla: 141, master: { rms: 0.21, bombeo: 0.22, reverb: { tam: 0.9, amort: 0.3 } },
+      compone(C){
+        const PROG_A = [[38, 'm'], [36, 'M'], [41, 'M'], [43, 'M']];          // Rem Do Fa Sol (la sexta mayor del dórico)
+        const PROG_B = [[43, 'M'], [40, 'm'], [45, 'm'], [38, 'm']];          // Sol Mim Lam Rem
+        const trompa = { onda: 'saw', voces: 4, des: 9, a: 0.05, d: 0.35, s: 0.85, r: 0.3, corte: 1200, envF: 900, decF: 0.25, vib: 0.006, gan: 0.4, rev: 0.45, glide: 0.03 };
+        const bronce = { onda: 'saw', voces: 3, des: 8, a: 0.02, d: 0.25, s: 0.7, r: 0.18, corte: 800, envF: 1600, decF: 0.18, q: 0.9, gan: 0.36, rev: 0.35 };
+        const spicc = { onda: 'saw', voces: 3, des: 10, a: 0.004, d: 0.1, s: 0.2, r: 0.06, corte: 1900, envF: 1100, decF: 0.07, gan: 0.17, rev: 0.3 };
+        const cuerdasPad = { onda: 'saw', voces: 5, des: 14, a: 0.5, r: 0.7, corte: 1500, q: 0.8, gan: 0.2, rev: 0.55 };
+        const campana = (t, m, v)=> fm(C, t, C.T(6), m, v, { razon: 3.5, indice: 2.6, kd: 1.6, dec: 1.4, gan: 0.12, rev: 0.5, eco: 0.25 });
+        const arpa = (c, raiz, tipo, alto)=>{
+          const a = voz(raiz + (alto ? 36 : 24), tipo, alto ? 74 : 64), p = [a[0], a[1], a[2], a[0] + 12, a[1] + 12, a[2], a[1], a[0] + 12];
+          for (let st = 0; st < 16; st += 2) pulsada(C, C.t(c, st), p[(st/2) % 8], st % 8 === 0 ? 0.95 : 0.7, { brillo: 0.55, caida: 0.997, dur: 1.6, gan: 0.3, pan: st % 4 ? 0.3 : -0.3, rev: 0.4, eco: 0.15 });
+        };
+        const cuerdas = (c, raiz, tipo)=>{
+          const a = voz(raiz + 24, tipo, 60), p = [a[0], a[1], a[2], a[1]];
+          for (let st = 0; st < 16; st += 2) sinte(C, C.t(c, st), C.T(1.4), p[(st/2) % 4], st % 4 === 0 ? 1 : 0.7, Object.assign({}, spicc, { pan: st % 4 ? 0.25 : -0.25 }));
+          bajo(C, C.t(c, 0), C.T(8), raiz, 0.9, { tipo: 'sub', gan: 0.42, bombea: false });
+          bajo(C, C.t(c, 8), C.T(8), raiz + (tipo === 'm' ? 7 : 7), 0.8, { tipo: 'sub', gan: 0.36, bombea: false });
+        };
+        const tambores = (c, fill)=>{
+          rit(C, c, 'x.......x...x...', (t, v)=> timbal(C, t, 38, v, { orquesta: true, dec: 0.9, gan: 0.5, rev: 0.35 }));
+          rit(C, c, fill ? '....x...x.x.xxxx' : '....x.......x...', (t, v)=> caja(C, t, v*0.85, { tono: 205, dec: 0.18, gan: 0.45, rev: 0.3 }));
+          rit(C, c, 'x...x...x...x...', (t, v)=> bombo(C, t, 0.7, { dec: 0.35, f0: 120, f1: 44, dist: 1.2, gan: 0.55 }));
+        };
+        const golpe = (c, raiz, tipo)=>{ platillo(C, C.t(c, 0), 1); timbal(C, C.t(c, 0), 26, 1, { orquesta: true, dec: 1.6, gan: 0.55 }); sinte(C, C.t(c, 0), C.T(4), voz(raiz + 24, tipo, 60), 1, Object.assign({}, bronce, { corte: 1100, envF: 2400, gan: 0.42 })); };
+        const tema = ['A4:4 A4:2 B4:2 C5:4 B4:2 A4:2', 'G4:4 G4:2 A4:2 B4:4 A4:2 G4:2', 'F4:4 F4:2 G4:2 A4:4 G4:2 F4:2', 'E4:2 F4:2 G4:4 A4:8',
+                      'D5:4 C5:2 B4:2 C5:4 B4:2 A4:2', 'B4:4 A4:2 G4:2 A4:4 G4:2 F4:2', 'G4:2 A4:2 B4:4 A4:2 G4:2 F4:2 E4:2', 'D4:12 -:4'];
+        // ---- intro (0-3): coro y cuerdas que se abren, arpa, campanas de cristal y la llamada de trompas ----
+        coro(C, C.t(0), C.T(64), [50, 57, 62], 0.85, { vocal: 'o', gan: 0.45, a: 1.6 });
+        sinte(C, C.t(0), C.T(64), voz(62, 'm', 62), 0.8, Object.assign({}, cuerdasPad, { a: 2 }));
+        for (let c = 0; c < 4; c++){ arpa(c, PROG_A[c][0], PROG_A[c][1], true); campana(C.t(c, 0), 81 - (c % 2)*5, 0.8); campana(C.t(c, 8), 74 + (c % 2)*3, 0.6); }
+        mel(C, 2, tema[0] + ' ' + tema[3], (t, d, m)=> sinte(C, t, d*0.96, [m - 12, m - 24], 0.9, trompa));
+        rit(C, 3, 'x.x.x.x.xxxxxxxx', (t, v, s)=> timbal(C, t, 38, 0.3 + s*0.04, { orquesta: true, dec: 0.4, gan: 0.45 }));
+        barrido(C, C.t(2), C.T(32), 0.8, { f0: 200, f1: 6000, gan: 0.22 });
+        // ---- A (4-11): la marcha. Cuerdas, tambores y el tema en las trompas ----
+        for (let c = 4; c < 12; c++){
+          const [r, tp] = (c < 8 ? PROG_A : PROG_B)[(c - 4) % 4];
+          tambores(c, c === 11); cuerdas(c, r, tp); arpa(c, r, tp);
+          mel(C, c, tema[c - 4], (t, d, m)=> sinte(C, t, d*0.96, [m, m - 12], 1, trompa));
+          for (const st of [0, 6, 10]) sinte(C, C.t(c, st), C.T(1.5), voz(r + 24, tp, 55), st ? 0.7 : 0.9, bronce);
+          if (c % 4 === 0) golpe(c, r, tp);
+        }
+        // ---- B (12-19): el tema con el coro, órgano y campanas ----
+        for (let c = 12; c < 20; c++){
+          const [r, tp] = (c < 16 ? PROG_A : PROG_B)[(c - 12) % 4];
+          tambores(c, c === 19); cuerdas(c, r, tp); arpa(c, r, tp, true);
+          mel(C, c, tema[c - 12], (t, d, m)=>{ sinte(C, t, d*0.96, [m, m - 12], 0.95, trompa); coro(C, t, d*0.98, [m], 0.7, { vocal: 'a', gan: 0.42, a: 0.06, r: 0.25 }); });
+          organo(C, C.t(c), C.T(16), voz(r + 24, tp, 58), 0.8, { gan: 0.2, a: 0.2, r: 0.4 });
+          if (c % 2 === 0) campana(C.t(c, 0), voz(r + 36, tp, 79)[2], 0.7);
+          if (c % 4 === 0) golpe(c, r, tp);
+        }
+        // ---- puente (20-23): el conjuro, a medio tiempo, que crece hacia la vuelta ----
+        const CONJURO = [[41, 'M'], [43, 'M'], [45, 'm'], [45, 'M']];
+        for (let c = 20; c < 24; c++){
+          const [r, tp] = CONJURO[c - 20];
+          organo(C, C.t(c), C.T(16), voz(r + 24, tp, 62), 0.85, { gan: 0.18, a: 0.3, r: 0.6 });
+          coro(C, C.t(c), C.T(16), voz(r + 24, tp, 64), 0.8, { vocal: 'o', gan: 0.34, a: 0.3 });
+          arpa(c, r, tp, true);
+          for (const st of [0, 6, 12]) campana(C.t(c, st), voz(r + 36, tp, 80)[st/6 % 3], 0.65);
+          rit(C, c, 'x...............', (t, v)=> timbal(C, t, 26, 0.9, { orquesta: true, dec: 1.8, gan: 0.55, rev: 0.5 }));
+          bajo(C, C.t(c, 0), C.T(16), r, 0.9, { tipo: 'sub', gan: 0.42, bombea: false });
+        }
+        rit(C, 23, 'xxxxxxxxxxxxxxxx', (t, v, s)=> timbal(C, t, 38, 0.25 + s*0.05, { orquesta: true, dec: 0.3, gan: 0.45 }));
+        barrido(C, C.t(22), C.T(32), 1, { f0: 160, f1: 9000, gan: 0.3 });
+        // ---- A' (24-31): todo, el tema arriba en trompetas y coro y un contracanto de cuerdas ----
+        const contra = ['F3:8 E3:8', 'E3:8 D3:8', 'C3:8 E3:8', 'D3:8 B2:8', 'D3:8 E3:8', 'B2:8 C3:8', 'E3:8 C#3:8', 'D3:16'];
+        for (let c = 24; c < 32; c++){
+          const [r, tp] = (c < 28 ? PROG_A : PROG_B)[(c - 24) % 4];
+          tambores(c, c === 31); cuerdas(c, r, tp); arpa(c, r, tp, true);
+          mel(C, c, tema[c - 24], (t, d, m)=>{ sinte(C, t, d*0.96, m + 12, 0.85, Object.assign({}, trompa, { corte: 1700, gan: 0.34 })); sinte(C, t, d*0.96, m, 0.75, Object.assign({}, trompa, { gan: 0.3, pan: -0.2 })); coro(C, t, d*0.98, [m, m + 12], 0.6, { vocal: 'a', gan: 0.38, a: 0.06, r: 0.25 }); });
+          mel(C, c, contra[c - 24], (t, d, m)=> sinte(C, t, d*0.96, m + 12, 0.7, Object.assign({}, cuerdasPad, { a: 0.15, gan: 0.22, pan: 0.25 })));
+          if (c % 4 === 0) golpe(c, r, tp);
+          if (c % 2 === 1) campana(C.t(c, 8), voz(r + 36, tp, 81)[1], 0.6);
         }
       } },
 
@@ -18987,7 +19142,7 @@ function drawDragonAvisos(){
 // Figuras en pixel art dibujadas una vez por fotograma y guardadas. Las del
 // ejército del Héroe se pasan a tonos espectrales (azul pálido) y en partida
 // se pintan semitransparentes con un halo: parecen almas en pena.
-const FANT_TAM = { arquero:[40,46,20,43], caballero:[70,58,34,55], golem:[60,62,30,59], heroe:[52,64,26,61],
+const FANT_TAM = { arquero:[40,46,20,43], caballero:[70,58,34,55], golem:[60,62,30,59], heroe:[64,82,30,78],
                    ogro:[58,60,29,57], dragoncito:[56,44,28,30] };
 const fantCache = new Map();
 function jR(g, c, x, y, w, h){ g.fillStyle = c; g.fillRect(x, y, w, h); }
@@ -19014,7 +19169,7 @@ function fantFrame(tipo, pose, f){
   const g = c.getContext('2d'); g.lineCap = 'round'; g.lineJoin = 'round';
   g.translate(cx, py);
   ({ arquero:dibArquero, caballero:dibCaballero, golem:dibGolem, heroe:dibHeroe, ogro:dibOgro, dragoncito:dibDragoncito })[tipo](g, pose, f);
-  if (tipo === 'heroe') aFantasma(c, 0.45);
+  if (tipo === 'heroe') aFantasma(c, 0.3);
   else if (tipo !== 'ogro' && tipo !== 'dragoncito') aFantasma(c, 0.85);
   pixelArte(c, tipo === 'ogro' || tipo === 'dragoncito' ? '#140e08' : '#0e1a36');
   fantCache.set(k, c);
@@ -19102,33 +19257,72 @@ function dibGolem(g, pose, f){
   jR(g, '#7affd8', -3, -30, 6, 1); jR(g, '#7affd8', 0, -33, 1, 7);
 }
 // El Héroe Mágico: armadura dorada, capa, corona y cetro con un orbe.
+// El Héroe Mágico: un rey mago. Capa real con forro carmesí y ribete de oro
+// que ondea, túnica azul con el emblema del sol, coraza y hombreras doradas
+// con gemas, corona, melena y barba blancas, ojos que brillan y un báculo
+// con un cristal flotante en su media luna. Poses: anda (4, la capa y el
+// bajo de la túnica ondean), ataca 0 (invoca: báculo en alto y la otra mano
+// abierta) y ataca 1 (cura o escuda: báculo hacia delante).
+function heroeBaculo(pose, f){
+  if (pose === 'ataca' && f === 0) return { mx: 12, my: -52, x0: 8, y0: -30, x1: 16, y1: -70 };     // invoca
+  if (pose === 'ataca') return { mx: 14, my: -42, x0: 5, y0: -26, x1: 25, y1: -58 };               // cura / escuda
+  return { mx: 11, my: -40, x0: 11, y0: -2, x1: 12, y1: -66 };
+}
+// dónde brilla el cristal (en el dibujo), para el resplandor de partida
+function heroeCristal(pose, f){ const B = heroeBaculo(pose, f), dx = B.x1 - B.x0, dy = B.y1 - B.y0, l = Math.hypot(dx, dy); return { x: B.x1 + dx/l*4, y: B.y1 + dy/l*4 }; }
 function dibHeroe(g, pose, f){
   const inv = pose === 'ataca' && f === 0, cura = pose === 'ataca' && f === 1;
-  // capa ondeando
-  g.fillStyle = '#3a4ab8'; g.beginPath(); g.moveTo(-5, -40); g.quadraticCurveTo(-18, -24 + (f % 2)*2, -14, -2); g.lineTo(-2, -4); g.lineTo(2, -38); g.closePath(); g.fill();
-  jR(g, '#2a3488', -12, -12, 6, 8);
-  // piernas con grebas
-  jL(g, '#b89a3a', 4, -2, -20, -4, -3); jL(g, '#d8ba4a', 4, 2, -20, 4, -3);
-  jR(g, '#6a4a2a', -6, -4, 5, 3); jR(g, '#6a4a2a', 2, -4, 5, 3);
-  // coraza
-  g.fillStyle = '#d8b84a'; g.beginPath(); g.moveTo(-6, -40); g.lineTo(6, -40); g.lineTo(7, -20); g.lineTo(-7, -20); g.closePath(); g.fill();
-  jR(g, '#f4e08a', 0, -39, 3, 16); jR(g, '#9a7a2a', -7, -24, 14, 3); jO(g, '#3a6ac8', 0, -32, 2.5, 2.5);
-  jO(g, '#e8c870', -7, -38, 4, 3); jO(g, '#e8c870', 7, -38, 4, 3);        // hombreras
-  // cabeza, barba y corona
-  jO(g, '#e8c09a', 1, -46, 4.5, 5);
-  g.fillStyle = '#c8c8c0'; g.beginPath(); g.moveTo(-2, -44); g.lineTo(6, -44); g.lineTo(3, -38); g.lineTo(0, -39); g.closePath(); g.fill();   // barba
-  jR(g, '#1a1410', 3, -48, 1.5, 1.5);
-  jR(g, '#f0d050', -3, -53, 9, 3); for (const x of [-3, 0.5, 4]) { g.fillStyle = '#f0d050'; g.beginPath(); g.moveTo(x, -53); g.lineTo(x + 1.5, -57); g.lineTo(x + 3, -53); g.fill(); }
-  jR(g, '#e84a6a', 1, -52, 2, 1.5);
-  // brazo y cetro
-  const ang = inv ? -1.9 : cura ? -0.3 : -1.2;
-  const hx = 5 + Math.cos(ang)*10, hy = -36 + Math.sin(ang)*10;
-  jL(g, '#d8b84a', 3.4, 5, -36, hx, hy);
-  const cx2 = hx + Math.cos(ang)*14, cy2 = hy + Math.sin(ang)*14;
-  jL(g, '#8a6a2a', 2, hx - Math.cos(ang)*8, hy - Math.sin(ang)*8, cx2, cy2);
-  jO(g, '#f0d050', cx2, cy2, 3, 3);
-  jO(g, inv ? '#aaf0ff' : cura ? '#9aff8a' : '#7ac8ff', cx2 + Math.cos(ang)*3, cy2 + Math.sin(ang)*3, 3.5, 3.5);
-  jL(g, '#d8b84a', 3.2, -5, -36, -8, -26);                                 // otro brazo
+  const ola = pose === 'anda' ? Math.sin(f/4*Math.PI*2) : 0, ola2 = pose === 'anda' ? Math.cos(f/4*Math.PI*2) : 0;
+  const AZ = '#2a3a9e', AZL = '#4a62d0', AZO = '#1a2468', OR = '#d8b04a', ORL = '#f4dc8a', ORO = '#8a6a22', CA = '#a8243a', CAO = '#6a1424';
+  const BL = '#e8e8f0', BLO = '#b8b8c8', PI = '#e8c0a0', GEM = '#5ab8ff';
+  const poli = (c, pts)=>{ g.fillStyle = c; g.beginPath(); g.moveTo(pts[0], pts[1]); for (let k = 2; k < pts.length; k += 2) g.lineTo(pts[k], pts[k + 1]); g.closePath(); g.fill(); };
+  // ---- la capa, detrás: cae de los hombros y ondea; asoma el forro carmesí ----
+  const cx0 = -22 + ola*2, cy0 = -4;
+  g.fillStyle = AZO; g.beginPath(); g.moveTo(-6, -50); g.quadraticCurveTo(-22 - ola*3, -30, cx0, cy0); g.lineTo(cx0 + 10, cy0 + 2 + ola2); g.lineTo(-4, -8); g.lineTo(4, -48); g.closePath(); g.fill();
+  g.fillStyle = CA; g.beginPath(); g.moveTo(cx0 + 1, cy0 - 3); g.quadraticCurveTo(cx0 + 6, cy0 - 7 + ola, cx0 + 11, cy0 - 1 + ola2); g.lineTo(cx0 + 10, cy0 + 2 + ola2); g.lineTo(cx0, cy0); g.closePath(); g.fill();
+  g.strokeStyle = OR; g.lineWidth = 1.2; g.beginPath(); g.moveTo(cx0, cy0); g.lineTo(cx0 + 10, cy0 + 2 + ola2); g.stroke();       // ribete de oro
+  g.strokeStyle = AZ; g.lineWidth = 1.4; g.beginPath(); g.moveTo(-8, -46); g.quadraticCurveTo(-17 - ola*2, -28, -16 + ola, -8); g.stroke();   // pliegue
+  // ---- la túnica: cae de la cintura y ondea en el bajo ----
+  poli(AZO, [-8, -31, 8, -31, 13 + ola2, -1, -13 + ola, -1]);
+  poli(AZ, [-7, -31, 7, -31, 11.5 + ola2, -2, -11.5 + ola, -2]);
+  poli(AZL, [-1, -31, 3, -31, 4 + ola2*0.5, -2, -2 + ola*0.5, -2]);
+  jR(g, ORO, -13 + ola, -3.5, 26 + ola2 - ola, 2.5); jR(g, OR, -13 + ola, -4, 26 + ola2 - ola, 1.2);                          // bajo bordado
+  jR(g, '#3a2a1a', -6 + ola*0.5, -1.5, 4, 1.5); jR(g, '#3a2a1a', 3 + ola2*0.5, -1.5, 4, 1.5);                                 // las botas asoman
+  // ---- el brazo de atrás ----
+  if (inv){ jL(g, ORO, 3.6, -7, -47, -11, -55); jO(g, PI, -12, -57, 2.4, 2.6); jO(g, '#bff4ff', -12, -58, 1.2, 1.2); }      // mano abierta, conjurando
+  else jL(g, ORO, 3.6, -7, -47, -9 - ola, -33);
+  // ---- coraza dorada con el tabardo azul y el sol ----
+  poli(ORO, [-9, -51, 9, -51, 8.5, -30, -8.5, -30]);
+  poli(OR, [-8, -50, 8, -50, 7.6, -31, -7.6, -31]);
+  jR(g, ORL, -6, -49, 2, 16); jL(g, ORO, 0.8, -7, -40, 7, -40);
+  poli(AZ, [-3, -49, 3, -49, 3.5, -30, -3.5, -30]); jR(g, AZL, -2.5, -48, 1.2, 17);
+  jO(g, ORL, 0, -42, 2.6, 2.6); for (let k = 0; k < 8; k++){ const a = k*Math.PI/4; jL(g, OR, 0.8, Math.cos(a)*2.6, -42 + Math.sin(a)*2.6, Math.cos(a)*4.4, -42 + Math.sin(a)*4.4); }
+  jR(g, '#5a3a1a', -9, -32, 18, 3); jO(g, '#e84a6a', 0, -30.5, 1.8, 1.6);                                                    // cinturón y su gema
+  // hombreras, con gema azul
+  for (const sx of [-9, 9]){ jO(g, ORO, sx, -49, 5.4, 4); jO(g, OR, sx, -49.6, 4.6, 3.3); jO(g, ORL, sx - 1, -50.6, 2.4, 1.2); jO(g, GEM, sx, -48.6, 1.4, 1.2); }
+  // ---- la cabeza: melena blanca, cara, barba larga, ojos que brillan y la corona ----
+  g.fillStyle = BLO; g.beginPath(); g.moveTo(-3, -62); g.quadraticCurveTo(-9, -58, -7 - ola*0.6, -46); g.lineTo(-2, -48); g.closePath(); g.fill();   // melena
+  jO(g, PI, 2, -56, 5, 5.6);
+  g.fillStyle = BL; g.beginPath(); g.moveTo(-1, -54); g.lineTo(7, -54); g.quadraticCurveTo(7, -45, 3 + ola*0.5, -41); g.quadraticCurveTo(0, -46, -1, -54); g.closePath(); g.fill();   // barba
+  jL(g, BLO, 0.8, 2, -51, 3 + ola*0.4, -44); jR(g, BL, 1, -57, 6, 1.4);                                                      // bigote
+  jR(g, '#bff4ff', 4, -58.4, 1.8, 1.4); jR(g, '#ffffff', 4.6, -58.2, 0.8, 0.8);                                               // el ojo, con luz propia
+  jR(g, BLO, -2, -61, 8, 2);                                                                                                   // la frente bajo la corona
+  jR(g, ORO, -3.5, -63.5, 11, 3.2); jR(g, OR, -3, -63, 10, 2);
+  for (const x of [-3.5, -0.5, 2.5, 5.5]){ poli(OR, [x, -63, x + 1.5, -68, x + 3, -63]); jO(g, ORL, x + 1.5, -67.6, 0.8, 0.8); }
+  jO(g, '#e84a6a', 1.5, -62, 1.2, 1); jO(g, GEM, 5.3, -62, 1, 0.9); jO(g, GEM, -2.2, -62, 1, 0.9);
+  // ---- el báculo: vara de madera con virolas de oro, la media luna y el cristal ----
+  const B = heroeBaculo(pose, f), dx = B.x1 - B.x0, dy = B.y1 - B.y0, l = Math.hypot(dx, dy), ux = dx/l, uy = dy/l;
+  jL(g, '#3a2414', 2.6, B.x0, B.y0, B.x1, B.y1); jL(g, '#7a5430', 1.2, B.x0, B.y0, B.x1, B.y1);
+  for (const k of [0.25, 0.6]) jO(g, OR, B.x0 + dx*k, B.y0 + dy*k, 1.8, 1.8);
+  const lx = B.x1, ly = B.y1, nx = -uy, ny = ux;
+  g.strokeStyle = OR; g.lineWidth = 1.8; g.beginPath();                                                                        // la media luna que sujeta el cristal
+  g.moveTo(lx + nx*5, ly + ny*5); g.quadraticCurveTo(lx - ux*2, ly - uy*2, lx - nx*5, ly - ny*5); g.stroke();
+  const kx = lx + ux*4, ky = ly + uy*4, cc = inv ? '#bff4ff' : cura ? '#aaffb0' : '#7ad4ff';
+  poli('#1a4a8a', [kx + ux*5, ky + uy*5, kx + nx*3.2, ky + ny*3.2, kx - ux*4, ky - uy*4, kx - nx*3.2, ky - ny*3.2]);
+  poli(cc, [kx + ux*4, ky + uy*4, kx + nx*2.2, ky + ny*2.2, kx - ux*3, ky - uy*3, kx - nx*2.2, ky - ny*2.2]);
+  jO(g, '#ffffff', kx + ux*1.2 + nx*0.8, ky + uy*1.2 + ny*0.8, 0.9, 0.9);
+  // ---- la mano que lo sujeta (delante) ----
+  jL(g, OR, 3.8, 7, -47, B.mx, B.my); jO(g, ORO, B.mx, B.my, 2.4, 2.4); jO(g, OR, B.mx - 0.4, B.my - 0.4, 1.7, 1.7);
 }
 // Ogro aliado del mago: grande, verde y con garrote.
 function dibOgro(g, pose, f){
@@ -19724,13 +19918,29 @@ function drawHeroe(e){
   }
   ctx.globalAlpha = 0.6; ctx.drawImage(auraFant(), s.x - 55, s.y - 90 + flota, 110, 110); ctx.globalAlpha = 1;
   sombra(s.x, s.y + 10, 40, 12, 0.6);
-  const pose = e.fase === 'invoca' ? ['ataca', 0] : e.fase ? ['ataca', 1] : ['anda', 0];
-  pintaFrame(fantFrame('heroe', pose[0], pose[1]), 'heroe', s.x, s.y + 10 + flota, e.facing, e.rot, 1.3, 0.92);
-  // el orbe del cetro brilla
-  ctx.globalAlpha = 0.35 + Math.sin(t*6)*0.15;
+  const pose = e.fase === 'invoca' ? ['ataca', 0] : e.fase ? ['ataca', 1] : ['anda', Math.floor(t*6) % 4], ESC = 1.12;
+  // runas que orbitan a su alrededor: las de detrás, antes que él
+  const runa = (delante)=>{
+    for (let i = 0; i < 3; i++){
+      const a = t*1.1 + i*Math.PI*2/3, sn = Math.sin(a);
+      if ((sn > 0) !== delante) continue;
+      const rx = s.x + Math.cos(a)*34, ry = s.y - 34 + flota + sn*9, k = 0.55 + 0.45*Math.sin(t*4 + i*2);
+      ctx.globalAlpha = (delante ? 0.8 : 0.45)*k; ctx.fillStyle = e.fase === 'cura' ? '#9aff8a' : '#aaf0ff';
+      ctx.beginPath(); ctx.moveTo(rx, ry - 4); ctx.lineTo(rx + 2.6, ry); ctx.lineTo(rx, ry + 4); ctx.lineTo(rx - 2.6, ry); ctx.closePath(); ctx.fill();
+      ctx.fillRect(rx - 4, ry - 0.6, 8, 1.2);
+    }
+    ctx.globalAlpha = 1;
+  };
+  runa(false);
+  pintaFrame(fantFrame('heroe', pose[0], pose[1]), 'heroe', s.x, s.y + 10 + flota, e.facing, e.rot, ESC, 0.95);
+  runa(true);
+  // el cristal del báculo brilla (más al conjurar)
+  const cr = heroeCristal(pose[0], pose[1]), cx3 = s.x + e.facing*cr.x*ESC, cy3 = s.y + 10 + flota + cr.y*ESC;
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.globalAlpha = (e.fase ? 0.55 : 0.3) + Math.sin(t*6)*0.12;
   ctx.fillStyle = e.fase === 'cura' ? '#9aff8a' : '#aaf0ff';
-  ctx.beginPath(); ctx.arc(s.x + e.facing*18, s.y - 58 + flota, 7, 0, Math.PI*2); ctx.fill();
-  ctx.globalAlpha = 1;
+  ctx.beginPath(); ctx.arc(cx3, cy3, e.fase ? 10 : 7, 0, Math.PI*2); ctx.fill();
+  ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
   if (showHpBars) hpBar(s.x, s.y - 88, 76, e.hp, e.maxhp, '#c81f1f');
 }
 function drawKaiyin(e){
@@ -20589,7 +20799,7 @@ const AVE_HP = 120;
 const GRAV_HP = 650, GRAV_R = 150, GRAV_AVISO = 0.9, GRAV_DUR = 5, GRAV_K = 0.42, GRAV_DPS = 7;
 const CAZH_HP = 260, CAZH_BALAS = 10, CAZH_DMG = 4, CAZH_CARGA = 0.6;
 const ACOR_HP = 420, ACOR_DMG = 22, ACOR_APUNTA = 0.7, ACOR_MIS_R = 125, ACOR_MIS_AVISO = 1.15, ACOR_MIS_N = 8, ACOR_MIS_DMG = 12;
-Object.assign(AL_TAM, { medico:[50,60,24,57], voltio:[72,64,32,61], machacador:[112,112,42,106], ave:[104,72,52,36], gravitron:[172,100,86,50],
+Object.assign(AL_TAM, { medico:[56,64,26,61], voltio:[72,64,32,61], machacador:[112,112,42,106], ave:[104,72,52,36], gravitron:[172,100,86,50],
                         helicaza:[134,72,67,40], acorazado:[118,112,52,108] });
 Object.assign(AL_VUELA, { ave:1, gravitron:1, helicaza:1 });
 const REFZ_HP = { centElite:80, medico:MED_HP, voltio:VOL_HP, machacador:MACH_HP, ave:AVE_HP, gravitron:GRAV_HP, helicaza:CAZH_HP, acorazado:ACOR_HP };
@@ -20688,35 +20898,63 @@ function refuerzosIconCv(){
 }
 
 // ---- dibujos ----
-// Médico: robot negro con ribetes rojos y un gran tanque de cristal lleno de
-// líquido rojo a la espalda, conectado por una manguera a su pistola de cura.
+// Médico: robot de campaña negro con ribetes rojos. A la espalda, un tanque
+// de cristal con aros de metal, lleno de líquido rojo que se mece y burbujea,
+// unido por una manguera a su pistola de cura (con su vial). Coraza con panel
+// blanco y la cruz, hombrera con cruz, casco redondo con visor que brilla y
+// antena que parpadea. Al andar dobla las rodillas.
 function dibMedico(g, pose, f){
-  const neg = '#26262e', negL = '#4a4a56', negO = '#141418', rojo = '#c8202a', rojoL = '#ff5a4a', rojoO = '#7a1018';
-  const bla = '#d8dce0', blaO = '#9aa0a8';
-  const sw = pose === 'anda' ? Math.sin(f/4*Math.PI*2)*4 : 0;
-  jL(g, blaO, 5, -1, -17, -2 - sw, -3); jR(g, negO, -6 - sw, -4, 8, 4);
-  jL(g, bla, 5.5, 3, -17, 3 + sw, -3); jR(g, negO, -1 + sw, -4, 9, 4);
-  jO(g, negO, 1, -10, 2.6, 2.6);
-  const ola = pose === 'anda' ? Math.sin(f/4*Math.PI*2) : 0;
-  jR(g, '#4a5058', -18, -51, 13, 3); jR(g, '#7a8088', -17, -52, 11, 1.4);       // tapa del tanque
-  jR(g, '#a8c4cc', -18, -48, 13, 28);                                           // cristal
-  jR(g, rojoO, -17, -41 + ola, 11, 20 - ola);                                  // líquido
-  jR(g, rojo, -16, -41 + ola, 8, 20 - ola); jR(g, rojoL, -16, -41 + ola, 9, 1.5);
-  jR(g, '#eef8fb', -17, -47, 1.6, 25);                                          // brillo del cristal
-  jR(g, '#ffb0a8', -12, -34, 1.6, 1.6); jR(g, '#ffb0a8', -10, -28, 1.2, 1.2);   // burbujas
-  jR(g, '#4a5058', -18, -21, 13, 3);                                            // base
-  g.fillStyle = neg; g.beginPath(); g.moveTo(-6, -37); g.lineTo(8, -37); g.lineTo(7, -17); g.lineTo(-5, -17); g.closePath(); g.fill();
-  jR(g, negL, -5, -36, 12, 2); jR(g, rojoO, -5, -20, 11, 2);
-  jR(g, '#f0f0f0', -1, -33, 7, 7); jR(g, rojo, 1.5, -32.5, 2, 6); jR(g, rojo, -0.5, -30.5, 6, 2);   // la cruz
-  jO(g, negO, 2, -43, 7, 6.5); jO(g, neg, 2, -44, 6.2, 5.6);                   // casco
-  jR(g, rojo, 1, -48, 7, 2.5); jR(g, bla, 3, -44, 5, 4); jR(g, '#7fe8ff', 4, -43, 4, 1.6);
-  jL(g, negL, 1, -2, -48, -4, -54); jO(g, rojoL, -4, -54.5, 1.5, 1.5);          // antena
-  const cura = pose === 'ataca';
-  const ax = cura ? 16 : 10, ay = cura ? -30 : -24;
-  g.strokeStyle = rojoO; g.lineWidth = 2; g.beginPath(); g.moveTo(-11, -22); g.quadraticCurveTo(-4, -12, ax - 4, ay + 1); g.stroke();
-  jL(g, rojo, 3.4, 3, -34, ax - 3, ay);
-  jR(g, blaO, ax - 4, ay - 2, 9, 4); jR(g, bla, ax - 3, ay - 2, 7, 1.5);
-  jO(g, cura ? '#ffe0e6' : rojoL, ax + 6, ay, 2, 2);
+  const K = '#0e0e12', N = '#26262e', NL = '#454552', NO = '#17171c', R = '#c8202a', RL = '#ff5a4a', RO = '#7a1018';
+  const B = '#e2e6ea', BO = '#9aa0a8', V = '#7fe8ff';
+  const anda = pose === 'anda', cura = pose === 'ataca';
+  const ph = anda ? f/4*Math.PI*2 : 0, sw = Math.sin(ph), by = anda ? Math.abs(Math.cos(ph)) : 0;
+  // pierna: cadera, rodilla (se dobla al andar) y pie
+  const pierna = (fase, lejos)=>{
+    const sn = Math.sin(ph + fase), c = Math.cos(ph + fase);
+    const hx = lejos ? -2 : 2, hy = -19 + by;
+    const fx = hx + (anda ? sn*6 : 0), fy = -(anda ? Math.max(0, c)*3 : 0);
+    const kx = (hx + fx)/2 + 2 + (anda ? Math.max(0, -sn)*2 : 0), ky = (hy + fy)/2 - 1;
+    jL(g, K, 6.4, hx, hy, kx, ky); jL(g, lejos ? NO : N, 5, hx, hy, kx, ky);
+    jL(g, K, 5.8, kx, ky, fx, fy - 2); jL(g, lejos ? NO : N, 4.4, kx, ky, fx, fy - 2);
+    if (!lejos) jL(g, R, 0.9, hx + 1.6, hy + 1, kx + 1.6, ky);
+    jO(g, K, kx, ky, 3, 3); jO(g, lejos ? N : NL, kx, ky, 2.2, 2.2);
+    jR(g, K, fx - 3.5, fy - 3.4, 8.4, 3.8); jR(g, lejos ? NO : NL, fx - 2.8, fy - 3, 7, 1.4);
+  };
+  pierna(Math.PI, true); pierna(0, false);
+  // la mochila: el tanque de cristal
+  const ola = anda ? sw : 0, tx = -19, ty = -50 + by;
+  jR(g, K, tx - 1.4, ty - 1, 15, 32);
+  jR(g, '#a8c4cc', tx, ty + 3, 12, 25);
+  jR(g, RO, tx + 1, ty + 9 + ola, 10, 19 - ola); jR(g, R, tx + 2, ty + 9 + ola, 7, 19 - ola); jR(g, RL, tx + 1, ty + 9 + ola, 10, 1.4);
+  jR(g, '#eef8fb', tx + 1, ty + 4, 1.4, 22);
+  for (const [bx, b0, br] of [[5, 16, 1.4], [8, 22, 1], [4, 25, 0.9]]) jO(g, '#ffb0a8', tx + bx, ty + b0 - ((f + b0) % 4)*1.2, br, br);
+  for (const yy of [0, 27]){ jR(g, NL, tx - 1.4, ty + yy, 15, 3.2); jR(g, '#8a8e98', tx - 1.4, ty + yy, 15, 1.2); }
+  jR(g, NL, tx + 12, ty + 4, 2.4, 22); jR(g, '#2a2a30', tx + 4, ty + 30, 4, 2.4);
+  // brazo de atrás
+  jL(g, K, 5, -4, -37 + by, -7 - sw*2, -26 + by); jL(g, NO, 3.6, -4, -37 + by, -7 - sw*2, -26 + by);
+  // el torso: coraza negra, panel blanco con la cruz y rejillas
+  jR(g, K, -8, -41 + by, 18, 23); jR(g, N, -7, -40 + by, 16, 21);
+  jR(g, NL, -6, -39 + by, 14, 1.6); jR(g, RO, -7, -23 + by, 16, 2.2); jR(g, R, -7, -23 + by, 16, 0.9);
+  jR(g, K, -1.6, -36.6 + by, 9.2, 9.4); jR(g, B, -1, -36 + by, 8, 8); jR(g, BO, -1, -29 + by, 8, 1);
+  jR(g, R, 1.8, -35 + by, 2.4, 6); jR(g, R, -0.2, -33 + by, 6.4, 2.2);
+  jR(g, '#3a3a44', -5, -32 + by, 3, 1); jR(g, '#3a3a44', -5, -30 + by, 3, 1); jR(g, '#3a3a44', -5, -28 + by, 3, 1);
+  // la cabeza: casco redondo, visor, cruz en el lateral y la antena
+  jO(g, K, 2, -47 + by, 7.6, 7.2); jO(g, N, 2, -47.6 + by, 6.6, 6.2); jO(g, NL, 0, -50 + by, 3.6, 2.2);
+  jR(g, K, 3, -49 + by, 7, 3.8); jR(g, V, 4, -48.4 + by, 5.4, 2); jR(g, '#e6fbff', 4.4, -48.2 + by, 1.6, 0.8);
+  jR(g, B, 2, -43.4 + by, 6, 2.2); jR(g, BO, 2, -42 + by, 6, 0.8);
+  jR(g, R, -3.2, -49.2 + by, 1.2, 3.6); jR(g, R, -4.4, -48 + by, 3.6, 1.2);
+  jL(g, NL, 1, -1, -53 + by, -3, -58 + by); jO(g, f % 2 ? '#ff8a7a' : RL, -3, -58.5 + by, 1.5, 1.5);
+  // la manguera, del tanque a la pistola
+  const ax = cura ? 18 : 11, ay = (cura ? -33 : -27) + by;
+  g.strokeStyle = RO; g.lineWidth = 2.4; g.beginPath(); g.moveTo(tx + 6, ty + 31); g.quadraticCurveTo(-4, -10 + by, ax - 4, ay + 2); g.stroke();
+  g.strokeStyle = R; g.lineWidth = 0.9; g.stroke();
+  // hombrera con la cruz y el brazo con la pistola de cura
+  jO(g, K, 6, -39 + by, 5.2, 3.8); jO(g, B, 6, -39.4 + by, 4.4, 3); jR(g, R, 5.4, -41 + by, 1.2, 3.2); jR(g, R, 4.2, -40 + by, 3.6, 1.2);
+  jL(g, K, 4.8, 7, -37 + by, ax - 4, ay); jL(g, N, 3.4, 7, -37.4 + by, ax - 4, ay - 0.4);
+  jR(g, K, ax - 5, ay - 3, 12, 5.4); jR(g, B, ax - 4, ay - 2.4, 10, 3.8); jR(g, BO, ax - 4, ay + 0.4, 10, 1);
+  jR(g, K, ax - 2.6, ay - 5.4, 5, 3); jR(g, '#a8c4cc', ax - 2, ay - 5, 4, 2); jR(g, R, ax - 1.6, ay - 4.6, 3, 1.2);   // el vial
+  jR(g, RO, ax + 5.6, ay - 1.6, 2.4, 3);
+  jO(g, cura ? '#ffe0e6' : RL, ax + 8.4, ay - 0.2, cura ? 2.6 : 1.6, cura ? 2.6 : 1.6);
 }
 // Duende voltaico: un duendecillo de cabeza verde metido en una armadura
 // morada redonda, con un macizo de cristales dorados en el lomo, la cabeza
@@ -20985,26 +21223,65 @@ function dibAcorazado(g, pose, f){
   if (apunta && f === 1){ jO(g, '#fff0b0', 62, -42, 5, 3); jO(g, '#ffb84a', 66, -42, 4, 2.4); }
   g.restore();
 }
-// Machacador: bruto de piel roja, cresta negra y pantalón gris, con un
-// emisor de escudo en una muñeca y una espada de energía de doble hoja.
+// Machacador: un bruto de piel roja, musculoso, con correaje negro, cresta
+// de púas, ceño, ojos amarillos y colmillos; una hombrera de acero con púas
+// sobre el brazo de la espada, el emisor del escudo en la otra muñeca, un
+// cinturón ancho con hebilla y bolsas, pantalón gris con rodilleras y botas
+// con puntera. En el puño, la espada de energía de doble hoja.
 function dibMachacador(g, pose, f){
-  const piel = '#c8382a', pielL = '#e86a4a', pielO = '#7a1e14', pan = '#6a6e76', panO = '#44484e', neg = '#1c1c22', negL = '#44464f', ama = '#e8c020', ver = '#3ae0a0';
-  const s = pose === 'anda' ? Math.sin(f/4*Math.PI*2)*5 : 0;
-  jL(g, panO, 7, -4, -27, -5 - s, -4); jR(g, neg, -10 - s, -6, 10, 6);
-  jL(g, pan, 7.5, 5, -27, 5 + s, -4); jR(g, neg, 1 + s, -6, 11, 6);
-  jR(g, '#2a2a30', -9, -31, 19, 5); jR(g, ama, -1, -30, 4, 3);
-  jL(g, pielO, 5, -10, -50, -15, -38); jL(g, piel, 4.5, -15, -38, -12, -31);    // brazo del escudo
-  jR(g, negL, -16, -37, 7, 7); jR(g, ver, -15, -35, 5, 2);
-  g.fillStyle = piel; g.beginPath(); g.moveTo(-12, -55); g.lineTo(14, -55); g.lineTo(9, -30); g.lineTo(-8, -30); g.closePath(); g.fill();
-  jO(g, pielL, -4, -49, 5, 3.5); jO(g, pielL, 6, -49, 5, 3.5);
-  jR(g, pielO, -4, -41, 9, 1.5); jR(g, pielO, -3, -37, 7, 1.5); jR(g, pielO, 0.5, -45, 1, 13);
-  jL(g, neg, 2.5, -10, -54, 9, -33);
-  jO(g, pielO, 3, -61, 6.5, 6.5); jO(g, piel, 3, -62, 6, 6);
-  jR(g, neg, -2, -70, 9, 4.5); jR(g, neg, 0, -72, 5, 2);
-  jR(g, '#ffd23a', 4, -63, 3, 1.6); jR(g, neg, 3, -65, 6, 1.3); jR(g, '#f0f0e0', 4, -58, 5, 1.6);
+  const K = '#120c0c', piel = '#c8382a', pielL = '#e86a4a', pielO = '#7a1e14', pielD = '#561410';
+  const pan = '#565a62', panL = '#7a7e88', panO = '#34373d', met = '#8a8e98', metL = '#c4c8d2', metO = '#4a4e58';
+  const neg = '#1c1c22', negL = '#44464f', ama = '#e8c020', amaO = '#9a7a10', ver = '#3ae0a0', verL = '#b8ffe0';
+  const anda = pose === 'anda', ph = anda ? f/4*Math.PI*2 : 0, by = anda ? Math.abs(Math.cos(ph))*1.5 : 0;
+  const poli = (c, pts)=>{ g.fillStyle = c; g.beginPath(); g.moveTo(pts[0], pts[1]); for (let k = 2; k < pts.length; k += 2) g.lineTo(pts[k], pts[k + 1]); g.closePath(); g.fill(); };
+  // piernas: muslo, rodillera de acero, espinilla y bota pesada
+  const pierna = (fase, lejos)=>{
+    const sn = Math.sin(ph + fase), c = Math.cos(ph + fase);
+    const hx = lejos ? -4 : 5, hy = -28 + by;
+    const fx = hx + (anda ? sn*7 : 0), fy = -(anda ? Math.max(0, c)*4 : 0);
+    const kx = (hx + fx)/2 + 3 + (anda ? Math.max(0, -sn)*2 : 0), ky = (hy + fy)/2 - 1;
+    const p = lejos ? panO : pan;
+    jL(g, K, 9.6, hx, hy, kx, ky); jL(g, p, 8, hx, hy, kx, ky);
+    jL(g, K, 8.6, kx, ky, fx, fy - 4); jL(g, p, 7, kx, ky, fx, fy - 4);
+    if (!lejos) jL(g, panL, 1.6, hx + 2, hy + 1, kx + 2, ky - 1);
+    jO(g, K, kx + 1, ky, 4.6, 4.2); jO(g, lejos ? metO : met, kx + 1, ky - 0.4, 3.6, 3.2); if (!lejos) jO(g, metL, kx, ky - 1.4, 1.4, 1);
+    poli(K, [fx - 6, fy - 7, fx + 7, fy - 7, fx + 10, fy + 0.5, fx - 7, fy + 0.5]);
+    poli(lejos ? '#141418' : neg, [fx - 5, fy - 6, fx + 6, fy - 6, fx + 8.6, fy - 0.6, fx - 6, fy - 0.6]);
+    jR(g, lejos ? metO : met, fx + 5, fy - 4, 4, 3);
+  };
+  pierna(Math.PI, true); pierna(0, false);
+  // cinturón ancho con la hebilla y dos bolsas
+  jR(g, K, -11, -33 + by, 23, 7); jR(g, '#2a2a30', -10, -32 + by, 21, 5);
+  jR(g, amaO, -2, -32 + by, 6, 5); jR(g, ama, -1, -31.4 + by, 4, 3.4);
+  jR(g, K, -10, -30 + by, 6, 7); jR(g, '#4a3a20', -9.4, -29.6 + by, 4.8, 5.8); jR(g, K, 7, -30 + by, 5, 6); jR(g, '#4a3a20', 7.6, -29.6 + by, 3.8, 4.8);
+  // brazo de atrás con el emisor del escudo en la muñeca
+  jL(g, K, 6.4, -10, -52 + by, -15, -40 + by); jL(g, pielO, 5, -10, -52 + by, -15, -40 + by);
+  jL(g, K, 5.8, -15, -40 + by, -11, -32 + by); jL(g, piel, 4.4, -15, -40 + by, -11, -32 + by);
+  jR(g, K, -18, -40 + by, 9, 9); jR(g, negL, -17, -39 + by, 7, 7); jO(g, ver, -13.5, -35.5 + by, 2.4, 2.4); jO(g, verL, -14, -36 + by, 1, 1);
+  // el torso: músculo, correaje cruzado y una cicatriz
+  poli(K, [-13, -57 + by, 15, -57 + by, 10, -31 + by, -9, -31 + by]);
+  poli(piel, [-12, -56 + by, 14, -56 + by, 9, -32 + by, -8, -32 + by]);
+  jO(g, pielL, -4, -50 + by, 5.4, 3.6); jO(g, pielL, 7, -50 + by, 5.4, 3.6);
+  jR(g, pielO, -6, -45.6 + by, 19, 1.2);
+  for (const yy of [-42, -38, -34]){ jR(g, pielO, -2, yy + by, 4.6, 2.6); jR(g, pielO, 4, yy + by, 4.6, 2.6); jR(g, pielL, -1.4, yy + by - 0.2, 3.4, 1); jR(g, pielL, 4.6, yy + by - 0.2, 3.4, 1); }
+  jR(g, pielD, 2.6, -46 + by, 1, 14);
+  jL(g, K, 3.6, -11, -56 + by, 10, -33 + by); jL(g, negL, 1, -11, -57 + by, 10, -34 + by); jO(g, met, -1, -45 + by, 2.2, 2.2);
+  jL(g, '#f0a090', 0.8, 6, -53 + by, 10, -47 + by);
+  // la cabeza: mandíbula cuadrada, ceño, ojos que brillan, colmillos y la cresta de púas
+  const cx = 3, cy = -63 + by;
+  jO(g, K, cx, cy, 7.4, 7.6); jO(g, pielO, cx, cy, 6.6, 6.8); jO(g, piel, cx + 0.6, cy - 0.6, 5.8, 6);
+  jR(g, K, cx - 3.6, cy + 1, 11.2, 7.4); jR(g, piel, cx - 3, cy + 1, 10, 6); jR(g, pielO, cx - 3, cy + 6, 10, 1.4);
+  jR(g, pielD, cx, cy - 3.4, 7, 1.6);
+  jR(g, '#ffd23a', cx + 2, cy - 1.8, 3, 1.6); jR(g, '#fff6c0', cx + 3, cy - 1.6, 1, 0.8);
+  jR(g, '#f0f0e0', cx + 2, cy + 4, 1.4, 2.2); jR(g, '#f0f0e0', cx + 5, cy + 4, 1.4, 2.2);
+  for (let k = 0; k < 5; k++){ const x = cx - 5 + k*2.6; poli(neg, [x, cy - 6, x + 1.4, cy - 13 + Math.abs(k - 2), x + 2.8, cy - 6]); }
+  // la hombrera de acero con púas, sobre el brazo de la espada
+  poli(K, [6, -60 + by, 20, -58 + by, 22, -50 + by, 8, -50 + by]);
+  poli(met, [7, -59 + by, 19, -57.4 + by, 20.6, -51 + by, 8.6, -51 + by]); jR(g, metL, 8, -58.4 + by, 10, 1.2); jR(g, metO, 8.6, -52.4 + by, 12, 1.2);
+  for (const x of [10, 15]){ poli(K, [x - 0.6, -58.6 + by, x + 1.5, -66 + by, x + 3.6, -58.2 + by]); poli(metL, [x, -59 + by, x + 1.5, -65 + by, x + 3, -58.6 + by]); }
   // brazo con brazal negro y, en el puño, la espada de energía de doble hoja
   const a = pose === 'alza' ? -2.0 : pose === 'golpe' ? 0.9 : 1.25;
-  const hx = 12, hy = -52, ex = hx + Math.cos(a)*14, ey = hy + Math.sin(a)*14;
+  const hx = 13, hy = -53 + by, ex = hx + Math.cos(a)*14, ey = hy + Math.sin(a)*14;
   jL(g, pielO, 8, hx, hy, ex, ey); jL(g, piel, 6, hx, hy - 1, ex, ey - 1);
   const fx = ex + Math.cos(a)*16, fy = ey + Math.sin(a)*16;
   jL(g, pielO, 7, ex, ey, fx, fy); jL(g, piel, 5.5, ex, ey - 1, fx, fy - 1);
@@ -21131,7 +21408,7 @@ function updateMedico(e, dt, a, ang){
     if (n){ e.pv = 0.55; addParticles(e.x, e.y - 20, '#7bffa0', 10, 120); sfx('humoVerde'); }
   }
 }
-function boquillaMedico(e){ const f = e.facing || 1; return { x: e.x + f*22, y: e.y - 30 }; }
+function boquillaMedico(e){ const f = e.facing || 1; return { x: e.x + f*26, y: e.y - 33 }; }
 // El duende voltaico corretea en círculos a tu alrededor, cambia de sentido a
 // ratos y, cuando carga el bláster, dispara una bola eléctrica que te deja clavado.
 function canonVoltio(e){ const a = e.vA || 0; return { x: e.x + Math.cos(a)*28, y: e.y - 22 + Math.sin(a)*8 }; }
@@ -25368,7 +25645,21 @@ function drawMisilCayendo(m){
   ficha('medicoF', alienFrame('medico', 'ataca', 0), 2); ficha('voltioF', alienFrame('voltio', 'ataca', 0), 2);
   ficha('machacadorF', alienFrame('machacador', 'alza', 0), 1.5); ficha('aveF', alienFrame('ave', 'anda', 0), 1.2);
   ficha('gravitronF', alienFrame('gravitron', 'anda', 0), 0.9); ficha('aracnidoF', aracFrame('anda', 0, false), 0.8);
-  ficha('helicazaF', alienFrame('helicaza', 'anda', 0), 0.95); ficha('acorazadoF', alienFrame('acorazado', 'dispara', 0), 1.1);
+  { // el helicóptero cazador, con sus aspas: en partida se pintan aparte (girando) y
+    // la ficha solo copiaba el casco, así que no se veían. Aquí van quietas, bien marcadas.
+    const h = alienFrame('helicaza', 'anda', 0), [, , hx, hy] = AL_TAM.helicaza, m = 14;
+    const c = document.createElement('canvas'); c.width = h.width + m*2; c.height = h.height + 6;
+    const g = c.getContext('2d'); g.drawImage(h, m, 6);
+    const ox = m + hx + 2, oy = 6 + hy - 27, R = 72;
+    g.globalAlpha = 0.25; g.fillStyle = '#c8ccd4'; g.beginPath(); g.ellipse(ox, oy, R, 6, 0, 0, Math.PI*2); g.fill();
+    g.globalAlpha = 1; g.lineCap = 'round';
+    for (const a of [0.45, 0.45 + Math.PI]){
+      const x1 = ox + Math.cos(a)*R, y1 = oy + Math.sin(a)*6;
+      g.strokeStyle = '#141820'; g.lineWidth = 3.4; g.beginPath(); g.moveTo(ox, oy); g.lineTo(x1, y1); g.stroke();
+      g.strokeStyle = '#5a6476'; g.lineWidth = 1.1; g.beginPath(); g.moveTo(ox, oy - 0.8); g.lineTo(x1, y1 - 0.8); g.stroke();
+    }
+    g.fillStyle = '#1a1e26'; g.beginPath(); g.ellipse(ox, oy, 5, 2.4, 0, 0, Math.PI*2); g.fill();
+    ficha('helicazaF', c, 0.95); } ficha('acorazadoF', alienFrame('acorazado', 'dispara', 0), 1.1);
   { const m = document.createElement('canvas'); m.width = 40; m.height = 40; const g = m.getContext('2d');
     g.fillStyle = '#ff8a2a'; g.beginPath(); g.moveTo(36, 4); g.lineTo(22, 16); g.lineTo(28, 22); g.closePath(); g.fill();
     g.fillStyle = '#ffd27a'; g.beginPath(); g.moveTo(32, 8); g.lineTo(22, 18); g.lineTo(26, 20); g.closePath(); g.fill();
@@ -35841,7 +36132,7 @@ function drawEnemyBase(e){
     }
     if (e.type === 'artillero'){
       const k = e.fase === 'arrasa' ? 'artRun' : e.fase === 'curando' ? 'artHeal' : 'artOk';
-      if (drawSprite(k, s.x, dy, e.w, e.h, e.facing, e.rot)){
+      if (drawSpriteAnim(k, sprAnimPaso(e, e.flashT > 0), s.x, dy, e.w, e.h, e.facing, e.rot)){
         if (e.flashT > 0 && luzAmarilla){              // fogonazo en la boca del cañón
           const kk = e.esc || 1, bx = s.x + (e.facing || 1)*96*kk, by = dy + 32*kk;
           ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.9;
@@ -35853,7 +36144,7 @@ function drawEnemyBase(e){
         return;
       }
     }
-    if (!drawSprite(e.type, s.x, dy, e.w, e.h, e.facing, e.rot)){
+    if (!(e.type === 'flametank' ? drawSpriteAnim('flametank', sprAnimPaso(e, false), s.x, dy, e.w, e.h, e.facing, e.rot) : drawSprite(e.type, s.x, dy, e.w, e.h, e.facing, e.rot))){
       ctx.fillStyle = e.type==='flametank' ? '#5a4a22' : e.type==='tank' ? '#8a7a3a' : e.type==='siege' ? '#3a3f4a'
                     : e.type==='gunship' ? '#b84a1e' : '#5a5f45';
       ctx.fillRect(s.x-e.w/2, dy-e.h/2, e.w, e.h);
