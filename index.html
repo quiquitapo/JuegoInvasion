@@ -21638,11 +21638,8 @@ function dibAracnido(g, pose, f, roto){
 // Los ojos: barras de LED rojos (como un ecualizador) que siguen la música
 // que suena. Sin música, se mueven solas despacio.
 const _aracEq = { t:0, n:7, v:new Float32Array(7), pico:new Float32Array(7).fill(0.3), buf:null };
-// el anillo del abdomen: el mismo ecualizador, con más bandas
-const _aracAnillo = { t:0, n:16, v:new Float32Array(16), pico:new Float32Array(16).fill(0.3), buf:null };
-function aracEq(E){
-  E = E || _aracEq;
-  const now = performance.now(), paso = 8.05/E.n;
+function aracEq(){
+  const E = _aracEq, now = performance.now();
   if (now - E.t < 14) return E.v;
   const dt = Math.min(0.1, E.t ? (now - E.t)/1000 : 0.016); E.t = now;
   const an = audio.musAn;
@@ -21652,7 +21649,7 @@ function aracEq(E){
     an.getByteFrequencyData(E.buf);
     const hz = audio.ctx.sampleRate/an.fftSize;
     for (let b = 0; b < E.n; b++){
-      const f0 = 50*Math.pow(2, b*paso), f1 = 50*Math.pow(2, (b + 1)*paso);
+      const f0 = 50*Math.pow(2, b*1.15), f1 = 50*Math.pow(2, (b + 1)*1.15);
       let s = 0, c = 0;
       for (let i = Math.max(1, Math.floor(f0/hz)); i <= Math.min(E.buf.length - 1, Math.ceil(f1/hz)); i++){ s += E.buf[i]; c++; }
       const x = c ? s/(c*255) : 0;
@@ -21719,33 +21716,6 @@ function latidoMusica(){
   L.prev = v;
   L.env = Math.max(0, L.env - dt*4);
   return L;
-}
-// Centro de la cúpula del abdomen en el dibujo (como en dibAracnido).
-function aracAbdomen(pose, f){
-  return { x: -24 + (pose === 'embiste' ? 6 : 0) - 4, y: aracCuerpoY(pose) - 24 + (pose === 'lluvia' ? (f ? -7 : -2) : 0) + (pose === 'salta' ? 4 : 0) - 18 };
-}
-// Un ecualizador circular sobre el abdomen: barras rojas que salen de un
-// núcleo y siguen la música, como un altavoz que late.
-function pintaAracAnillo(pose, f, lat){
-  const v = aracEq(_aracAnillo), c = aracAbdomen(pose, f), n = v.length, rx = 21, ry = 9;
-  ctx.save(); ctx.lineCap = 'round';
-  ctx.strokeStyle = '#1a0605'; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(c.x, c.y, rx, ry, 0, 0, Math.PI*2); ctx.stroke();
-  ctx.globalCompositeOperation = 'lighter';
-  for (let pase = 0; pase < 2; pase++){
-    ctx.strokeStyle = pase ? '#ff6a4a' : '#ff2414'; ctx.lineWidth = pase ? 1.6 : 4; ctx.globalAlpha = pase ? 0.95 : 0.35;
-    ctx.beginPath();
-    for (let b = 0; b < n; b++){
-      const a = (b/n)*Math.PI*2 - Math.PI/2, cs = Math.cos(a), sn = Math.sin(a), l = 2 + v[b]*15;
-      const x0 = c.x + cs*rx, y0 = c.y + sn*ry;
-      ctx.moveTo(x0, y0); ctx.lineTo(x0 + cs*l, y0 + sn*l*0.45 - (sn < 0 ? l*0.35 : 0));
-    }
-    ctx.stroke();
-  }
-  ctx.globalAlpha = 0.5 + lat*0.5; ctx.fillStyle = '#ff3a24';
-  ctx.beginPath(); ctx.ellipse(c.x, c.y, 5.5 + lat*4, 2.6 + lat*1.8, 0, 0, Math.PI*2); ctx.fill();
-  ctx.globalAlpha = 0.6 + lat*0.4; ctx.fillStyle = '#ffd6c8';
-  ctx.beginPath(); ctx.ellipse(c.x, c.y, 2.2 + lat*1.6, 1.1 + lat*0.8, 0, 0, Math.PI*2); ctx.fill();
-  ctx.restore();
 }
 // Las luces rojas de un fotograma, aparte: una capa oscura para apagarlas y
 // otra con resplandor para encenderlas al ritmo de la música.
@@ -22066,7 +22036,6 @@ function drawAracnido(e){
   ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
   // los ojos: barras de LED al ritmo de la música; encendidos del todo al disparar los láseres
   pintaAracEq(aracCara(pose), fa === 'laser' && Math.floor(t*14) % 2 === 0);
-  pintaAracAnillo(pose, f, lat);
   ctx.imageSmoothingEnabled = suave;
   ctx.restore();
   if (e.fase === 'telaAviso'){ const m = S(aracBoca(e).x, aracBoca(e).y); ctx.fillStyle = 'rgba(255,255,255,' + (0.5 + Math.sin(gameTime*20)*0.4) + ')'; ctx.beginPath(); ctx.arc(m.x, m.y, 5, 0, Math.PI*2); ctx.fill(); }
@@ -22084,23 +22053,6 @@ function dibRed(x, y, R, a){
 function drawAracnidoSuelo(){
   for (let __i160 = 0, __a160 = enemies; __i160 < __a160.length; __i160++){ const e = __a160[__i160];
     if (e.dead || e.type !== 'aracnido') continue;
-    { // cada golpe de la música suelta una onda roja por el suelo
-      const L = latidoMusica(), now = performance.now(), O = e._ondas || (e._ondas = []);
-      if (e._latN !== L.n){ e._latN = L.n; if (alturaVisible(e) < 20){ O.push(now); if (O.length > 4) O.shift(); } }
-      if (O.length){
-        const t0 = S(e.x, e.y);
-        ctx.save();
-        for (let i = O.length - 1; i >= 0; i--){
-          const k = (now - O[i])/650;
-          if (k >= 1){ O.splice(i, 1); continue; }
-          const r = 80 + k*190;
-          ctx.globalAlpha = (1 - k)*0.5; ctx.strokeStyle = '#ff3a24'; ctx.lineWidth = 1 + (1 - k)*3;
-          ctx.beginPath(); ctx.ellipse(t0.x, t0.y, r, r*0.62, 0, 0, Math.PI*2); ctx.stroke();
-          ctx.globalAlpha = (1 - k)*0.08; ctx.fillStyle = '#ff2a1a'; ctx.fill();
-        }
-        ctx.restore();
-      }
-    }
     for (let k = 0; k < ARAC_REDES; k++){ const t = e['p' + k + 't']; if (t > 0){ const s = S(e['p' + k + 'x'], e['p' + k + 'y']); dibRed(s.x, s.y, ARAC_RED_R, 0.7*clamp(t/1.5, 0, 1)); } }
     ctx.save();
     if (e.fase === 'telaAviso'){
