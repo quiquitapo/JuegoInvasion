@@ -10001,7 +10001,7 @@ function damageEnemy(e, dmg, fx, fy){
   if (k === 'flametank' || k === 'omni'){ explode(e.x, e.y, 190, 70, true); }
   else if (k === 'kaiyin'){ explode(e.x, e.y, 260, 80, true); humoNegro(e.x, e.y); shake(24, 0.8); e.tormT = 0; }
   else if (k === 'desgarrador'){ explode(e.x, e.y, 220, 70, true); humoNegro(e.x, e.y); addParticles(e.x, e.y - 80, '#c4ccd6', 30, 260); shake(24, 0.8); }
-  else if (k === 'centurion'){ centSuelta(e); explode(e.x, e.y, 210, 70, true); humoNegro(e.x, e.y); addParticles(e.x, e.y - 50, '#7fe8ff', 24, 240); shake(22, 0.7);
+  else if (k === 'centurion'){ centSuelta(e); if (tela && tela.e === e) sueltaTela(false); explode(e.x, e.y, 210, 70, true); humoNegro(e.x, e.y); addParticles(e.x, e.y - 50, '#7fe8ff', 24, 240); shake(22, 0.7);
                                if (esAlien()) unlockAch('conquistador'); }
   else if (k === 'desesperacion'){ desSuelta(e); explode(e.x, e.y, 200, 60, true); addParticles(e.x, e.y - 90, '#7a1410', 40, 280); addParticles(e.x, e.y - 90, '#efe6cc', 20, 220); shake(24, 0.8);
                                    rugido('desesperacion', 1); if (_fxRed) _fxRed.push(['r', 'desesperacion', 1]); }
@@ -15207,9 +15207,9 @@ const BESTIARY = [
   { id:'desgarrador', name:'EL DESGARRADOR', hp:2600, dmg:'embestidas, motosierras, rayo y coletazo', sprite:'desgarradorF', verb:'DERROTADOS',
     hint:'El otro guardián del Mundo Alienígena. Aún no lo has derrotado.',
     desc:'Kaiju cíborg del planeta marciano: garfios y motosierras por brazos, un núcleo rojo en el pecho, aletas rojas, cola de púas acabada en cuchilla, un cuerno y un visor rojo. Cada ataque se anuncia con su postura: alza las motosierras antes del tajo, levanta la cola como un escorpión antes del coletazo, se agacha abriendo las aletas antes de despegar y el visor se enciende antes del rayo. Embiste volando a gran velocidad cortando con sus dos cuchillas, dispara desde el visor un rayo que te persigue (escóndete tras un edificio o un escudo), lanza tajos con las motosierras si te tiene cerca, embiste por el suelo con las motosierras por delante y barre todo alrededor con la cola. Además se regenera poco a poco. En Castigo Divino vuelve deformado y despellejado: se le ven las costillas, la quijada y los huesos.' },
-  { id:'centurion', name:'EL CENTURIÓN', hp:2200, dmg:'embestida, bombas, misiles, minigun, corte láser (ondas sónicas contra el viltrumita), rayo congelante, doble láser, ráfaga giratoria y lluvia de árboles y autos', sprite:'centurionF', verb:'DERROTADOS',
+  { id:'centurion', name:'EL CENTURIÓN', hp:2200, dmg:'embestida con agarre, puñetazos, bombas, misiles, minigun, corte láser (ondas sónicas contra el viltrumita), rayo congelante, doble láser, ráfaga giratoria, lluvia de árboles y autos y edificios lanzados', sprite:'centurionF', verb:'DERROTADOS',
     hint:'El guardián del Mundo Alienígena. Aún no lo has derrotado.',
-    desc:'La armadura robótica que protege el planeta marciano: primero una armadura esbelta, blanca y cian; a mitad de vida despliega su armadura de asalto, un coloso de acero con luces rojas, cables y tres drones que disparan. Vuela a tu alrededor y alterna sus armas: embestida por una línea que marca en el suelo, bombas pegajosas que se te quedan encima (o en lo que lleves agarrado: lánzalo lejos), salvas de misiles guiados, ráfagas de su minigun láser, un rayo congelante de muy largo alcance que te deja helado (marca su línea antes de disparar: sal de ella o ponte detrás de un edificio) un gran corte láser que barre un abanico enorme marcado en rojo (contra el viltrumita, en su lugar, ondas sónicas que se abren en arco: duelen, empujan y aturden; cúbrete tras un edificio), levanta la mano y alza árboles y autos para lanzártelos uno a uno, un doble láser que marca una franja en el suelo, dispara y marca otra donde estés, y una ráfaga giratoria de balas que se abren con la distancia (esquívalas por los huecos o cúbrete tras edificios, árboles o autos). Los tentacazos de la cría chocan con su campo de fuerza y hacen menos daño: mejor lánzale cosas. Por debajo de la mitad de vida se transforma y se vuelve más rápido, y al 30% entra en furia y apenas para entre ataques. Habla, y no precisamente con humildad.' },
+    desc:'La armadura robótica que protege el planeta marciano: primero una armadura esbelta, blanca y cian; a mitad de vida despliega su armadura de asalto, un coloso de acero con luces rojas que se va llenando de marcas de daño. Vuela a tu alrededor y alterna sus armas: embestida por una línea que marca en el suelo, bombas pegajosas que se te quedan encima (o en lo que lleves agarrado: lánzalo lejos), salvas de misiles guiados, ráfagas de su minigun láser, un rayo congelante de muy largo alcance que te deja helado (marca su línea antes de disparar: sal de ella o ponte detrás de un edificio) un gran corte láser que barre un abanico enorme marcado en rojo (contra el viltrumita, en su lugar, ondas sónicas que se abren en arco: duelen, empujan y aturden; cúbrete tras un edificio), levanta la mano y alza árboles y autos para lanzártelos uno a uno, un puñetazo si te pegas a él (marca el área antes de soltarlo), un doble láser que marca una franja en el suelo, dispara y marca otra donde estés, y una ráfaga giratoria de balas que se abren con la distancia (esquívalas por los huecos o cúbrete tras edificios, árboles o autos). Los tentacazos de la cría chocan con su campo de fuerza y hacen menos daño: mejor lánzale cosas. Por debajo de la mitad de vida se transforma y se vuelve más rápido: si su embestida te alcanza te agarra y vuela contigo por delante atravesando edificios hasta mandarte lejos de un puñetazo (haz clic para soltarte), y se aleja para arrancar edificios y tirártelos justo donde estás (cada caída se marca en el suelo); y al 30% entra en furia y apenas para entre ataques. Habla, y no precisamente con humildad.' },
   { id:'muerteVeloz', name:'MUERTE VELOZ', hp:2400, dmg:'tajos supersónicos, embestidas, giro de sierras y tornado', sprite:'muerteVelozF', verb:'DERROTADAS',
     hint:'Algo en el Mundo Alienígena se mueve más rápido que el sonido.',
     desc:'Una criatura de un mundo lejano que el imperio encontró y modificó genéticamente para aprovechar su velocidad innata. Cuerpo negro con rayas turquesa, casco con visor verde, cola anillada, ruedas por pies y dos sierras de plasma girando en las manos. Marca en el suelo un área y la recorre a velocidad extrema en tajos de lado a lado, rompiendo la barrera del sonido: corta todo lo que pilla, también a los suyos, y los árboles se mecen a su paso. También embiste en línea recta por la línea que marca y gira sobre sí misma hasta volverse un tornado de sierras que te persigue. Tras cada carga derrapa un momento: es cuando más fácil es alcanzarla. Por debajo de la mitad de vida acelera todavía más.' },
@@ -22428,6 +22428,7 @@ function aracGolpeSuelo(e, x, y, R, dmg){
 // toques) te sueltan. Va aparte del bucle de enemigos: siempre con el jugador de verdad.
 function updateTela(dt){
   if (!tela) return;
+  if (tela.cent){ updateAgarreCent(dt); return; }        // el agarre del Centurión
   const e = tela.e;
   if (!running || e.dead || !enemies.includes(e) || e.held || e.thrown || e.hieloT > 0 || e.stunT > 0 || e.fase !== 'arrastra' || tela.t > TELA_MAX){ sueltaTela(false); return; }
   tela.t += dt;
@@ -22458,6 +22459,17 @@ function forcejea(){
 function sueltaTela(libre){
   const t = tela; tela = null;
   if (!t) return;
+  if (t.cent){                                          // te suelta el Centurión
+    const e = t.e; paralizadoT = 0;
+    if (e.fase === 'agarre'){ e.fase = ''; e.cd = libre ? 1.4 : 0.8; }
+    if (libre){
+      toast('¡TE LIBERASTE!', 1.2); sfx('throw'); addParticles(player.x, player.y - 12, '#ffd0c0', 20, 200);
+      const an = (e.agA || 0) + Math.PI/2;
+      player.x = clamp(player.x + Math.cos(an)*60, 20, WORLD_W - 20); player.y = clamp(player.y + Math.sin(an)*60, 20, WORLD_H - 20);
+    }
+    desatascar(F().r);
+    return;
+  }
   const e = t.e; e.atrapa = 0;
   if (e.fase === 'arrastra'){ e.fase = 'aturdida'; e.ft = libre ? 1.2 : 0.6; }
   paralizadoT = 0;
@@ -23112,6 +23124,8 @@ const CENT_FRASES = {
   levanta:  ['Todo en este planeta me obedece.', 'Tu entorno es mi arsenal.', 'Esquiva esto, si puedes.'],
   sonico:   ['Conozco tu debilidad, viltrumita. Escucha.', 'Una frecuencia. Es todo lo que hace falta para tumbarte.',
              'Tu imperio cayó por menos que esto.'],
+  edificios:['Tu ciudad será tu tumba.', 'Arquitectura terrestre. Frágil, como sus constructores.', 'Te devuelvo tus edificios.'],
+  agarre:   ['Te tengo.', 'Vamos a dar un paseo.', 'Nadie escapa del abrazo del Imperio.'],
   escudo:   ['Tus golpecitos no atraviesan mi campo.', 'Un campo de fuerza, larva. Sigue intentándolo.'],
   furia:    ['¡BASTA! ¡El Imperio no conoce la derrota!', 'Protocolo de aniquilación: ACTIVADO.',
              '¡Insolente! ¡Te borraré de la historia!']
@@ -23148,15 +23162,16 @@ function balaCubierta(b){
 }
 const centCache = new Map();
 const bombasPeg = [];
-function centFrame(pose, f, roto){
-  const k = pose + f + (roto ? 'r' : '');
+function centFrame(pose, f, roto, dano){
+  dano = roto ? (dano || 0) : 0;
+  const k = pose + f + (roto ? 'r' + dano : '');
   let c = centCache.get(k);
   if (c) return c;
   const [W, H, cx, py] = CENT_TAM;
   c = document.createElement('canvas'); c.width = W; c.height = H;
   const g = c.getContext('2d'); g.lineCap = 'round'; g.lineJoin = 'round';
   g.translate(cx, py);
-  dibCenturion(g, pose, f, roto);
+  dibCenturion(g, pose, f, roto, dano);
   pixelArte(c, '#08080e');
   centCache.set(k, c);
   return c;
@@ -23167,12 +23182,12 @@ function centFrame(pose, f, roto){
 const CENT_PTS = [null,
   { pecho:[2, -63], ojos:[5, -83], palma:[25, -96], pies:[-7, 9], canon:[45, -59], col:'#5ae8ff' },
   { pecho:[2, -50], ojos:[4, -73], palma:[30, -99], pies:[-10, 9], canon:[48, -56], col:'#ff4a2a',
-    hombros:[[-22, -63], [26, -61]], cables:[[-17, -71], [-7, -76], [12, -76], [22, -71]] }];
+    hombros:[[-22, -63], [26, -61]], marcas:[[-8, -58], [27, -64], [3, -76]] }];
 function centPts(e){ return CENT_PTS[e && e.roto ? 2 : 1]; }
-function dibCenturion(g, pose, f, fase2){
+function dibCenturion(g, pose, f, fase2, dano){
   if (pose === 'embiste'){ g.translate(0, -46); g.rotate(0.35); g.translate(0, 46); }   // se inclina sobre el centro del cuerpo
   g.lineCap = 'round'; g.lineJoin = 'round';
-  if (fase2) dibCentF2(g, pose, f); else dibCentF1(g, pose, f);
+  if (fase2) dibCentF2(g, pose, f, dano || 0); else dibCentF1(g, pose, f);
 }
 // ---- FASE 1: la armadura de combate ----
 // Esbelta y atlética, de placas blancas pulidas sobre un traje negro, con
@@ -23217,7 +23232,9 @@ function dibCentF1(g, pose, f){
     carga:   { b:[[-26, -63], [-33, -71], 'a', -2.3], d:[[29, -63], [36, -72], 'a', -0.9] },
     sonico:  { b:[[-27, -61], [-36, -55], 'a', 2.7], d:[[30, -61], [40, -55], 'a', 0.4] },
     levanta: { b:[[-19, -56], [-18, -44], 'p'], d:[[23, -80], [25, -92], 'a', -1.55] },
-    embiste: { b:[[-22, -58], [-28, -51], 'p'], d:[[29, -67], [40, -71], 'p'] }
+    embiste: { b:[[-22, -58], [-28, -51], 'p'], d:[[29, -67], [40, -71], 'p'] },
+    puno0:   { b:[[-22, -60], [-15, -52], 'p'], d:[[10, -57], [20, -72], 'p'] },    // carga el puñetazo: el puño atrás, junto a la cabeza
+    puno1:   { b:[[-22, -57], [-25, -46], 'p'], d:[[31, -66], [44, -65], 'p'] }     // el puñetazo, con el brazo estirado
   }[pose] || { b:[[-19, -55], [-19, -43], 'p'], d:[[23, -54], [25, -43], 'p'] };
   const brazo = (hx, hy, def, atras)=>{
     const [[ex, ey], [mx, my], tipo, ang] = def;
@@ -23295,7 +23312,7 @@ function dibCentF1(g, pose, f){
 // Un coloso de acero azulado: hombreras enormes con toberas rojas, puños
 // gigantes, el reactor rojo con su anillo de runas, luces rojas en el pecho,
 // las rodillas y las botas, y la cabeza hundida entre los hombros.
-function dibCentF2(g, pose, f){
+function dibCentF2(g, pose, f, dano){
   const S0 = '#f4f8fc', S1 = '#c2d2df', S2 = '#8a9fb2', S3 = '#5a6d80', S4 = '#344252', S5 = '#1b232d', K = '#080b10';
   const R0 = '#ffd6c0', R1 = '#ff6a44', R2 = '#e5281c', R3 = '#8a140e', R4 = '#3c0806';
   const acero = (x0, y0, x1, y1)=>{ const gr = g.createLinearGradient(x0, y0, x1, y1);
@@ -23331,7 +23348,10 @@ function dibCentF2(g, pose, f){
     carga:   { b:[[-36, -58], [-42, -68], 'a', -2.2], d:[[38, -58], [44, -68], 'a', -0.95] },
     sonico:  { b:[[-36, -56], [-44, -50], 'a', 2.8], d:[[38, -56], [46, -50], 'a', 0.35] },
     levanta: { b:[[-29, -50], [-31, -38], 'p'], d:[[33, -77], [30, -92], 'a', -1.6] },
-    embiste: { b:[[-30, -52], [-36, -44], 'p'], d:[[36, -62], [46, -66], 'p'] }
+    embiste: { b:[[-30, -52], [-36, -44], 'p'], d:[[36, -62], [46, -66], 'p'] },
+    puno0:   { b:[[-31, -52], [-27, -40], 'p'], d:[[16, -46], [28, -74], 'p'] },
+    puno1:   { b:[[-31, -52], [-34, -40], 'p'], d:[[37, -60], [49, -58], 'p'] },
+    agarra:  { b:[[-31, -54], [-37, -46], 'p'], d:[[36, -50], [46, -37], 'p'] }    // te lleva cogido por delante, a tu altura
   }[pose] || { b:[[-29, -50], [-31, -37], 'p'], d:[[33, -49], [34, -37], 'p'] };
   const brazo = (hx, hy, def, atras)=>{
     const [[ex, ey], [mx, my], tipo, ang] = def;
@@ -23343,7 +23363,6 @@ function dibCentF2(g, pose, f){
     jL(g, atras ? R3 : R2, 1.4, gx - 3, gy, gx + 3, gy);
     if (tipo === 'a') mano(mx, my, ang, atras); else puno(mx, my, 7, atras);
   };
-  // ---- cables del lomo: se dibujan aparte, moviéndose ----
   // ---- brazo de atrás ----
   brazo(-21, -60, P.b, true);
   // ---- piernas: cortas, macizas, rodilleras y botas al rojo ----
@@ -23373,6 +23392,24 @@ function dibCentF2(g, pose, f){
   jO(g, S0, -10, -60, 3.8, 1.4); jO(g, S0, 7, -60.5, 3.2, 1.2);
   destello(-11, -59, 3); destello(16, -50, 2);
   luzRoja(-10, -51, 1.6); luzRoja(15, -51, 1.6); luzRoja(-16, -44, 1.3); luzRoja(21, -43, 1.3);
+  // ---- marcas de daño: arañazos, abolladuras y hollín; con poca vida, grietas al rojo ----
+  const aranazo = (x0, y0, x1, y1)=>{ jL(g, K, 1.5, x0, y0, x1, y1); jL(g, S0, 0.8, x0 + 0.6, y0 + 1, x1 + 0.6, y1 + 1); };
+  const abolla = (x, y, r)=>{ jO(g, K, x, y, r + 0.6, r*0.75 + 0.6); jO(g, S5, x, y, r, r*0.75); jO(g, S3, x + r*0.25, y + r*0.2, r*0.6, r*0.45); jO(g, S0, x + r*0.5, y + r*0.45, r*0.35, r*0.2); };
+  const hollin = (x, y, r)=>{ jO(g, S4, x, y, r*1.2, r*0.85); jO(g, S5, x - r*0.15, y, r*0.8, r*0.55); jO(g, K, x - r*0.3, y - r*0.1, r*0.35, r*0.25); };
+  const grieta = (pts, ancho)=>{ g.strokeStyle = K; g.lineWidth = ancho + 1.6; g.beginPath(); pts.forEach(([x, y], i)=> g[i ? 'lineTo' : 'moveTo'](x, y)); g.stroke();
+    g.strokeStyle = R2; g.lineWidth = ancho; g.stroke(); g.strokeStyle = R0; g.lineWidth = Math.max(0.6, ancho*0.35); g.stroke(); };
+  if (dano >= 1){
+    aranazo(-9, -46, -3, -41); aranazo(-8, -43.5, -3.5, -39.5); aranazo(7, -40, 13, -44);
+    abolla(-6, -54, 2.4); abolla(10, -39.5, 2); hollin(-2, -37.5, 3); hollin(12, -33, 2.6);
+  }
+  if (dano >= 2){
+    // la placa del pecho reventada: se ve el interior al rojo
+    g.fillStyle = K; g.beginPath(); g.moveTo(-14, -60); g.lineTo(-6, -63); g.lineTo(-3, -56); g.lineTo(-8, -51); g.lineTo(-15, -54); g.closePath(); g.fill();
+    jR(g, R4, -12.5, -60, 7.5, 7.5); jL(g, R2, 1, -12, -58, -6, -55); jL(g, R1, 0.8, -11, -54, -6, -58); jR(g, '#ffd27a', -9, -57, 1.2, 1.2);
+    grieta([[-3, -56], [1, -60], [0, -64], [4, -66]], 0.9);
+    grieta([[16, -58], [19, -53], [17, -48], [20, -44]], 0.9);
+    hollin(-3, -38, 3.4); abolla(12, -39, 2.4);
+  }
   // ---- reactor central con su anillo de runas ----
   jO(g, K, 2, -50, 9.5, 9.5); jO(g, S3, 2, -50, 8.4, 8.4); jO(g, S5, 2, -50, 7, 7);
   for (let i = 0; i < 14; i++){ const an = i/14*Math.PI*2; if (i % 3 !== 1) jR(g, S2, 2 + Math.cos(an)*5.6 - 0.6, -50 + Math.sin(an)*5.6 - 0.6, 1.3, 1.3); }
@@ -23392,6 +23429,8 @@ function dibCentF2(g, pose, f){
     jO(g, S0, x - rx*0.5, y + ry*0.05, 1.8, 1.2);
   };
   hombrera(-22, -63, 12.5, 11.5, false);
+  if (dano >= 1){ aranazo(-30, -60, -24, -55); abolla(-17, -56, 2); }
+  if (dano >= 2) grieta([[-31, -66], [-27, -63], [-29, -58]], 0.8);
   // ---- cabeza pequeña, hundida entre los hombros ----
   jO(g, K, 3, -72, 8.6, 8.2);
   g.fillStyle = acero(-4, -80, 10, -64); g.beginPath(); g.ellipse(2.6, -72.6, 7.4, 7, 0, 0, Math.PI*2); g.fill();
@@ -23401,8 +23440,16 @@ function dibCentF2(g, pose, f){
   jR(g, R2, 0.5, -71.6, 3, 1.3); jR(g, R2, 5.5, -72.2, 3, 1.3); jR(g, R0, 2, -71.6, 1, 1); jR(g, R0, 7, -72.2, 1, 1);
   jR(g, S4, 1.5, -67.8, 6, 1); jR(g, S4, 2, -66, 5, 1); jR(g, R3, 3.5, -67.8, 2, 1);
   jR(g, S0, 1.4, -80, 1.2, 6.4); jR(g, S3, -3.4, -76.4, 1, 4.4);
+  if (dano >= 1){ jL(g, K, 1.3, -1, -79, 3.5, -74.5); jL(g, S0, 0.6, -0.4, -78.2, 4, -73.8); }   // un tajo en el casco
+  if (dano >= 2){ grieta([[6, -79], [8, -76], [7, -73]], 0.7); }
   hombrera(26, -61, 14, 12.5, true);
   destello(21, -67, 2);
+  if (dano >= 1){ aranazo(30, -56, 37, -60); aranazo(29, -53, 35, -56.5); abolla(20, -66, 2.4); hollin(33, -64, 2.4); }
+  if (dano >= 2){
+    // un pedazo de la hombrera arrancado, con cables al aire
+    g.fillStyle = K; g.beginPath(); g.moveTo(33, -54); g.lineTo(40, -58); g.lineTo(40.5, -51); g.lineTo(35, -49.5); g.closePath(); g.fill();
+    jR(g, R4, 35, -55, 4, 4); jL(g, R2, 0.8, 35.5, -53, 38.5, -54.5); jL(g, '#ffd27a', 0.7, 36, -51, 39, -52);
+  }
   // ---- brazo de delante ----
   brazo(23, -58, P.d, false);
 }
@@ -23465,6 +23512,8 @@ function centLevSitio(e, it, i, n){
 function centSuelta(e){
   if (e.lev) for (const it of e.lev){ const o = it.o; if (o.presaDe === e){ o.presa = false; o.presaDe = null; o.rot = 0; } }
   e.lev = null;
+  if (e.edif) for (const it of e.edif){ const o = it.o; if (o.presaDe === e && !o.dead){ o.presa = false; o.presaDe = null; o.dead = true; addParticles(o.x, o.y, '#9aa6ad', 22, 170); sfxEn('demolish', o.x, o.y); } }
+  e.edif = null;
 }
 // Corta lo que estuviera haciendo (al transformarse).
 function centCorta(e){
@@ -23483,6 +23532,183 @@ function centLevLanza(e, it){
   o.byEnemy = true; o.porInv = false; o.marcianoT = gameTime + 1.2;
   addParticles(o.x, o.y, centPts(e).col, 8, 140);
   sfx('throw'); shake(5, 0.12);
+}
+// ---- puñetazo de cerca ----
+// Si te pegas a él, apunta (el área del golpe se marca en el suelo y te sigue
+// hasta quedar fija) y suelta un puñetazo que te manda lejos.
+const CENT_GOLPE_R = 120, CENT_GOLPE_L = 150, CENT_GOLPE_W = 46, CENT_GOLPE_AP = [0.62, 0.72], CENT_GOLPE_CD = 2.2;
+// ---- agarre en la embestida (fase 2) ----
+// Si la embestida te alcanza, te agarra y vuela a toda velocidad contigo por
+// delante, atravesando edificios, hasta rematar con un puñetazo. Duele poco;
+// haciendo clic (o tocando) te sueltas, como con la tela de la araña robot.
+const CENT_AG_VEL = 1050, CENT_AG_T = 2.6, CENT_AG_MIN = 1.6, CENT_AG_RES = 7, CENT_AG_EDIF = 4;
+// ---- lanzar edificios (fase 2) ----
+// Se aleja un poco, arranca edificios con las dos manos y te los tira encima:
+// el sitio donde caerá cada uno se marca en el suelo.
+const CENT_ED_LEJOS = 380, CENT_ED_ALZA = 1.1, CENT_ED_CADA = 0.75, CENT_ED_VUELO = 0.95, CENT_ED_R = 105, CENT_ED_DMG = 30;
+const edifCent = [];        // edificios en vuelo: { o, x0, y0, tx, ty, t, T, giro, def }
+let centEmpuje = null;      // el jugador sale despedido: { vx, vy, t }
+function centLanzaJugador(an, v){
+  if (Online.objetivoInv) return;
+  centEmpuje = { vx: Math.cos(an)*v, vy: Math.sin(an)*v, t: 0.55 };
+  if (usaVil()){ vil.flying = false; vil.joyFly = false; }
+}
+function updateCentExtra(dt){
+  if (ondasCent.length) updateOndasCent(dt);
+  if (centEmpuje){
+    const m = centEmpuje; m.t -= dt;
+    player.x = clamp(player.x + m.vx*dt, 30, WORLD_W - 30); player.y = clamp(player.y + m.vy*dt, 30, WORLD_H - 30);
+    const k = Math.exp(-2.5*dt); m.vx *= k; m.vy *= k;
+    paralizadoT = Math.max(paralizadoT, 0.08);
+    if (Math.random() < 0.6) addParticles(player.x, player.y - 8, '#d8d0c4', 1, 60);
+    if (m.t <= 0){ centEmpuje = null; desatascar(F().r); }
+  }
+  for (let i = edifCent.length - 1; i >= 0; i--){
+    const v = edifCent[i], o = v.o;
+    if (o.dead || o.held || o.thrown){ o.presa = false; o.presaDe = null; edifCent.splice(i, 1); continue; }   // lo cogiste al vuelo
+    v.t += dt;
+    const k = Math.min(1, v.t/v.T);
+    o.x = v.x0 + (v.tx - v.x0)*k; o.y = v.y0 + (v.ty - v.y0)*k - Math.sin(k*Math.PI)*170; o.rot = (o.rot || 0) + v.giro*dt;
+    if (k >= 1){ edifCent.splice(i, 1); centEdifCae(v); }
+  }
+}
+// El edificio cae justo donde estabas: aplasta lo que haya en la marca.
+function centEdifCae(v){
+  const o = v.o, x = v.tx, y = v.ty, R = CENT_ED_R;
+  o.presa = false; o.presaDe = null; o.dead = true;
+  if (!vil.intro && dist(player.x, player.y, x, y) < R + F().r*0.5){
+    const d0 = hp; hp = clamp(hp - recibe(CENT_ED_DMG*(v.def ? 1.3 : 1)), 0, maxHp()); p2Gain(d0 - hp);
+    sfx('hurt'); if (v.e && Math.random() < 0.5) centDice(v.e, 'golpe');
+  }
+  for (const pool of [civilians, enemies]) for (let i = 0; i < pool.length; i++){ const t = pool[i];
+    if (t.dead || t.held || JEFES[t.type] || alturaVisible(t) > 30 || dist(t.x, t.y, x, y) > R) continue;
+    damageEnemy(t, 120, t.x, t.y);
+  }
+  for (let i = 0; i < cars.length; i++){ const c = cars[i]; if (!c.dead && !c.held && !c.thrown && dist(c.x, c.y, x, y) < R){ c.hp -= 150; if (c.hp <= 0) autoAbatido(c); } }
+  for (let i = 0; i < buildings.length; i++){ const b = buildings[i]; if (b.stage < 2 && dist(clamp(x, b.x, b.x + b.w), clamp(y, b.y, b.y + b.h), x, y) < R*0.7) damageBuilding(b, 200); }
+  for (const pool of [trees, lamps, benches, trash]) for (let i = 0; i < pool.length; i++){ const pr = pool[i];
+    if (pr === o || pr.dead || pr.held || pr.thrown || pr.kind === 'edificio' || enPresa(pr) || dist(pr.x, pr.y, x, y) > R*0.8) continue;
+    propAbatido(pr);
+  }
+  addParticles(x, y - 20, '#9aa6ad', 30, 240); addParticles(x, y - 10, '#c8b8a0', 18, 180);
+  anilloPolvo(x, y + 10, 120, 18, '#8a8278');
+  booms.push({ x, y, r: 10, max: R*1.4, life: 0.5, maxlife: 0.5, ring: true });
+  sfxEn('demolish', x, y); sfxEn('colapso', x, y, 0.8); shake(16, 0.4);
+}
+// Arranca un edificio entero (igual que el poder del gigante, pero sin ser obra tuya).
+function centArranca(e, b){
+  const trozo = { kind:'edificio', set:b.set, etapa:b.stage, x:b.x + b.w/2, y:b.y + b.h/2, w:b.w, h:b.h, seed:b.seed, cat:b.cat, frente:b.frente,
+    hp:400, maxhp:400, held:false, thrown:false, dead:false, giro:b.rot || 0, rot:0, vx:0, vy:0, spin:0, pesado:true, presa:true, presaDe:e };
+  demolish(b); b._arrancado = true; b._etAnt = 2; b.caeT = undefined;
+  for (let i = trash.length - 1; i >= 0; i--) if (trash[i].kind === 'edificio' && trash[i].dead) trash.splice(i, 1);
+  trash.push(trozo);
+  addParticles(trozo.x, b.y + b.h, '#9a8a78', 24, 200); anilloPolvo(trozo.x, b.y + b.h, Math.max(b.w, 90)*0.7, 16, '#8a8278');
+  sfxEn('colapso', trozo.x, trozo.y, 0.7);
+  return trozo;
+}
+// Los edificios en pie más cercanos a él (ni el que tienes encima ni uno pegado a ti).
+function centEdifBusca(e, n){
+  const L = [];
+  for (let i = 0; i < buildings.length; i++){ const b = buildings[i];
+    if (b.stage >= 2 || b._arrancado) continue;
+    if (player.x > b.x - 60 && player.x < b.x + b.w + 60 && player.y > b.y - 60 && player.y < b.y + b.h + 60) continue;
+    const d = dist(clamp(e.x, b.x, b.x + b.w), clamp(e.y, b.y, b.y + b.h), e.x, e.y);
+    if (d < 560) L.push([d, b]);
+  }
+  L.sort((a, b)=> a[0] - b[0]);
+  return L.slice(0, n).map(q => q[1]);
+}
+// el sitio de cada edificio sobre él, bien alto
+function centEdifSitio(e, i, n){ return { x: e.x + (i - (n - 1)/2)*170, y: e.y - 250 + Math.sin(gameTime*2.2 + i)*6 }; }
+// ---- el agarre ----
+function centAgBusca(e, a, ya){
+  let mejor = null, md = 1e9;
+  for (let i = 0; i < buildings.length; i++){ const b = buildings[i];
+    if (b.stage >= 2 || (ya && ya.indexOf(b) >= 0)) continue;
+    const cx = b.x + b.w/2, cy = b.y + b.h/2, d = dist(cx, cy, e.x, e.y);
+    if (d > (ya ? 700 : 820)) continue;
+    if (ya && difAngAbs(Math.atan2(cy - e.y, cx - e.x) - a) > 1.3) continue;      // ya lanzado: los que tiene por delante
+    if (d < md){ md = d; mejor = b; }
+  }
+  return mejor;
+}
+function centAgarra(e){
+  tela = { e, cent:true, res: CENT_AG_RES + (e.furia ? 2 : 0), max: CENT_AG_RES + (e.furia ? 2 : 0), t:0, tir:0, edif:0, ya:[] };
+  e.fase = 'agarre'; e.agA = e.eA; e.agObj = centAgBusca(e, e.agA, null);
+  golpeDesSuave(5);
+  if (usaVil()){ vil.flying = false; vil.joyFly = false; }
+  toast('¡TE HA AGARRADO! ¡HAZ CLIC PARA SOLTARTE!'); sfx('grab'); sfx('dash'); shake(10, 0.25); centDice(e, 'agarre');
+}
+function updateAgarreCent(dt){
+  const t = tela, e = t.e;
+  if (!running || e.dead || !enemies.includes(e) || e.hieloT > 0 || e.fase !== 'agarre'){ sueltaTela(false); return; }
+  t.t += dt; if (t.tir > 0) t.tir -= dt;
+  paralizadoT = Math.max(paralizadoT, 0.15);
+  if (usaVil() && vil.flying){ vil.flying = false; vil.joyFly = false; }
+  // rumbo: hacia el siguiente edificio en pie
+  const b = e.agObj;
+  if (b && b.stage < 2) e.agA = giraHacia(e.agA, Math.atan2(b.y + b.h/2 - e.y, b.x + b.w/2 - e.x), 2.6*dt);
+  else if (t.edif < CENT_AG_EDIF && (t._busca = (t._busca || 0) - dt) <= 0){ t._busca = 0.2; e.agObj = centAgBusca(e, e.agA, t.ya); }
+  const paso = CENT_AG_VEL*dt;
+  let nx = e.x + Math.cos(e.agA)*paso, ny = e.y + Math.sin(e.agA)*paso;
+  if (nx < 90 || nx > WORLD_W - 90){ e.agA = Math.PI - e.agA; nx = clamp(nx, 90, WORLD_W - 90); }   // rebota en los bordes del mapa
+  if (ny < 90 || ny > WORLD_H - 90){ e.agA = -e.agA; ny = clamp(ny, 90, WORLD_H - 90); }
+  e.x = nx; e.y = ny; e.facing = Math.cos(e.agA) >= 0 ? 1 : -1;
+  // te lleva por delante, cogido con el puño (vuela bajo para ir a tu altura)
+  player.x = clamp(e.x + e.facing*66 + Math.cos(e.agA)*10, 20, WORLD_W - 20); player.y = clamp(e.y + 4 + Math.sin(e.agA)*10, 20, WORLD_H - 20);
+  // los edificios: te estrella contra ellos y los atraviesa
+  for (let i = 0; i < buildings.length; i++){ const bb = buildings[i];
+    if (bb.stage >= 2) continue;
+    const cx = clamp(player.x, bb.x, bb.x + bb.w), cy = clamp(player.y, bb.y, bb.y + bb.h);
+    if (dist(cx, cy, player.x, player.y) > 30) continue;
+    t.edif++; t.ya.push(bb);
+    damageBuilding(bb, 450);
+    golpeDesSuave(4);
+    addParticles(player.x, player.y - 20, '#b8b0a0', 22, 240); addParticles(player.x, player.y - 20, '#e8f0f8', 8, 160);
+    anilloPolvo(cx, cy, 80, 14, '#8a8278'); shake(14, 0.3); sfxEn('demolish', cx, cy); sfx('caidaGolpe');
+    if (e.agObj === bb) e.agObj = null;
+  }
+  // arrasa lo que pilla por el camino
+  for (const pool of [civilians, enemies]) for (let i = 0; i < pool.length; i++){ const q = pool[i];
+    if (q === e || q.dead || q.held || JEFES[q.type] || q._cenG === e.embId || dist(q.x, q.y, player.x, player.y) > 60) continue;
+    q._cenG = e.embId; damageEnemy(q, 80, q.x, q.y);
+  }
+  for (let i = 0; i < cars.length; i++){ const c = cars[i];
+    if (c.dead || c.held || c.thrown || c._cenG === e.embId || dist(c.x, c.y, player.x, player.y) > 50) continue;
+    c._cenG = e.embId; c.hp -= 120; if (c.hp <= 0) autoAbatido(c); else autoEmpuja(c, e.agA + rand(-0.6, 0.6), 500);
+  }
+  if (Math.random() < 0.8) addParticles(e.x - Math.cos(e.agA)*30, e.y - 40, '#ff8a2a', 2, 120);
+  // al final, un puñetazo que te manda lejos
+  if (t.t >= CENT_AG_T || (t.edif >= CENT_AG_EDIF && t.t >= CENT_AG_MIN)){
+    const an = e.agA;
+    tela = null; paralizadoT = 0;
+    golpeDesSuave(10);
+    centLanzaJugador(an, 1150);
+    e.fase = 'golpe'; e.ft = 0.3; e.pA = an; e.golpeCd = CENT_GOLPE_CD;
+    addParticles(player.x, player.y - 14, '#ffd0c0', 18, 220);
+    booms.push({ x: player.x, y: player.y, r: 10, max: 90, life: 0.35, maxlife: 0.35, ring: true });
+    shake(18, 0.4); sfx('hurt'); sfx('bigboom'); centDice(e, 'golpe');
+  }
+}
+// El puñetazo: todo lo que queda dentro del área marcada.
+function centGolpea(e){
+  const L = CENT_GOLPE_L, W = CENT_GOLPE_W, a = e.pA;
+  if (!vil.intro && enLinea(player.x, player.y, e.x, e.y, a, L + F().r, W + F().r*0.5)){
+    golpeDesSuave((e.roto ? 22 : 16)*(e.deforme ? 1.3 : 1));
+    centLanzaJugador(a, e.roto ? 1100 : 800);
+    addParticles(player.x, player.y - 14, '#ffd0c0', 14, 200);
+    shake(14, 0.3); sfx('hurt'); centDice(e, 'golpe');
+  }
+  for (const pool of [civilians, enemies]) for (let i = 0; i < pool.length; i++){ const t = pool[i];
+    if (t === e || t.dead || t.held || JEFES[t.type] || !enLinea(t.x, t.y, e.x, e.y, a, L, W)) continue;
+    damageEnemy(t, 90, t.x, t.y);
+  }
+  for (let i = 0; i < cars.length; i++){ const c = cars[i]; if (!c.dead && !c.held && !c.thrown && enLinea(c.x, c.y, e.x, e.y, a, L, W)){ c.hp -= 120; if (c.hp <= 0) autoAbatido(c); else autoEmpuja(c, a, 600); } }
+  const fx = e.x + Math.cos(a)*L*0.8, fy = e.y + Math.sin(a)*L*0.8;
+  for (let i = 0; i < buildings.length; i++){ const b = buildings[i]; if (b.stage < 2 && dist(clamp(fx, b.x, b.x + b.w), clamp(fy, b.y, b.y + b.h), fx, fy) < 30) damageBuilding(b, 120); }
+  addParticles(fx, fy, '#d8d0c4', 14, 180);
+  booms.push({ x: fx, y: fy, r: 8, max: 70, life: 0.3, maxlife: 0.3, ring: true });
+  sfx('caidaGolpe');
 }
 function updateCenturion(e, dt, a, ang){
   e.anim = (e.anim || 0) + dt;
@@ -23506,15 +23732,6 @@ function updateCenturion(e, dt, a, ang){
   if (furia && Math.random() < dt*14) addParticles(e.x + rand(-34, 34), e.y - (e.alt || 0) - rand(60, 120), Math.random() < 0.5 ? '#ff3a2a' : '#ffb08a', 1, 70);
   e.ft -= dt;
   if (e.hieloT > 0) return;
-  // los drones de la fase 2 disparan de vez en cuando
-  if (e.roto && e.fase !== 'transforma' && !vil.intro){
-    e.droT = (e.droT === undefined ? 1.5 : e.droT) - dt;
-    if (e.droT <= 0){
-      e.droT = rand(1.3, 2.1)/(furia ? 1.5 : 1);
-      const d = centDronPos(e, (Math.random()*3) | 0), b = mkBullet(e, Math.atan2(player.y - d.y, player.x - d.x), 380, 5, '#ff4a3a', 3);
-      b.x = d.x; b.y = d.y; b.laser = true; b.ignEdif = edifEn(b.x, b.y); bullets.push(b); sfx('laserE');
-    }
-  }
   switch (e.fase){
     case 'transforma': {                                  // flota quieto mientras la armadura nueva se monta
       e.facing = Math.cos(ang) >= 0 ? 1 : -1;
@@ -23531,6 +23748,55 @@ function updateCenturion(e, dt, a, ang){
         }
       }
       if (e.ft <= 0){ e.fase = ''; e.cd = 0.9; }
+      break;
+    }
+    case 'agarre':                                        // lo mueve updateAgarreCent, junto contigo
+      if (!tela || tela.e !== e){ e.fase = ''; e.cd = 0.8; }
+      break;
+    case 'golpeApunta':                                   // te sigue con el puño y, al final, fija el golpe
+      if (e.ft > e.gTot*0.3) e.pA = giraHacia(e.pA, ang, 4*dt);
+      e.facing = Math.cos(e.pA) >= 0 ? 1 : -1;
+      if (e.ft <= 0){ e.fase = 'golpe'; e.ft = 0.25; centGolpea(e); }
+      break;
+    case 'golpe':
+      if (e.ft <= 0){ e.fase = ''; e.golpeCd = CENT_GOLPE_CD/(furia ? 1.6 : 1); e.cd = Math.max(e.cd || 0, 0.6); }
+      break;
+    case 'edifAleja': {                                   // toma distancia antes de arrancar edificios
+      e.facing = Math.cos(ang) >= 0 ? 1 : -1;
+      if (a < CENT_ED_LEJOS && e.ft > 0){
+        e.x = clamp(e.x - Math.cos(ang)*e.speed*1.9*dt, 60, WORLD_W - 60); e.y = clamp(e.y - Math.sin(ang)*e.speed*1.9*dt, 60, WORLD_H - 60);
+        break;
+      }
+      const L = centEdifBusca(e, furia ? 3 : 2);
+      if (!L.length){ e.fase = ''; e.cd = 0.4; break; }
+      e.edif = L.map(b => { const o = centArranca(e, b); return { o, x0: o.x, y0: o.y }; });
+      e.fase = 'edifAlza'; e.ft = CENT_ED_ALZA; shake(10, 0.4);
+      break;
+    }
+    case 'edifAlza':
+    case 'edifLanza': {
+      e.facing = Math.cos(ang) >= 0 ? 1 : -1;
+      const L = e.edif || [];
+      for (let i = L.length - 1; i >= 0; i--){ const o = L[i].o; if (o.dead || o.held || o.thrown || o.presaDe !== e){ if (o.presaDe === e){ o.presa = false; o.presaDe = null; } L.splice(i, 1); } }
+      if (!L.length){ e.edif = null; e.fase = ''; e.cd = rand(1.4, 2)/vel; break; }
+      const n = L.length;
+      if (e.fase === 'edifAlza'){
+        const k = clamp(1 - e.ft/CENT_ED_ALZA, 0, 1), q = k*k*(3 - 2*k);
+        for (let i = 0; i < n; i++){ const it = L[i], o = it.o, p = centEdifSitio(e, i, n);
+          o.x = it.x0 + (p.x - it.x0)*q; o.y = it.y0 + (p.y - it.y0)*q; o.rot = Math.sin(gameTime*2 + i)*0.08*q;
+          if (Math.random() < 0.25) addParticles(it.x0 + rand(-30, 30), it.y0 + rand(-20, 20), '#8a7a68', 1, 70); }
+        if (e.ft <= 0){ e.fase = 'edifLanza'; e.ft = 0.3; }
+      } else {
+        for (let i = 0; i < n; i++){ const it = L[i], o = it.o, p = centEdifSitio(e, i, n);
+          o.x += (p.x - o.x)*Math.min(1, dt*6); o.y += (p.y - o.y)*Math.min(1, dt*6); o.rot = Math.sin(gameTime*2 + i)*0.08; }
+        if (e.ft <= 0){
+          e.ft = CENT_ED_CADA*(furia ? 0.75 : 1);
+          const it = L.shift(), o = it.o;
+          edifCent.push({ o, x0: o.x, y0: o.y, tx: player.x, ty: player.y, t: 0, T: CENT_ED_VUELO, giro: rand(-2.2, 2.2), def: !!e.deforme, e });
+          sfx('throw'); shake(6, 0.15);
+          if (!L.length){ e.edif = null; e.fase = ''; e.cd = rand(1.8, 2.4)/vel; }
+        }
+      }
       break;
     }
     case 'sonicoCarga':
@@ -23659,7 +23925,11 @@ function updateCenturion(e, dt, a, ang){
         if (t === e || t.dead || t.held || JEFES[t.type] || t._cenG === e.embId || dist(t.x, t.y, e.x, e.y) > 50) continue;
         t._cenG = e.embId; damageEnemy(t, 80, t.x, t.y);
       }
-      if (!e.golpeo && a < 50 + F().r){ e.golpeo = 1; const d0 = hp; hp = clamp(hp - recibe(32), 0, maxHp()); p2Gain(d0 - hp); shake(12, 0.3); sfx('hurt'); centDice(e, 'golpe'); }
+      if (!e.golpeo && a < 50 + F().r){
+        e.golpeo = 1;
+        if (e.roto && !tela && !Online.objetivoInv && !vil.intro){ centAgarra(e); break; }   // fase 2: te agarra y se te lleva
+        const d0 = hp; hp = clamp(hp - recibe(32), 0, maxHp()); p2Gain(d0 - hp); shake(12, 0.3); sfx('hurt'); centDice(e, 'golpe');
+      }
       if (Math.random() < 0.6) addParticles(e.x - Math.cos(e.eA)*20, e.y - 40, '#ff8a2a', 2, 100);
       if (e.rest <= 0){
         // en furia encadena otra embestida, ya hacia donde estés
@@ -23771,11 +24041,17 @@ function updateCenturion(e, dt, a, ang){
       if (a > 480){ mx += Math.cos(ang); my += Math.sin(ang); } else if (a < 300){ mx -= Math.cos(ang); my -= Math.sin(ang); }
       const l = Math.hypot(mx, my) || 1;
       e.x = clamp(e.x + mx/l*e.speed*vel*dt, 60, WORLD_W - 60); e.y = clamp(e.y + my/l*e.speed*vel*dt, 60, WORLD_H - 60);
+      e.golpeCd = (e.golpeCd || 0) - dt;
+      if (e.golpeCd <= 0 && a < CENT_GOLPE_R + F().r && !vil.intro){   // demasiado cerca: un puñetazo
+        e.fase = 'golpeApunta'; e.ft = e.gTot = CENT_GOLPE_AP[e.roto ? 1 : 0]/(e.furia ? 1.25 : 1); e.pA = ang; sfx('dash');
+        break;
+      }
       e.cd -= dt*(e.furia ? 2.4 : 1);                     // en furia apenas respira entre ataques
       if (e.cd <= 0) centEligeAtaque(e, a, ang);
     }
   }
-  e.alt = 34 + Math.sin(e.anim*2.5)*5;
+  const altM = e.fase === 'agarre' ? 3 : 34 + Math.sin(e.anim*2.5)*5;   // con el jugador cogido vuela a ras de suelo
+  e.alt = e.alt === undefined ? altM : e.alt + (altM - e.alt)*Math.min(1, dt*(e.fase === 'agarre' ? 16 : 7));
 }
 function centEligeAtaque(e, a, ang){
   const elige = ()=>{ const r = Math.random();
@@ -23784,9 +24060,18 @@ function centEligeAtaque(e, a, ang){
             : r < 0.62 ? 'bombas' : r < 0.75 ? 'doble' : r < 0.88 ? 'levanta' : 'giro'); };
   let op = elige();
   if (op === e.ultimo) op = elige();                     // que no repita tanto
+  if (e.roto && e.ultimo !== 'edificios' && Math.random() < 0.18) op = 'edificios';   // fase 2: te tira edificios
   e.ultimo = op;
   const furia = !!e.furia;
   e.lanzo = 0;
+  if (op === 'edificios'){
+    if (centEdifBusca(e, 1).length || dist(e.x, e.y, player.x, player.y) < CENT_ED_LEJOS){
+      e.fase = 'edifAleja'; e.ft = 1.1;
+      toast('¡VA A LANZARTE EDIFICIOS! ¡NO TE QUEDES QUIETO!'); sfx('cargaM'); centDice(e, 'edificios');
+      return;
+    }
+    op = 'misiles';
+  }
   if (op === 'levanta'){
     const L = centLevBusca(e, furia ? 6 : e.roto ? 5 : 3);
     if (L.length){
@@ -23874,7 +24159,7 @@ function updateBombasPeg(dt){
     }
   }
 }
-function limpiaCenturion(){ bombasPeg.length = 0; ondasCent.length = 0; }
+function limpiaCenturion(){ bombasPeg.length = 0; ondasCent.length = 0; edifCent.length = 0; centEmpuje = null; }
 // El bocadillo del Centurión: una pantallita del Imperio sobre su cabeza, con
 // la frase escribiéndose letra a letra.
 function partirFrase(txt, ancho){
@@ -23942,51 +24227,6 @@ function centBlanco(c){
   _centBlanco.set(c, w);
   return w;
 }
-// Los drones de la fase 2: carcasa blanca, núcleo rojo y dos aletas.
-let _centDron = null;
-function centDronCv(){
-  if (_centDron) return _centDron;
-  const c = document.createElement('canvas'); c.width = 22; c.height = 18;
-  const g = c.getContext('2d'); g.translate(11, 9); g.lineCap = 'round';
-  jL(g, '#2a323c', 3, -9, -4, -4, -1); jL(g, '#2a323c', 3, 9, -4, 4, -1);   // aletas
-  jL(g, '#c8d2dc', 1.4, -9, -4, -4, -1); jL(g, '#c8d2dc', 1.4, 9, -4, 4, -1);
-  jO(g, '#2a323c', 0, 0, 6.4, 6); jO(g, '#d8e2ea', 0, 0, 5.4, 5);
-  jO(g, '#ffffff', -1.8, -2, 2, 1.4); jO(g, '#7c8a98', 0, 2.6, 4, 1.6);
-  jO(g, '#3c0806', 0, 0.6, 3, 2.8); jO(g, '#e5281c', 0, 0.6, 2.2, 2); jO(g, '#ffd6c0', -0.5, 0, 0.9, 0.8);
-  pixelArte(c, '#06080c');
-  return (_centDron = c);
-}
-function centDronAng(e, i){ return (e.anim || 0)*1.3 + i*Math.PI*2/3; }
-// Dónde está cada dron (en coordenadas del mundo, ya elevado como lo demás).
-function centDronPos(e, i){
-  const an = centDronAng(e, i);
-  return { x: e.x + Math.cos(an)*66, y: e.y + 6 - (e.alt || 0) - 96*CENT_ESC + Math.sin(an)*13 + Math.sin((e.anim || 0)*3 + i)*4, delante: Math.sin(an) > 0 };
-}
-function drawCentDron(e, i, s){
-  const p = centDronPos(e, i), o = S(p.x, p.y), c = centDronCv();
-  ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.55 + 0.25*Math.sin((e.anim || 0)*8 + i);
-  ctx.drawImage(centBrillo('#ff4a2a'), o.x - 9, o.y - 8, 18, 18); ctx.restore();
-  const suave = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(c, o.x - 11*1.2, o.y - 9*1.2, 22*1.2, 18*1.2);
-  ctx.imageSmoothingEnabled = suave;
-}
-// Los cables del lomo (fase 2): látigos que se mecen detrás de la armadura.
-function drawCentCables(e, X, Y){
-  const t = e.anim || 0, P = CENT_PTS[2].cables, ag = e.fase === 'giro' || e.fase === 'embiste' ? 2.2 : 1;
-  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-  for (let i = 0; i < P.length; i++){
-    const [ax, ay] = P[i], lado = i < 2 ? -1 : 1, larg = i === 0 || i === 3 ? 1 : 0.8;
-    const sw = Math.sin(t*2.1*ag + i*1.7)*8, sw2 = Math.sin(t*2.9*ag + i*2.3)*7;
-    const bx = ax + lado*(18 + i % 2*6)*larg + sw*0.5, by = ay - 26*larg + sw2*0.4;          // control
-    const cx2 = ax + lado*(34 + i % 2*8)*larg + sw, cy2 = ay - 14*larg - 18 + sw2;           // punta
-    const p0x = X(ax), p0y = Y(ay), p1x = X(bx), p1y = Y(by), p2x = X(cx2), p2y = Y(cy2);
-    for (const [col, w] of [['#080b10', 4.6], ['#5a6d80', 2.8], ['#c2d2df', 1]]){
-      ctx.strokeStyle = col; ctx.lineWidth = w*CENT_ESC*0.8; ctx.beginPath(); ctx.moveTo(p0x, p0y); ctx.quadraticCurveTo(p1x, p1y, p2x, p2y); ctx.stroke();
-    }
-    ctx.fillStyle = '#080b10'; ctx.beginPath(); ctx.arc(p2x, p2y, 3.4*CENT_ESC*0.8, 0, Math.PI*2); ctx.fill();
-    ctx.fillStyle = '#e5281c'; ctx.beginPath(); ctx.arc(p2x, p2y, 1.7*CENT_ESC*0.8, 0, Math.PI*2); ctx.fill();
-  }
-}
 function drawCenturion(e){
   const s = S(e.x, e.y), t = e.anim || 0, alt = e.alt || 0, E = CENT_ESC;
   const transf = e.fase === 'transforma', kT = transf ? 1 - Math.max(0, e.ft)/CENT_TRANSF_T : 0;
@@ -23997,19 +24237,30 @@ function drawCenturion(e){
   const giro = e.fase === 'giro' || e.fase === 'giroCarga', cg = giro ? Math.cos(e.gA || 0) : (e.facing < 0 ? -1 : 1);
   const fd = cg < 0 ? -1 : 1, kx = Math.max(0.28, Math.abs(cg));
   const X = (px)=> s.x + fd*kx*px*E, Y = (py)=> dy + py*E;   // de un punto del dibujo a la pantalla
+  if (e.fase === 'agarre'){                              // a toda velocidad: estelas detrás
+    const a0 = (e.agA || 0) + Math.PI;
+    ctx.save(); ctx.strokeStyle = '#ffe0c8'; ctx.lineCap = 'round';
+    for (let j = 0; j < 7; j++){ const off = (j - 3)*14, ox = Math.cos(a0 + Math.PI/2)*off, oy = Math.sin(a0 + Math.PI/2)*off*0.7 - 50*E;
+      const L = 60 + ((j*37 + t*900) % 70); ctx.globalAlpha = 0.25 + (j % 3)*0.12; ctx.lineWidth = j % 2 ? 2 : 3.5;
+      ctx.beginPath(); ctx.moveTo(s.x + ox + Math.cos(a0)*30, dy + oy + Math.sin(a0)*30); ctx.lineTo(s.x + ox + Math.cos(a0)*(30 + L), dy + oy + Math.sin(a0)*(30 + L)); ctx.stroke(); }
+    ctx.restore();
+  }
   // llamas de los propulsores de las botas: cian en la fase 1, rojas en la 2
-  const fl = 0.8 + Math.random()*0.3, cF = fase2 ? ['#ff8a2a', '#ffe07a'] : ['#38d8ff', '#eaffff'];
+  const fl = (0.8 + Math.random()*0.3)*(e.fase === 'agarre' || e.fase === 'embiste' ? 1.8 : 1), cF = fase2 ? ['#ff8a2a', '#ffe07a'] : ['#38d8ff', '#eaffff'];
   ctx.globalAlpha = 0.85;
   for (let j = 0; j < 2; j++){ const x = X(P.pies[j]), y = Y(fase2 ? 1 : 4);
     ctx.fillStyle = cF[0]; ctx.beginPath(); ctx.moveTo(x - 5, y); ctx.lineTo(x, y + 18*fl); ctx.lineTo(x + 5, y); ctx.closePath(); ctx.fill();
     ctx.fillStyle = cF[1]; ctx.beginPath(); ctx.moveTo(x - 2.5, y); ctx.lineTo(x, y + 10*fl); ctx.lineTo(x + 2.5, y); ctx.closePath(); ctx.fill(); }
   ctx.globalAlpha = 1;
   const pose = (e.fase === 'minigun' || e.fase === 'hieloCarga' || e.fase === 'hielo' || e.fase === 'dobleAviso' || e.fase === 'dobleRayo' || e.fase === 'giro') ? 'dispara'
-             : (e.fase === 'corteCarga' || e.fase === 'corte' || transf) ? 'carga'
+             : (e.fase === 'corteCarga' || e.fase === 'corte' || transf || e.fase === 'edifAlza' || e.fase === 'edifLanza') ? 'carga'
+             : e.fase === 'golpeApunta' ? 'puno0'
+             : e.fase === 'agarre' ? (e.roto ? 'agarra' : 'puno1')
+             : e.fase === 'golpe' ? 'puno1'
              : (e.fase === 'sonicoCarga' || e.fase === 'sonico') ? 'sonico'
              : (e.fase === 'levantaCarga' || e.fase === 'levanta') ? 'levanta'
              : (e.fase === 'embiste' || e.fase === 'embisteAviso') ? 'embiste' : 'vuela';
-  let c = centFrame(pose, Math.floor(t*14) % 2, fase2);
+  let c = centFrame(pose, Math.floor(t*14) % 2, fase2, fase2 ? (e.furia ? 2 : 1) : 0);
   if (pintaDeforme) c = deformCv(c);
   const [W, H, cx, py] = CENT_TAM;
   if (e.furia || transf){                                // en furia (o transformándose), un halo que late
@@ -24023,8 +24274,6 @@ function drawCenturion(e){
     ctx.beginPath(); ctx.ellipse(s.x, dy - 40*E, (fase2 ? 56 : 44)*E, 14*E, 0, (e.gA || 0) % (Math.PI*2), (e.gA || 0) % (Math.PI*2) + 4); ctx.stroke();
     ctx.restore();
   }
-  // lo de detrás: cables y los drones que pasan por detrás
-  if (fase2){ drawCentCables(e, X, Y); for (let i = 0; i < 3; i++) if (!centDronPos(e, i).delante) drawCentDron(e, i, s); }
   ctx.save(); ctx.translate(s.x, dy); ctx.scale(fd*kx*E, E);
   const suave = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = false;
   ctx.drawImage(c, -cx, -py);
@@ -24044,7 +24293,11 @@ function drawCenturion(e){
     const rp = (9 + Math.sin(t*12)*2)*E; ctx.globalAlpha = 0.85; ctx.drawImage(centBrillo(P.col), X(P.palma[0]) - rp, Y(P.palma[1]) - rp, rp*2, rp*2);
   }
   ctx.restore();
-  if (fase2) for (let i = 0; i < 3; i++) if (centDronPos(e, i).delante) drawCentDron(e, i, s);
+  if (fase2 && running && Math.random() < (e.furia ? 0.22 : 0.08)){   // las heridas de la armadura echan chispas (y humo, con poca vida)
+    const m = P.marcas[(Math.random()*P.marcas.length) | 0], wx = e.x + fd*kx*m[0]*E, wy = e.y + 6 - alt + m[1]*E;
+    addParticles(wx, wy, Math.random() < 0.5 ? '#ffd27a' : '#ff8a4a', 2, 110);
+    if (e.furia && Math.random() < 0.4) addParticles(wx, wy - 4, '#3a3a40', 1, 40);
+  }
   if (e.fase === 'corteCarga' || e.fase === 'corte'){
     // el reactor se carga antes del corte
     const k = e.fase === 'corte' ? 1 : 1 - e.ft/CENT_CORTE_CARGA, ry = Y(P.pecho[1]), rx = X(P.pecho[0]);
@@ -24132,6 +24385,16 @@ function drawCenturionAvisos(){
       ctx.globalAlpha = 0.12; ctx.lineWidth = 34; ctx.beginPath(); ctx.moveTo(o.x, o.y); ctx.lineTo(d.x, d.y); ctx.stroke();
       ctx.restore();
     }
+    if (e.fase === 'golpeApunta'){
+      // el área del puñetazo: te sigue mientras apunta y se fija justo antes
+      const o = S(e.x, e.y), p = clamp(1 - e.ft/(e.gTot || 0.6), 0, 1), fijo = e.ft <= e.gTot*0.3, L = CENT_GOLPE_L, W = CENT_GOLPE_W;
+      ctx.save(); ctx.translate(o.x, o.y); ctx.rotate(e.pA || 0);
+      ctx.globalAlpha = 0.14 + p*0.16; ctx.fillStyle = fijo ? '#ff3a1a' : '#ff7a3a'; ctx.fillRect(0, -W, L, W*2);
+      ctx.globalAlpha = 0.3 + 0.15*Math.sin(gameTime*30); ctx.fillRect(0, -W*0.6, L*p, W*1.2);
+      ctx.globalAlpha = 0.9; ctx.strokeStyle = fijo ? '#fff0e0' : '#ff6a3a'; ctx.lineWidth = fijo ? 3 : 2; ctx.strokeRect(0, -W, L, W*2);
+      ctx.fillStyle = fijo ? '#fff0e0' : '#ff8a5a'; ctx.beginPath(); ctx.moveTo(L - 4, -12); ctx.lineTo(L + 12, 0); ctx.lineTo(L - 4, 12); ctx.closePath(); ctx.fill();
+      ctx.restore();
+    }
     if (e.fase === 'sonicoCarga'){
       // el abanico por donde van a salir las ondas, con arcos que avanzan
       const m = centBoca(e), o = S(m.x, m.y), p = clamp(1 - e.ft/CENT_SON_CARGA, 0, 1), L = CENT_SON_L, a0 = e.sA - CENT_SON_ABRE, a1 = e.sA + CENT_SON_ABRE;
@@ -24155,6 +24418,19 @@ function drawCenturionAvisos(){
       ctx.beginPath(); ctx.moveTo(o.x, o.y); ctx.lineTo(o.x + Math.cos(e.c0)*CENT_CORTE_L, o.y + Math.sin(e.c0)*CENT_CORTE_L); ctx.stroke();
       ctx.restore();
     }
+  }
+}
+// Donde va a caer cada edificio: un círculo que se cierra hasta el impacto.
+function drawCentEdifMarcas(){
+  for (let i = 0; i < edifCent.length; i++){
+    const v = edifCent[i], o = S(v.tx, v.ty), k = Math.min(1, v.t/v.T), R = CENT_ED_R;
+    ctx.save();
+    ctx.globalAlpha = 0.16 + k*0.2; ctx.fillStyle = '#ff2a1a'; ctx.beginPath(); ctx.ellipse(o.x, o.y, R, R*0.62, 0, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 0.35 + k*0.45; ctx.beginPath(); ctx.ellipse(o.x, o.y, R*k, R*0.62*k, 0, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 0.95; ctx.strokeStyle = k > 0.7 ? '#fff0e0' : '#ff5a3a'; ctx.lineWidth = 2.5;
+    ctx.setLineDash([12, 8]); ctx.lineDashOffset = -gameTime*90; ctx.beginPath(); ctx.ellipse(o.x, o.y, R, R*0.62, 0, 0, Math.PI*2); ctx.stroke(); ctx.setLineDash([]);
+    ctx.beginPath(); ctx.moveTo(o.x - 14, o.y); ctx.lineTo(o.x + 14, o.y); ctx.moveTo(o.x, o.y - 9); ctx.lineTo(o.x, o.y + 9); ctx.stroke();
+    ctx.restore();
   }
 }
 function drawCenturionEfectos(){
@@ -24185,6 +24461,24 @@ function drawCenturionEfectos(){
         ctx.globalAlpha = 0.55; const R = 26 + Math.sin(gameTime*6 + i)*4; ctx.drawImage(centBrillo(P.col), q.x - R, q.y - R, R*2, R*2);
       }
       ctx.restore();
+    }
+    if (e.edif && e.edif.length){
+      // las dos manos alzadas sostienen los edificios con su energía
+      const fd = e.facing < 0 ? -1 : 1, s0 = S(e.x, e.y), dy0 = s0.y + 6 - (e.alt || 0), E = CENT_ESC, f2 = !!e.roto;
+      const manos = f2 ? [[-42, -68], [44, -68]] : [[-33, -71], [36, -72]], col = centPts(e).col;
+      ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = col; ctx.lineCap = 'round';
+      for (let i = 0; i < e.edif.length; i++){
+        const o = e.edif[i].o, q = S(o.x, o.y), m = manos[i % 2], hx = s0.x + fd*m[0]*E, hy = dy0 + m[1]*E;
+        for (const [w, al] of [[8, 0.22], [2, 0.85]]){ ctx.globalAlpha = al; ctx.lineWidth = w; ctx.beginPath(); ctx.moveTo(hx, hy);
+          ctx.quadraticCurveTo((hx + q.x)/2 + Math.sin(gameTime*8 + i)*12, (hy + q.y)/2, q.x, q.y + o.h*0.2); ctx.stroke(); }
+        ctx.globalAlpha = 0.6; const R = 18 + Math.sin(gameTime*10 + i)*4; ctx.drawImage(centBrillo(col), hx - R, hy - R, R*2, R*2);
+      }
+      ctx.restore();
+    }
+    if (e.fase === 'agarre' && tela && tela.e === e){       // el puño apretando al jugador
+      const q = S(player.x, player.y - 14), tir = tela.tir > 0 ? rand(-3, 3) : 0;
+      ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.7 + Math.sin(gameTime*20)*0.2;
+      ctx.drawImage(centBrillo('#ff4a2a'), q.x - 22 + tir, q.y - 22, 44, 44); ctx.restore();
     }
     if (e.dice) drawCentDice(e);
     if (e.fase === 'hielo' && e.hx2 !== undefined){
@@ -34581,7 +34875,7 @@ function updateSpawns(dt){
   updateRegen(dt);
   updateHumoEdif(dt);
   updateJefes2(dt);
-  updateAlien(dt); updateBombasPeg(dt); if (ondasCent.length) updateOndasCent(dt); updateRefuerzos(dt); updateInfierno(dt); updateCharcosLava(dt, true); updateCharcosAgua(dt);
+  updateAlien(dt); updateBombasPeg(dt); updateCentExtra(dt); updateRefuerzos(dt); updateInfierno(dt); updateCharcosLava(dt, true); updateCharcosAgua(dt);
   updateBossMusic(dt);
   if (gameMode === 'leyenda'){ updateLeyenda(dt); return; }     // solo los duelos
   if (gameMode === 'vs'){
@@ -37275,7 +37569,7 @@ function draw(){
   drawPlanters(); drawLamps();
   // Las zonas marcadas del Artillero van DESPUÉS de los edificios: si no, los
   // escombros las tapaban justo donde más falta hace verlas.
-  drawRestosSuelo(); drawFuegos(); drawArtAvisos(); drawTriAvisos(); drawDragonAvisos(); drawVilAvisos(); drawMaquinaAvisos(); drawMagoAvisos(); drawMbtRayos(); drawJefes2Avisos(); drawAlienSuelo(); drawCenturionAvisos(); drawAmalgamaAvisos(); drawDesgarradorAvisos(); drawRefuerzosSuelo(); drawAracnidoSuelo(); drawDesesperacionAvisos(); drawMuerteVelozSuelo(); drawCenizasSuelo(); drawNubesNegras();
+  drawRestosSuelo(); drawFuegos(); drawArtAvisos(); drawTriAvisos(); drawDragonAvisos(); drawVilAvisos(); drawMaquinaAvisos(); drawMagoAvisos(); drawMbtRayos(); drawJefes2Avisos(); drawAlienSuelo(); drawCenturionAvisos(); if (edifCent.length) drawCentEdifMarcas(); drawAmalgamaAvisos(); drawDesgarradorAvisos(); drawRefuerzosSuelo(); drawAracnidoSuelo(); drawDesesperacionAvisos(); drawMuerteVelozSuelo(); drawCenizasSuelo(); drawNubesNegras();
 
   // Solo se encolan los objetos visibles: con ~200 props fuera de pantalla,
   // esto evita cientos de entradas y llamadas de dibujo por fotograma.
