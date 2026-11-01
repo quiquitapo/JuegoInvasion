@@ -5060,11 +5060,16 @@ function infiernoSet(b, R){ return R() < 0.35 ? alienSet(b.cat || 'medio', R) : 
 // ================= SKINS DE LA CIUDAD =================
 // Se compran en EXTRAS y cambian el aspecto de la ciudad (no de los
 // personajes ni de los efectos, que siguen a color y se leen igual de bien):
-//   MANGA:   blanco y negro con tinta: contornos, tramas de puntos en las
-//            sombras y papel algo apagado. Serio y sobrio.
+//   BLANCO Y NEGRO (id 'manga'): tinta, tramas de puntos en las sombras y
+//            papel algo apagado. Serio y sobrio, como un manga.
 //   CARTOON: dibujo animado de los años 30: colores cálidos y apagados,
 //            contorno grueso, tonos planos, viñeta, grano de película,
 //            rayas y polvo.
+//   CÓMIC:   tinta negra gruesa, colores de imprenta por planos, rayado en
+//            las sombras y puntos Ben-Day en las luces.
+//   ANIME:   anime de acción a pleno sol: colores vivos en planos limpios,
+//            sombras frías, luces cálidas, línea de color y el resplandor
+//            del sol con sus rayos.
 // Todo se aplica UNA vez a cada imagen del escenario (edificios, interiores,
 // parques, árboles, farolas, bancos, autos) al crearla, igual que el tinte
 // del infierno; el suelo se filtra con fusiones de la tarjeta gráfica al
@@ -5078,7 +5083,7 @@ function skinCiudadPx(c, modo){
     const g = c.getContext('2d'), d = g.getImageData(0, 0, W, H), p = d.data, n = W*H;
     const L = new Uint8Array(n), A = new Uint8Array(n);
     for (let i = 0, j = 0; i < n; i++, j += 4){ A[i] = p[j + 3]; L[i] = (p[j]*0.3 + p[j + 1]*0.59 + p[j + 2]*0.11) | 0; }
-    const manga = modo === 'manga', grueso = !manga;           // el cartoon lleva el contorno de 2 píxeles
+    const manga = modo === 'manga', grueso = modo === 'cartoon' || modo === 'comic';   // cartoon y cómic, con el contorno de 2 píxeles
     const trama = W*H > 5000;                                   // en lo pequeño (farolas, bancos), sin trama: tinta y papel
     const op = (x, y)=> x >= 0 && y >= 0 && x < W && y < H && A[y*W + x] > 40;
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++){
@@ -5106,6 +5111,37 @@ function skinCiudadPx(c, modo){
           }
         }
         if (tinta){ p[j] = 22; p[j + 1] = 22; p[j + 2] = 26; } else { p[j] = 238; p[j + 1] = 234; p[j + 2] = 224; }
+      } else if (modo === 'comic'){
+        // cómic: tinta negra gruesa, colores saturados por planos, sombras
+        // con rayado y puntos Ben-Day (los de la imprenta) en las luces
+        if (borde || arista > 140){ p[j] = 18; p[j + 1] = 18; p[j + 2] = 22; continue; }
+        let r = p[j], gg = p[j + 1], b = p[j + 2];
+        r = l + (r - l)*1.45; gg = l + (gg - l)*1.45; b = l + (b - l)*1.45;
+        const q = (v)=> Math.round(Math.min(255, Math.max(0, (v - 128)*1.2 + 136))/63.75)*63.75;
+        r = q(r); gg = q(gg); b = q(b);
+        if (l < 58){ p[j] = 18; p[j + 1] = 18; p[j + 2] = 22; continue; }
+        if (l < 105){                                                       // sombra: más oscuro y con rayado
+          if (((x + y) % 4) === 0){ p[j] = 18; p[j + 1] = 18; p[j + 2] = 22; continue; }
+          r *= 0.62; gg *= 0.62; b *= 0.62;
+        } else if (l > 178){                                                // luz: puntos Ben-Day sobre papel
+          const cx = (x % 4) - 1.5, cy = (y % 4) - 1.5;
+          if (cx*cx + cy*cy > 2.2){ r = 255; gg = 246; b = 226; }
+        }
+        p[j] = r; p[j + 1] = gg; p[j + 2] = b;
+      } else if (modo === 'anime'){
+        // anime de acción a pleno sol: colores vivos en dos o tres planos
+        // limpios, sombras frías (azul violeta), luces cálidas y línea de color
+        let r = p[j], gg = p[j + 1], b = p[j + 2];
+        // los edificios llegan apagados (como toda la ciudad): aquí se les
+        // devuelve el color y la luz antes de separar luces y sombras
+        const lb = Math.min(255, l*1.18 + 8);
+        r = lb + (r - l)*1.9; gg = lb + (gg - l)*1.9; b = lb + (b - l)*1.9;
+        if (borde){ p[j] = Math.max(0, r*0.32 + 10); p[j + 1] = Math.max(0, gg*0.32 + 12); p[j + 2] = Math.max(0, b*0.36 + 30); continue; }
+        if (arista > 170){ r *= 0.55; gg *= 0.55; b *= 0.6; }
+        else if (lb < 82){ r = r*0.62*0.75 + 60*0.25; gg = gg*0.62*0.75 + 66*0.25; b = b*0.7*0.75 + 150*0.25; }   // sombra fría
+        else if (lb > 210){ r = r*0.55 + 255*0.45; gg = gg*0.55 + 248*0.45; b = b*0.55 + 228*0.45; }          // luz cálida
+        else { r *= 1.08; gg *= 1.06; b *= 1.02; }
+        p[j] = Math.min(255, Math.max(0, r)); p[j + 1] = Math.min(255, Math.max(0, gg)); p[j + 2] = Math.min(255, Math.max(0, b));
       } else {
         if (borde){ p[j] = 38; p[j + 1] = 22; p[j + 2] = 14; continue; }
         if (arista > 150){ p[j] = 62; p[j + 1] = 40; p[j + 2] = 26; continue; }
@@ -5151,6 +5187,14 @@ function tramaPat(g){
   t.fillStyle = '#6e6e6e'; t.beginPath(); t.arc(1.5, 1.5, 1.15, 0, Math.PI*2); t.arc(4.5, 4.5, 1.15, 0, Math.PI*2); t.fill();
   return (_tramaPat = g.createPattern(c, 'repeat'));
 }
+let _bendayPat = null;
+function bendayPat(g){
+  if (_bendayPat) return _bendayPat;
+  const c = document.createElement('canvas'); c.width = c.height = 8;
+  const t = c.getContext('2d'); t.fillStyle = '#ffffff'; t.fillRect(0, 0, 8, 8);
+  t.fillStyle = '#d8b0a8'; t.beginPath(); t.arc(2, 2, 1.4, 0, Math.PI*2); t.arc(6, 6, 1.4, 0, Math.PI*2); t.fill();
+  return (_bendayPat = g.createPattern(c, 'repeat'));
+}
 function papelPat(g){
   if (_papelPat) return _papelPat;
   const c = document.createElement('canvas'); c.width = c.height = 128;
@@ -5179,6 +5223,13 @@ function skinSueloFiltro(g, x, y, w, h, ox, oy){
     g.globalCompositeOperation = 'multiply'; g.fillStyle = '#e8e3d8'; g.fillRect(x, y, w, h);
     g.globalAlpha = 0.55; g.fillStyle = tramaPat(g);
     g.translate(ox % 6, oy % 6); g.fillRect(x - 6, y - 6, w + 12, h + 12);
+  } else if (modo === 'comic'){
+    g.globalCompositeOperation = 'saturation'; g.globalAlpha = 0.16; g.fillStyle = '#ff0000'; g.fillRect(x, y, w, h);   // más color
+    g.globalAlpha = 1; g.globalCompositeOperation = 'multiply'; g.fillStyle = '#fff1d6'; g.fillRect(x, y, w, h);
+    g.globalAlpha = 0.4; g.fillStyle = bendayPat(g);
+    g.translate(ox % 8, oy % 8); g.fillRect(x - 8, y - 8, w + 16, h + 16);
+  } else if (modo === 'anime'){
+    g.globalCompositeOperation = 'soft-light'; g.globalAlpha = 0.3; g.fillStyle = '#fff4e0'; g.fillRect(x, y, w, h);   // sol cálido, sin teñir el asfalto
   } else {
     g.globalCompositeOperation = 'saturation'; g.globalAlpha = 0.4; g.fillStyle = '#808080'; g.fillRect(x, y, w, h);
     g.globalAlpha = 1; g.globalCompositeOperation = 'multiply'; g.fillStyle = '#f2d9aa'; g.fillRect(x, y, w, h);
@@ -5213,6 +5264,15 @@ function drawSkinCiudadPantalla(){
     ctx.fillRect(0, 0, W, b); ctx.fillRect(0, H - b, W, b); ctx.fillRect(0, 0, b, H); ctx.fillRect(W - b, 0, b, H);
     ctx.fillStyle = '#ece8de';
     ctx.fillRect(b, b, W - 2*b, f); ctx.fillRect(b, H - b - f, W - 2*b, f); ctx.fillRect(b, b, f, H - 2*b); ctx.fillRect(W - b - f, b, f, H - 2*b);
+  } else if (modo === 'comic'){
+    // la viñeta del cómic: margen blanco y una línea negra firme
+    const m = Math.max(4, Math.round(6*DPR)), l = Math.max(2, Math.round(2.5*DPR));
+    ctx.fillStyle = '#fbf6ea';
+    ctx.fillRect(0, 0, W, m); ctx.fillRect(0, H - m, W, m); ctx.fillRect(0, 0, m, H); ctx.fillRect(W - m, 0, m, H);
+    ctx.fillStyle = '#121216';
+    ctx.fillRect(m, m, W - 2*m, l); ctx.fillRect(m, H - m - l, W - 2*m, l); ctx.fillRect(m, m, l, H - 2*m); ctx.fillRect(W - m - l, m, l, H - 2*m);
+  } else if (modo === 'anime'){
+    // nada por fotograma: el sol y los rayos ya van en la graduación
   } else {
     // grano de película a 12 imágenes por segundo, rayas y algún parpadeo
     const tiles = granoTiles(), q = Math.floor(performance.now()/83);
@@ -10426,10 +10486,14 @@ const AURA_COST = 150;
 let auraBought = false, auraOn = false;
 // Skins de la ciudad (se compran una vez; se usa una o ninguna)
 const CIUDAD_SKINS = [
-  { id:'manga',   name:'MANGA',   cost:350, sub:'Tinta, tramas y papel: una ciudad sobria y seria',
+  { id:'manga',   name:'BLANCO Y NEGRO', cost:350, sub:'Tinta, tramas y papel: una ciudad sobria y seria',
     muestra:'radial-gradient(circle, #1c1c20 34%, transparent 36%) 0 0 / 6px 6px, linear-gradient(135deg, #f0ece2 0 45%, #9a968e 45% 55%, #f0ece2 55%)' },
   { id:'cartoon', name:'CARTOON', cost:350, sub:'Dibujo animado de los años 30: sepia, contornos y grano',
-    muestra:'radial-gradient(circle at 50% 42%, #f6e2b4 0 34%, #d98a4a 35% 52%, #3a2010 53% 60%, #e8c890 61%)' }
+    muestra:'radial-gradient(circle at 50% 42%, #f6e2b4 0 34%, #d98a4a 35% 52%, #3a2010 53% 60%, #e8c890 61%)' },
+  { id:'comic',   name:'CÓMIC',   cost:350, sub:'Tinta gruesa, colores de imprenta, rayado y puntos Ben-Day',
+    muestra:'radial-gradient(circle, #e8322a 30%, transparent 33%) 0 0 / 6px 6px, linear-gradient(135deg, #ffe36a 0 60%, #2a6ad8 60%)' },
+  { id:'anime',   name:'ANIME',   cost:350, sub:'Colores vivos a pleno sol, sombras frías y luz cálida',
+    muestra:'linear-gradient(160deg, #8fd3ff 0 38%, #fff4c8 38% 50%, #ffcc33 50% 70%, #d8322a 70% 84%, #3a3a8a 84%)' }
 ];
 let customSkin = { id:'custom', name:'COLOR PROPIO', cost:CUSTOM_COST,
                    c:['#7fd0ff','#1f5f9e','#0d2340'], limb:'#245f8a', tip:'#3ba0e0' };
@@ -36028,6 +36092,8 @@ function overlayFase(){
             : esAlien()    ? ['rgba(130,60,210,0.19)', 'rgba(20,160,140,0.13)']
             : sk === 'manga'   ? ['rgba(40,40,52,0.05)', 'rgba(12,12,22,0.12)']
             : sk === 'cartoon' ? ['rgba(170,110,40,0.12)', 'rgba(90,50,18,0.14)']
+            : sk === 'comic'   ? ['rgba(255,220,150,0.06)', 'rgba(30,40,110,0.08)']
+            : sk === 'anime'   ? ['rgba(255,236,170,0.05)', 'rgba(40,60,160,0.035)']
             :                ['rgba(255,190,110,0.06)', 'rgba(40,70,120,0.08)'];
   const mg = g.createLinearGradient(0, 0, 0, cv.height);
   mg.addColorStop(0, pal[0]); mg.addColorStop(1, pal[1]);
@@ -36035,11 +36101,23 @@ function overlayFase(){
   // viñeta encima, en el mismo lienzo
   const r = Math.max(cv.width, cv.height) * 0.74;
   const vg = g.createRadialGradient(cv.width/2, cv.height/2, r*0.44, cv.width/2, cv.height/2, r);
-  const vn = sk === 'cartoon' ? [0.16, 0.6, '30,14,2'] : sk === 'manga' ? [0.14, 0.46, '8,8,12'] : [0.09, 0.32, '0,0,0'];   // el cartoon, con la viñeta de proyector
+  const vn = sk === 'cartoon' ? [0.16, 0.6, '30,14,2'] : sk === 'manga' ? [0.14, 0.46, '8,8,12'] : sk === 'anime' ? [0.04, 0.18, '20,30,90'] : [0.09, 0.32, '0,0,0'];   // el cartoon, con la viñeta de proyector
   vg.addColorStop(0,   'rgba(0,0,0,0)');
   vg.addColorStop(0.72,'rgba(' + vn[2] + ',' + vn[0] + ')');
   vg.addColorStop(1,   'rgba(' + vn[2] + ',' + vn[1] + ')');
   g.fillStyle = vg; g.fillRect(0,0,cv.width,cv.height);
+  if (sk === 'anime' && a.id !== 'noche'){
+    // el sol de los animes de acción: un resplandor cálido en la esquina y rayos en diagonal
+    const W4 = cv.width, H4 = cv.height, R4 = Math.max(W4, H4);
+    const sg = g.createRadialGradient(W4*0.92, -H4*0.08, 0, W4*0.92, -H4*0.08, R4*0.9);
+    sg.addColorStop(0, 'rgba(255,248,215,0.3)'); sg.addColorStop(0.3, 'rgba(255,236,180,0.08)'); sg.addColorStop(1, 'rgba(255,236,180,0)');
+    g.fillStyle = sg; g.fillRect(0, 0, W4, H4);
+    g.save(); g.translate(W4*0.92, -H4*0.08); g.fillStyle = 'rgba(255,246,210,0.05)';
+    for (const [a0, da] of [[1.95, 0.07], [2.18, 0.05], [2.42, 0.09], [2.7, 0.04]]){
+      g.beginPath(); g.moveTo(0, 0); g.arc(0, 0, R4*1.6, a0, a0 + da); g.closePath(); g.fill();
+    }
+    g.restore();
+  }
   if (vel){ g.globalAlpha = vel.a; g.fillStyle = vel.col; g.fillRect(0, 0, cv.width, cv.height); g.globalAlpha = 1; }
   _ovKey = key; _ovCv = cv;
   return cv;
