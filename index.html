@@ -2333,7 +2333,7 @@
         <div class="tdpanel" data-tdpanel="imagen" id="imgwrap"><div class="tdpsub">Tu propia imagen sobre el personaje</div><div id="imgskinlist" class="shoplist"></div>
           <div class="tdimgacc"><button type="button" class="togglebtn" id="btnElegirImg">ELEGIR IMAGEN…</button>
             <div id="imgLock" class="imglock">Necesitas <b>CREAR COLOR PROPIO</b> (en EXTRAS) para usarlas</div></div></div>
-        <div class="tdpanel" data-tdpanel="extras"><div class="tdpsub">Mejoras que se compran una sola vez</div><div id="customcard" class="customcard"></div><div id="auracard" class="customcard"></div></div>
+        <div class="tdpanel" data-tdpanel="extras"><div class="tdpsub">Mejoras que se compran una sola vez</div><div id="customcard" class="customcard"></div><div id="auracard" class="customcard"></div><div id="ciudadcard" class="customcard"></div></div>
       </section>
     </div>
     <button class="small" id="btnShopBack">Volver</button>
@@ -2864,7 +2864,8 @@ function drawSpriteTint(key, tinteIdx, tintes, sx, sy, w, h, facing, rot){
 function drawSprite(key, sx, sy, w, h, facing, rot){
   const s = sprites[key];
   if (!s || !s.img.complete || !s.img.naturalWidth) return false;
-  const im = pintaDeforme ? deformCv(s.img) : s.img;
+  const sk = SKIN_SPR[key] ? skinCiudad() : '';
+  const im = pintaDeforme ? deformCv(s.img) : sk ? skinSprite(s.img, sk) : s.img;
   if (CONTORNO_SPR[key] && !im._contorno) im._contorno = CONTORNO_SPR[key];
   if (!rot){                                     // lo más común: sin guardar ni restaurar el estado del lienzo
     if (facing === s.face){ dibujaImg(im, sx - w/2, sy - h/2, w, h); return true; }
@@ -3589,14 +3590,14 @@ const autoCache = new Map();
 let autoNuevosT = -1, autoNuevos = 0;
 // estado: 0 intacto, 1 abollado, 2 calcinado. vista: 'l' perfil, 'f' frente, 'b' espaldas.
 function autoFrame(m, col, estado, vista, f){
-  const k = m + col + estado + vista + f;
+  const sk = skinCiudad(), k = m + col + estado + vista + f + sk;
   let c = autoCache.get(k);
   if (c) return c;
   let ahora = 0;
   try { ahora = gameTime; } catch(e){}
   if (autoNuevosT !== ahora){ autoNuevosT = ahora; autoNuevos = 0; }
   if (++autoNuevos > 6){                                        // como mucho 6 nuevos por fotograma
-    const alt = autoCache.get(m + col + estado + vista + 0);
+    const alt = autoCache.get(m + col + estado + vista + 0 + sk);
     if (alt) return alt;
   }
   if (autoCache.size > 700) autoCache.delete(autoCache.keys().next().value);
@@ -3615,6 +3616,7 @@ function autoFrame(m, col, estado, vista, f){
     autoFrente(g, m, M, col, estado, vista === 'f', prof);
   }
   pixelArte(c, '#140e0a');
+  if (sk) skinCiudadPx(c, sk);
   autoCache.set(k, c);
   return c;
 }
@@ -4345,7 +4347,7 @@ function edifEntradaLateral(g, b, P, rh){
 }
 
 // ---------- canvas por etapa ----------
-function edifClave(b){ return b.set + '|' + (b.seed|0) + '|' + b.w + '|' + b.h + '|' + (b.frente || 's') + '|' + (b.cat || ''); }
+function edifClave(b){ return b.set + '|' + (b.seed|0) + '|' + b.w + '|' + b.h + '|' + (b.frente || 's') + '|' + (b.cat || '') + '|' + skinCiudad(); }
 let edifNuevosT = -1, edifNuevos = 0;
 // Como mucho 2 lienzos grandes por fotograma. Los escombros cuestan el doble
 // (hasta 10 ms): van solos, así una cisterna que tumba dos edificios a la vez
@@ -4360,7 +4362,7 @@ function edifPresupuesto(peso){
 }
 function edifCanvas(b, etapa, forzar){
   const k = edifClave(b);
-  if (!b._cv || b._cvK !== k){ b._cv = [null, null, null]; b._cvK = k; b._int = null; b._win = null; b._humos = null; b._gente = null; }
+  if (!b._cv || b._cvK !== k){ b._cv = [null, null, null]; b._cvK = k; b._int = null; b._win = null; b._humos = null; b._gente = null; b._cv0raw = null; }
   if (etapa === 0 && esInfierno()) etapa = 1;                 // en el infierno todo está en ruinas
   if (b._cv[etapa]) return b._cv[etapa];
   if (!forzar && !edifPresupuesto(etapa === 2 ? 2 : 1)) return null;
@@ -4368,9 +4370,9 @@ function edifCanvas(b, etapa, forzar){
   const c = document.createElement('canvas'); c.width = b.w; c.height = b.h;
   const g = c.getContext('2d');
   const P = EDIF_PAL[b.set] || EDIF_PAL.G;
-  if (etapa === 2){ edifEscombros(g, b, P, R); apagaColores(c); if (esInfierno()) tinteInfierno(c); b._cv[2] = c; return c; }
+  if (etapa === 2){ edifEscombros(g, b, P, R); apagaColores(c); if (esInfierno()) tinteInfierno(c); skinCiudadPx(c, skinCiudad()); b._cv[2] = c; return c; }
   const fh = edifFachada(b), rh = b.h - fh;
-  if (etapa === 1 && b._cv[0]){ g.drawImage(b._cv[0], 0, 0); }
+  if (etapa === 1 && b._cv[0]){ g.drawImage(b._cv0raw || b._cv[0], 0, 0); }   // la etapa 1 parte de la de en pie (sin la skin, que se pone al final)
   else {
     const ventanas = [], humos = [];
     edifNeonTmp = [];
@@ -4381,7 +4383,12 @@ function edifCanvas(b, etapa, forzar){
     b._win = ventanas; b._humos = humos; b._neon = edifNeonTmp;
     apagaColores(c);                                   // la etapa 1 parte de esta ya apagada
     if (b.set === 'B') bancoDorado(g, b, rh);          // el oro, sin apagar: brilla más que la ciudad
-    if (etapa === 0){ b._cv[0] = c; return c; }
+    if (etapa === 0){
+      const sk = skinCiudad();
+      if (sk){ const f = document.createElement('canvas'); f.width = c.width; f.height = c.height; f.getContext('2d').drawImage(c, 0, 0); skinCiudadPx(f, sk); b._cv0raw = c; b._cv[0] = f; return f; }
+      b._cv[0] = c; return c;
+    }
+    if (skinCiudad()){ const raw = document.createElement('canvas'); raw.width = c.width; raw.height = c.height; raw.getContext('2d').drawImage(c, 0, 0); b._cv0raw = raw; }
   }
   // etapa 1: grietas, ventanas rotas, hollín y agujeros en la azotea
   const R2 = mulberry32(((b.seed || 1)*77) | 0);
@@ -4415,6 +4422,7 @@ function edifCanvas(b, etapa, forzar){
   for (const pts of holes){ g.beginPath(); pts.forEach((p, i)=> i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1])); g.closePath(); g.fill(); }
   g.globalCompositeOperation = 'source-over';
   if (esInfierno()) tinteInfierno(c);
+  skinCiudadPx(c, skinCiudad());
   c._opaco = false;                                  // con los agujeros de la azotea nunca es opaco (sin leer píxeles)
   b._cv[1] = c;
   return c;
@@ -4526,6 +4534,7 @@ function edifInterior(b){
   eR(g, '#5a5048', 0, 0, w, 3); eR(g, '#5a5048', 0, h - 3, w, 3); eR(g, '#5a5048', 0, 0, 3, h); eR(g, '#5a5048', w - 3, 0, 3, h);   // muros de carga
   apagaColores(c);
   if (esInfierno()) tinteInfierno(c);
+  skinCiudadPx(c, skinCiudad());
   c._opaco = true;                                   // el suelo lo cubre entero: no hace falta leer sus píxeles
   b._int = c;
   return c;
@@ -4535,6 +4544,7 @@ function edifInterior(b){
 // solares, pero con arquitectura futurista intacta, calles de luz, cristales
 // en lugar de árboles, vehículos flotantes y habitantes alienígenas.
 let mapa = 'ciudad';            // el que se está jugando
+let ciudadSkin = '', ciudadOwned = [];   // skin de la ciudad (EXTRAS de la tienda): '', 'manga' o 'cartoon'
 let mapaElegido = 'ciudad';     // el que se eligió en el menú
 function esAlien(){ return mapa === 'alien'; }
 Object.assign(EDIF_PAL, {
@@ -5046,6 +5056,180 @@ function pintaBotonesMapa(){
 function esInfierno(){ return mapa === 'infierno'; }
 // Mitad ciudad humana y algo del planeta marciano: todo lo que destruyó.
 function infiernoSet(b, R){ return R() < 0.35 ? alienSet(b.cat || 'medio', R) : b.setCiudad; }
+
+// ================= SKINS DE LA CIUDAD =================
+// Se compran en EXTRAS y cambian el aspecto de la ciudad (no de los
+// personajes ni de los efectos, que siguen a color y se leen igual de bien):
+//   MANGA:   blanco y negro con tinta: contornos, tramas de puntos en las
+//            sombras y papel algo apagado. Serio y sobrio.
+//   CARTOON: dibujo animado de los años 30: colores cálidos y apagados,
+//            contorno grueso, tonos planos, viñeta, grano de película,
+//            rayas y polvo.
+// Todo se aplica UNA vez a cada imagen del escenario (edificios, interiores,
+// parques, árboles, farolas, bancos, autos) al crearla, igual que el tinte
+// del infierno; el suelo se filtra con fusiones de la tarjeta gráfica al
+// pintarse en su búfer. Por fotograma solo quedan un par de rellenos.
+function skinCiudad(){ return ciudadSkin && enCiudad() ? ciudadSkin : ''; }
+function skinCiudadPx(c, modo){
+  if (!modo) return;
+  try {
+    const W = c.width, H = c.height;
+    if (!W || !H) return;
+    const g = c.getContext('2d'), d = g.getImageData(0, 0, W, H), p = d.data, n = W*H;
+    const L = new Uint8Array(n), A = new Uint8Array(n);
+    for (let i = 0, j = 0; i < n; i++, j += 4){ A[i] = p[j + 3]; L[i] = (p[j]*0.3 + p[j + 1]*0.59 + p[j + 2]*0.11) | 0; }
+    const manga = modo === 'manga', grueso = !manga;           // el cartoon lleva el contorno de 2 píxeles
+    const trama = W*H > 5000;                                   // en lo pequeño (farolas, bancos), sin trama: tinta y papel
+    const op = (x, y)=> x >= 0 && y >= 0 && x < W && y < H && A[y*W + x] > 40;
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++){
+      const i = y*W + x, j = i*4;
+      if (A[i] <= 40) continue;
+      // borde de la silueta (contorno) y bordes interiores fuertes (tinta)
+      const borde = !op(x - 1, y) || !op(x + 1, y) || !op(x, y - 1) || !op(x, y + 1) ||
+                    (grueso && (!op(x - 2, y) || !op(x + 2, y) || !op(x, y - 2) || !op(x, y + 2)));
+      const l = L[i];
+      const xl = x > 0 ? L[i - 1] : l, xr = x < W - 1 ? L[i + 1] : l, yu = y > 0 ? L[i - W] : l, yd = y < H - 1 ? L[i + W] : l;
+      const arista = Math.abs(xr - xl) + Math.abs(yd - yu);
+      if (manga){
+        // tinta en la silueta y en los bordes fuertes; tramas de puntos
+        // redondos (rejilla a 45°) en los tonos medios; negro en lo más oscuro
+        let tinta;
+        if (borde || arista > 165) tinta = true;
+        else {
+          const v = Math.min(255, Math.max(0, (l - 128)*1.35 + 150)), osc = 1 - v/255;
+          if (osc > 0.8) tinta = true;
+          else if (!trama || osc < 0.34) tinta = false;
+          else {
+            const t = (osc - 0.34)/0.46, P = 5, u = (x + y)*0.7071, w2 = (x - y)*0.7071;
+            const cu = (u % P + P) % P - P/2, cv = (w2 % P + P) % P - P/2;
+            tinta = cu*cu + cv*cv < (P*0.62*Math.sqrt(t))*(P*0.62*Math.sqrt(t));
+          }
+        }
+        if (tinta){ p[j] = 22; p[j + 1] = 22; p[j + 2] = 26; } else { p[j] = 238; p[j + 1] = 234; p[j + 2] = 224; }
+      } else {
+        if (borde){ p[j] = 38; p[j + 1] = 22; p[j + 2] = 14; continue; }
+        if (arista > 150){ p[j] = 62; p[j + 1] = 40; p[j + 2] = 26; continue; }
+        // colores apagados y cálidos, en tonos planos
+        let r = p[j], gg = p[j + 1], b = p[j + 2];
+        r = l + (r - l)*0.72; gg = l + (gg - l)*0.72; b = l + (b - l)*0.72;
+        const sr = l*1.08 + 14, sg = l*0.94 + 6, sb = l*0.72;                 // sepia
+        r = r*0.68 + sr*0.32; gg = gg*0.68 + sg*0.32; b = b*0.68 + sb*0.32;
+        const q = (v)=> Math.round(Math.min(255, Math.max(0, (v - 128)*1.12 + 132))/42.5)*42.5;
+        p[j] = q(r); p[j + 1] = q(gg); p[j + 2] = q(b);
+      }
+    }
+    g.putImageData(d, 0, 0);
+  } catch(e){}
+}
+// Copia filtrada de una imagen (para los sprites del escenario).
+const _skinSpr = new Map();
+const SKIN_SPR = { tree:1, planter:1, lamp:1, benchV:1, benchH:1, trash:1 };
+function skinSprite(img, modo){
+  let m = _skinSpr.get(img);
+  if (!m){ m = {}; _skinSpr.set(img, m); }
+  if (m[modo]) return m[modo];
+  const W = img.naturalWidth || img.width, H = img.naturalHeight || img.height;
+  if (!W || !H) return img;
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  c.getContext('2d').drawImage(img, 0, 0);
+  skinCiudadPx(c, modo);
+  return (m[modo] = c);
+}
+// ---- el suelo: fusiones de la tarjeta gráfica, ancladas al mundo ----
+let _tramaPat = null, _papelPat = null, _skinFusion = null;
+function skinFusiones(){
+  if (_skinFusion === null){
+    try { const t = document.createElement('canvas').getContext('2d'); t.globalCompositeOperation = 'saturation'; _skinFusion = t.globalCompositeOperation === 'saturation'; }
+    catch(e){ _skinFusion = false; }
+  }
+  return _skinFusion;
+}
+function tramaPat(g){
+  if (_tramaPat) return _tramaPat;
+  const c = document.createElement('canvas'); c.width = c.height = 6;
+  const t = c.getContext('2d'); t.fillStyle = '#ffffff'; t.fillRect(0, 0, 6, 6);
+  t.fillStyle = '#6e6e6e'; t.beginPath(); t.arc(1.5, 1.5, 1.15, 0, Math.PI*2); t.arc(4.5, 4.5, 1.15, 0, Math.PI*2); t.fill();
+  return (_tramaPat = g.createPattern(c, 'repeat'));
+}
+function papelPat(g){
+  if (_papelPat) return _papelPat;
+  const c = document.createElement('canvas'); c.width = c.height = 128;
+  const t = c.getContext('2d'), R = mulberry32(4242);
+  t.fillStyle = '#ffffff'; t.fillRect(0, 0, 128, 128);
+  for (let i = 0; i < 26; i++){                                   // manchas de acuarela
+    const x = R()*128, y = R()*128, r = 10 + R()*26;
+    for (const dx of [-128, 0, 128]) for (const dy of [-128, 0, 128]){
+      const rg = t.createRadialGradient(x + dx, y + dy, 0, x + dx, y + dy, r);
+      rg.addColorStop(0, 'rgba(190,150,100,0.16)'); rg.addColorStop(1, 'rgba(190,150,100,0)');
+      t.fillStyle = rg; t.fillRect(x + dx - r, y + dy - r, r*2, r*2);
+    }
+  }
+  for (let i = 0; i < 260; i++){ t.fillStyle = R() < 0.5 ? 'rgba(120,80,40,0.18)' : 'rgba(255,250,235,0.5)'; t.fillRect(R()*128, R()*128, 1 + R()*1.5, 1 + R()*1.5); }
+  return (_papelPat = g.createPattern(c, 'repeat'));
+}
+// Filtra el rectángulo (en píxeles del lienzo) x, y, w, h. ox, oy: dónde cae
+// el origen del mundo en ese lienzo, para que la trama no "nade" al moverse.
+function skinSueloFiltro(g, x, y, w, h, ox, oy){
+  const modo = skinCiudad();
+  if (!modo || w <= 0 || h <= 0 || !skinFusiones()) return;
+  g.save(); g.setTransform(1, 0, 0, 1, 0, 0);
+  g.beginPath(); g.rect(x, y, w, h); g.clip();
+  if (modo === 'manga'){
+    g.globalCompositeOperation = 'saturation'; g.fillStyle = '#808080'; g.fillRect(x, y, w, h);
+    g.globalCompositeOperation = 'multiply'; g.fillStyle = '#e8e3d8'; g.fillRect(x, y, w, h);
+    g.globalAlpha = 0.55; g.fillStyle = tramaPat(g);
+    g.translate(ox % 6, oy % 6); g.fillRect(x - 6, y - 6, w + 12, h + 12);
+  } else {
+    g.globalCompositeOperation = 'saturation'; g.globalAlpha = 0.4; g.fillStyle = '#808080'; g.fillRect(x, y, w, h);
+    g.globalAlpha = 1; g.globalCompositeOperation = 'multiply'; g.fillStyle = '#f2d9aa'; g.fillRect(x, y, w, h);
+    g.fillStyle = papelPat(g);
+    g.translate(ox % 128, oy % 128); g.fillRect(x - 128, y - 128, w + 256, h + 256);
+  }
+  g.restore();
+}
+// ---- encima de todo (sin la interfaz): un par de rellenos por fotograma ----
+let _granoPat = null, _granoT = -1, _granoOx = 0, _granoOy = 0;
+function granoTiles(){
+  if (_granoPat) return _granoPat;
+  _granoPat = [];
+  for (let k = 0; k < 3; k++){
+    const c = document.createElement('canvas'); c.width = c.height = 160;
+    const t = c.getContext('2d'), R = mulberry32(900 + k*77);
+    for (let i = 0; i < 520; i++){ t.fillStyle = R() < 0.55 ? 'rgba(40,24,10,0.22)' : 'rgba(255,246,220,0.2)'; t.fillRect(R()*160, R()*160, 1 + R()*1.6, 1 + R()*1.6); }
+    for (let i = 0; i < 3; i++){ t.fillStyle = 'rgba(30,18,8,0.35)'; t.beginPath(); t.arc(R()*160, R()*160, 0.8 + R()*1.8, 0, Math.PI*2); t.fill(); }   // motas de polvo
+    _granoPat.push(c);
+  }
+  return _granoPat;
+}
+function drawSkinCiudadPantalla(){
+  const modo = skinCiudad();
+  if (!modo) return;
+  const W = canvas.width, H = canvas.height;
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
+  if (modo === 'manga'){
+    // el marco de la viñeta del manga: tinta negra con un filo de papel
+    const b = Math.max(4, Math.round(5*DPR)), f = Math.max(1, Math.round(DPR));
+    ctx.fillStyle = '#121214';
+    ctx.fillRect(0, 0, W, b); ctx.fillRect(0, H - b, W, b); ctx.fillRect(0, 0, b, H); ctx.fillRect(W - b, 0, b, H);
+    ctx.fillStyle = '#ece8de';
+    ctx.fillRect(b, b, W - 2*b, f); ctx.fillRect(b, H - b - f, W - 2*b, f); ctx.fillRect(b, b, f, H - 2*b); ctx.fillRect(W - b - f, b, f, H - 2*b);
+  } else {
+    // grano de película a 12 imágenes por segundo, rayas y algún parpadeo
+    const tiles = granoTiles(), q = Math.floor(performance.now()/83);
+    if (q !== _granoT){ _granoT = q; _granoOx = (Math.random()*160) | 0; _granoOy = (Math.random()*160) | 0; }
+    if (!tiles.pats) tiles.pats = tiles.map(c => ctx.createPattern(c, 'repeat'));
+    const pat = tiles.pats[q % 3];
+    ctx.translate(-_granoOx, -_granoOy); ctx.fillStyle = pat; ctx.fillRect(_granoOx, _granoOy, W, H); ctx.setTransform(1, 0, 0, 1, 0, 0);
+    const R = mulberry32(q*31 + 7);
+    if (R() < 0.35){ ctx.fillStyle = 'rgba(255,244,214,0.22)'; const n = R() < 0.4 ? 2 : 1; for (let i = 0; i < n; i++) ctx.fillRect((R()*W) | 0, 0, Math.max(1, DPR | 0), H); }
+    if (R() < 0.18){ ctx.fillStyle = 'rgba(30,16,6,0.28)'; ctx.fillRect((R()*W) | 0, 0, Math.max(1, DPR | 0), H); }
+    if (R() < 0.07){ ctx.fillStyle = R() < 0.5 ? 'rgba(255,240,200,0.05)' : 'rgba(20,10,0,0.06)'; ctx.fillRect(0, 0, W, H); }
+  }
+  ctx.restore();
+}
+// Al cambiar de skin: el suelo y la graduación se rehacen (los edificios, los
+// autos y los sprites ya llevan la skin en su clave).
+function skinCiudadCambia(){ try { sbInvalida(); _ovKey = null; for (const p of parques){ p._cv = null; } } catch(e){} }
 
 // ---------- edificios: hollín, rojo y brasas ----------
 function tinteInfierno(c){
@@ -10240,6 +10424,13 @@ let customBought = false;
 // Efecto AURA: se compra una vez y luego se enciende o apaga desde la tienda.
 const AURA_COST = 150;
 let auraBought = false, auraOn = false;
+// Skins de la ciudad (se compran una vez; se usa una o ninguna)
+const CIUDAD_SKINS = [
+  { id:'manga',   name:'MANGA',   cost:350, sub:'Tinta, tramas y papel: una ciudad sobria y seria',
+    muestra:'radial-gradient(circle, #1c1c20 34%, transparent 36%) 0 0 / 6px 6px, linear-gradient(135deg, #f0ece2 0 45%, #9a968e 45% 55%, #f0ece2 55%)' },
+  { id:'cartoon', name:'CARTOON', cost:350, sub:'Dibujo animado de los años 30: sepia, contornos y grano',
+    muestra:'radial-gradient(circle at 50% 42%, #f6e2b4 0 34%, #d98a4a 35% 52%, #3a2010 53% 60%, #e8c890 61%)' }
+];
 let customSkin = { id:'custom', name:'COLOR PROPIO', cost:CUSTOM_COST,
                    c:['#7fd0ff','#1f5f9e','#0d2340'], limb:'#245f8a', tip:'#3ba0e0' };
 
@@ -10306,6 +10497,13 @@ const SKINS = [
   { id:'cody',     name:'CODY MILLERS', cost:230, c:['#ff8ad0','#e0287a','#5a0a30'],
     limb:'#3ad6ff', tip:'#ffe94a', multicolor:true,
     muestra:'conic-gradient(#ff4d4d, #ffb03a, #ffe94a, #5dff6a, #3ad6ff, #6a5dff, #e05aff, #ff4d4d)' },
+  // Cartoon: dibujo animado antiguo, de goma y tinta. Cuerpo rojo con brillo
+  // crema, tentáculos negros de manguera con la punta blanca (como guantes),
+  // y en todos los personajes un contorno grueso de tinta que "hierve" a 12
+  // imágenes por segundo, como los dibujos hechos a mano.
+  { id:'cartoon',  name:'CARTOON', cost:260, c:['#fbe8c4','#d8382c','#3a1410'],
+    limb:'#1e120c', tip:'#f6eedc', cartoon:true,
+    muestra:'radial-gradient(circle at 38% 34%, #fff6dc 0 14%, #d8382c 15% 62%, #1e120c 63% 70%, #f2e2bc 71%)' },
   // Regente viltrumita: traje naranja, cuello de piel blanca, capa, faldón
   // gris y brazaletes de plata. No se compra: se gana al derrotar al
   // viltrumita en VS LEGENDARIO.
@@ -10777,6 +10975,8 @@ async function loadShop(){
       customBought = !!p.customBought;
       auraBought = !!p.auraBought;
       auraOn = auraBought && !!p.auraOn;
+      ciudadOwned = Array.isArray(p.ciudad) ? p.ciudad.filter(id => CIUDAD_SKINS.some(k => k.id === id)) : [];
+      ciudadSkin = ciudadOwned.includes(p.ciudadOn) ? p.ciudadOn : '';
       if (p.custom && p.custom.body) buildCustom(p.custom.body, p.custom.tent || p.custom.body);
       // Las skins con imagen se guardan como 'img:…' y no están en la lista de
       // compradas: antes, al recargar, se perdían y volvías a la verde.
@@ -10793,7 +10993,7 @@ function saveShop(){
   try { if (Online.activo && Online.rol === 'invitado' && Online.modo === 'vs' && Online.skinPropia) propia = Online.skinPropia; }
   catch(e){}
   storeSet('invasion_shop', JSON.stringify({
-    coins, owned:ownedSkins, active:propia, customBought, auraBought, auraOn,
+    coins, owned:ownedSkins, active:propia, customBought, auraBought, auraOn, ciudad:ciudadOwned, ciudadOn:ciudadSkin,
     custom:{ body: customSkin.body || '#1f5f9e', tent: customSkin.tent || '#3ba0e0' }
   }));
 }
@@ -10902,7 +11102,7 @@ function comboPts(pts){
 
 function coinsFor(sc, demo){ return Math.floor(sc/50) + demo*2; }
 
-const SKIN_UNICA = { drip:1, israel:1, chile:1, cosmica:1, huaso:1, calabaza:1, navidad:1, cody:1, regente:1 };
+const SKIN_UNICA = { drip:1, israel:1, chile:1, cosmica:1, huaso:1, calabaza:1, navidad:1, cody:1, regente:1, cartoon:1 };
 
 // ---- Skins hechas con una imagen propia ----
 // Se guarda la imagen ya reducida (240px de lado, JPEG) más el encuadre
@@ -10971,6 +11171,27 @@ function renderAuraCard(){
   };
 }
 
+function renderCiudadCard(){
+  const c = document.getElementById('ciudadcard');
+  if (!c) return;
+  c.innerHTML = '<div class="tdpsub" style="margin:4px 0 6px">Skins de la ciudad</div>' + CIUDAD_SKINS.map(k=>{
+    const tiene = ciudadOwned.includes(k.id), usa = ciudadSkin === k.id;
+    const btn = !tiene ? `<button class="skinbtn buy${coins>=k.cost?'':' poor'}" data-ciudad="${k.id}"><span class="tdmoneda"></span>${k.cost}</button>`
+              : `<button class="skinbtn ${usa?'on':'own'}" data-ciudad="${k.id}">${usa?'QUITAR':'USAR'}</button>`;
+    return `<div class="skincard${usa?' active':''}" style="margin-bottom:8px"><span class="swatch" style="background:${k.muestra}"></span>
+      <span class="skinname">CIUDAD ${k.name}<br><span class="customsub">${usa ? 'En uso' : k.sub}</span></span>${btn}</div>`;
+  }).join('');
+  c.querySelectorAll('[data-ciudad]').forEach(b=>{ b.onclick = ()=>{
+    const k = CIUDAD_SKINS.find(q => q.id === b.dataset.ciudad);
+    if (!k) return;
+    if (!ciudadOwned.includes(k.id)){
+      if (coins < k.cost){ sfx('deny'); toastShop('Monedas insuficientes'); return; }
+      coins -= k.cost; ciudadOwned.push(k.id); ciudadSkin = k.id;
+      sfx('buy'); toastShop('¡Ciudad ' + k.name + ' desbloqueada!');
+    } else { ciudadSkin = ciudadSkin === k.id ? '' : k.id; sfx('ui'); }
+    skinCiudadCambia(); saveShop(); renderShop();
+  }; });
+}
 function colorOriginal(){
   if (isDra()) return [DRA_ORO.cl, DRA_ORO.cm, DRA_ORO.co];
   if (isMaq()) return [MAQ_AZUL.plC, MAQ_AZUL.pl, MAQ_AZUL.plO];
@@ -10979,7 +11200,7 @@ function colorOriginal(){
 }
 function renderShop(){
   document.getElementById('coincount').textContent = coins;
-  renderAuraCard();
+  renderAuraCard(); renderCiudadCard();
   // Las que cambian algo más que el color van a su propio panel.
   const tarjeta = (k, uniq)=>{
     const owned = ownedSkins.includes(k.id) || !k.cost;
@@ -11089,7 +11310,7 @@ function tdResumen(){
   pon('tdCntCol', col.filter(tiene).length + '/' + col.length);
   pon('tdCntUni', uni.filter(tiene).length + '/' + uni.length);
   const comprables = SKINS.filter(k => k.cost > 0 && !k.premio);
-  const total = comprables.length + 2, hecho = comprables.filter(k => ownedSkins.includes(k.id)).length + (customBought ? 1 : 0) + (auraBought ? 1 : 0);
+  const total = comprables.length + 2 + CIUDAD_SKINS.length, hecho = comprables.filter(k => ownedSkins.includes(k.id)).length + (customBought ? 1 : 0) + (auraBought ? 1 : 0) + ciudadOwned.length;
   pon('tdColTxt', hecho + ' / ' + total);
   const bar = document.getElementById('tdColBar'); if (bar) bar.style.width = (100*hecho/Math.max(1, total)).toFixed(1) + '%';
   tdPrevTexto();
@@ -35780,7 +36001,8 @@ function veloClima(){
 const _ovGr = { cv: document.createElement('canvas'), src: null, key: '' };     // la superposición ya ampliada al lienzo
 function overlayFase(){
   const a = phase(), b = faseSiguiente(), m = Math.round(mezclaFase()*8)/8, vel = veloClima();
-  const key = a.id + '|' + b.id + '|' + m + '|' + CW + 'x' + CH + '|' + mapa + (vel ? '|' + vel.col + vel.a : '');
+  const sk = skinCiudad();
+  const key = a.id + '|' + b.id + '|' + m + '|' + CW + 'x' + CH + '|' + mapa + (vel ? '|' + vel.col + vel.a : '') + '|' + sk;
   if (key === _ovKey && _ovCv) return _ovCv;
   const p1 = leerRGBA(a.tint), p2 = leerRGBA(b.tint);
   const c = [ p1[0]*(1-m)+p2[0]*m, p1[1]*(1-m)+p2[1]*m,
@@ -35804,6 +36026,8 @@ function overlayFase(){
   // castigo, brasa arriba y rojo sangre abajo.
   const pal = esInfierno() ? ['rgba(215,50,12,0.17)', 'rgba(70,0,4,0.15)']
             : esAlien()    ? ['rgba(130,60,210,0.19)', 'rgba(20,160,140,0.13)']
+            : sk === 'manga'   ? ['rgba(40,40,52,0.05)', 'rgba(12,12,22,0.12)']
+            : sk === 'cartoon' ? ['rgba(170,110,40,0.12)', 'rgba(90,50,18,0.14)']
             :                ['rgba(255,190,110,0.06)', 'rgba(40,70,120,0.08)'];
   const mg = g.createLinearGradient(0, 0, 0, cv.height);
   mg.addColorStop(0, pal[0]); mg.addColorStop(1, pal[1]);
@@ -35811,9 +36035,10 @@ function overlayFase(){
   // viñeta encima, en el mismo lienzo
   const r = Math.max(cv.width, cv.height) * 0.74;
   const vg = g.createRadialGradient(cv.width/2, cv.height/2, r*0.44, cv.width/2, cv.height/2, r);
+  const vn = sk === 'cartoon' ? [0.16, 0.6, '30,14,2'] : sk === 'manga' ? [0.14, 0.46, '8,8,12'] : [0.09, 0.32, '0,0,0'];   // el cartoon, con la viñeta de proyector
   vg.addColorStop(0,   'rgba(0,0,0,0)');
-  vg.addColorStop(0.72,'rgba(0,0,0,0.09)');
-  vg.addColorStop(1,   'rgba(0,0,0,0.32)');
+  vg.addColorStop(0.72,'rgba(' + vn[2] + ',' + vn[0] + ')');
+  vg.addColorStop(1,   'rgba(' + vn[2] + ',' + vn[1] + ')');
   g.fillStyle = vg; g.fillRect(0,0,cv.width,cv.height);
   if (vel){ g.globalAlpha = vel.a; g.fillStyle = vel.col; g.fillRect(0, 0, cv.width, cv.height); g.globalAlpha = 1; }
   _ovKey = key; _ovCv = cv;
@@ -36155,6 +36380,7 @@ function sbPinta(g, x0, y0, w, h){
     if (esAlien()) drawRoadsAlien('base'); else drawRoads();
     drawManchasLuz();
     g.restore();
+    skinSueloFiltro(g, x0, y0, w, h, -sb.ox, -sb.oy);
   } finally { ctx = c0; camX = cx; camY = cy; VW = vw; VH = vh; temblorX = tx; temblorY = ty; nHuecos = nh; }
 }
 // Deja el búfer cubriendo la pantalla. Devuelve false si este fotograma hay que pintar directo.
@@ -36259,6 +36485,7 @@ function parqueCanvas(p){
     for (let i = 0; i < 40; i++){ const a = R()*Math.PI*2, r = R(); eR(g, flores[(R()*flores.length) | 0], px + Math.cos(a)*r*17, py + Math.sin(a)*r*9, 2, 2); }
   }
   apagaColores(c);
+  skinCiudadPx(c, skinCiudad());
   p._cv = c;
   return c;
 }
@@ -37123,7 +37350,8 @@ function drawEnemyBase(e){
 
 function drawPlayer(){
   if (vil.caida) return;                       // cayendo: se pinta delante del portal
-  drawPlayerCuerpo();
+  if (skinById(activeSkin).cartoon && !imgSkinActiva()) drawCartoon(drawPlayerCuerpo);
+  else drawPlayerCuerpo();
   if (hieloT > 0 && !vil.intro) drawHieloJugador();
 }
 function drawPlayerCuerpo(){
@@ -37134,6 +37362,48 @@ function drawPlayerCuerpo(){
   if (isBor()) return drawBoros();
   if (vil.intro) return drawEntradaHumo(drawAlien);
   drawAlien();
+}
+// ---- skin CARTOON: contorno grueso de tinta alrededor del personaje ----
+// El personaje se pinta en una capa aparte (solo el recuadro que ocupa), se
+// saca su silueta en tinta y se estampa desplazada en 8 direcciones debajo:
+// un contorno grueso para cualquier personaje, sin tocar cómo se dibuja cada
+// uno. La silueta tiembla un poco a 12 imágenes por segundo (el "hervor" de
+// la línea de los dibujos hechos a mano).
+const _cart = { a:null, b:null };
+function drawCartoon(pinta){
+  const W = canvas.width, H = canvas.height;
+  const m = ctx.getTransform(), k = Math.hypot(m.a, m.b) || 1, s = S(player.x, player.y);
+  const px = m.a*s.x + m.c*s.y + m.e, py = m.b*s.x + m.d*s.y + m.f;
+  // lo que puede ocupar el personaje (la cría, con sus tentáculos estirados)
+  const R = (hero === 'alien' ? Math.max(drawR*2.4, (F().grab || 60) + drawR + 30) : isDra() ? 150 : 120)*k, pad = Math.ceil(3*k);
+  const x0 = Math.max(0, Math.floor(px - R)), y0 = Math.max(0, Math.floor(py - R*1.25)), x1 = Math.min(W, Math.ceil(px + R)), y1 = Math.min(H, Math.ceil(py + R*0.8));
+  const w = x1 - x0, h = y1 - y0;
+  if (w <= 0 || h <= 0){ pinta(); return; }
+  // capas del tamaño del recuadro (no de la pantalla): así no se sube a la
+  // tarjeta gráfica más que lo que ocupa el personaje
+  const CW2 = w + 2*pad, CH2 = h + 2*pad;
+  if (!_cart.a){ _cart.a = document.createElement('canvas'); _cart.b = document.createElement('canvas'); }
+  if (_cart.a.width < CW2 || _cart.a.height < CH2){
+    _cart.a.width = _cart.b.width = Math.max(CW2, _cart.a.width); _cart.a.height = _cart.b.height = Math.max(CH2, _cart.a.height);
+  }
+  const A = _cart.a.getContext('2d'), B = _cart.b.getContext('2d');
+  A.setTransform(1, 0, 0, 1, 0, 0); A.clearRect(0, 0, CW2, CH2);
+  A.setTransform(m.a, m.b, m.c, m.d, m.e - x0 + pad, m.f - y0 + pad); A.imageSmoothingEnabled = ctx.imageSmoothingEnabled;
+  const c0 = ctx; ctx = A;
+  try { pinta(); } finally { ctx = c0; }
+  A.setTransform(1, 0, 0, 1, 0, 0);
+  B.setTransform(1, 0, 0, 1, 0, 0); B.globalCompositeOperation = 'copy';
+  B.drawImage(_cart.a, 0, 0, CW2, CH2, 0, 0, CW2, CH2);
+  B.globalCompositeOperation = 'source-in'; B.fillStyle = '#1a0e08'; B.fillRect(0, 0, CW2, CH2);
+  B.globalCompositeOperation = 'source-over';
+  const o = Math.max(1.5, 1.7*k), q = Math.floor(gameTime*12), R2 = mulberry32(q*97 + 13);
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
+  for (let i = 0; i < 8; i++){
+    const an = i*Math.PI/4, j = o*(0.85 + R2()*0.35);
+    ctx.drawImage(_cart.b, 0, 0, CW2, CH2, x0 - pad + Math.round(Math.cos(an)*j), y0 - pad + Math.round(Math.sin(an)*j), CW2, CH2);
+  }
+  ctx.drawImage(_cart.a, 0, 0, CW2, CH2, x0 - pad, y0 - pad, CW2, CH2);
+  ctx.restore();
 }
 // Bloque de hielo sobre el invasor congelado por un rayo: crece al formarse,
 // brilla, y se agrieta justo antes de romperse. Tamaño según la figura.
@@ -37563,7 +37833,7 @@ function draw(){
   if (conBufer){ sbVuelca(); if (esAlien()) drawRoadsAlien('lineas'); }
   else { preparaHuecosSuelo(); drawBackground(); drawRoads(); }
   if (esInfierno()){ drawRestosJefes(); drawCraterInf(); drawCharcosLava(false); } else drawCharcosAgua(false);
-  if (!conBufer) drawManchasLuz();     // profundidad del suelo, un solo relleno (con el búfer, ya va en él)
+  if (!conBufer){ drawManchasLuz(); if (skinCiudad()){ const k = ZOOM*DPR; skinSueloFiltro(ctx, 0, 0, canvas.width, canvas.height, -Math.round((camX - temblorX)*k), -Math.round((camY - temblorY)*k)); } }   // profundidad del suelo, un solo relleno (con el búfer, ya va en él)
   drawBuildings();
   if (esInfierno()) drawCharcosLava(true); else drawCharcosAgua(true);   // los de los solares derribados, encima de sus escombros
   drawMarcasLaser();
@@ -37642,6 +37912,7 @@ function draw(){
   escK = 0;
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   drawLighting();                                  // en píxeles del lienzo
+  drawSkinCiudadPantalla();                        // grano de película o marco de manga (solo con una skin de ciudad)
   // los bocadillos, encima de la noche (si no, la oscuridad los apagaba)
   if (bocadillos.length){ const k = ZOOM*DPR; ctx.save(); ctx.setTransform(k, 0, 0, k, temblorX*k, temblorY*k); drawBocadillos(); ctx.restore(); }
   drawFlechasJefe();                               // encima de la oscuridad
