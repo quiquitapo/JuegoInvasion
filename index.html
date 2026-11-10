@@ -1069,6 +1069,63 @@
     #menu #holoCv { width:min(112px, 24vh); height:min(104px, 22vh); }
     #menu .holoflecha, #menu .charhelp { height:30px; min-width:36px; }
   }
+  /* ---- elección de personaje: barra de iconos a la izquierda y su ficha ---- */
+  #heroSel { position:fixed; left:calc(10px + env(safe-area-inset-left,0px)); top:50%; transform:translateY(-50%); z-index:7;
+             display:flex; align-items:center; gap:10px; pointer-events:none; }
+  #menu.hidden #heroSel { display:none; }
+  #heroSel > * { pointer-events:auto; }
+  .hbar { display:flex; flex-direction:column; align-items:center; width:92px; padding:8px 0 6px; border-radius:18px; box-sizing:border-box;
+          background:linear-gradient(180deg, rgba(12,30,18,0.94), rgba(4,12,8,0.94)); border:2px solid #2f7a4a;
+          box-shadow:0 0 22px rgba(47,232,110,0.16), inset 0 0 0 1px rgba(123,255,160,0.08); }
+  .hbar-tit { font-size:0.4rem; letter-spacing:2px; color:#7bffa0; font-weight:900; text-shadow:0 0 6px rgba(123,255,160,0.6); margin:0 0 2px; }
+  .hbar-flecha { font-size:0.5rem; line-height:1; color:#7bffa0; opacity:0; height:10px; transition:opacity .2s; }
+  .hbar.sube .hbar-flecha.arriba, .hbar.baja .hbar-flecha.abajo { opacity:0.85; animation:hbarLatido 1.1s ease-in-out infinite; }
+  @keyframes hbarLatido { 50% { opacity:0.35; } }
+  .hbar-lista { display:flex; flex-direction:column; align-items:center; gap:8px; max-height:min(372px, 62vh); overflow-y:auto; overflow-x:hidden;
+                padding:6px 10px; scroll-snap-type:y proximity; scrollbar-width:none; overscroll-behavior:contain; touch-action:pan-y; }
+  .hbar-lista::-webkit-scrollbar { display:none; }
+  .hitem { all:unset; box-sizing:border-box; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:4px; scroll-snap-align:center;
+           -webkit-tap-highlight-color:transparent; }
+  .hico { position:relative; width:64px; height:64px; border-radius:50%; box-sizing:border-box; border:2px solid var(--c); overflow:hidden;
+          background:radial-gradient(circle at 50% 38%, var(--c2) 0%, rgba(6,14,10,0.95) 72%); box-shadow:0 0 8px rgba(0,0,0,0.6);
+          transition:transform .14s ease, box-shadow .2s ease, filter .2s ease; filter:saturate(0.8) brightness(0.85); }
+  .hico img { position:absolute; inset:0; width:100%; height:100%; object-fit:contain; image-rendering:auto; }
+  .hico::after { content:''; position:absolute; inset:0; border-radius:50%; box-shadow:inset 0 -10px 14px rgba(0,0,0,0.45), inset 0 3px 6px rgba(255,255,255,0.12); }
+  .hnom { font-size:0.36rem; letter-spacing:1px; color:#a8c8b4; text-align:center; max-width:80px; line-height:1.3; }
+  .hitem:hover .hico, .hitem:focus-visible .hico { transform:scale(1.07); filter:none; }
+  .hitem:focus-visible .hico { outline:2px solid #fff; outline-offset:2px; }
+  .hitem.on .hico { filter:none; box-shadow:0 0 0 3px var(--c), 0 0 18px var(--c); }
+  .hitem.on .hnom { color:var(--c); text-shadow:0 0 6px var(--c); font-weight:900; }
+  .hitem.on .hico::before { content:'\2713'; position:absolute; z-index:2; right:2px; bottom:2px; width:16px; height:16px; border-radius:50%;
+                            background:var(--c); color:#06100a; font-size:11px; font-weight:900; line-height:16px; text-align:center; }
+  .hitem:active .hico { transform:scale(0.94); }
+  .hcard { position:relative; width:232px; box-sizing:border-box; padding:10px 12px 12px; border-radius:16px; display:flex; flex-direction:column;
+           align-items:center; gap:8px; background:linear-gradient(180deg, rgba(12,30,18,0.96), rgba(4,12,8,0.96)); border:2px solid var(--c, #2f7a4a);
+           box-shadow:0 0 26px rgba(0,0,0,0.6), 0 0 18px var(--c2, rgba(47,232,110,0.2)); transition:opacity .2s ease, transform .2s ease; }
+  .hcard.oculta { opacity:0; transform:translateX(-14px); pointer-events:none; visibility:hidden; }
+  .hcard .holo { width:100%; border:none; background:radial-gradient(ellipse at 50% 85%, rgba(30,90,50,0.55), rgba(6,14,9,0) 70%); padding:2px 0 0; }
+  .hcard-x { position:absolute; top:6px; right:6px; width:26px; height:26px; border-radius:7px; cursor:pointer; z-index:2; font-family:inherit;
+             font-size:0.65rem; color:#7bffa0; background:rgba(10,22,14,0.9); border:1px solid #2f7a4a; }
+  .hcard-x:hover { border-color:#7bffa0; }
+  .hcard-txt { margin:0; font-size:0.52rem; line-height:1.65; color:#d8f0e0; text-align:center; letter-spacing:0.5px; }
+  .hcard .tutbtn { width:100%; letter-spacing:1px; }
+  .hcard-ctl { width:100%; cursor:pointer; border-radius:10px; padding:6px 10px; font-family:inherit; font-size:0.5rem; letter-spacing:2px;
+               background:rgba(8,14,10,0.85); border:2px solid #2f4a38; color:#7bffa0; font-weight:900; }
+  .hcard-ctl:hover { border-color:#7bffa0; }
+  /* en el teléfono, más pequeña; la ficha flota encima del menú */
+  @media (max-width: 640px), (max-height: 520px){
+    .hbar { width:66px; padding:6px 0 4px; border-radius:14px; }
+    .hbar-tit { font-size:0.3rem; letter-spacing:1px; }
+    .hbar-lista { gap:6px; padding:4px 6px; max-height:min(300px, 56vh); }
+    .hico { width:48px; height:48px; }
+    .hnom { font-size:0.3rem; max-width:60px; }
+    .hcard { width:min(220px, calc(100vw - 96px)); padding:8px 10px 10px; gap:6px; }
+    .hcard #holoCv { width:min(130px, 30vh); height:min(121px, 28vh); }
+    .hcard-txt { font-size:0.46rem; }
+  }
+  @media (orientation: portrait) and (max-width: 640px){
+    #heroSel { align-items:flex-start; }     /* colocaBarra() la pone en el hueco entre PUNTAJES e INVADIR */
+  }
   .tutbtn { cursor:pointer; border-radius:10px; padding:7px 11px; font-family:inherit; font-size:0.56rem; letter-spacing:2px;
             background:linear-gradient(180deg, rgba(40,90,40,0.92), rgba(12,40,18,0.92)); border:2px solid #7bffa0; color:#e8ffe8;
             box-shadow:0 0 12px rgba(123,255,160,0.25); }
@@ -1949,17 +2006,26 @@
       <button class="imgbtn" id="btnLogros" aria-label="Logros"></button>
     </div>
     <div class="coinbar">MONEDAS: <b id="menucoins">0</b> ⬤</div>
-    <div class="charcol">
-    <button type="button" class="tutbtn" id="btnTutorial" aria-label="Tutorial del personaje">&#9654; TUTORIAL <b id="tutNombre">CRÍA</b></button>
-    <div class="holo" id="holoHero">
-      <canvas id="holoCv" width="300" height="280" aria-hidden="true"></canvas>
-      <div class="holonom" id="heroname">CRÍA</div>
-      <div class="holoctl">
-        <button type="button" class="holoflecha" id="btnHeroPrev" aria-label="Personaje anterior" title="Personaje anterior">&#9664;</button>
-        <button type="button" class="charhelp" id="btnHeroAyuda" aria-label="Controles del personaje" title="Controles del personaje">?</button>
-        <button type="button" class="holoflecha" id="btnHeroNext" aria-label="Personaje siguiente" title="Personaje siguiente">&#9654;</button>
-      </div>
+  </div>
+  <!-- Elección de personaje: una barra de iconos a la izquierda (se baja con
+       la rueda o el dedo); al tocar uno, su ficha con el holograma animado,
+       un texto breve y el tutorial -->
+  <div id="heroSel">
+    <div class="hbar">
+      <div class="hbar-tit">PERSONAJE</div>
+      <div class="hbar-flecha arriba" aria-hidden="true">&#9650;</div>
+      <div class="hbar-lista" id="heroLista" role="listbox" aria-label="Elige tu personaje"></div>
+      <div class="hbar-flecha abajo" aria-hidden="true">&#9660;</div>
     </div>
+    <div class="hcard oculta" id="heroCard" role="dialog" aria-label="Personaje elegido">
+      <button type="button" class="hcard-x" id="heroCardX" aria-label="Cerrar">&#10005;</button>
+      <div class="holo" id="holoHero">
+        <canvas id="holoCv" width="300" height="280" aria-hidden="true"></canvas>
+        <div class="holonom" id="heroname">CRÍA</div>
+      </div>
+      <p class="hcard-txt" id="heroCardTxt"></p>
+      <button type="button" class="tutbtn" id="btnTutorial" aria-label="Tutorial del personaje">&#9654; VER TUTORIAL <b id="tutNombre">CRÍA</b></button>
+      <button type="button" class="hcard-ctl" id="btnHeroAyuda" aria-label="Controles del personaje">? &nbsp;CONTROLES</button>
     </div>
   </div>
 
@@ -12512,11 +12578,11 @@ const MUSIC_SCALES = {
 // Cada hora del día tiene su tema, con batería, bajo, acordes y melodía, en un
 // ciclo de 4 compases de 16 semicorcheas y 4 secciones que se van sumando
 // (base · + arpegio · + melodía · todo, la melodía una octava arriba).
-//   MAÑANA: pop luminoso y saltarín.  DÍA: frenético, rock electrónico a 150.
-//   ATARDECER: tenso y melancólico.  NOCHE: synthwave oscuro, con eco.
+//   MAÑANA: pop luminoso a la carrera (142).  DÍA: rock electrónico con doble bombo (170).
+//   ATARDECER: tenso, ritmo quebrado y bajo reese (156).  NOCHE: synthwave oscuro a cuatro en el suelo (146).
 // Las notas van en semitonos sobre la raíz; los acordes, [raíz, menor?].
 const CIUDAD_PISTAS = {
-  manana: { name:'DESPERTAR', style:'urbe', fase:'manana', tempo:125, root:98.00,
+  manana: { name:'DESPERTAR', style:'urbe', fase:'manana', tempo:142, root:98.00,
     prog:[[0,0],[7,0],[9,1],[5,0]], scale:[196,220,247,294,330,392,440,494],
     bajo:[0,-1,0,7, -1,0,12,-1, 0,-1,0,7, -1,12,7,5], kicks:[0,8,10], cajas:[4,12], charles:2, abierto:14,
     stab:[2,6,10,14], stabTipo:'triangle', stabVol:0.028, arp:'triangle', lead:'triangle', leadVol:0.06, brillo:true,
@@ -12524,7 +12590,7 @@ const CIUDAD_PISTAS = {
          14,-1,16,19, 21,-1,19,-1, 18,-1,16,14, 14,-1,-1,-1,
          16,-1,19,21, 23,-1,21,19, 16,-1,19,-1, 21,-1,-1,-1,
          24,-1,23,21, 19,-1,16,-1, 17,-1,16,14, 12,-1,-1,-1] },
-  dia: { name:'PLENA LUZ', style:'urbe', fase:'dia', tempo:100, root:82.41,
+  dia: { name:'PLENA LUZ', style:'urbe', fase:'dia', tempo:120, root:82.41,
     prog:[[0,1],[8,0],[3,0],[10,0]], scale:[165,185,196,220,247,262,294,330],
     bajo:[0,0,12,0, 0,12,0,0, 0,0,12,0, 7,0,12,10], kicks:[0,4,8,10,12], cajas:[4,12], charles:1, abierto:14,
     stab:[3,6,11,14], stabTipo:'sawtooth', stabVol:0.032, potencia:true, arp:'square', lead:'square', leadVol:0.06, doble:true, redoble:true,
@@ -12532,7 +12598,7 @@ const CIUDAD_PISTAS = {
          12,-1,15,12, 20,-1,19,17, 15,-1,12,10, 12,-1,-1,-1,
          15,-1,19,15, 22,-1,19,22, 24,-1,22,19, 17,-1,15,-1,
          17,-1,14,17, 22,-1,21,19, 17,-1,14,10, 14,-1,-1,-1] },
-  atardecer: { name:'ÚLTIMA HORA', style:'urbe', fase:'atardecer', tempo:112, root:73.42,
+  atardecer: { name:'ÚLTIMA HORA', style:'urbe', fase:'atardecer', tempo:132, root:73.42,
     prog:[[0,1],[10,0],[8,0],[7,0]], scale:[147,165,175,196,220,233,262,294],
     bajo:[0,-1,0,-1, 12,-1,0,-1, 0,-1,0,-1, 10,-1,12,-1], kicks:[0,6,8], cajas:[4,12], mitad:true, charles:2, abierto:-1,
     stab:[0], stabTipo:'triangle', stabVol:0.03, colchon:true, arp:'triangle', lead:'sawtooth', leadVol:0.045,
@@ -12540,7 +12606,7 @@ const CIUDAD_PISTAS = {
          12,-1,-1,10, 12,-1,14,-1, 15,-1,14,12, 10,-1,-1,-1,
          10,-1,-1,8, 10,-1,12,-1, 14,-1,12,10, 8,-1,-1,-1,
          9,-1,13,-1, 16,-1,13,-1, 19,-1,16,13, 14,-1,-1,-1] },
-  noche: { name:'HORA MUERTA', style:'urbe', fase:'noche', tempo:118, root:55.00, noche:true,
+  noche: { name:'HORA MUERTA', style:'urbe', fase:'noche', tempo:140, root:55.00, noche:true,
     prog:[[0,1],[8,0],[5,1],[7,1]], scale:[110,123,131,147,165,175,196,220],
     bajo:[0,-1,12,-1, 0,-1,12,-1, 0,-1,12,-1, 0,-1,12,7], kicks:[0,8], cajas:[12], charles:1, abierto:-1,
     stab:[0], stabTipo:'triangle', stabVol:0.026, colchon:true, arp:'triangle', lead:'square', leadVol:0.04, eco:true,
@@ -14479,22 +14545,26 @@ function estudioPartituras(I){
     // LA CIUDAD, una pieza por hora del día. 16 compases en cuatro capas que
     // se van sumando (base · + arpegio · + melodía · todo).
     // =================================================================
-    ciudad_manana: { bpm: 120, compases: 16, bucle: 0, semilla: 51, master: { rms: 0.19, bombeo: 0.35 },
+    ciudad_manana: { bpm: 142, compases: 16, bucle: 0, semilla: 51, master: { rms: 0.2, bombeo: 0.4 },
       compone(C){
         // DESPERTAR: pop luminoso en sol mayor. Piano eléctrico FM, bajo FM,
         // arpegio de cuerda pulsada y un glockenspiel con la melodía.
         const R = 43, prog = [[0, 'M'], [7, 'M'], [9, 'm'], [5, 'M']];
-        const BAJO = [0, -1, 0, 7, -1, 0, 12, -1, 0, -1, 0, 7, -1, 12, 7, 5];
+        const BAJO = [0, 0, 12, 0, 7, 0, 12, 0, 0, 0, 12, 0, 7, 12, 7, 5];
         const MEL = [12,-1,14,16, 19,-1,16,-1, 14,-1,12,14, 16,-1,-1,-1, 14,-1,16,19, 21,-1,19,-1, 18,-1,16,14, 14,-1,-1,-1,
                      16,-1,19,21, 23,-1,21,19, 16,-1,19,-1, 21,-1,-1,-1, 24,-1,23,21, 19,-1,16,-1, 17,-1,16,14, 12,-1,-1,-1];
         for (let c = 0; c < 16; c++){
           const sec = c >> 2, [g, tp] = prog[c % 4], raiz = R + g;
-          rit(C, c, 'x.......x.x.....', (t, v)=> bombo(C, t, v*0.85, { dec: 0.3, f0: 140, f1: 50, dist: 1.2, gan: 0.75 }));
-          if (sec >= 1) rit(C, c, '....x.......x...', (t, v)=> caja(C, t, v*0.8, { palma: true, dec: 0.18, gan: 0.45, rev: 0.22 }));
-          rit(C, c, '..x...x...x...x.', (t, v, s)=> charles(C, t, 0.75, { abierto: s === 14, gan: 0.18 }));
-          if (sec >= 3) rit(C, c, 'oooooooooooooooo', (t, v)=> charles(C, t, 0.4, { dec: 0.03, hp: 9000, gan: 0.12, pan: 0.4 }));
+          // frenético desde el principio: bombo a negras, palmas y caja, charles a semicorcheas y redobles
+          const fillM = c % 4 === 3;
+          rit(C, c, sec >= 2 ? 'x...x...x.x.x...' : 'x...x...x...x...', (t, v)=> bombo(C, t, v*0.9, { dec: 0.24, f0: 150, f1: 50, dist: 1.4, gan: 0.78 }));
+          rit(C, c, fillM ? '....x.......xoxx' : '....x.......x...', (t, v)=> caja(C, t, v*0.85, { palma: sec < 2, dec: 0.16, gan: 0.5, rev: 0.22 }));
+          rit(C, c, 'xoxoxoxoxoxoxox.', (t, v, s)=> charles(C, t, v*0.7, { gan: 0.16 }));
+          charles(C, C.t(c, 14), 0.8, { abierto: true, gan: 0.18 });
+          if (sec >= 1) rit(C, c, '..x...x...x...x.', (t, v)=> caja(C, t, 0.35, { palma: true, dec: 0.1, gan: 0.28, pan: -0.3 }));
+          if (fillM) barrido(C, C.t(c), C.T(16), 1, { f0: 300, f1: 8000, gan: 0.16 });
           for (let s = 0; s < 16; s++) if (BAJO[s] >= 0)
-            bajo(C, C.t(c, s), C.T(BAJO[s + 1] === -1 ? 2 : 1)*0.85, enEsc(raiz - 12, BAJO[s], [7, 9, 11, 0, 2, 4, 6]), 0.9, { tipo: 'fm', razon: 1, indice: 1.6, dec: 0.12, pluck: true, gan: 0.5 });
+            bajo(C, C.t(c, s), C.T(1)*0.8, enEsc(raiz - 12, BAJO[s], [7, 9, 11, 0, 2, 4, 6]), s % 4 === 0 ? 1 : 0.8, { tipo: 'fm', razon: 1, indice: 1.8, dec: 0.1, pluck: true, gan: 0.48 });
           const ac = voz(raiz + 12, tp, 66);
           for (const s of [2, 6, 10, 14]) for (const m of ac) fm(C, C.t(c, s), C.T(1.6), m, 0.55, { razon: 1, indice: 1.3, kd: 4, dec: 0.9, gan: 0.13, rev: 0.25 });
           if (sec >= 1){ const a = voz(raiz + 24, tp, 74); for (let s = 0; s < 16; s += 2) pulsada(C, C.t(c, s), [a[0], a[1], a[2], a[1]][(s >> 1) % 4], 0.8, { brillo: 0.75, dur: 0.6, gan: 0.2, eco: 0.25, pan: 0.3 }); }
@@ -14508,10 +14578,10 @@ function estudioPartituras(I){
             }
           }
           if (sec >= 3) sinte(C, C.t(c), C.T(16), voz(raiz + 12, tp, 62), 0.6, { onda: 'saw', voces: 4, des: 14, a: 0.3, r: 0.4, corte: 1600, gan: 0.2, rev: 0.4, bombea: true });
-          if (c % 4 === 0 && c) platillo(C, C.t(c, 0), 0.6, { gan: 0.18 });
+          if (c % 4 === 0) platillo(C, C.t(c, 0), c ? 0.75 : 0.6, { gan: 0.2 });
         }
       } },
-    ciudad_dia: { bpm: 150, compases: 16, bucle: 0, semilla: 52, master: { rms: 0.21, bombeo: 0.25 },
+    ciudad_dia: { bpm: 170, compases: 16, bucle: 0, semilla: 52, master: { rms: 0.21, bombeo: 0.28 },
       compone(C){
         // PLENA LUZ: rock electrónico en mi menor. Guitarras de potencia, bajo
         // en semicorcheas que salta de octava, batería de rock, redobles y un
@@ -14522,14 +14592,15 @@ function estudioPartituras(I){
                      15,-1,19,15, 22,-1,19,22, 24,-1,22,19, 17,-1,15,-1, 17,-1,14,17, 22,-1,21,19, 17,-1,14,10, 14,-1,-1,-1];
         for (let c = 0; c < 16; c++){
           const sec = c >> 2, [g] = prog[c % 4], raiz = R + g, gr = raiz > 45 ? raiz - 12 : raiz;
-          const fill = c % 4 === 3;
-          rit(C, c, 'x...x...x.x.x...', (t, v)=> bombo(C, t, v*0.9, { dec: 0.26, f0: 170, f1: 50, dist: 1.8, gan: 0.8 }));
-          rit(C, c, fill ? '....x.......xoxx' : '....x.......x...', (t, v)=> caja(C, t, v, { tono: 200, dec: 0.2, gan: 0.6, rev: 0.2 }));
+          const fill = c % 2 === 1;
+          rit(C, c, sec >= 2 ? 'xxx.xxx.xxx.xxx.' : 'x...x.x.x.x.x...', (t, v)=> bombo(C, t, v*0.88, { dec: 0.2, f0: 175, f1: 52, dist: 2, gan: 0.78 }));   // doble bombo
+          rit(C, c, fill ? (c % 4 === 3 ? '....x...x.xxxxxx' : '....x.......xoxx') : '....x.......x...', (t, v)=> caja(C, t, v, { tono: 205, dec: 0.18, gan: 0.6, rev: 0.2 }));
           rit(C, c, 'xxxxxxxxxxxxxx.x', (t, v, s)=> charles(C, t, s % 2 ? 0.45 : 0.8, { gan: 0.17 }));
           charles(C, C.t(c, 14), 0.8, { abierto: true });
           if (fill && sec >= 1) rit(C, c, '........x.x.x...', (t, v, s)=> timbal(C, t, 52 - (s - 8), 0.7, { dec: 0.35, gan: 0.45 }));
           for (let s = 0; s < 16; s++) bajo(C, C.t(c, s), C.T(1)*0.85, enEsc(gr - 12, BAJO[s], [4, 6, 7, 9, 11, 0, 2]), s % 4 === 0 ? 1 : 0.8, { tipo: 'pulso', corte: 500, env: 1400, dec: 0.06, dist: 1.8, gan: 0.42 });
-          if (sec === 0) for (let s = 0; s < 16; s += 2) guitarra(C, C.t(c, s), C.T(1.5), gr, 0.85, { apagada: true, gan: 0.15, gano: 6 });
+          if (sec === 0) for (let s = 0; s < 16; s++) guitarra(C, C.t(c, s), C.T(0.9), gr, s % 4 === 0 ? 0.95 : 0.75, { apagada: true, gan: 0.14, gano: 6 });
+          if (c % 4 === 3) barrido(C, C.t(c), C.T(16), 1, { f0: 400, f1: 9000, gan: 0.18 });
           else { guitarra(C, C.t(c, 0), C.T(7), gr, 1, { gan: 0.15, gano: 6 }); guitarra(C, C.t(c, 8), C.T(3), gr, 0.9, { gan: 0.15, gano: 6 }); guitarra(C, C.t(c, 11), C.T(5), gr, 0.9, { gan: 0.15, gano: 6 }); }
           if (sec >= 1){ const a = voz(raiz + 24, prog[c % 4][1], 71); for (let s = 0; s < 16; s++) sinte(C, C.t(c, s), C.T(0.8), a[[0, 1, 2, 1][s % 4]] + (s >= 8 ? 12 : 0), 0.6, { onda: 'sq', voces: 1, a: 0.002, d: 0.08, s: 0.3, r: 0.04, corte: 2400, gan: 0.18, eco: 0.15, pan: 0.3 }); }
           if (sec >= 2){
@@ -14544,7 +14615,7 @@ function estudioPartituras(I){
           if (c % 4 === 0) platillo(C, C.t(c, 0), c ? 1 : 0.7);
         }
       } },
-    ciudad_atardecer: { bpm: 134, compases: 16, bucle: 0, semilla: 53, master: { rms: 0.19, bombeo: 0.4, reverb: { tam: 0.88 } },
+    ciudad_atardecer: { bpm: 156, compases: 16, bucle: 0, semilla: 53, master: { rms: 0.2, bombeo: 0.42, reverb: { tam: 0.82 } },
       compone(C){
         // ÚLTIMA HORA: tenso y melancólico en re menor, sobre la cadencia
         // andaluza (Dm C Bb A). Medio tiempo, cuerdas, arpegio pulsado y un
@@ -14555,11 +14626,13 @@ function estudioPartituras(I){
                      10,-1,-1,8, 10,-1,12,-1, 14,-1,12,10, 8,-1,-1,-1, 7,-1,11,-1, 14,-1,11,-1, 19,-1,15,14, 11,-1,-1,-1];
         for (let c = 0; c < 16; c++){
           const sec = c >> 2, [g, tp] = prog[c % 4], raiz = R + g, br = raiz > 44 ? raiz - 12 : raiz;
-          rit(C, c, 'x.........x.....', (t, v)=> bombo(C, t, v, { dec: 0.4, f0: 140, f1: 44, dist: 1.4, gan: 0.8 }));
-          rit(C, c, c % 4 === 3 ? '........x.....oo' : '........x.......', (t, v)=> caja(C, t, v, { tono: 180, dec: 0.3, gan: 0.55, rev: 0.4 }));
-          rit(C, c, c % 2 ? 'x.x.x.x.x.x.xxxx' : 'x.x.x.x.x.x.x.x.', (t, v, s)=> charles(C, t, s % 4 === 0 ? 0.8 : 0.55, { gan: 0.15 }));
-          for (let s = 0; s < 16; s++) if (BAJO[s] >= 0)
-            bajo(C, C.t(c, s), C.T(2)*0.9, enEsc(br - 12, BAJO[s], [2, 4, 5, 7, 9, 10, 0, 1]), 1, { tipo: 'sub', gan: 0.5 });
+          // ritmo quebrado y acelerado: bombo sincopado, caja con golpes fantasma y charles a semicorcheas
+          rit(C, c, sec >= 2 ? 'x.....x.x.x...x.' : 'x.....x...x.....', (t, v)=> bombo(C, t, v, { dec: 0.32, f0: 150, f1: 44, dist: 1.6, gan: 0.8 }));
+          rit(C, c, c % 4 === 3 ? '....x..o.x..xoxx' : '....x..o.o..x..o', (t, v)=> caja(C, t, v, { tono: 185, dec: 0.22, gan: 0.55, rev: 0.35 }));
+          rit(C, c, 'xoxoxoxoxoxoxoxo', (t, v, s)=> charles(C, t, s % 4 === 0 ? 0.8 : v*0.6, { gan: 0.15 }));
+          if (c % 4 === 3) barrido(C, C.t(c), C.T(16), 1, { f0: 250, f1: 7000, gan: 0.15 });
+          for (let s = 0; s < 16; s++) if (BAJO[s] >= 0 || s % 2)
+            bajo(C, C.t(c, s), C.T(1)*0.9, enEsc(br - 12, BAJO[s] >= 0 ? BAJO[s] : 12, [2, 4, 5, 7, 9, 10, 0, 1]), BAJO[s] >= 0 ? 1 : 0.6, { tipo: 'reese', gan: 0.42 });
           sinte(C, C.t(c), C.T(16), voz(raiz + 12, tp, 60), 0.85, { onda: 'saw', voces: 4, des: 12, a: 0.5, r: 0.6, corte: 1300 + sec*250, gan: 0.26, rev: 0.45, bombea: true });
           if (sec >= 1){ const a = voz(raiz + 24, tp, 69), seq = [0, 1, 2, 1, 0, 2, 1, 2]; for (let s = 0; s < 16; s++) pulsada(C, C.t(c, s), a[seq[s % 8]] + (s % 8 === 7 ? 12 : 0), s % 4 === 0 ? 0.8 : 0.55, { brillo: 0.45, dur: 0.7, gan: 0.2, eco: 0.28, pan: -0.3 }); }
           if (sec >= 2){
@@ -14574,23 +14647,24 @@ function estudioPartituras(I){
           if (c % 4 === 0 && c) platillo(C, C.t(c, 0), 0.7, { gan: 0.2 });
         }
       } },
-    ciudad_noche: { bpm: 127, compases: 16, bucle: 0, semilla: 54, master: { rms: 0.19, bombeo: 0.5, eco: { fb: 0.45 }, reverb: { tam: 0.9, amort: 0.25 } },
+    ciudad_noche: { bpm: 146, compases: 16, bucle: 0, semilla: 54, master: { rms: 0.2, bombeo: 0.55, eco: { fb: 0.4 }, reverb: { tam: 0.85, amort: 0.25 } },
       compone(C){
         // HORA MUERTA: synthwave oscuro en la menor. Caja enorme con reverb,
         // bajo que salta de octava, supersierras, arpegio con eco cruzado y
         // un lead con vibrato.
         const R = 33, prog = [[0, 'm'], [8, 'M'], [5, 'm'], [7, 'm']];
-        const BAJO = [0, -1, 12, -1, 0, -1, 12, -1, 0, -1, 12, -1, 0, -1, 12, 7];
+        const BAJO = [0, 0, 12, 0, 0, 0, 12, 0, 0, 0, 12, 0, 0, 12, 7, 12];
         const MEL = [24,-1,-1,-1, 23,-1,24,-1, 27,-1,-1,-1, 26,-1,24,-1, 24,-1,-1,-1, 20,-1,-1,-1, 19,-1,20,-1, 24,-1,-1,-1,
                      20,-1,-1,-1, 19,-1,20,-1, 24,-1,-1,-1, 26,-1,-1,-1, 22,-1,-1,-1, 19,-1,-1,-1, 17,-1,19,-1, 26,-1,-1,-1];
         for (let c = 0; c < 16; c++){
           const sec = c >> 2, [g, tp] = prog[c % 4], raiz = R + g;
-          rit(C, c, 'x.......x.......', (t, v)=> bombo(C, t, v, { dec: 0.38, f0: 130, f1: 45, dist: 1.3, gan: 0.85 }));
-          if (sec >= 1) rit(C, c, '....x.......x...', (t, v)=> caja(C, t, v, { tono: 170, dec: 0.25, gan: 0.55, rev: 0.7, ruido: 1.1 }));
-          else rit(C, c, '............x...', (t, v)=> caja(C, t, v*0.8, { tono: 170, dec: 0.25, gan: 0.5, rev: 0.7 }));
-          rit(C, c, 'oxoxoxoxoxoxoxox', (t, v)=> charles(C, t, v*0.55, { gan: 0.14 }));
+          // synthwave oscuro a la carrera: cuatro en el suelo, caja enorme, charles abiertos y redobles
+          rit(C, c, 'x...x...x...x...', (t, v)=> bombo(C, t, v, { dec: 0.3, f0: 140, f1: 45, dist: 1.5, gan: 0.85 }));
+          rit(C, c, c % 4 === 3 ? '....x.......xxxx' : '....x.......x...', (t, v)=> caja(C, t, v, { tono: 170, dec: 0.22, gan: 0.55, rev: 0.65, ruido: 1.1 }));
+          rit(C, c, 'xxxxxxxxxxxxxxxx', (t, v, s)=> charles(C, t, s % 4 === 2 ? 0.75 : 0.4, { abierto: s % 4 === 2, gan: 0.13 }));
+          if (c % 4 === 3) barrido(C, C.t(c), C.T(16), 1, { f0: 200, f1: 6000, gan: 0.15 });
           for (let s = 0; s < 16; s++) if (BAJO[s] >= 0)
-            bajo(C, C.t(c, s), C.T(2)*0.85, raiz + BAJO[s], 1, { tipo: 'pulso', corte: 380, env: 1500, dec: 0.12, q: 1.6, dist: 1.4, gan: 0.46 });
+            bajo(C, C.t(c, s), C.T(1)*0.85, raiz + BAJO[s], s % 4 === 0 ? 1 : 0.8, { tipo: 'pulso', corte: 400, env: 1600, dec: 0.09, q: 1.6, dist: 1.5, gan: 0.44 });
           sinte(C, C.t(c), C.T(16), voz(raiz + 24, tp, 60), 0.8, { onda: 'saw', voces: 5, des: 20, a: 0.7, r: 1.0, corte: 1100 + sec*300, gan: 0.3, rev: 0.55, bombea: true });
           if (sec >= 1){ const a = voz(raiz + 36, tp, 69); for (let s = 0; s < 16; s++) sinte(C, C.t(c, s), C.T(0.7), a[[0, 1, 2, 1][s % 4]] + (s % 8 >= 6 ? 12 : 0), 0.65, { onda: 'sq', voces: 1, a: 0.002, d: 0.1, s: 0.2, r: 0.05, corte: 1800, gan: 0.17, eco: 0.4, pan: 0.35, bombea: true }); }
           if (sec >= 2){
@@ -18504,7 +18578,11 @@ function isVil(){ return hero === 'viltrum'; }
 async function loadHero(){
   const v = await storeGet('invasion_hero');
   hero = normHeroe(v);
+  if (HEROE_OCULTO[hero]) hero = 'alien';           // Boros y el mago, ocultos por ahora
 }
+// Los que se eligen en el menú (y en ese orden). Boros y el mago, ocultos por ahora.
+const MENU_HEROES = ['viltrum', 'alien', 'maquina', 'dragon'];
+const HEROE_OCULTO = { boros:1, mago:1 };
 function saveHero(){ storeSet('invasion_hero', hero); }
 
 // Estado propio del viltrumita
@@ -41821,7 +41899,7 @@ if ('serviceWorker' in navigator && location.protocol === 'https:'){
   window.addEventListener('load', ()=>{ navigator.serviceWorker.register('/sw.js').catch(()=>{}); });
 }
 
-function show(id){ document.getElementById(id).classList.remove('hidden'); scrollTop(id); revisaMenu(); if (id === 'menu') avisoRaton(); }
+function show(id){ document.getElementById(id).classList.remove('hidden'); scrollTop(id); revisaMenu(); if (id === 'menu'){ avisoRaton(); requestAnimationFrame(colocaBarra); } }
 // Aviso breve en el menú: en el PC se juega mejor con mouse. Sale una vez por
 // carga, solo con un puntero fino (mouse o panel táctil del portátil) y sin
 // los controles táctiles, y se va solo a los pocos segundos.
@@ -43143,8 +43221,8 @@ function holoDibuja(g, t){
 }
 function holoLoop(now){
   holo.raf = 0;
-  const cv = document.getElementById('holoCv'), menu = document.getElementById('menu');
-  if (!cv || !menu || menu.classList.contains('hidden') || document.hidden){ holo.last = 0; holoEspera(); return; }
+  const cv = document.getElementById('holoCv'), menu = document.getElementById('menu'), card = document.getElementById('heroCard');
+  if (!cv || !menu || menu.classList.contains('hidden') || document.hidden || (card && card.classList.contains('oculta'))){ holo.last = 0; holoEspera(); return; }
   const dt = holo.last ? Math.min(0.05, (now - holo.last)/1000) : 0; holo.last = now;
   holo.t += dt; if (holo.aparece < 1) holo.aparece = Math.min(1, holo.aparece + dt/0.55);
   const g = cv.getContext('2d'), esc = cv.width/HOLO_W;
@@ -43172,6 +43250,7 @@ function refreshHeroUI(){
   if (lema) lema.textContent = 'La ciudad es tuya. ' + ((isVil() || isMaq() || isMag() || isBor()) ? 'Destrúyela.' : 'Devórala.');
   const hdr = document.getElementById('scoreheader');
   if (hdr) hdr.textContent = 'JUGANDO COMO: ' + heroName(hero);
+  try { marcaBarraHeroes(); } catch(e){}
 }
 // ---- Ficha del personaje: sus teclas (las que tengas asignadas) y qué hace ----
 function fichaHeroe(h){
@@ -43247,8 +43326,12 @@ window.addEventListener('keydown', e=>{
 }, true);
 // Flechas del holograma: cría ↔ viltrumita ↔ dragón ↔ máquina ↔ mago
 async function cambiaHeroe(paso){
-  const n = HEROES.length;
-  hero = HEROES[(HEROES.indexOf(hero) + paso + n) % n];
+  const n = MENU_HEROES.length, i = Math.max(0, MENU_HEROES.indexOf(hero));
+  return eligeHeroe(MENU_HEROES[(i + paso + n) % n]);
+}
+async function eligeHeroe(h){
+  if (!h || h === hero) return;
+  hero = h;
   if (!document.getElementById('heroAyuda').classList.contains('hidden')) pintaFichaHeroe();
   saveHero(); refreshHeroUI(); sfx('holo'); holoCambia();
   refreshLogos();
@@ -43256,8 +43339,6 @@ async function cambiaHeroe(paso){
   if (scoreTab === 'global') showGlobal(false);   // el global también es suyo
   await renderScoreList();
 }
-document.getElementById('btnHeroPrev').addEventListener('click', ()=> cambiaHeroe(-1));
-document.getElementById('btnHeroNext').addEventListener('click', ()=> cambiaHeroe(1));
 pintaMiniMapas(); holoArranca();
 
 document.getElementById('btnInvadir').addEventListener('click', ()=>{
@@ -44490,6 +44571,7 @@ document.getElementById('btnMenu').addEventListener('click', async ()=>{
   await renderScoreList();
   document.getElementById('menu').classList.remove('hidden');
   revisaMenu();                   // el menú se muestra a mano: hay que avisar
+  requestAnimationFrame(colocaBarra);
 });
 
 // Arranque con barra de progreso: el menú no aparece hasta que TODO está
@@ -44541,6 +44623,7 @@ document.getElementById('btnMenu').addEventListener('click', async ()=>{
     document.getElementById('menu').classList.remove('hidden');
     desbloqueaAudio();            // primer menú de la sesión: que suene ya
     avisoRaton();                 // en el PC: mejor con mouse
+    requestAnimationFrame(colocaBarra);
   };
   if (!boot){ abreMenu(); return; }
   // TOCA PARA INICIAR: ese toque es un gesto de verdad, así que el audio
@@ -44640,6 +44723,119 @@ document.addEventListener('visibilitychange', ()=>{
     ov.appendChild(inner);
   }
 })();
+// ================= ELECCIÓN DE PERSONAJE =================
+// Barra de iconos a la izquierda del menú: se baja con la rueda del mouse o
+// con el dedo. Al tocar un personaje se elige y se abre su ficha: el
+// holograma haciendo sus animaciones, un texto muy breve, el tutorial y los
+// controles. Va dentro de #menu pero fuera del bloque que se encoge.
+const HERO_ESTILO = {
+  viltrum: { c:'#5ab8ff', c2:'rgba(90,184,255,0.42)', txt:'Vuela a velocidad sónica con doble toque y lo revienta todo a puñetazos. Ningún muro lo detiene.' },
+  alien:   { c:'#7bffa0', c2:'rgba(123,255,160,0.4)', txt:'Agarra, golpea y lanza lo que pilla con su tentáculo. Cuanto más devora, antes evoluciona a COLOSO.' },
+  maquina: { c:'#ffcf4a', c2:'rgba(255,207,74,0.38)', txt:'Cambia de arma sobre la marcha: espada, ráfaga, escopeta y cohetes. Se repara con cada víctima.' },
+  dragon:  { c:'#ff8a3a', c2:'rgba(255,138,58,0.4)', txt:'Vuela sobre los tejados, muerde, aletea y escupe rayos por sus tres bocas. Todo gasta estamina.' }
+};
+// Retrato de cada uno, sacado de su figura animada (a 2,5x para que se vea nítido).
+const _retratos = {};
+function retratoHeroe(h){
+  const k = h + '|' + activeSkin;
+  if (_retratos[k]) return _retratos[k];
+  const E = 2.5, N = 800, c = document.createElement('canvas'); c.width = c.height = N;
+  const g = c.getContext('2d');
+  g.setTransform(E, 0, 0, E, 0, 0);
+  try { holoFigura(g, h, 160, 190, 0.6); } catch(e){}
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  let x0 = N, y0 = N, x1 = 0, y1 = 0;
+  try {
+    const px = g.getImageData(0, 0, N, N).data;
+    for (let y = 0; y < N; y += 2) for (let x = 0; x < N; x += 2) if (px[(y*N + x)*4 + 3] > 40){ if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+  } catch(e){}
+  const o = document.createElement('canvas'); o.width = o.height = 128;
+  if (x1 > x0){
+    const w = x1 - x0 + 1, hh = y1 - y0 + 1, alto = hh*0.8 >= w;
+    const S = alto ? Math.max(w*1.12, hh*0.6) : w*1.1, cx = (x0 + x1)/2, top = alto ? y0 - S*0.06 : (y0 + y1)/2 - S/2;   // los altos, de la cabeza a la cintura
+    const og = o.getContext('2d'); og.imageSmoothingQuality = 'high';
+    og.drawImage(c, cx - S/2, top, S, S, 0, 0, 128, 128);
+  }
+  return (_retratos[k] = o.toDataURL());
+}
+function pintaBarraHeroes(){
+  const L = document.getElementById('heroLista');
+  if (!L) return;
+  L.innerHTML = MENU_HEROES.map(h =>{
+    const e = HERO_ESTILO[h];
+    return `<button type="button" class="hitem" role="option" data-heroe="${h}" style="--c:${e.c};--c2:${e.c2}" aria-label="${heroName(h)}">
+      <span class="hico"><img alt="" src="${retratoHeroe(h)}"></span><span class="hnom">${heroName(h)}</span></button>`;
+  }).join('');
+  L.querySelectorAll('[data-heroe]').forEach(b => b.addEventListener('click', ()=>{
+    const h = b.dataset.heroe, card = document.getElementById('heroCard');
+    if (h === hero){ abreFichaBarra(card.classList.contains('oculta')); sfx('ui'); return; }
+    eligeHeroe(h); abreFichaBarra(true);
+  }));
+  marcaBarraHeroes();
+  flechasBarra();
+}
+let _retratoSkin = null;
+function marcaBarraHeroes(){
+  const L = document.getElementById('heroLista');
+  if (!L) return;
+  if (_retratoSkin !== activeSkin){ _retratoSkin = activeSkin; pintaBarraHeroes(); return; }   // la cría y el viltrumita llevan la skin puesta
+  L.querySelectorAll('[data-heroe]').forEach(b =>{ const on = b.dataset.heroe === hero; b.classList.toggle('on', on); b.setAttribute('aria-selected', on ? 'true' : 'false'); });
+  const e = HERO_ESTILO[hero] || HERO_ESTILO.alien, card = document.getElementById('heroCard');
+  if (card){ card.style.setProperty('--c', e.c); card.style.setProperty('--c2', e.c2); }
+  const t = document.getElementById('heroCardTxt'); if (t) t.textContent = e.txt;
+}
+function abreFichaBarra(si){
+  const card = document.getElementById('heroCard');
+  if (!card) return;
+  card.classList.toggle('oculta', !si);
+  if (si){ holoCambia(); holoArranca(); }
+}
+// En el teléfono en vertical, la barra va en el hueco libre entre PUNTAJES e
+// INVADIR (la lista, del alto que quepa, y se desplaza con el dedo).
+function colocaBarra(){
+  const hs = document.getElementById('heroSel'), L = document.getElementById('heroLista'), mn = document.getElementById('menu');
+  if (!hs || !L || !mn || mn.classList.contains('hidden')) return;
+  let vert = false;
+  try { vert = window.matchMedia('(orientation: portrait) and (max-width: 640px)').matches; } catch(e){}
+  if (!vert){ hs.style.top = ''; hs.style.transform = ''; L.style.maxHeight = ''; flechasBarra(); return; }
+  const tb = document.getElementById('btnTabla'), inv = document.getElementById('btnInvadir');
+  if (!tb || !inv) return;
+  const a = tb.getBoundingClientRect().bottom + 10, b = inv.getBoundingClientRect().top - 10;
+  const lista = Math.max(64, b - a - 34);                 // lo que no es la lista: el título y las flechas
+  hs.style.top = Math.round(a) + 'px'; hs.style.transform = 'none';
+  L.style.maxHeight = Math.round(lista) + 'px';
+  flechasBarra();
+}
+// las flechitas de arriba y abajo, solo cuando hay más personajes por ver
+function flechasBarra(){
+  const L = document.getElementById('heroLista'), bar = L && L.parentElement;
+  if (!bar) return;
+  bar.classList.toggle('sube', L.scrollTop > 4);
+  bar.classList.toggle('baja', L.scrollTop + L.clientHeight < L.scrollHeight - 4);
+}
+(function montaBarraHeroes(){
+  const hs = document.getElementById('heroSel'), mn = document.getElementById('menu');
+  if (!hs || !mn) return;
+  mn.appendChild(hs);                                    // dentro del menú, fuera del bloque que se encoge
+  const L = document.getElementById('heroLista');
+  L.addEventListener('scroll', flechasBarra, { passive:true });
+  window.addEventListener('resize', ()=> requestAnimationFrame(colocaBarra));
+  if (typeof ResizeObserver === 'function'){ const inv = document.getElementById('btnInvadir'); if (inv) new ResizeObserver(()=> colocaBarra()).observe(inv); }
+  // con las flechas del teclado se pasa de uno a otro
+  L.addEventListener('keydown', ev=>{
+    if (ev.key !== 'ArrowDown' && ev.key !== 'ArrowUp') return;
+    const bs = [...L.querySelectorAll('[data-heroe]')], i = bs.indexOf(document.activeElement);
+    const j = Math.max(0, Math.min(bs.length - 1, (i < 0 ? 0 : i) + (ev.key === 'ArrowDown' ? 1 : -1)));
+    bs[j].focus(); bs[j].scrollIntoView({ block:'nearest' }); ev.preventDefault();
+  });
+  document.getElementById('heroCardX').addEventListener('click', ()=>{ abreFichaBarra(false); sfx('ui'); });
+  window.addEventListener('keydown', ev=>{
+    const card = document.getElementById('heroCard');
+    if (ev.key === 'Escape' && card && !card.classList.contains('oculta') && document.getElementById('heroAyuda').classList.contains('hidden')){ abreFichaBarra(false); }
+  });
+  pintaBarraHeroes();
+  requestAnimationFrame(colocaBarra);
+})();
 // El menú principal nunca se desplaza: si su contenido no cabe en la
 // ventana, se encoge lo justo para que se vea entero. Se recalcula solo
 // cuando cambia el tamaño de la ventana o del contenido (la tabla de puntaje,
@@ -44705,7 +44901,7 @@ function abreTabla(si){
   if (x) x.addEventListener('click', ()=> abreTabla(false));
   // se cierra tocando fuera de ella (lo tocado sigue haciendo lo suyo) o con
   // Escape; cambiar de personaje no la cierra: así se ven sus puntajes
-  const holo = document.getElementById('holoHero');
+  const holo = document.getElementById('heroSel');
   document.addEventListener('click', ev=>{
     if (!pn.classList.contains('abierta')) return;
     if (pn.contains(ev.target) || bt.contains(ev.target) || (holo && holo.contains(ev.target))) return;
