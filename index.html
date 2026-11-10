@@ -1069,6 +1069,26 @@
     #menu #holoCv { width:min(112px, 24vh); height:min(104px, 22vh); }
     #menu .holoflecha, #menu .charhelp { height:30px; min-width:36px; }
   }
+  /* ---- ventana SKINS DE CIUDAD (en EXTRAS de la tienda) ---- */
+  #skinVent { position:fixed; inset:0; z-index:45; display:flex; align-items:center; justify-content:center; padding:14px; box-sizing:border-box;
+              background:rgba(0,0,0,0.66); }
+  #skinVent.hidden { display:none; }
+  #skinVent .svpanel { position:relative; width:min(640px, 100%); max-height:100%; display:flex; flex-direction:column; gap:10px; box-sizing:border-box;
+              padding:14px 14px 12px; border-radius:16px; background:linear-gradient(180deg, rgba(12,30,18,0.98), rgba(4,12,8,0.98));
+              border:2px solid #2fe86e; box-shadow:0 0 30px rgba(47,232,110,0.25), 0 18px 50px rgba(0,0,0,0.7); }
+  #skinVent .svtit { font-size:0.9rem; font-weight:900; letter-spacing:3px; color:#7bffa0; text-align:center; text-shadow:0 0 10px rgba(123,255,160,0.6); }
+  #skinVent .svsub { font-size:0.46rem; letter-spacing:1px; color:#9fb3a8; text-align:center; line-height:1.6; }
+  #skinVent .svmapas { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:8px; }
+  #skinVent .svmapa { all:unset; box-sizing:border-box; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:4px; padding:6px;
+              border-radius:10px; background:rgba(6,14,10,0.9); border:2px solid #2f4a38; text-align:center; }
+  #skinVent .svmapa img { width:100%; aspect-ratio:16/9; object-fit:cover; border-radius:6px; image-rendering:pixelated; }
+  #skinVent .svmapa span { font-size:0.42rem; font-weight:900; letter-spacing:1px; color:#cfe8d8; }
+  #skinVent .svmapa small { font-size:0.36rem; letter-spacing:1px; color:#7fae94; }
+  #skinVent .svmapa:hover { border-color:#7bffa0; }
+  #skinVent .svmapa.on { border-color:#2fe86e; background:rgba(16,48,26,0.95); box-shadow:0 0 12px rgba(47,232,110,0.35); }
+  #skinVent .svmapa.on span { color:#7bffa0; }
+  #skinVent .svlista { overflow-y:auto; min-height:0; padding-right:2px; overscroll-behavior:contain; }
+  @media (max-width: 520px){ #skinVent .svlista img { width:96px !important; height:53px !important; flex-basis:96px !important; } }
   /* ---- elección de personaje: barra de iconos a la izquierda y su ficha ---- */
   #heroSel { position:fixed; left:calc(10px + env(safe-area-inset-left,0px)); top:50%; transform:translateY(-50%); z-index:7;
              display:flex; align-items:center; gap:10px; pointer-events:none; }
@@ -2400,6 +2420,15 @@
           <div class="tdimgacc"><button type="button" class="togglebtn" id="btnElegirImg">ELEGIR IMAGEN…</button>
             <div id="imgLock" class="imglock">Necesitas <b>CREAR COLOR PROPIO</b> (en EXTRAS) para usarlas</div></div></div>
         <div class="tdpanel" data-tdpanel="extras"><div class="tdpsub">Mejoras que se compran una sola vez</div><div id="customcard" class="customcard"></div><div id="auracard" class="customcard"></div><div id="ciudadcard" class="customcard"></div></div>
+        <div id="skinVent" class="hidden" role="dialog" aria-modal="true" aria-label="Skins de ciudad">
+          <div class="svpanel">
+            <button type="button" class="hcard-x" id="skinVentX" aria-label="Cerrar">&#10005;</button>
+            <div class="svtit">SKINS DE CIUDAD</div>
+            <div class="svsub">Elige un mapa y la skin que quieres en él. Lo que compras vale para todos los mapas.</div>
+            <div class="svmapas" id="skinVentMapas"></div>
+            <div class="svlista" id="skinVentLista"></div>
+          </div>
+        </div>
       </section>
     </div>
     <button class="small" id="btnShopBack">Volver</button>
@@ -2633,7 +2662,7 @@
 </div>
 
 <script>
-let ciudadSkin = '', ciudadOwned = [], animeModo = 'sol', _reembolso = false;   // skin del mundo (EXTRAS de la tienda) y el modo de la de anime
+let skinMapa = { ciudad:'', alien:'', infierno:'' }, ciudadOwned = [], animeModo = 'sol', _reembolso = false, _skinForzado = null;   // la skin puesta en cada mapa (EXTRAS de la tienda) y el modo de la de anime
 
 (function(){
 
@@ -4639,6 +4668,7 @@ function alienSet(cat, R){
 // Al empezar la partida, cada solar toma el edificio del mapa elegido.
 function aplicaMapa(){
   try { document.body.dataset.mapa = mapa; } catch(e){}      // el HUD toma el color del mapa
+  try { skinCachesRevisa(); } catch(e){}                     // la skin de este mapa, al día en todos los sprites
   for (let __i66 = 0, __a66 = buildings; __i66 < __a66.length; __i66++){ const b = __a66[__i66];
     if (b.setCiudad === undefined) b.setCiudad = b.set;
     b.set = esAlien() ? alienSet(b.cat || 'medio', mulberry32(((b.seed || 1)*7 + 3) | 0))
@@ -5149,7 +5179,12 @@ function infiernoSet(b, R){ return R() < 0.35 ? alienSet(b.cat || 'medio', R) : 
 // parques, árboles, farolas, bancos, autos) al crearla, igual que el tinte
 // del infierno; el suelo se filtra con fusiones de la tarjeta gráfica al
 // pintarse en su búfer. Por fotograma solo quedan un par de rellenos.
-function skinCiudad(){ return !ciudadSkin ? '' : ciudadSkin === 'anime' && animeModo === 'serio' ? 'animeS' : ciudadSkin; }
+function skinCiudad(){
+  if (_skinForzado !== null) return _skinForzado;          // las vistas previas de la tienda
+  let m; try { m = mapa; } catch(e){ return ''; }         // durante la carga, antes de existir el mapa: sin skin
+  const k = skinMapa[m] || '';
+  return !k ? '' : k === 'anime' && animeModo === 'serio' ? 'animeS' : k;
+}
 // Los cachés de sprites que se pintan al crearse (tropa, civiles, autos,
 // enemigos, jefes...) llevan la skin dentro: si cambia, se vacían y se
 // rehacen solos (poco a poco, con su límite por fotograma).
@@ -5435,7 +5470,7 @@ function skinCiudadCambia(){ skinCachesRevisa(); }
 
 // ---------- edificios: hollín, rojo y brasas ----------
 function tinteInfierno(c){
-  if (ciudadSkin) return;                                // con una skin del mundo manda la skin
+  if (skinCiudad()) return;                              // con una skin del mundo manda la skin
   try {
     const g = c.getContext('2d'), d = g.getImageData(0, 0, c.width, c.height), p = d.data;
     for (let i = 0; i < p.length; i += 4){
@@ -7850,6 +7885,10 @@ let bossAlive = false;
 // 'marciana' no es una unidad: es el evento que trae a los trípodes.
 const TIPOS_JEFE = ['flametank', 'omni', 'artillero', 'superx', 'marciana', 'heroe', 'kaiyin', 'crias'];   // 'crias': la camada (evento)
 const PESO_PENULTIMO = 0.5;
+// Lo que pesa cada jefe en el sorteo (1 = normal): el Omnidroide sale bastante
+// más; el Artillero, el tanque de fuego y la camada de crías, algo más; el
+// SUPER X2, menos.
+const PESO_JEFE = { omni:1.7, artillero:1.25, flametank:1.25, crias:1.25, superx:0.55 };
 let ultimoJefe = null, penultimoJefe = null, proximoJefe = null;
 
 // Sorteo con pesos: el penúltimo pesa la mitad que el resto.
@@ -7860,7 +7899,7 @@ function sorteaJefe(lista){
   const bombo = (lista || TIPOS_JEFE).filter(t => t !== ultimoJefe);
   let suma = 0;
   const pesos = bombo.map(t => {
-    const p = (t === penultimoJefe) ? PESO_PENULTIMO : 1;
+    const p = ((t === penultimoJefe) ? PESO_PENULTIMO : 1)*(PESO_JEFE[t] || 1);
     suma += p;
     return p;
   });
@@ -10644,17 +10683,27 @@ const CIUDAD_SKINS = [
 // Vista previa de cada skin: una calle en miniatura (edificio, árbol,
 // farola, auto, tanque y helicóptero) pintada con la skin, como en partida.
 const _skinPrevC = {};
-function skinPreview(modo){
-  if (_skinPrevC[modo]) return _skinPrevC[modo];
+// Vista previa de una skin en un mapa: una calle en miniatura de ese mapa,
+// con cada pieza pintada con la skin (como en partida).
+function skinPreview(modo, m){
+  m = m || 'ciudad';
+  const key = modo + '|' + m;
+  if (_skinPrevC[key]) return _skinPrevC[key];
   const W = 240, H = 132, c = document.createElement('canvas'); c.width = W; c.height = H;
-  const g = c.getContext('2d'), antes = ciudadSkin;
-  ciudadSkin = '';                                       // las piezas, sin skin: se le pone a cada una
+  const g = c.getContext('2d');
+  _skinForzado = '';                                     // las piezas, sin skin: se le pone a cada una
   try {
-    g.fillStyle = '#a9a7ac'; g.fillRect(0, 0, W, H);
-    g.fillStyle = '#9a989e'; for (let x = 0; x < W; x += 16) g.fillRect(x, 0, 1, 74); for (let y = 0; y < 74; y += 16) g.fillRect(0, y, W, 1);
-    g.fillStyle = '#3d3f45'; g.fillRect(0, 76, W, 44); g.fillStyle = '#5a5c62'; g.fillRect(0, 74, W, 3); g.fillRect(0, 119, W, 3);
-    g.fillStyle = '#e8c34a'; for (let x = 4; x < W; x += 26) g.fillRect(x, 97, 14, 2);
-    g.fillStyle = '#a9a7ac'; g.fillRect(0, 122, W, 10);
+    const pal = m === 'alien' ? { acera:'#4a4268', baldosa:'#5a5280', calle:'#1e1a30', borde:'#6a5aa8', linea:'#7fe8ff' }
+              : m === 'infierno' ? { acera:'#4a2a22', baldosa:'#3a2018', calle:'#2a1410', borde:'#6a2a1a', linea:'#ff7a2a' }
+              : { acera:'#a9a7ac', baldosa:'#9a989e', calle:'#3d3f45', borde:'#5a5c62', linea:'#e8c34a' };
+    g.fillStyle = pal.acera; g.fillRect(0, 0, W, H);
+    g.fillStyle = pal.baldosa; for (let x = 0; x < W; x += 16) g.fillRect(x, 0, 1, 74); for (let y = 0; y < 74; y += 16) g.fillRect(0, y, W, 1);
+    g.fillStyle = pal.calle; g.fillRect(0, 76, W, 44); g.fillStyle = pal.borde; g.fillRect(0, 74, W, 3); g.fillRect(0, 119, W, 3);
+    if (m === 'infierno'){                                // grietas de lava en el asfalto
+      g.strokeStyle = '#ff6a1a'; g.lineWidth = 2; g.beginPath(); g.moveTo(0, 96); g.lineTo(40, 92); g.lineTo(70, 100); g.lineTo(120, 95); g.lineTo(170, 102); g.lineTo(W, 96); g.stroke();
+      g.strokeStyle = '#ffd36a'; g.lineWidth = 0.8; g.stroke();
+    } else { g.fillStyle = pal.linea; for (let x = 4; x < W; x += 26) g.fillRect(x, 97, 14, 2); }
+    g.fillStyle = pal.acera; g.fillRect(0, 122, W, 10);
     skinSueloFiltro(g, 0, 0, W, H, 0, 0, modo);
     const pon = (src, x, y, w, h, flip)=>{
       if (!src) return;
@@ -10664,25 +10713,37 @@ function skinPreview(modo){
       skinCiudadPx(k, modo);
       g.save(); if (flip){ g.translate(x + w, y); g.scale(-1, 1); g.drawImage(k, 0, 0, w, h); } else g.drawImage(k, x, y, w, h); g.restore();
     };
-    const b = buildings.find(q => q.w >= 90 && q.w <= 200 && q.h >= 80 && q.stage < 2);
-    if (b){ const e = edifCanvas(b, 0, true); if (e){ const k = Math.min(110/b.w, 70/b.h); pon(e, 4, 70 - b.h*k, b.w*k, b.h*k); } }
     const sp = (key)=> sprites[key] && sprites[key].img.complete ? sprites[key].img : null;
-    pon(sp('tree'), 128, 24, 34, 46); pon(sp('lamp'), 168, 30, 16, 44);
+    // un edificio de ese mapa (sin tocar los de la partida)
+    const b0 = buildings.find(q => q.w >= 90 && q.w <= 200 && q.h >= 80 && q.stage < 2);
+    if (b0){
+      const b = { set: b0.set, seed: b0.seed, w: b0.w, h: b0.h, frente: b0.frente, cat: b0.cat, x: 0, y: 0, stage: 0, rot: 0 };
+      if (m === 'alien') b.set = alienSet(b.cat || 'medio', mulberry32(((b.seed || 1)*7 + 3) | 0));
+      const e = conMapa(m, ()=> edifCanvas(b, m === 'infierno' ? 1 : 0, true));
+      if (e){ const k = Math.min(110/b.w, 70/b.h); pon(e, 4, 70 - b.h*k, b.w*k, b.h*k); }
+    }
+    // la vegetación y la farola de cada mapa (piezas recién hechas, sin skin)
+    if (m === 'alien'){ const s0 = _cristalCv; _cristalCv = null; const cr = cristalCv(); _cristalCv = s0; pon(cr, 128, 26, 30, 44); pon(cr, 156, 34, 24, 36); }
+    else if (m === 'infierno'){ const s0 = _arbolMuertoCv; _arbolMuertoCv = null; const ar = arbolMuertoCv(); _arbolMuertoCv = s0; pon(ar, 126, 22, 34, 48); }
+    else { pon(sp('tree'), 128, 24, 34, 46); pon(sp('lamp'), 168, 30, 16, 44); }
     try { pon(autoFrame('compacto', AUTO_COLORES[0], 0, 'l', 0), 16, 84, 58, 34); } catch(e){}
     pon(sp('tank'), 120, 78, 70, 40, true);
-    pon(sp('heli'), 176, 4, 58, 38, true);
-    const ov = document.createElement('canvas'); ov.width = W; ov.height = H;     // la graduación y la viñeta de la skin
+    pon(sp(m === 'alien' ? 'ovni' : 'heli'), 176, 4, 58, 38, true);
+    // la graduación y la viñeta de la skin
     const SKP = { manga:'rgba(12,12,22,0.12)', cartoon:'rgba(90,50,18,0.16)', comic:'rgba(30,40,110,0.06)', anime:'rgba(255,236,170,0.06)', animeS:'rgba(16,20,44,0.18)', steam:'rgba(120,60,10,0.16)' };
-    g.fillStyle = SKP[modo] || 'rgba(0,0,0,0)'; g.fillRect(0, 0, W, H);
+    if (!modo) g.fillStyle = m === 'alien' ? 'rgba(130,60,210,0.12)' : m === 'infierno' ? 'rgba(160,30,8,0.16)' : 'rgba(0,0,0,0)';
+    else g.fillStyle = SKP[modo] || 'rgba(0,0,0,0)';
+    g.fillRect(0, 0, W, H);
     const vg = g.createRadialGradient(W/2, H/2, H*0.35, W/2, H/2, W*0.65);
     vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, modo === 'anime' ? 'rgba(20,30,90,0.15)' : modo === 'cartoon' ? 'rgba(30,14,2,0.55)' : 'rgba(0,0,0,0.4)');
     g.fillStyle = vg; g.fillRect(0, 0, W, H);
     if (modo === 'manga' || modo === 'comic'){ g.strokeStyle = '#121214'; g.lineWidth = 4; g.strokeRect(2, 2, W - 4, H - 4); }
     if (modo === 'anime'){ const sg = g.createRadialGradient(W*0.95, -10, 0, W*0.95, -10, W*0.8); sg.addColorStop(0, 'rgba(255,248,215,0.4)'); sg.addColorStop(1, 'rgba(255,248,215,0)'); g.fillStyle = sg; g.fillRect(0, 0, W, H); }
   } catch(e){}
-  finally { ciudadSkin = antes; }
-  return (_skinPrevC[modo] = c.toDataURL());
+  finally { _skinForzado = null; }
+  return (_skinPrevC[key] = c.toDataURL());
 }
+
 let customSkin = { id:'custom', name:'COLOR PROPIO', cost:CUSTOM_COST,
                    c:['#7fd0ff','#1f5f9e','#0d2340'], limb:'#245f8a', tip:'#3ba0e0' };
 
@@ -11222,7 +11283,9 @@ async function loadShop(){
       auraBought = !!p.auraBought;
       auraOn = auraBought && !!p.auraOn;
       ciudadOwned = Array.isArray(p.ciudad) ? p.ciudad.filter(id => CIUDAD_SKINS.some(k => k.id === id)) : [];
-      ciudadSkin = ciudadOwned.includes(p.ciudadOn) ? p.ciudadOn : '';
+      const vale = id => ciudadOwned.includes(id) ? id : '';
+      if (p.skinMapa && typeof p.skinMapa === 'object') skinMapa = { ciudad: vale(p.skinMapa.ciudad), alien: vale(p.skinMapa.alien), infierno: vale(p.skinMapa.infierno) };
+      else { const v = vale(p.ciudadOn); skinMapa = { ciudad:v, alien:v, infierno:v }; }   // antes había una sola para todos
       if (p.custom && p.custom.body) buildCustom(p.custom.body, p.custom.tent || p.custom.body);
       // Las skins con imagen se guardan como 'img:…' y no están en la lista de
       // compradas: antes, al recargar, se perdían y volvías a la verde.
@@ -11241,7 +11304,7 @@ function saveShop(){
   try { if (Online.activo && Online.rol === 'invitado' && Online.modo === 'vs' && Online.skinPropia) propia = Online.skinPropia; }
   catch(e){}
   storeSet('invasion_shop', JSON.stringify({
-    coins, owned:ownedSkins, active:propia, customBought, auraBought, auraOn, ciudad:ciudadOwned, ciudadOn:ciudadSkin, animeModo,
+    coins, owned:ownedSkins, active:propia, customBought, auraBought, auraOn, ciudad:ciudadOwned, skinMapa, animeModo,
     custom:{ body: customSkin.body || '#1f5f9e', tent: customSkin.tent || '#3ba0e0' }
   }));
 }
@@ -11419,33 +11482,70 @@ function renderAuraCard(){
   };
 }
 
+// En EXTRAS, un botón: SKINS DE CIUDAD. Abre una ventana con los tres mapas;
+// en cada uno se elige su skin (lo comprado vale para todos).
+let skinVentMapa = 'ciudad';
 function renderCiudadCard(){
   const c = document.getElementById('ciudadcard');
   if (!c) return;
-  c.innerHTML = '<div class="tdpsub" style="margin:4px 0 6px">Skins del mundo: la ciudad, los otros mapas, autos, tanques, enemigos y jefes</div>' + CIUDAD_SKINS.map(k=>{
-    const tiene = ciudadOwned.includes(k.id), usa = ciudadSkin === k.id;
+  const puestas = MAPAS.filter(m => skinMapa[m]).length;
+  c.innerHTML = `<div class="skincard" style="cursor:pointer" id="btnSkinsCiudad" role="button" tabindex="0">
+    <img src="${skinPreview(skinMapa.ciudad ? (skinMapa.ciudad === 'anime' && animeModo === 'serio' ? 'animeS' : skinMapa.ciudad) : 'comic', 'ciudad')}" alt="" style="width:92px;height:51px;flex:0 0 92px;border-radius:6px;border:1px solid rgba(255,255,255,0.18)">
+    <span class="skinname">SKINS DE CIUDAD<br><span class="customsub">${ciudadOwned.length} de ${CIUDAD_SKINS.length} compradas · ${puestas ? 'puestas en ' + puestas + (puestas === 1 ? ' mapa' : ' mapas') : 'ninguna puesta'}</span></span>
+    <span class="skinbtn own">ABRIR</span></div>`;
+  const b = document.getElementById('btnSkinsCiudad');
+  const abre = ()=>{ sfx('ui'); abreSkinsCiudad(true); };
+  b.onclick = abre; b.onkeydown = ev =>{ if (ev.key === 'Enter' || ev.key === ' '){ ev.preventDefault(); abre(); } };
+  if (!document.getElementById('skinVent').classList.contains('hidden')) pintaSkinsCiudad();
+}
+function abreSkinsCiudad(si){
+  const v = document.getElementById('skinVent');
+  if (!v) return;
+  v.classList.toggle('hidden', !si);
+  if (si) pintaSkinsCiudad();
+}
+function pintaSkinsCiudad(){
+  const m = skinVentMapa;
+  const tabs = document.getElementById('skinVentMapas'), L = document.getElementById('skinVentLista');
+  if (!tabs || !L) return;
+  tabs.innerHTML = MAPAS.map(q => `<button type="button" class="svmapa${q === m ? ' on' : ''}" data-svmapa="${q}">
+      <img alt="" src="${miniMapa(q)}"><span>${MAPA_NOMBRE[q]}</span><small>${skinMapa[q] ? (CIUDAD_SKINS.find(k => k.id === skinMapa[q]) || {}).name || '' : 'SIN SKIN'}</small></button>`).join('');
+  tabs.querySelectorAll('[data-svmapa]').forEach(b => b.onclick = ()=>{ skinVentMapa = b.dataset.svmapa; sfx('ui'); pintaSkinsCiudad(); });
+  const normal = `<div class="skincard${!skinMapa[m] ? ' active' : ''}" style="margin-bottom:8px;align-items:center">
+      <img src="${skinPreview('', m)}" alt="" style="width:132px;height:73px;flex:0 0 132px;border-radius:7px;border:1px solid rgba(255,255,255,0.18)">
+      <span class="skinname">ORIGINAL<br><span class="customsub">${!skinMapa[m] ? 'En uso' : 'El aspecto de siempre de este mapa'}</span></span>
+      ${!skinMapa[m] ? '<span class="skinbtn on">EN USO</span>' : '<button class="skinbtn own" data-svusa="">USAR</button>'}</div>`;
+  L.innerHTML = normal + CIUDAD_SKINS.map(k=>{
+    const tiene = ciudadOwned.includes(k.id), usa = skinMapa[m] === k.id;
     const modo = k.id === 'anime' && animeModo === 'serio' ? 'animeS' : k.id;
-    const btn = !tiene ? `<button class="skinbtn buy${coins>=k.cost?'':' poor'}" data-ciudad="${k.id}"><span class="tdmoneda"></span>${k.cost}</button>`
-              : `<button class="skinbtn ${usa?'on':'own'}" data-ciudad="${k.id}">${usa?'QUITAR':'USAR'}</button>`;
+    const btn = !tiene ? `<button class="skinbtn buy${coins>=k.cost?'':' poor'}" data-svcompra="${k.id}"><span class="tdmoneda"></span>${k.cost}</button>`
+              : usa ? `<button class="skinbtn on" data-svusa="">QUITAR</button>` : `<button class="skinbtn own" data-svusa="${k.id}">USAR</button>`;
     const modoBtn = k.id === 'anime' ? `<button class="skinbtn own" data-animodo="1" style="margin-top:4px">${animeModo === 'serio' ? 'MODO: SERIO' : 'MODO: SOLEADO'}</button>` : '';
     return `<div class="skincard${usa?' active':''}" style="margin-bottom:8px;align-items:center">
-      <img src="${skinPreview(modo)}" alt="" style="width:132px;height:73px;flex:0 0 132px;border-radius:7px;border:1px solid rgba(255,255,255,0.18);image-rendering:pixelated">
-      <span class="skinname">${k.name}<br><span class="customsub">${usa ? 'En uso' : k.sub}</span></span>
+      <img src="${skinPreview(modo, m)}" alt="" style="width:132px;height:73px;flex:0 0 132px;border-radius:7px;border:1px solid rgba(255,255,255,0.18)">
+      <span class="skinname">${k.name}<br><span class="customsub">${usa ? 'En uso en ' + MAPA_NOMBRE[m] : k.sub}</span></span>
       <span style="display:flex;flex-direction:column;align-items:stretch">${btn}${modoBtn}</span></div>`;
   }).join('');
-  c.querySelectorAll('[data-ciudad]').forEach(b=>{ b.onclick = ()=>{
-    const k = CIUDAD_SKINS.find(q => q.id === b.dataset.ciudad);
+  const cambia = ()=>{ skinCiudadCambia(); saveShop(); renderShop(); };
+  L.querySelectorAll('[data-svcompra]').forEach(b => b.onclick = ()=>{
+    const k = CIUDAD_SKINS.find(q => q.id === b.dataset.svcompra);
     if (!k) return;
-    if (!ciudadOwned.includes(k.id)){
-      if (coins < k.cost){ sfx('deny'); toastShop('Monedas insuficientes'); return; }
-      coins -= k.cost; ciudadOwned.push(k.id); ciudadSkin = k.id;
-      sfx('buy'); toastShop('¡Skin ' + k.name + ' desbloqueada!');
-    } else { ciudadSkin = ciudadSkin === k.id ? '' : k.id; sfx('ui'); }
-    skinCiudadCambia(); saveShop(); renderShop();
-  }; });
-  const mb = c.querySelector('[data-animodo]');
-  if (mb) mb.onclick = ()=>{ animeModo = animeModo === 'serio' ? 'sol' : 'serio'; sfx('ui'); skinCiudadCambia(); saveShop(); renderShop(); };
+    if (coins < k.cost){ sfx('deny'); toastShop('Monedas insuficientes'); return; }
+    coins -= k.cost; ciudadOwned.push(k.id); skinMapa[m] = k.id;
+    sfx('buy'); toastShop('¡Skin ' + k.name + ' desbloqueada! Puesta en ' + MAPA_NOMBRE[m]);
+    cambia();
+  });
+  L.querySelectorAll('[data-svusa]').forEach(b => b.onclick = ()=>{ skinMapa[m] = b.dataset.svusa; sfx('ui'); cambia(); });
+  const mb = L.querySelector('[data-animodo]');
+  if (mb) mb.onclick = ()=>{ animeModo = animeModo === 'serio' ? 'sol' : 'serio'; sfx('ui'); cambia(); };
 }
+(function montaSkinVent(){
+  const v = document.getElementById('skinVent');
+  if (!v) return;
+  document.getElementById('skinVentX').onclick = ()=>{ abreSkinsCiudad(false); sfx('ui'); };
+  v.addEventListener('click', ev =>{ if (ev.target === v) abreSkinsCiudad(false); });
+  window.addEventListener('keydown', ev =>{ if (ev.key === 'Escape' && !v.classList.contains('hidden')){ abreSkinsCiudad(false); ev.stopImmediatePropagation(); } }, true);
+})();
 function colorOriginal(){
   if (isDra()) return [DRA_ORO.cl, DRA_ORO.cm, DRA_ORO.co];
   if (isMaq()) return [MAQ_AZUL.plC, MAQ_AZUL.pl, MAQ_AZUL.plO];
@@ -30875,10 +30975,10 @@ function meleeDmg(e){
   // El Artillero es el más duro: hacen falta más de treinta tentacazos.
   if (e.type === 'mbt' || e.type === 'mbtFrio') return 150;
   if (e.type === 'superx')    return 55;
-  if (e.type === 'artillero') return 52;
-  if (e.type === 'omni')      return 58;
+  if (e.type === 'artillero') return 40;    // estos cuatro aguantan más los tentacazos
+  if (e.type === 'omni')      return 42;
   if (e.type === 'tripode')   return 62;    // ~11 golpes, como el asedio
-  if (e.type === 'flametank') return 60;
+  if (e.type === 'flametank') return 45;
   if (e.type === 'kaiyin')    return 60;    // ~45 golpes: el gigante aguanta
   if (e.type === 'centurion') return 58;    // ~38 golpes
   if (e.type === 'desgarrador') return 58;
@@ -30895,8 +30995,8 @@ function meleeDmg(e){
   if (e.type === 'gravitron') return 65;  // ~10 golpes
   if (e.type === 'tank' || e.type === 'arana' || e.type === 'bicho') return 160;
   if (e.type === 'amalgama') return 120;
-  if (e.type === 'criaJefe') return 62;     // ~10 golpes: es de tu especie
-  if (e.type === 'criaColosal') return 60;  // ~28 golpes
+  if (e.type === 'criaJefe') return 48;     // ~13 golpes: es de tu especie
+  if (e.type === 'criaColosal') return 46;  // ~37 golpes
   if (e.type === 'rivalBoros' || e.type === 'rivalVil') return 58;
   return 9999;                            // el resto revienta de un tentacazo
 }
@@ -41631,7 +41731,6 @@ function drawRivalVil(e){
 }
 
 function startGame(mode){
-  skinCachesRevisa();                    // la skin del mundo, al día en todos los sprites
   ocultarGlobalAsk();
   menuEsc.capas = {};                   // las capas del menú (unos 7 MB) se rehacen al volver, idénticas
   resumeAudio();
