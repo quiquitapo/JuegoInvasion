@@ -7886,9 +7886,9 @@ let bossAlive = false;
 const TIPOS_JEFE = ['flametank', 'omni', 'artillero', 'superx', 'marciana', 'heroe', 'kaiyin', 'crias'];   // 'crias': la camada (evento)
 const PESO_PENULTIMO = 0.5;
 // Lo que pesa cada jefe en el sorteo (1 = normal): el Omnidroide sale bastante
-// más; el Artillero, el tanque de fuego y la camada de crías, algo más; el
-// SUPER X2, menos.
-const PESO_JEFE = { omni:1.7, artillero:1.25, flametank:1.25, crias:1.25, superx:0.55 };
+// más, el Kaiyin le sigue; el Artillero, el tanque de fuego y la camada de
+// crías, algo más; el SUPER X2, menos.
+const PESO_JEFE = { omni:1.7, kaiyin:1.45, artillero:1.25, flametank:1.25, crias:1.25, superx:0.55 };
 let ultimoJefe = null, penultimoJefe = null, proximoJefe = null;
 
 // Sorteo con pesos: el penúltimo pesa la mitad que el resto.
