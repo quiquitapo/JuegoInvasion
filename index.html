@@ -41821,7 +41821,28 @@ if ('serviceWorker' in navigator && location.protocol === 'https:'){
   window.addEventListener('load', ()=>{ navigator.serviceWorker.register('/sw.js').catch(()=>{}); });
 }
 
-function show(id){ document.getElementById(id).classList.remove('hidden'); scrollTop(id); revisaMenu(); }
+function show(id){ document.getElementById(id).classList.remove('hidden'); scrollTop(id); revisaMenu(); if (id === 'menu') avisoRaton(); }
+// Aviso breve en el menú: en el PC se juega mejor con mouse. Sale una vez por
+// carga, solo con un puntero fino (mouse o panel táctil del portátil) y sin
+// los controles táctiles, y se va solo a los pocos segundos.
+let _avisoRatonVisto = false;
+function avisoRaton(){
+  if (_avisoRatonVisto) return;
+  let pc = false;
+  try { pc = !tactil() && !document.body.classList.contains('movil') && window.matchMedia('(any-pointer: fine)').matches; } catch(e){}
+  if (!pc) return;
+  _avisoRatonVisto = true;
+  const d = document.createElement('div');
+  d.id = 'avisoRaton'; d.setAttribute('role', 'status');
+  d.innerHTML = '<span aria-hidden="true" style="font-size:16px;margin-right:7px">\u{1F5B1}\u{FE0F}</span>Para una mejor experiencia, juega con <b style="color:#4dff9a">mouse</b>';
+  d.style.cssText = 'position:fixed;left:50%;top:calc(14px + env(safe-area-inset-top,0px));transform:translate(-50%,-8px);z-index:9000;pointer-events:none;' +
+    'max-width:calc(100vw - 32px);box-sizing:border-box;padding:9px 16px;border-radius:999px;background:rgba(6,14,10,0.92);border:1px solid rgba(77,255,154,0.55);' +
+    'box-shadow:0 0 18px rgba(77,255,154,0.25);color:#d8ffe8;font:13px monospace;letter-spacing:0.5px;text-align:center;opacity:0;transition:opacity .45s ease, transform .45s ease';
+  document.body.appendChild(d);
+  requestAnimationFrame(()=> requestAnimationFrame(()=>{ d.style.opacity = '1'; d.style.transform = 'translate(-50%,0)'; }));
+  setTimeout(()=>{ d.style.opacity = '0'; d.style.transform = 'translate(-50%,-8px)'; }, 4500);
+  setTimeout(()=> d.remove(), 5100);
+}
 function hide(id){ document.getElementById(id).classList.add('hidden'); revisaMenu(); }
 
 // Pantallas donde suena el tema tranquilo. Se decide mirando cuáles están a
@@ -44519,6 +44540,7 @@ document.getElementById('btnMenu').addEventListener('click', async ()=>{
     if (boot) boot.classList.add('hidden');
     document.getElementById('menu').classList.remove('hidden');
     desbloqueaAudio();            // primer menú de la sesión: que suene ya
+    avisoRaton();                 // en el PC: mejor con mouse
   };
   if (!boot){ abreMenu(); return; }
   // TOCA PARA INICIAR: ese toque es un gesto de verdad, así que el audio
