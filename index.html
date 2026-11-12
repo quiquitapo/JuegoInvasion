@@ -10456,7 +10456,7 @@ function checkEvolve(){
     hp = maxHp();
     sfx('evolve');
     evoT = EVO_T; evoDe = drawR;                    // crece con una luz verde que se expande
-    toast('EVOLUCIÓN: COLOSO');
+    toast('EVOLUCIÓN: COLOSO\nAhora puedes pasar por encima de los edificios', 3.4);   // su gran novedad, dicha
     shake(20, 0.6);
     addParticles(player.x, player.y, '#7bff9b', 46, 300);
   }
@@ -33633,13 +33633,15 @@ function edifPisada(b, x, y, r, golpe){
   if (golpe && Math.random() < 0.35) sfx('crack');
   return true;
 }
+// Pasando por encima, el coloso hace algo menos de daño al edificio que al empujarlo.
+const COLOSO_PISA_K = 0.72;
 function colosoAplasta(dt){
   const f = F(), r = f.r, R = r*0.9;
   let sobre = false;
   for (let __i247 = 0, __a247 = buildings; __i247 < __a247.length; __i247++){ const b = __a247[__i247];
     if (b.stage >= 2 || !colosoEnEdif(b, player.x, player.y, r)) continue;
     sobre = true;
-    damageBuilding(b, f.breaker*dt);                    // lo sigue destrozando, como al empujarlo
+    damageBuilding(b, f.breaker*COLOSO_PISA_K*dt);      // lo va destrozando (algo menos que al empujarlo: así se ve el paso por encima)
     b.hitFlash = Math.min(b.hitFlash, 0.05);            // sin teñir de naranja todo el rato
     if (b.stage >= 2) continue;
     // hunde el techo bajo su cuerpo (el centro, dentro de la planta)
