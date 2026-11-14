@@ -1455,6 +1455,20 @@
   #fpsMedidor.medio { color:#ffd257; }
   #fpsMedidor.bajo { color:#ff6a5a; }
   #fpsMedidor small { margin-left:6px; font-size:9px; font-weight:700; color:#b8c8d0; letter-spacing:0.5px; }
+  /* aviso de enemigo nuevo: pequeño, translúcido, con su imagen */
+  #avisoEnemigo { position:fixed; left:50%; top:calc(env(safe-area-inset-top, 0px) + 58px); transform:translate(-50%, -8px); z-index:30;
+                  display:flex; align-items:center; gap:9px; padding:5px 14px 5px 6px; border-radius:12px; pointer-events:none;
+                  background:rgba(6,12,10,0.5); border:1px solid rgba(255,255,255,0.16); box-shadow:0 4px 14px rgba(0,0,0,0.35);
+                  -webkit-backdrop-filter:blur(3px); backdrop-filter:blur(3px); opacity:0; transition:opacity .35s ease, transform .35s ease;
+                  font-family:"Courier New", monospace; max-width:86vw; }
+  #avisoEnemigo.ver { opacity:1; transform:translate(-50%, 0); }
+  #avisoEnemigo img { width:46px; height:46px; object-fit:contain; flex:none; filter:drop-shadow(0 2px 2px rgba(0,0,0,0.5)); }
+  #avisoEnemigo .ae1 { display:block; font-size:9px; letter-spacing:2px; color:#ffd27a; font-weight:900; opacity:0.9; }
+  #avisoEnemigo .ae2 { display:block; font-size:13px; letter-spacing:1.5px; color:#ffffff; font-weight:900; text-shadow:0 1px 0 #000; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  @media (max-width:600px){                 /* en el teléfono, a la izquierda, bajo la barra de vida (a la derecha va el marcador) */
+    #avisoEnemigo { left:8px; top:calc(env(safe-area-inset-top, 0px) + 100px); transform:translate(0, -8px); max-width:calc(100vw - 132px); padding-right:10px; }
+    #avisoEnemigo.ver { transform:translate(0, 0); }
+    #avisoEnemigo img { width:36px; height:36px; } #avisoEnemigo .ae2 { font-size:11px; } }
   #toast { position:relative; max-width:92vw;
            color:#7bffa0; font-size:clamp(1.2rem,4vw,2.2rem); font-weight:900; letter-spacing:4px;
            text-shadow:0 0 18px #23ff6b, 2px 2px 0 #052b12; opacity:0; transition:opacity .4s ease; text-align:center; }
@@ -1777,6 +1791,7 @@
     <div class="combobar"><div id="combofill"></div></div>
   </div>
   <div id="toastCaja"><div id="toast"></div><div id="avisoRegalo"></div></div>
+  <div id="avisoEnemigo" aria-live="polite"><img alt=""><span><span class="ae1"></span><span class="ae2"></span></span></div>
   <div id="fpsMedidor" class="hidden" aria-hidden="true"><b>--</b> FPS<small></small></div>
   <div id="tutPanel" class="hidden"></div>
   <div id="achtoast"></div>
@@ -4578,19 +4593,23 @@ function edifEscombros(g, b, P, R){
 }
 
 // ---------- interior (planta vista desde arriba) ----------
+// Se pinta a algo menos de resolución (INT_ESC) y con algo menos de detalle:
+// cuesta menos de crear y de guardar; quien lo dibuja lo estira a su tamaño.
+const INT_ESC = 0.75;
 function edifInterior(b){
   if (b._int) return b._int;
   const R = mulberry32(((b.seed || 1)*313) | 0);
   const w = b.w, h = b.h;
-  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const c = document.createElement('canvas'); c.width = Math.max(1, Math.ceil(w*INT_ESC)); c.height = Math.max(1, Math.ceil(h*INT_ESC));
   const g = c.getContext('2d');
+  g.scale(c.width/w, c.height/h);
   const set = b.set;
   const suelo = set[0] === 'X' ? '#4e5a6a' : set === 'O' || set === 'G' || set === 'E' ? '#8a8e98' : set === 'F' ? '#6a6c68' : set === 'K' ? '#4a1e2a'
               : set === 'B' ? '#c8bca0' : set === 'T' ? '#d8d4c8' : '#9a6a40';
   eR(g, suelo, 0, 0, w, h);
   if (suelo === '#9a6a40') for (let y = 0; y < h; y += 5) eR(g, '#86582e', 0, y, w, 1);                // tarima
   else if (set === 'T' || set === 'B' || set === 'P' || set === 'C') for (let y = 0; y < h; y += 10) for (let x = (y/10 % 2)*10; x < w; x += 20) eR(g, eMez(suelo, -0.08), x, y, 10, 10);   // baldosas
-  else for (let i = 0; i < w*h/80; i++) eR(g, eMez(suelo, R() < 0.5 ? 0.06 : -0.06), R()*w, R()*h, 2, 2);  // moqueta
+  else for (let i = 0; i < w*h/180; i++) eR(g, eMez(suelo, R() < 0.5 ? 0.06 : -0.06), R()*w, R()*h, 3, 3);  // moqueta
   const muro = '#e8e0d0';
   // habitaciones: se parte el solar en rectángulos con puertas
   const salas = [];
@@ -4601,10 +4620,10 @@ function edifInterior(b){
     else { const cy = y + hh*(0.35 + R()*0.3); parte(x, y, ww, cy - y, n - 1); parte(x, cy, ww, y + hh - cy, n - 1);
       eR(g, muro, x, cy - 1, ww, 3); const px = x + 8 + R()*(ww - 30); eR(g, suelo, px, cy - 1, 14, 3); }
   };
-  parte(4, 4, w - 8, h - 8, set === 'A' ? 1 : 3);
+  parte(4, 4, w - 8, h - 8, set === 'A' ? 1 : 2);
   if (set === 'A'){ const n = Math.max(1, Math.round(w/52)); for (let i = 1; i < n; i++) eR(g, muro, Math.round(i*w/n) - 1, 0, 3, h); }
   const sombraM = (x, y, ww, hh)=> eR(g, 'rgba(0,0,0,0.25)', x + 2, y + 2, ww, hh);
-  const mueble = (x, y, ww, hh, c)=>{ sombraM(x, y, ww, hh); eR(g, eMez(c, -0.25), x, y, ww, hh); eR(g, c, x, y, ww, hh - 1); eR(g, eMez(c, 0.2), x, y, ww, 1); };
+  const mueble = (x, y, ww, hh, c)=>{ sombraM(x, y, ww, hh); eR(g, eMez(c, -0.25), x, y, ww, hh); eR(g, c, x, y, ww, hh - 1); };
   for (const [x, y, ww, hh] of salas){
     const cx = x + ww/2, cy = y + hh/2;
     if (set === 'K'){                                              // butacas y pantalla
@@ -5113,8 +5132,10 @@ function civCabezaAlien(g, L, piel, pielO, pielL, pose){
 // ---------- cielo, música e introducción ----------
 // PLANETA ROJO: el tema del Mundo Alienígena es una pieza de dollchan
 // (bytebeat), que suena con el motor de más abajo (ver bbGeneradores).
-const ALIEN_TRACK = { name:'PLANETA ROJO', bb:'alien', tempo:250,
+const ALIEN_TRACK_BB = { name:'PLANETA ROJO', bb:'alien', tempo:250,
   scale:[110, 123.47, 130.81, 146.83, 164.81, 174.61, 196, 220] };
+// Ahora suena la pieza del estudio (mundoAlien); mientras se genera, la de dollchan de antes.
+const ALIEN_TRACK = { name:'PLANETA ROJO', gen:'mundoAlien', tempo:250, scale: ALIEN_TRACK_BB.scale, respaldo: ALIEN_TRACK_BB };
 function pistaAlien(){ return ALIEN_TRACK; }
 function muestraIntroMapa(){
   const el = document.getElementById('introMapa');
@@ -5962,7 +5983,7 @@ const INFIERNO_TRACK = {
     const img = new Image(); img.src = c.toDataURL(); sprites[k] = { img, face:1 };
     if (set === 'R'){
       const c1 = document.createElement('canvas'); c1.width = d.w; c1.height = d.h;
-      const g1 = c1.getContext('2d'); g1.drawImage(edifInterior(d), 0, 0); g1.drawImage(edifCanvas(d, 1, true), 0, 0);
+      const g1 = c1.getContext('2d'); g1.drawImage(edifInterior(d), 0, 0, d.w, d.h); g1.drawImage(edifCanvas(d, 1, true), 0, 0);
       const i1 = new Image(); i1.src = c1.toDataURL(); sprites.edDmg = { img:i1, face:1 };
       const i2 = new Image(); i2.src = edifCanvas(d, 2, true).toDataURL(); sprites.edRub = { img:i2, face:1 };
     }
@@ -6489,6 +6510,7 @@ function resetGame(){
     vil.intro = 1; vil.introY = player.y; vil.introT = 0; vil.flying = false;
     if (hero === 'alien'){ vil.preT = conPreludio() ? CRIA_PRE_T : 0; vil.preSon = 0; }
   }
+  try { limpiaAvisosEnemigo(); } catch(e){}
   if (typeof vil === 'object'){ vil.preFade = 0; if (!(vil.intro && (hero === 'viltrum' || hero === 'alien' || hero === 'dragon'))) vil.preT = 0; _vilFr.fr = []; _vilFr.pal = null; }
   if (typeof vil === 'object'){ vil.caida = 0; if (esInfierno()) empiezaCaida(); }   // al infierno se llega cayendo
   avenidas = eligeAvenidas();
@@ -7002,6 +7024,63 @@ function spawnEnemy(type, atX, atY){
                                               grabbable:true, person:true});
   enemies.push(base);
   if (type === 'kaiyin' && running) sfx('rugido3');          // el rey de las tres cabezas se anuncia
+  enemigoNuevo(base);
+}
+// ---- aviso de enemigo nuevo ----
+// La primera vez que llega cada tipo de enemigo en la partida sale un aviso
+// pequeño y translúcido con su imagen (pintada tal cual se ve en este mapa)
+// y su nombre. Los jefes no: ya tienen su presentación.
+const enemigosVistos = new Set(), avisosEnemigo = [];
+let avisoEnemigoOcupado = false;
+function nombreEnemigo(type){
+  const b = BESTIARY.find(x => x.id === type); if (b) return b.name;
+  for (const k in P2_SETS){ const u = P2_SETS[k].find(x => x.type === type); if (u) return u.name.replace(/ D\.$/, ''); }
+  return String(type).toUpperCase();
+}
+function enemigoNuevo(e){
+  if (!running || gameMode !== 'invasion' || (typeof TUT === 'object' && TUT.activo) || Online.activo) return;
+  if (JEFE_EST[e.type] || enemigosVistos.has(e.type)) return;
+  enemigosVistos.add(e.type);
+  avisosEnemigo.push(e);
+  if (!avisoEnemigoOcupado) siguienteAvisoEnemigo();
+}
+// La imagen: el propio enemigo pintado en un lienzo aparte (con la cámara
+// apuntándole) o, si no se pudo, la de su ficha del registro.
+function imagenEnemigo(e){
+  const T = Math.ceil(Math.max(e.w || 30, e.h || 30, 34)*1.5), c = document.createElement('canvas'); c.width = c.height = T;
+  const c0 = ctx, cx = camX, cy = camY, hp0 = showHpBars, eb = escK;
+  try {
+    ctx = c.getContext('2d'); showHpBars = false; escK = 0;
+    camX = e.x - T/2; camY = e.y - (e.alt || 0)*0.6 - T*0.58;
+    drawEnemy(e);
+  } catch(err){} finally { ctx = c0; camX = cx; camY = cy; showHpBars = hp0; escK = eb; }
+  try {
+    const d = c.getContext('2d').getImageData(0, 0, T, T).data; let n = 0;
+    for (let i = 3; i < d.length; i += 16) if (d[i] > 40) n++;
+    if (n > 20) return c.toDataURL();
+  } catch(err){}
+  const b = BESTIARY.find(x => x.id === e.type), key = b ? (b.states ? b.states[0][0] : b.sprite) : e.type;
+  return sprites[key] && sprites[key].img ? sprites[key].img.src : '';
+}
+function siguienteAvisoEnemigo(){
+  const el = document.getElementById('avisoEnemigo');
+  const e = avisosEnemigo.shift();
+  if (!el || !e || !running){ avisoEnemigoOcupado = false; return; }
+  avisoEnemigoOcupado = true;
+  const u = imagenEnemigo(e), img = el.querySelector('img');
+  img.style.display = u ? '' : 'none'; if (u) img.src = u;
+  el.querySelector('.ae1').textContent = esAlien() ? 'SE ACERCAN' : esInfierno() ? 'EMERGEN' : 'LLEGAN REFUERZOS';
+  el.querySelector('.ae2').textContent = nombreEnemigo(e.type);
+  el.classList.add('ver');
+  sfx('ui');
+  clearTimeout(siguienteAvisoEnemigo.t1); clearTimeout(siguienteAvisoEnemigo.t2);
+  siguienteAvisoEnemigo.t1 = setTimeout(()=> el.classList.remove('ver'), 2600);
+  siguienteAvisoEnemigo.t2 = setTimeout(siguienteAvisoEnemigo, 3050);
+}
+function limpiaAvisosEnemigo(){
+  enemigosVistos.clear(); avisosEnemigo.length = 0; avisoEnemigoOcupado = false;
+  clearTimeout(siguienteAvisoEnemigo.t1); clearTimeout(siguienteAvisoEnemigo.t2);
+  const el = document.getElementById('avisoEnemigo'); if (el) el.classList.remove('ver');
 }
 
 
@@ -8048,14 +8127,109 @@ function updateBoss(e, dt, a, angToPlayer){
     e.aimA = angToPlayer;                 // el cono te persigue
     if (e.pt <= 0){ e.phase = 'lock'; e.pt = FLAME_LOCK; e.lockA = e.aimA; toast('¡APUNTANDO!'); }
   } else if (e.phase === 'lock'){
-    if (e.pt <= 0){ e.phase = 'fire'; e.pt = FLAME_FIRE; sfx('boomD'); }
+    if (e.pt <= 0){ e.phase = 'fire'; e.pt = FLAME_FIRE; sfxEn('prendeFuego', e.x, e.y); }
   } else if (e.phase === 'fire'){
     const b = flameBoca(e);
     burn(e, b.x, b.y, e.lockA, FLAME_LEN, FLAME_SPREAD, FLAME_DPS * dt);
+    bucleFuego('tf' + (e.id || ''), b.x, b.y);                            // el rugido del lanzallamas
     if (e.pt <= 0){ e.phase = 'aim'; e.pt = FLAME_AIM; }
   }
 }
 
+// ---- llamarada de bolas de fuego (tanque de fuego e incineración) ----
+// Como la del recuadro del VS: un chorro de bolas que salen de la boca,
+// crecen y se abren mientras avanzan, pasan de blanco a amarillo, naranja y
+// rojo y acaban en humo. Cada bola es una copia de una mancha ya pintada
+// (nada de degradados por fotograma): el coste no depende de su tamaño.
+let _fuegoSpr = null;
+function fuegoSprites(){
+  if (_fuegoSpr) return _fuegoSpr;
+  const mk = (stops)=>{ const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d');
+    const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); for (const [k, col] of stops) gr.addColorStop(k, col);
+    g.fillStyle = gr; g.fillRect(0, 0, 64, 64); return c; };
+  _fuegoSpr = [
+    mk([[0, 'rgba(255,255,240,1)'], [0.45, 'rgba(255,246,200,0.85)'], [1, 'rgba(255,230,160,0)']]),     // núcleo
+    mk([[0, 'rgba(255,236,150,1)'], [0.5, 'rgba(255,196,60,0.8)'], [1, 'rgba(255,170,40,0)']]),         // amarillo
+    mk([[0, 'rgba(255,170,60,1)'], [0.5, 'rgba(255,100,20,0.75)'], [1, 'rgba(240,70,10,0)']]),          // naranja
+    mk([[0, 'rgba(230,80,20,0.95)'], [0.55, 'rgba(180,30,8,0.6)'], [1, 'rgba(120,20,6,0)']]),           // rojo
+    mk([[0, 'rgba(46,36,34,0.75)'], [0.6, 'rgba(40,32,30,0.35)'], [1, 'rgba(30,26,26,0)']])             // humo
+  ];
+  return _fuegoSpr;
+}
+const _fh = (i, k)=>{ const v = Math.sin(i*127.1 + k*311.7)*43758.5453; return v - Math.floor(v); };
+function pintaFuegoBolas(g, x, y, ang, len, sp, t, vida, sob){
+  if (vida <= 0.01 || len < 4) return;
+  const S = fuegoSprites(), N = Math.round(clamp(len/7, 14, 38)), ca = Math.cos(ang), sa = Math.sin(ang), na = -sa, nb = ca;
+  const r0 = Math.max(4, len*0.035), r1 = len*(0.075 + sp*0.2);
+  g.save();
+  // el humo, por debajo y sin sumar luz
+  g.globalCompositeOperation = 'source-over';
+  for (let i = 0; i < N; i += 2){
+    const u = (t*2.4 + _fh(i, 1)) % 1; if (u < 0.6) continue;
+    const lat = (_fh(i, 2)*2 - 1)*sp*(0.4 + u)*len*0.7, d = u*len*1.05, r = (r0 + (r1 - r0)*u)*1.25;
+    const px = x + ca*d + na*lat, py = y + sa*d + nb*lat - u*u*len*0.12;
+    g.globalAlpha = vida*(u - 0.6)*1.6; g.drawImage(S[4], px - r, py - r, r*2, r*2);
+  }
+  // el fuego: lo rojo y naranja, opaco (de lo más lejano a lo más cercano);
+  // lo amarillo y el núcleo, sumando luz encima
+  for (let pase = 0; pase < 2; pase++){
+    g.globalCompositeOperation = pase ? 'lighter' : 'source-over';
+    for (let i = 0; i < N; i++){
+      const u = (t*2.6 + _fh(i, 3)) % 1, k = u < 0.1 ? 0 : u < 0.3 ? 1 : u < 0.6 ? 2 : 3;
+      if ((k >= 2) === !!pase) continue;
+      const lat = ((_fh(i, 4)*2 - 1)*sp*(0.25 + u*0.9) + Math.sin(t*14 + i)*0.04*u)*len*0.75, d = u*len;
+      const r = (r0 + (r1 - r0)*Math.sqrt(u))*(0.8 + _fh(i, 5)*0.45);
+      const px = x + ca*d + na*lat, py = y + sa*d + nb*lat - u*u*len*0.08;
+      g.globalAlpha = vida*Math.min(1, (1 - u)*1.8)*(pase ? 0.6 : 0.9);
+      g.drawImage(S[sob && k === 3 ? 2 : k], px - r, py - r, r*2, r*2);
+    }
+  }
+  g.globalCompositeOperation = 'lighter';
+  // el fogonazo en la boca
+  g.globalAlpha = vida*(0.6 + Math.sin(t*31)*0.2);
+  const rb = r0*2.2; g.drawImage(S[0], x + ca*r0 - rb, y + sa*r0 - rb, rb*2, rb*2);
+  g.restore();
+}
+// Sonido de lanzallamas: el rugido del chorro (ruido grave filtrado que
+// aletea), un siseo agudo, el retumbar del motor y chasquidos sueltos que se
+// programan al azar en cada fotograma. Se mantiene mientras sale el fuego.
+function bucleFuego(id, x, y, k0){
+  if (!audio.ctx || !audio.sfxOn || pausedForQuit || mundoQuieto() || !running) return;
+  const c = audio.ctx, t = c.currentTime;
+  let b = bucles.get(id);
+  if (!b){
+    const g = c.createGain(); g.gain.setValueAtTime(0.0001, t);
+    const pan = c.createStereoPanner ? c.createStereoPanner() : null;
+    if (pan){ g.connect(pan); pan.connect(audio.sfxGain); } else g.connect(audio.sfxGain);
+    const n = c.createBufferSource(); n.buffer = getNoiseBuf(); n.loop = true;
+    const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 850; lp.Q.value = 0.8;
+    const lfo = c.createOscillator(); lfo.frequency.value = 7.5; const lg = c.createGain(); lg.gain.value = 320; lfo.connect(lg); lg.connect(lp.frequency);
+    const ng = c.createGain(); ng.gain.value = 0.7; n.connect(lp); lp.connect(ng); ng.connect(g);
+    const n2 = c.createBufferSource(); n2.buffer = getNoiseBuf(); n2.loop = true; n2.playbackRate.value = 0.83;
+    const bp = c.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 2800; bp.Q.value = 0.9;
+    const hg = c.createGain(); hg.gain.value = 0.16; n2.connect(bp); bp.connect(hg); hg.connect(g);
+    const hp = c.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 3200;
+    const cg = c.createGain(); cg.gain.value = 0; n2.connect(hp); hp.connect(cg); cg.connect(g);      // los chasquidos
+    const o = c.createOscillator(); o.type = 'sawtooth'; o.frequency.value = 46;
+    const ol = c.createBiquadFilter(); ol.type = 'lowpass'; ol.frequency.value = 170;
+    const og = c.createGain(); og.gain.value = 0.35; o.connect(ol); ol.connect(og); og.connect(g);
+    for (const q of [n, n2, lfo, o]) q.start(t);
+    b = { nodos:[n, n2, lfo, o], g, pan, vol:0.2, ult:0, cg };
+    bucles.set(id, b);
+    g.gain.setTargetAtTime(0.32, t, 0.01); g.gain.setTargetAtTime(0.2, t + 0.08, 0.12);         // el golpe al prender
+  }
+  let k = k0 == null ? 1 : k0, pn = 0;
+  if (x !== undefined){
+    const cx = camX + VW/2, cy = camY + VH/2, dx = x - cx;
+    k *= clamp(1 - (Math.hypot(dx, y - cy) - VW*0.5)/1600, 0, 1);
+    pn = clamp(dx/(VW*0.8), -0.7, 0.7);
+  }
+  if (b.ult) b.g.gain.setTargetAtTime(Math.max(0.0001, b.vol*k), t, 0.06);
+  if (b.pan) b.pan.pan.setTargetAtTime(pn, t, 0.05);
+  const n = Math.random() < 0.55 ? 1 + (Math.random() < 0.3 ? 1 : 0) : 0;            // chasquidos al azar
+  for (let i = 0; i < n; i++){ const tt = t + Math.random()*0.015; b.cg.gain.setValueAtTime(0.25 + Math.random()*0.5, tt); b.cg.gain.setTargetAtTime(0, tt + 0.003, 0.008); }
+  b.ult = performance.now();
+}
 // Cono de aviso y llamarada.
 // Todo son polígonos planos: nada de degradados por fotograma, así que el
 // coste es constante por muy grande que sea la llamarada.
@@ -8096,36 +8270,10 @@ function drawFlameCone(e){
     return;
   }
 
-  // Llamarada: cuatro capas concéntricas, de rojo exterior a blanco en el núcleo.
-  const capas = [
-    [1.00, sp,        'rgba(196,40,10,0.55)'],
-    [0.92, sp*0.78,   'rgba(255,110,25,0.70)'],
-    [0.74, sp*0.52,   'rgba(255,180,50,0.85)'],
-    [0.46, sp*0.28,   'rgba(255,246,205,0.95)']
-  ];
-  for (const [f, spread, col] of capas){
-    conePath(s2.x, s2.y, ang, len*f, spread, true);
-    ctx.fillStyle = col;
-    ctx.fill();
-  }
-  // lenguas de fuego sueltas en el borde
-  ctx.strokeStyle = 'rgba(255,150,40,0.75)';
-  ctx.lineWidth = 3; ctx.lineCap = 'round';
-  for (let i=0;i<4;i++){
-    const a = ang - sp + (2*sp)*((i+0.5)/4) + Math.sin(gameTime*11+i)*0.05;
-    const d0 = len*0.55, d1 = len*(0.92 + Math.sin(gameTime*13+i*2.1)*0.08);
-    ctx.beginPath();
-    ctx.moveTo(s2.x+Math.cos(a)*d0, s2.y+Math.sin(a)*d0);
-    ctx.lineTo(s2.x+Math.cos(a)*d1, s2.y+Math.sin(a)*d1);
-    ctx.stroke();
-  }
-  // fogonazo en la boca del lanzallamas
-  ctx.globalAlpha = 0.55 + Math.sin(gameTime*20)*0.25;
-  ctx.fillStyle = '#fff3c4';
-  ctx.beginPath();
-  ctx.arc(s2.x + Math.cos(ang)*26, s2.y + Math.sin(ang)*26, 13, 0, Math.PI*2);
-  ctx.fill();
-  ctx.globalAlpha = 1;
+  // la llamarada: un velo tenue con la zona que quema y, encima, el chorro de bolas de fuego
+  conePath(s2.x, s2.y, ang, len*0.96, sp*0.9, true);
+  ctx.globalAlpha = 0.22; ctx.fillStyle = '#ff6a1a'; ctx.fill(); ctx.globalAlpha = 1;
+  pintaFuegoBolas(ctx, s2.x, s2.y, ang, len, sp, gameTime + (e.id || 0)*0.37, 1, false);
 }
 
 
@@ -11379,6 +11527,7 @@ async function loadShop(){
   if (_reembolso){ _reembolso = false; saveShop(); }
 }
 function saveShop(){
+  setTimeout(()=>{ try { marcaBarraHeroes(); } catch(e){} }, 0);   // el icono de la cría, con la skin nueva
   // Mandando al ejército en línea se ve la skin del invasor: la tuya es otra
   // y no debe sobrescribirse si algo guarda la tienda mientras tanto.
   let propia = activeSkin;
@@ -12434,7 +12583,13 @@ const SFX = {
   rafaga: ()=> { noise(0.05, 0.16, 2600, 1.6); tone(170, 0.05, 'square', 0.07, 90); },
   cohete: ()=> { noise(0.35, 0.22, 900, 0.8); tone(240, 0.3, 'sawtooth', 0.06, 90); },
   cargaInc:()=> { tone(140, 0.5, 'sawtooth', 0.09, 900); noise(0.5, 0.12, 600, 0.6); },
-  incineraZ:()=> { noise(1.1, 0.45, 420, 0.5); noise(0.5, 0.3, 2400, 0.9); tone(52, 0.9, 'sawtooth', 0.18, 28); },
+  incineraZ:()=> { noise(1.1, 0.45, 420, 0.5); noise(0.5, 0.3, 2400, 0.9); tone(52, 0.9, 'sawtooth', 0.18, 28);
+                   ruidoA(0.5, 'lowpass', 300, 2600, 0.9, 0.3, 0, 0.02); oscA('sine', 70, 34, 0.6, 0.3, 0, 0.005); },
+  // el lanzallamas que prende: chasquido del piloto y la bocanada que se abre
+  prendeFuego:()=> { ruidoA(0.05, 'highpass', 3000, 3000, 0.7, 0.18, 0, 0.001);
+                     ruidoA(0.55, 'lowpass', 260, 2200, 0.8, 0.34, 0.02, 0.03);
+                     ruidoA(0.4, 'bandpass', 900, 1800, 0.9, 0.12, 0.04, 0.05);
+                     oscA('sine', 90, 40, 0.45, 0.22, 0.02, 0.01); },
   espada: ()=> { noise(0.16, 0.18, 2600, 1.4); tone(240, 0.18, 'sawtooth', 0.06, 980); tone(110, 0.2, 'sine', 0.07, 60); },
   escopeta:()=> { noise(0.32, 0.46, 800, 0.8); tone(68, 0.28, 'square', 0.18, 36);
                   setTimeout(()=>{ tone(320, 0.04, 'square', 0.05); setTimeout(()=> tone(230, 0.05, 'square', 0.05), 90); }, 280); },
@@ -14858,7 +15013,134 @@ function estudioPartituras(I){
           }
           if (c % 4 === 0 && c) platillo(C, C.t(c, 0), 0.6, { gan: 0.2 });
         }
-      } }
+      } },
+    // =================================================================
+    // PLANETA ROJO (Mundo Alienígena): electrónica de ciencia ficción a 128.
+    // Todo en la misma colección de notas (mi frigio = do mayor): las
+    // estrofas giran sobre mi (oscuro, con el fa de la segunda menor que suena
+    // a amenaza: Em F G Em) y el estribillo se abre a do (C G Am F), heroico.
+    // Secuencia de arpegio con eco que nunca para (la firma del mundo), bajo
+    // reese que rueda a contratiempo, un theremin con portamento que canta el
+    // motivo y lo va cambiando en cada vuelta (desarrollo continuo: el bucle
+    // no cansa), campanas FM, colchón de supersierras y coro. Intro → A1 → A2
+    // → estribillo → caída → estribillo final → A3 → vuelve a A1 sin costura.
+    // =================================================================
+    mundoAlien: { bpm: 128, compases: 48, bucle: 4, semilla: 151, master: { rms: 0.21, bombeo: 0.42, eco: { fb: 0.42 }, reverb: { tam: 0.88, amort: 0.32 } },
+      compone(C){
+        const ESC = [4, 5, 7, 9, 11, 0, 2];
+        const PA = [[40, 'm'], [41, 'M'], [43, 'M'], [40, 'm']], PB = [[36, 'M'], [43, 'M'], [45, 'm'], [41, 'M']];
+        const ARP = [0, 1, 2, 1, 2, 0, 1, 2, 0, 2, 1, 2, 1, 0, 2, 1];
+        const pad = (c, r, tp, v, o)=> sinte(C, C.t(c), C.T(16), voz(r + 24, tp, 64), v, Object.assign({ onda: 'saw', voces: 4, des: 16, a: 0.5, d: 0.6, s: 0.8, r: 0.7, corte: 1300, q: 0.7, gan: 0.2, rev: 0.5, bombea: true }, o));
+        const arp = (c, r, tp, corte, v, oct)=>{
+          const nn = voz(r + 36 + (oct || 0), tp, 72);
+          for (let s = 0; s < 16; s++) sinte(C, C.t(c, s), C.T(0.8), nn[ARP[s]] + (s >= 12 && c % 2 ? 12 : 0), v*(s % 4 === 0 ? 1 : 0.75),
+            { onda: 'sq', voces: 1, a: 0.002, d: 0.09, s: 0.2, r: 0.05, corte, q: 1.4, gan: 0.14, eco: 0.3, rev: 0.15, pan: s % 2 ? 0.35 : -0.35, bombea: true });
+        };
+        const tambor = (c, nivel, fill)=>{
+          rit(C, c, 'x...x...x...x...', (t, v)=> bombo(C, t, v, { dec: 0.34, f0: 160, f1: 44, dist: 1.7, gan: 0.85 }));
+          if (nivel >= 1){
+            rit(C, c, fill ? '....x.......x.xx' : '....x.......x...', (t, v)=> caja(C, t, v, { tono: 235, dec: 0.2, gan: 0.5, rev: 0.3 }));
+            rit(C, c, '..x...x...x...x.', (t, v)=> charles(C, t, 0.8, { abierto: true, gan: 0.13 }));
+          }
+          if (nivel >= 2) rit(C, c, 'xoxoxoxoxoxoxoxo', (t, v, s)=> charles(C, t, s % 4 === 2 ? 0.35 : v*0.6, { gan: 0.13 }));
+          if (nivel >= 3) rit(C, c, 'x..x..x...x..x..', (t, v, s)=> timbal(C, t, 47 + (s % 3)*3, 0.35, { dec: 0.25, gan: 0.3 }));
+          if (fill) rit(C, c, '........x.x.xxxx', (t, v, s)=> timbal(C, t, 57 - (s - 8), 0.55, { dec: 0.3, gan: 0.42 }));
+        };
+        const bajoA = (c, r)=>{
+          for (let s = 0; s < 16; s++){
+            if (s % 4 === 0) bajo(C, C.t(c, s), C.T(3.6), r - 12, 1, { tipo: 'sub', gan: 0.36 });
+            else bajo(C, C.t(c, s), C.T(0.9), r + (s % 8 === 6 ? 12 : 0), s % 2 ? 0.85 : 0.7, { tipo: 'reese', corte: 650, env: 1300, dec: 0.08, q: 1.3, dist: 1.6, gan: 0.25 });
+          }
+        };
+        const bajoB = (c, r)=>{
+          for (let s = 0; s < 16; s += 2) bajo(C, C.t(c, s), C.T(1.8), r - 12 + (s % 4 === 2 ? 12 : 0), s % 4 ? 0.8 : 1, { tipo: 'pulso', corte: 560, env: 1900, dec: 0.1, q: 1.1, dist: 1.8, gan: 0.4 });
+        for (let s = 0; s < 16; s += 4) bajo(C, C.t(c, s), C.T(3.6), r - 12, 0.9, { tipo: 'sub', gan: 0.3 });
+        };
+        const theremin = (t, d, m, v, o)=>{
+          sinte(C, t, d*0.97, m, v || 1, Object.assign({ onda: 'sin', voces: 1, a: 0.06, d: 0.2, s: 0.92, r: 0.3, glide: 0.13, vib: 0.016, vibT: 0.12, corte: 6000, gan: 0.44, rev: 0.42, eco: 0.26 }, o));
+          sinte(C, t, d*0.97, m + 12, (v || 1)*0.4, { onda: 'tri', voces: 1, a: 0.08, s: 0.85, r: 0.3, glide: 0.13, vib: 0.016, vibT: 0.12, corte: 4000, gan: 0.1, rev: 0.4 });
+        };
+        const campana = (t, m, v, o)=> fm(C, t, C.T(2), m, v || 0.8, Object.assign({ razon: 3.5, indice: 2.4, kd: 3, dec: 0.7, gan: 0.15, rev: 0.4, eco: 0.32, pan: 0.25 }, o));
+        const gancho = (t, d, m, v)=>{
+          sinte(C, t, d*0.95, m, v || 1, { onda: 'saw', voces: 3, des: 14, a: 0.01, d: 0.25, s: 0.8, r: 0.2, corte: 3300, envF: 2000, decF: 0.2, vib: 0.008, vibT: 0.2, gan: 0.42, rev: 0.3, eco: 0.18, glide: 0.05 });
+          fm(C, t, Math.min(d, C.T(3)), m + 12, (v || 1)*0.55, { razon: 2, indice: 1.6, kd: 4, dec: 0.4, pluck: true, gan: 0.12, rev: 0.3, pan: -0.25 });
+        };
+        const radar = (c, s, v)=> fm(C, C.t(c, s), C.T(1), 88, v, { razon: 3.5, indice: 3, kd: 6, dec: 0.25, pluck: true, gan: 0.14, eco: 0.65, rev: 0.4, pan: 0.4 });
+        // ---- los motivos: el de las estrofas, en cuatro versiones; el del estribillo, en dos ----
+        const MA = ['E5:3 F5:1 E5:2 B4:2 D5:4 C5:2 B4:2', 'E5:3 F5:1 G5:2 A5:2 B5:6 A5:2', 'C6:4 B5:2 A5:2 G5:3 A5:1 F5:4', 'E5:6 F5:2 E5:8'];
+        const MA2 = ['E5:3 F5:1 E5:2 B4:2 D5:4 F5:2 E5:2', 'G5:3 A5:1 B5:2 C6:2 B5:4 A5:2 G5:2', 'A5:3 B5:1 C6:2 E6:2 D6:4 C6:2 B5:2', 'B5:4 A5:2 F5:2 E5:8'];
+        const MB = ['G5:4 E5:2 C5:2 E5:4 G5:4', 'D6:6 B5:2 G5:4 D5:4', 'C6:4 B5:2 A5:2 E5:4 A5:4', 'F5:2 G5:2 A5:2 C6:2 B5:8'];
+        const MB2 = ['G5:4 E5:2 C5:2 E5:4 G5:4', 'B5:6 C6:2 D6:4 G5:4', 'E6:6 D6:2 C6:4 A5:4', 'F6:4 E6:2 D6:2 E6:8'];
+        // ---- intro (0-3): colchón que se abre, radar, el theremin asoma ----
+        for (let c = 0; c < 4; c++){
+          pad(c, PA[c][0], PA[c][1], 0.6 + c*0.12, { corte: 500 + c*400, bombea: false });
+          radar(c, 0, 0.9); radar(c, 10, 0.5);
+          if (c >= 2) arp(c, PA[c][0], PA[c][1], 600 + (c - 2)*500, 0.6);
+          if (c >= 2) for (let s = 0; s < 16; s += 4) bajo(C, C.t(c, s), C.T(3.6), PA[c][0] - 12, 0.8, { tipo: 'sub', gan: 0.38 });
+        }
+        mel(C, 1, 'E5:8 F5:8', (t, d, m)=> theremin(t, d, m, 0.7));
+        mel(C, 2, 'B4:12 -:4', (t, d, m)=> theremin(t, d, m, 0.75));
+        rit(C, 3, '........x.x.xxxx', (t, v, s)=> caja(C, t, 0.35 + (s - 8)*0.07, { tono: 235, dec: 0.14, gan: 0.45 }));
+        barrido(C, C.t(2), C.T(32), 0.9, { f0: 250, f1: 8000, gan: 0.28 });
+        // ---- A1 (4-11) y A2 (12-19): el groove, el arpegio y el motivo que cambia ----
+        for (let c = 4; c < 20; c++){
+          const k = (c - 4) % 4, [r, tp] = PA[k], A2 = c >= 12;
+          tambor(c, A2 ? 2 : 1, c % 4 === 3);
+          bajoA(c, r);
+          arp(c, r, tp, A2 ? 2200 : 1300 + (c - 4)*90, 0.8);
+          pad(c, r, tp, 0.5, { corte: A2 ? 1700 : 1200 });
+          if (k === 0) platillo(C, C.t(c, 0), c === 4 ? 1.1 : 0.6);
+          const m = A2 ? MA2 : MA, frase = m[k];
+          mel(C, c, frase, (t, d, n)=>{ theremin(t, d, n, 1); if (A2) campana(t, n, 0.7); });
+          if (A2 && k % 2 === 1) mel(C, c, 'B4:4 C5:4 D5:4 B4:4', (t, d, n)=> sinte(C, t, d*0.9, n - 12, 0.55, { onda: 'tri', voces: 2, des: 8, a: 0.03, s: 0.7, r: 0.2, corte: 1800, gan: 0.16, rev: 0.3, pan: -0.4 }));   // contramelodía
+          if (!A2) radar(c, 14, 0.4);
+        }
+        impacto(C, C.t(4), 0.8, { gan: 0.4 });
+        barrido(C, C.t(19), C.T(16), 1, { f0: 300, f1: 9500, gan: 0.3 });
+        // ---- estribillo (20-27): se abre a do mayor ----
+        const estribillo = (c0, fuerte)=>{
+          for (let c = c0; c < c0 + 8; c++){
+            const k = (c - c0) % 4, [r, tp] = PB[k], seg = c - c0 >= 4;
+            tambor(c, fuerte ? 3 : 2, c === c0 + 7);
+            if (c % 2 === 0) platillo(C, C.t(c, 0), 0.9);
+            rit(C, c, 'x...x...x...x...', (t, v)=> ride(C, t, 0.7, { gan: 0.1 }));
+            bajoB(c, r);
+            arp(c, r, tp, fuerte ? 3200 : 2600, 0.85, 12);
+            pad(c, r, tp, 0.65, { corte: 2200, voces: 5 });
+            coro(C, C.t(c), C.T(16), voz(r + 24, tp, 62), fuerte ? 1 : 0.8, { vocal: 'a', gan: 0.5, bombea: true });
+            const frase = (seg ? MB2 : MB)[k];
+            mel(C, c, frase, (t, d, n)=>{ gancho(t, d, n + (fuerte ? 12 : 0), 1); if (fuerte) sinte(C, t, d*0.95, tercera(n + 12, ESC), 0.55, { onda: 'saw', voces: 2, des: 12, corte: 2600, gan: 0.2, pan: 0.35, rev: 0.3 }); });
+          }
+          impacto(C, C.t(c0), 0.9, { gan: 0.45 });
+        };
+        estribillo(20, false);
+        // ---- caída (28-31): sin batería; el theremin y el coro, y todo vuelve a subir ----
+        for (let c = 28; c < 32; c++){
+          const [r, tp] = PA[c - 28];
+          pad(c, r, tp, 0.7, { corte: 900 + (c - 28)*350, a: 0.8, bombea: false });
+          coro(C, C.t(c), C.T(16), voz(r + 24, tp, 60), 0.6, { vocal: 'o', gan: 0.4 });
+          arp(c, r, tp, 500 + (c - 28)*600, 0.55);
+          bombo(C, C.t(c, 0), 0.7, { dec: 0.5, f0: 120, f1: 40, gan: 0.6 });
+          radar(c, 0, 0.7); radar(c, 8, 0.4);
+        }
+        mel(C, 28, 'E5:6 F5:2 G5:8 A5:6 B5:2 C6:4 B5:4 E6:16 D6:8 B5:8', (t, d, m)=> theremin(t, d, m, 0.9, { eco: 0.35 }));
+        rit(C, 31, 'x...x...x.x.xxxx', (t, v, s)=> caja(C, t, 0.3 + s*0.045, { tono: 240, dec: 0.13, gan: 0.5 }));
+        barrido(C, C.t(30), C.T(32), 1, { f0: 200, f1: 11000, gan: 0.36 });
+        // ---- estribillo final (32-39): una octava arriba, a dos voces ----
+        estribillo(32, true);
+        // ---- A3 (40-47): el motivo en campanas y theremin juntos, y el remate que vuelve a A1 ----
+        for (let c = 40; c < 48; c++){
+          const k = (c - 40) % 4, [r, tp] = PA[k];
+          tambor(c, c >= 44 ? 3 : 2, c === 47);
+          bajoA(c, r);
+          arp(c, r, tp, 2400, 0.85, c >= 44 ? 12 : 0);
+          pad(c, r, tp, 0.55, { corte: 1800 });
+          if (k === 0) platillo(C, C.t(c, 0), 0.8);
+          const frase = (c >= 44 ? MA2 : MA)[k];
+          mel(C, c, frase, (t, d, n)=>{ theremin(t, d, n + 12, 0.85); campana(t, n, 0.75, { pan: -0.25 }); });
+        }
+        barrido(C, C.t(47), C.T(16), 1, { f0: 300, f1: 9000, gan: 0.3 });
+      } },
   };
 }
 
@@ -15961,7 +16243,7 @@ const OST_TEMAS = [
   // Los temas de los otros mapas: se desbloquean jugando una partida en ellos.
   { id:'mapa_alien',    icon:'\u{1FA90}', name:'PLANETA ROJO', pista: ()=> ALIEN_TRACK,
     bloqueo:'Juega una partida en el MUNDO ALIENÍGENA para desbloquearlo. Toca el icono para ver otro tema.',
-    desc:'El tema del Mundo Alienígena: una pieza de bytebeat que va creciendo, con bombo, bajos y arpegios de chip que cambian cada pocos compases y suben de tono a mitad de camino.' },
+    desc:'El tema del Mundo Alienígena: electrónica de ciencia ficción a 128 en mi frigio. Un arpegio con eco que nunca para, bajo reese a contratiempo, un theremin que canta el motivo y lo cambia en cada vuelta, campanas FM y un estribillo que se abre a do mayor con supersierras y coro; una caída sin batería y el estribillo final una octava arriba.' },
   { id:'mapa_infierno', icon:'\u{1F525}', name:'LAMENTO ETERNO', pista: ()=> INFIERNO_TRACK,
     bloqueo:'Juega una partida en CASTIGO DIVINO para desbloquearlo. Toca el icono para ver otro tema.',
     desc:'El tema de Castigo Divino. Un órgano de tubos que nunca resuelve, el Dies irae cantado por un coro y doblado por campanas, un latido lento de timbal, un zumbido grave y el viento que aúlla.' },
@@ -16149,7 +16431,7 @@ function regEdif(m, set, cat, etapa){
     const d = { set, cat, w: 140, h: 170, seed: 42, frente:'s' };
     const c = document.createElement('canvas'); c.width = d.w; c.height = d.h;
     const g = c.getContext('2d');
-    if (etapa === 1) g.drawImage(edifInterior(d), 0, 0);
+    if (etapa === 1) g.drawImage(edifInterior(d), 0, 0, d.w, d.h);
     g.drawImage(edifCanvas(d, etapa, true), 0, 0);
     return cvURL(c, 1);
   });
@@ -27589,7 +27871,7 @@ function updateProyJ(dt){
     }
     if (p.k === 'llama'){                          // la llamarada de la incineración
       if (p.t <= 0){ proyJ.splice(i, 1); maqLlamaFin(p); }
-      else maqLlama(p, p.L*Math.min(1, (p.max - p.t)/MAQ_INC_FRENTE));
+      else { maqLlama(p, p.L*Math.min(1, (p.max - p.t)/MAQ_INC_FRENTE)); bucleFuego('maqInc', p.x + Math.cos(p.a)*60, p.y + Math.sin(p.a)*60, 1.25*Math.min(1, p.t/0.22)); }
       continue;
     }
     if (p.k === 'onda'){                           // onda de la espada de plasma
@@ -27686,22 +27968,12 @@ function drawProyJ(lista){
       ctx.quadraticCurveTo(-W*0.25, 0, W*0.28, -W*0.85); ctx.fill();
       ctx.restore(); ctx.globalAlpha = 1;
     } else if (p.k === 'llama'){
-      // la llamarada de la incineración: capas de rojo a blanco, como la del
-      // tanque de fuego; avanza hasta el fondo y se apaga al final
+      // la llamarada de la incineración: el mismo chorro de bolas de fuego que
+      // el tanque, más ancho; avanza hasta el fondo y se apaga al final
       const f = Math.min(1, (p.max - p.t)/MAQ_INC_FRENTE), L = p.L*(0.12 + 0.88*f), vida = p.t < 0.22 ? p.t/0.22 : 1;
-      ctx.save(); ctx.globalAlpha = vida;
-      const capas = [[1.00, 1.00, p.sob ? 'rgba(255,120,20,0.55)' : 'rgba(196,40,10,0.55)'], [0.92, 0.78, 'rgba(255,110,25,0.70)'],
-                     [0.74, 0.52, 'rgba(255,180,50,0.85)'], [0.46, 0.28, 'rgba(255,246,205,0.95)']];
-      for (const [fl, fs, col] of capas){ conePath(s.x, s.y, p.a, L*fl, p.sp*fs, true); ctx.fillStyle = col; ctx.fill(); }
-      ctx.strokeStyle = 'rgba(255,150,40,0.75)'; ctx.lineWidth = 3; ctx.lineCap = 'round';
-      for (let i = 0; i < 5; i++){                                         // lenguas sueltas
-        const a = p.a - p.sp + 2*p.sp*((i + 0.5)/5) + Math.sin(gameTime*11 + i)*0.05;
-        const d0 = L*0.55, d1 = L*(0.92 + Math.sin(gameTime*13 + i*2.1)*0.08);
-        ctx.beginPath(); ctx.moveTo(s.x + Math.cos(a)*d0, s.y + Math.sin(a)*d0); ctx.lineTo(s.x + Math.cos(a)*d1, s.y + Math.sin(a)*d1); ctx.stroke();
-      }
-      ctx.globalAlpha = vida*(0.55 + Math.sin(gameTime*20)*0.25); ctx.fillStyle = '#fff3c4';
-      ctx.beginPath(); ctx.arc(s.x + Math.cos(p.a)*22, s.y + Math.sin(p.a)*22, 12, 0, Math.PI*2); ctx.fill();
-      ctx.restore();
+      conePath(s.x, s.y, p.a, L*0.96, p.sp*0.9, true);
+      ctx.globalAlpha = 0.2*vida; ctx.fillStyle = p.sob ? '#ffb03a' : '#ff6a1a'; ctx.fill(); ctx.globalAlpha = 1;
+      pintaFuegoBolas(ctx, s.x, s.y, p.a, L, p.sp, gameTime, vida, !!p.sob);
     } else if (p.k === 'cohete'){
       const a = Math.atan2(p.vy, p.vx);
       ctx.save(); ctx.translate(s.x, s.y); ctx.rotate(a);
@@ -34026,7 +34298,7 @@ function vilNubeCv(){                                     // una nube blanca, es
   return (_vilNubeCv = c);
 }
 // El viltrumita de frente, volando hacia nosotros. Coordenadas: el pecho en 0,0.
-function vilFrente(g, P, t){
+function vilFrente(g, P, t, SK){
   const L = P.linea || '#2a2527', tr = P.traje, so = P.sombra, os = P.oscuro, ba = P.banda, pi = P.piel, pio = P.pielO, pe = P.pelo;
   const viento = Math.sin(t*26)*1.6, viento2 = Math.cos(t*31)*1.4;
   g.lineJoin = 'round'; g.lineCap = 'round';
@@ -34043,9 +34315,23 @@ function vilFrente(g, P, t){
     g.strokeStyle = P.capaO; g.lineWidth = 2.5;
     g.beginPath(); g.moveTo(-70, 0); g.quadraticCurveTo(-90, 50, -84, 98); g.moveTo(70, 0); g.quadraticCurveTo(90, 50, 84, 98); g.moveTo(-30, 40); g.lineTo(-40, 102); g.moveTo(30, 40); g.lineTo(40, 102); g.stroke();
   }
-  // ---- las piernas, muy atrás (escorzo): solo asoman las botas ----
+  const seg = (x0, y0, r0, x1, y1, r1, col)=>{                  // un tramo que se afina: contorno y relleno
+    for (const [c, d] of [[L, 3], [col, 0]]){
+      g.strokeStyle = c; g.lineCap = 'round';
+      for (let k = 0; k < 4; k++){ const u = k/4, u2 = (k + 1)/4;
+        g.lineWidth = 2*(r0 + (r1 - r0)*(u + u2)/2) + d; g.beginPath(); g.moveTo(x0 + (x1 - x0)*u, y0 + (y1 - y0)*u); g.lineTo(x0 + (x1 - x0)*u2, y0 + (y1 - y0)*u2); g.stroke(); }
+    }
+  };
+  // ---- las piernas, colgando por debajo del cuerpo, con sus botas ----
   for (const sx of [-1, 1]){
-    g.beginPath(); g.ellipse(sx*15, 64, 11, 8, sx*0.3, 0, Math.PI*2); g.fillStyle = P.bota || so; g.fill(); trazo(2);
+    const w = sx < 0 ? viento : viento2, hx = sx*15, hy = 46, kx = sx*19 + w*0.5, ky = 76, ax = sx*16 + w, ay = 96;
+    const lg = g.createLinearGradient(sx*24, 40, sx*8, 100); lg.addColorStop(0, sx < 0 ? cl : tr); lg.addColorStop(1, so);
+    seg(hx, hy, 14, kx, ky, 12, lg); seg(kx, ky, 12, ax, ay, 10, lg);
+    g.strokeStyle = ba; g.lineWidth = 2.5; g.beginPath(); g.moveTo(hx + sx*9, hy + 4); g.lineTo(kx + sx*8, ky); g.lineTo(ax + sx*7, ay - 4); g.stroke();   // la costura
+    g.beginPath(); g.moveTo(ax - 11, ay - 4); g.lineTo(ax + 11, ay - 4); g.lineTo(ax + 12, ay + 9); g.quadraticCurveTo(ax, ay + 18, ax - 12, ay + 9); g.closePath();   // la bota
+    g.fillStyle = P.bota || so; g.fill(); trazo(2.5);
+    g.fillStyle = 'rgba(255,255,255,0.3)'; g.beginPath(); g.ellipse(ax - sx*4, ay + 2, 3, 5, 0, 0, Math.PI*2); g.fill();
+    g.strokeStyle = ba; g.lineWidth = 2.5; g.beginPath(); g.moveTo(ax - 11, ay - 3); g.lineTo(ax + 11, ay - 3); g.stroke();
   }
   if (reg){                                                     // el faldón de plata, por delante de las piernas
     const fg2 = g.createLinearGradient(-30, 40, 30, 80); fg2.addColorStop(0, P.falda); fg2.addColorStop(1, P.faldaO);
@@ -34061,6 +34347,19 @@ function vilFrente(g, P, t){
   g.quadraticCurveTo(52, 22, 30, 54); g.quadraticCurveTo(0, 62, -30, 54); g.quadraticCurveTo(-52, 22, -64, -18); g.closePath();
   const tg = g.createLinearGradient(-60, -30, 50, 60); tg.addColorStop(0, cl); tg.addColorStop(0.35, tr); tg.addColorStop(1, so);
   g.fillStyle = tg; g.fill(); trazo(3);
+  if (SK && (SK.drip || SK.flagIL || SK.flagCL || SK.huaso || SK.calabaza || SK.navidad || SK.multicolor || SK.imgRef)){
+    // skins con estampado: sobre el traje, como en partida (se pinta con el lienzo de la figura)
+    g.save(); g.clip();
+    const c0 = ctx; ctx = g;
+    try {
+      if (SK.drip) drawDrip(0, 14, 74, 1.3); else if (SK.flagIL) drawFlagIL(0, 14, 74, 1.3); else if (SK.flagCL) drawFlagCL(0, 14, 74, 1.3);
+      else if (SK.huaso) drawHuaso(0, 14, 74, 1.3); else if (SK.calabaza) drawCalabaza(0, 14, 74, 1.3); else if (SK.navidad) drawNavidad(0, 14, 74, 1.3);
+      else if (SK.multicolor) drawMulticolor(0, 14, 74, 1.3); else if (SK.imgRef) pintaImgSkin(SK.imgRef, 0, 14, 74);
+    } catch(e){} finally { ctx = c0; }
+    g.restore();
+    g.beginPath(); g.moveTo(-64, -18); g.quadraticCurveTo(-58, -30, -20, -30); g.lineTo(20, -30); g.quadraticCurveTo(58, -30, 64, -18);
+    g.quadraticCurveTo(52, 22, 30, 54); g.quadraticCurveTo(0, 62, -30, 54); g.quadraticCurveTo(-52, 22, -64, -18); g.closePath(); trazo(3);
+  }
   // pectorales, esternón y abdomen
   g.strokeStyle = os; g.lineWidth = 2;
   g.beginPath(); g.moveTo(-38, 4); g.quadraticCurveTo(-20, 14, -2, 6); g.moveTo(38, 4); g.quadraticCurveTo(20, 14, 2, 6);
@@ -34240,15 +34539,86 @@ function preNube(){
 // copian: los degradados y trazos ya no se calculan en cada fotograma.
 const VIL_FR_X = 170, VIL_FR_Y = 128, VIL_FR_W = 340, VIL_FR_H = 250, VIL_FR_N = 4;
 const _vilFr = { pal:null, S:0, fr:[] };
-function vilFrenteFrame(P, i, S){
-  if (_vilFr.pal !== P || _vilFr.S !== S){ _vilFr.pal = P; _vilFr.S = S; _vilFr.fr = []; }
+function vilFrenteFrame(P, i, S, SK){
+  const clave = P + '|' + (SK ? SK.id + (SK.c || []).join('') : '');
+  if (_vilFr.pal !== P || _vilFr.S !== S || _vilFr.k !== clave){ _vilFr.pal = P; _vilFr.S = S; _vilFr.k = clave; _vilFr.fr = []; }
   let c = _vilFr.fr[i];
   if (c) return c;
   c = document.createElement('canvas'); c.width = Math.ceil(VIL_FR_W*S); c.height = Math.ceil(VIL_FR_H*S);
   const g = c.getContext('2d');
   g.setTransform(S, 0, 0, S, VIL_FR_X*S, VIL_FR_Y*S);
-  vilFrente(g, P, i*(Math.PI*2/26)/VIL_FR_N);
+  const tt = i*(Math.PI*2/26)/VIL_FR_N;
+  if (SK && SK.cosmic) vilFrenteCosmico(g, tt); else vilFrente(g, P, tt, SK);
   return (_vilFr.fr[i] = c);
+}
+// La ARMADURA CÓSMICA de frente: negra con nebulosa y estrellas dentro,
+// cantos de plata, hombreras y cuchillas de púas, la galaxia en espiral en el
+// pecho y la cabeza afilada con dos cuernos y ojos verdes rasgados.
+function vilFrenteCosmico(g, t){
+  const C = VIL_COSMO, viento = Math.sin(t*26)*1.6, viento2 = Math.cos(t*31)*1.4;
+  g.lineJoin = 'round'; g.lineCap = 'round';
+  const R = mulberry32(5);
+  const estrellas = (x0, y0, w, h, n)=>{ for (let i = 0; i < n; i++){ g.globalAlpha = 0.35 + R()*0.65; g.fillStyle = i % 5 ? C.estrella : '#bfd8ff'; const r = i % 6 === 0 ? 2.6 : 1.4; g.fillRect(x0 + R()*w - r/2, y0 + R()*h - r/2, r, r); } g.globalAlpha = 1; };
+  const borde = (w)=>{ g.strokeStyle = C.borde; g.lineWidth = w; g.stroke(); };
+  const tramo = (x0, y0, r0, x1, y1, r1)=>{
+    for (const [c, d] of [[C.borde, 4], [C.cuerpo, 0]]){ g.strokeStyle = c;
+      for (let k = 0; k < 4; k++){ const u = k/4, u2 = (k + 1)/4; g.lineWidth = 2*(r0 + (r1 - r0)*(u + u2)/2) + d; g.beginPath(); g.moveTo(x0 + (x1 - x0)*u, y0 + (y1 - y0)*u); g.lineTo(x0 + (x1 - x0)*u2, y0 + (y1 - y0)*u2); g.stroke(); } }
+    for (const q of [0.3, 0.7]){ g.fillStyle = C.estrella; g.globalAlpha = 0.8; g.fillRect(x0 + (x1 - x0)*q - 1, y0 + (y1 - y0)*q - 1, 2, 2); } g.globalAlpha = 1;
+  };
+  const punta = (x, y, ax, ay, bx, by)=>{ g.beginPath(); g.moveTo(x, y); g.lineTo(ax, ay); g.lineTo(bx, by); g.closePath(); g.fillStyle = C.cuerpo; g.fill(); borde(2.4); };
+  // piernas con pies en punta
+  for (const sx of [-1, 1]){
+    const w = sx < 0 ? viento : viento2, hx = sx*15, hy = 46, kx = sx*19 + w*0.5, ky = 76, ax = sx*16 + w, ay = 98;
+    tramo(hx, hy, 14, kx, ky, 12); tramo(kx, ky, 12, ax, ay, 9);
+    punta(ax - 9, ay - 2, ax + 9, ay - 2, ax + sx*2, ay + 20);
+  }
+  // torso negro con nebulosa, estrellas y la galaxia
+  const torso = ()=>{ g.beginPath(); g.moveTo(-64, -18); g.quadraticCurveTo(-58, -30, -20, -30); g.lineTo(20, -30); g.quadraticCurveTo(58, -30, 64, -18);
+    g.quadraticCurveTo(52, 22, 30, 54); g.quadraticCurveTo(0, 62, -30, 54); g.quadraticCurveTo(-52, 22, -64, -18); g.closePath(); };
+  torso(); g.fillStyle = C.cuerpo; g.fill();
+  g.save(); torso(); g.clip();
+  g.globalAlpha = 0.3; g.fillStyle = C.neb; g.beginPath(); g.ellipse(-14, 8, 34, 50, 0.5, 0, Math.PI*2); g.fill();
+  g.globalAlpha = 0.18; g.fillStyle = '#7a4fc0'; g.beginPath(); g.ellipse(22, 22, 24, 28, -0.3, 0, Math.PI*2); g.fill();
+  g.globalAlpha = 0.2; g.fillStyle = '#1f4a7a'; g.beginPath(); g.ellipse(-30, -10, 22, 14, 0.2, 0, Math.PI*2); g.fill();
+  g.globalAlpha = 1; estrellas(-64, -30, 128, 90, 46);
+  g.restore();
+  torso(); borde(3.5);
+  g.strokeStyle = 'rgba(201,207,216,0.35)'; g.lineWidth = 1.6;
+  g.beginPath(); g.moveTo(-38, 4); g.quadraticCurveTo(-20, 14, -2, 6); g.moveTo(38, 4); g.quadraticCurveTo(20, 14, 2, 6); g.moveTo(0, -24); g.lineTo(0, 44); g.stroke();
+  g.strokeStyle = C.estrella; g.lineWidth = 1.6;
+  for (let k = 0; k < 2; k++){ g.beginPath();
+    for (let q = 0; q <= 16; q++){ const a = t*0.8 + k*Math.PI + q*0.32, r = 1 + q*1.05; const x = 24 + Math.cos(a)*r, y = -8 + Math.sin(a)*r*0.9; q ? g.lineTo(x, y) : g.moveTo(x, y); }
+    g.stroke(); }
+  g.fillStyle = '#ffffff'; g.beginPath(); g.arc(24, -8, 2.6, 0, Math.PI*2); g.fill();
+  // brazos estirados, con cuchillas y guanteletes
+  for (const sx of [-1, 1]){
+    const w = sx < 0 ? viento : viento2, hx = sx*56, hy = -16, ex = sx*96, ey = -2 + w*0.4, mx = sx*130, my = 24 + w*0.6;
+    tramo(hx, hy, 14, ex, ey, 14); tramo(ex, ey, 15, mx, my, 19);
+    const dx = mx - ex, dy = my - ey, l = Math.hypot(dx, dy), nx = -dy/l*sx, ny = dx/l*sx;   // la cuchilla, hacia fuera
+    punta(ex + dx*0.3 - nx*12, ey + dy*0.3 - ny*12, ex + dx*0.4 - nx*34 - dx/l*10, ey + dy*0.4 - ny*34 - dy/l*10, ex + dx*0.7 - nx*12, ey + dy*0.7 - ny*12);
+    punta(hx - sx*6, hy - 10, hx + sx*14, hy - 44, hx + sx*16, hy - 4);                   // la hombrera de púas
+    punta(hx + sx*6, hy - 4, hx + sx*36, hy - 30, hx + sx*20, hy + 8);
+    const px = mx + sx*8, py = my + 14;                                                  // el guantelete
+    for (let i = 0; i < 4; i++){ const a = Math.PI/2 + sx*(0.15 - i*0.3); g.beginPath(); g.moveTo(px + Math.cos(a)*9, py + Math.sin(a)*9); g.lineTo(px + Math.cos(a)*25, py + Math.sin(a)*25);
+      g.strokeStyle = C.borde; g.lineWidth = 11; g.stroke(); g.strokeStyle = C.cuerpo; g.lineWidth = 7; g.stroke(); }
+    g.beginPath(); g.ellipse(px, py, 18, 15, sx*0.3, 0, Math.PI*2); g.fillStyle = C.cuerpo; g.fill(); borde(2.5);
+    g.fillStyle = C.estrella; g.globalAlpha = 0.8; g.fillRect(px - 3, py - 4, 2, 2); g.fillRect(px + 5, py + 3, 1.6, 1.6); g.globalAlpha = 1;
+  }
+  // cuello y cabeza afilada con dos cuernos
+  g.beginPath(); g.rect(-11, -46, 22, 20); g.fillStyle = C.cuerpo; g.fill(); borde(2.5);
+  for (const sx of [-1, 1]){
+    g.beginPath(); g.moveTo(sx*12, -86); g.quadraticCurveTo(sx*22, -112, sx*44, -120 + (sx < 0 ? viento : viento2)); g.quadraticCurveTo(sx*28, -104, sx*22, -80); g.closePath();
+    g.fillStyle = C.cuerpo; g.fill(); borde(2.4);
+  }
+  g.beginPath(); g.moveTo(-24, -80); g.quadraticCurveTo(-26, -96, 0, -100); g.quadraticCurveTo(26, -96, 24, -80); g.lineTo(18, -52); g.lineTo(0, -38); g.lineTo(-18, -52); g.closePath();
+  g.fillStyle = C.cuerpo; g.fill();
+  g.save(); g.clip(); g.globalAlpha = 0.25; g.fillStyle = C.neb; g.beginPath(); g.ellipse(-6, -76, 18, 14, 0.4, 0, Math.PI*2); g.fill(); g.globalAlpha = 1; estrellas(-24, -100, 48, 60, 10); g.restore();
+  g.beginPath(); g.moveTo(-24, -80); g.quadraticCurveTo(-26, -96, 0, -100); g.quadraticCurveTo(26, -96, 24, -80); g.lineTo(18, -52); g.lineTo(0, -38); g.lineTo(-18, -52); g.closePath(); borde(3);
+  const pul = 0.35 + Math.sin(t*4)*0.08;
+  for (const sx of [-1, 1]){
+    g.globalAlpha = pul; g.fillStyle = C.ojo; g.beginPath(); g.ellipse(sx*11, -68, 10, 7, sx*-0.3, 0, Math.PI*2); g.fill();
+    g.globalAlpha = 1; g.fillStyle = C.ojoC; g.beginPath(); g.moveTo(sx*3, -66); g.lineTo(sx*19, -74); g.lineTo(sx*17, -64); g.closePath(); g.fill();
+  }
 }
 function drawVilPreludio(){
   const W = canvas.width, H = canvas.height, T = VIL_PRE_T, t = T - vil.preT, D = Math.min(W, H);
@@ -34273,7 +34643,7 @@ function drawVilPreludio(){
   ctx.globalAlpha = 1;
   // él, cada vez más cerca, con el temblor del vuelo (copiado de sus fotogramas)
   const ap = Math.min(1, t/0.35), esc = D/420*(0.78 + t/T*0.42), tb = Math.sin(t*40)*D/900;
-  const S = Math.min(3, Math.ceil(D/420*1.2*4)/4), fr = vilFrenteFrame(vilPaleta(), Math.floor(t*16) % VIL_FR_N, S);
+  const S = Math.min(3, Math.ceil(D/420*1.2*4)/4), fr = vilFrenteFrame(vilPaleta(), Math.floor(t*16) % VIL_FR_N, S, skin());
   ctx.save(); ctx.globalAlpha = ap;
   ctx.translate(cx + tb, cy + Math.sin(t*3)*D*0.012); ctx.rotate(Math.sin(t*2.2)*0.04); ctx.scale(esc/S, esc/S);
   ctx.drawImage(fr, -VIL_FR_X*S, -VIL_FR_Y*S);
@@ -34346,21 +34716,33 @@ function criaPreFondo(W, H){
   _criaFondo.k = k; _criaFondo.c = c;
   return c;
 }
-// El cuerpo de la cría (sin los tentáculos), grande y con su skin.
+// El cuerpo de la cría (sin los tentáculos), grande y con su skin, igual que
+// en partida: estampado o imagen propia, el borde de cada skin y lo que lleva
+// puesto (chupalla, tallo de calabaza, gorro de Navidad).
 function criaCuerpoGrande(g, x, y, r, t, mira){
   const SK = skin();
   const gr = g.createRadialGradient(x - r*0.3, y - r*0.3, r*0.15, x, y, r*1.05);
   gr.addColorStop(0, SK.c[0]); gr.addColorStop(0.6, SK.c[1]); gr.addColorStop(1, SK.c[2]);
   g.fillStyle = gr; g.beginPath(); g.arc(x, y, r, 0, Math.PI*2); g.fill();
-  const estampa = skinEstampa(SK, x, y, r, 0);
-  g.strokeStyle = 'rgba(8,30,12,0.7)'; g.lineWidth = Math.max(1, r*0.06);
+  skinEstampa(SK, x, y, r, 0);
+  if (SK.imgRef){ g.save(); g.beginPath(); g.arc(x, y, r, 0, Math.PI*2); g.clip(); pintaImgSkin(SK.imgRef, x, y, r); g.restore(); }
+  g.strokeStyle = SK.cosmic ? '#4a5a80' : SK.drip ? '#ffd85e' : SK.flagIL ? '#0f3d91' : SK.flagCL ? '#0b2f7a'
+                : SK.huaso ? '#1a1210' : SK.calabaza ? '#6e3208' : SK.navidad ? '#5c0d12' : 'rgba(8,30,12,0.7)';
+  g.lineWidth = Math.max(1, r*0.06);
   g.beginPath(); g.arc(x, y, r, 0, Math.PI*2); g.stroke();
-  if (!(estampa && SK.cosmic)) criaBrillo(g, x, y, r);
+  if (!SK.cosmic && !SK.imgRef) criaBrillo(g, x, y, r);
   criaOjos(g, x, y, r, t, mira);
+  if (SK.huaso) drawChupalla(x, y - r*0.66, r*2.3);
+  if (SK.calabaza) drawTallo(x, y - r*0.92, r*0.62);
+  if (SK.navidad) drawGorroNavidad(x, y - r*0.70, r*1.7);
 }
-function criaPreTent(g, x0, y0, ex, ey, r, ond, SK){
-  const mx = (x0 + ex)/2 + (ey - y0)*0.18*ond, my = (y0 + ey)/2 - Math.abs(ex - x0)*0.35 - r*0.2;
-  criaTentaculo(g, x0, y0, mx, my, ex, ey, r*0.5, r*0.2, civMezcla(SK.c[1], 0.22), SK.c[0], SK.tip, r*0.16);
+// El color de cada tentáculo (en la multicolor, cada uno de un tono).
+function criaPreCol(SK, i, n){
+  return SK.multicolor ? [hslHex((SK.tono || 0) + i*360/n, 85, 52), hslHex((SK.tono || 0) + i*360/n + 180, 95, 65)] : [civMezcla(SK.c[1], 0.22), SK.tip];
+}
+function criaPreTent(g, x0, y0, ex, ey, r, ond, SK, i){
+  const mx = (x0 + ex)/2 + (ey - y0)*0.18*ond, my = (y0 + ey)/2 - Math.abs(ex - x0)*0.35 - r*0.2, [col, bola] = criaPreCol(SK, i || 0, 4);
+  criaTentaculo(g, x0, y0, mx, my, ex, ey, r*0.5, r*0.2, col, SK.c[0], bola, r*0.16);
 }
 function drawCriaPreludio(){
   const W = canvas.width, H = canvas.height, T = CRIA_PRE_T, t = T - vil.preT, D = Math.min(W, H), al = esAlien(), SK = skin();
@@ -34435,7 +34817,7 @@ function drawCriaPreludio(){
     if (brinca <= 0) for (const [ax, ay, t0] of agarres){                     // los agarres: del hueco al asfalto
       const k = suave(tramo(t, t0, t0 + 0.3)); if (k <= 0) continue;
       const ex = cx + ax*rx, ey = cy + ay*ry + ry*0.2, sx0 = cx + ax*rx*0.3, sy0 = Math.min(cy, by + r*0.2);
-      criaPreTent(ctx, sx0, sy0, sx0 + (ex - sx0)*k, sy0 + (ey - sy0)*k - Math.sin(k*Math.PI)*r*0.6, r, ax < 0 ? -1 : 1, SK);
+      criaPreTent(ctx, sx0, sy0, sx0 + (ex - sx0)*k, sy0 + (ey - sy0)*k - Math.sin(k*Math.PI)*r*0.6, r, ax < 0 ? -1 : 1, SK, Math.round(t0*10));
     }
   }
   // el brinco hacia la cámara, con sus tentáculos sueltos
@@ -34446,7 +34828,8 @@ function drawCriaPreludio(){
       const a = (i/5)*Math.PI*2 + ph*0.5, len = rr*1.4 + Math.sin(ph*2 + i)*rr*0.3;
       const ex = x + Math.cos(a)*len, ey = y + Math.sin(a)*len;
       const mx = x + Math.cos(a)*len*0.5 + Math.cos(a + 1.57)*Math.sin(ph*2 + i)*rr*0.3, my = y + Math.sin(a)*len*0.5 + Math.sin(a + 1.57)*Math.sin(ph*2 + i)*rr*0.3;
-      criaTentaculo(ctx, x, y, mx, my, ex, ey, rr*0.55, rr*0.22, civMezcla(SK.c[1], 0.22), SK.c[0], SK.tip, rr*0.17);
+      const [col, bola] = criaPreCol(SK, i, 5);
+      criaTentaculo(ctx, x, y, mx, my, ex, ey, rr*0.55, rr*0.22, col, SK.c[0], bola, rr*0.17);
     }
     criaCuerpoGrande(ctx, x, y, rr, t, undefined);
   }
@@ -37635,7 +38018,7 @@ function drawRayosX(b, s2, radio){
   ctx.save();
   ctx.beginPath(); ctx.rect(s2.x, s2.y, b.w, b.h); ctx.clip();
   ctx.beginPath(); ctx.arc(s2.x + lx, s2.y + ly, r, 0, Math.PI*2); ctx.clip();
-  ctx.drawImage(edifInterior(b), s2.x, s2.y);
+  ctx.drawImage(edifInterior(b), s2.x, s2.y, b.w, b.h);
   const suave = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = false;
   for (const p of gente){
     const dx = p.x - lx, dy = p.y - ly, d = Math.hypot(dx, dy) || 1;
@@ -38058,7 +38441,7 @@ function drawBuildings(){
       // un solo lienzo (una copia por fotograma en vez de tres capas)
       if (cv !== cv0){ const cb = edifConBoquetes(b, cv); cb._contorno = 'edif'; dibujaImg(cb, s2.x, s2.y); }
       else {
-        if (ruina) dibujaImg(edifInterior(b), s2.x, s2.y);              // asoma por los agujeros
+        if (ruina) dibujaImg(edifInterior(b), s2.x, s2.y, b.w, b.h);              // asoma por los agujeros
         cv._contorno = 'edif';                                          // contorno suave y bisel
         dibujaImg(cv, s2.x, s2.y);
       }
@@ -38122,7 +38505,7 @@ function drawTrash(t){
     if (t.rot || t.giro) ctx.rotate((t.rot || 0) + (t.giro || 0));
     // Mismo dibujo que tenía en pie: intacto o dañado, según cómo lo cogiste.
     const dmg = t.etapa === 1;
-    if (dmg) ctx.drawImage(edifInterior(t), -t.w/2, -t.h/2);
+    if (dmg) ctx.drawImage(edifInterior(t), -t.w/2, -t.h/2, t.w, t.h);
     ctx.drawImage(edifCanvas(t, dmg ? 1 : 0, true), -t.w/2, -t.h/2);
     ctx.restore();
     return;
@@ -42541,7 +42924,7 @@ function ocultaAyudaControles(){
   const el = document.getElementById('ctrlHint'); if (el){ el.classList.add('hidden'); el.classList.remove('ver', 'fuera'); }
 }
 async function endGame(){
-  ocultaAyudaControles();
+  ocultaAyudaControles(); try { limpiaAvisosEnemigo(); } catch(e){}
   if (TUT.activo){ salirTutorial(); return; }
   limpiaRestosPartida();
   const enLinea = Online.activo;
@@ -45617,7 +46000,7 @@ const RETRATO_CARA = { dragon:{ desde:0, franja:0.3, lado:0.62, top:-0.04, dx:0 
 const _retratos = {};
 function retratoHeroe(h){
   if (RETRATO_IMG[h]) return RETRATO_IMG[h];
-  const k = h + '|' + activeSkin;
+  const k = h + '|' + skinClaveRetrato();
   if (_retratos[k]) return _retratos[k];
   const E = 2.5, N = 800, c = document.createElement('canvas'); c.width = c.height = N;
   const g = c.getContext('2d');
@@ -45665,7 +46048,7 @@ function criaRetratoSombra(g, N){
   const ojos = document.createElement('canvas'); ojos.width = ojos.height = N;
   try {
     const src = g.getImageData(0, 0, N, N), d = src.data, oc = ojos.getContext('2d'), od = oc.createImageData(N, N);
-    for (let i = 0; i < d.length; i += 4) if (d[i] > 190 && d[i+1] > 150 && d[i+2] < 150 && d[i] - d[i+2] > 90){ od.data[i] = 255; od.data[i+1] = Math.min(255, d[i+1] + 30); od.data[i+2] = 90; od.data[i+3] = 255; }
+    for (let i = 0; i < d.length; i += 4) if (d[i] > 210 && d[i+1] > 195 && d[i+2] < 125 && d[i] - d[i+1] < 45){ od.data[i] = 255; od.data[i+1] = Math.min(255, d[i+1] + 30); od.data[i+2] = 90; od.data[i+3] = 255; }
     oc.putImageData(od, 0, 0);
   } catch(e){}
   // la oscuridad: cierra desde los bordes y unas volutas de humo negro
@@ -45704,10 +46087,13 @@ function pintaBarraHeroes(){
   flechasBarra();
 }
 let _retratoSkin = null;
+// La skin puesta, con sus colores (la personalizada cambia de color sin cambiar de nombre).
+function skinClaveRetrato(){ let SK = null; try { SK = skin(); } catch(e){} return activeSkin + (SK && SK.c ? SK.c.join('') + (SK.tip || '') : ''); }
 function marcaBarraHeroes(){
   const L = document.getElementById('heroLista');
   if (!L) return;
-  if (_retratoSkin !== activeSkin){ _retratoSkin = activeSkin; pintaBarraHeroes(); return; }   // la cría y el viltrumita llevan la skin puesta
+  const ks = skinClaveRetrato();
+  if (_retratoSkin !== ks){ _retratoSkin = ks; pintaBarraHeroes(); return; }   // la cría y el viltrumita llevan la skin puesta
   L.querySelectorAll('[data-heroe]').forEach(b =>{ const on = b.dataset.heroe === hero; b.classList.toggle('on', on); b.setAttribute('aria-selected', on ? 'true' : 'false'); });
   const e = HERO_ESTILO[hero] || HERO_ESTILO.alien, card = document.getElementById('heroCard');
   if (card){ card.style.setProperty('--c', e.c); card.style.setProperty('--c2', e.c2); }
