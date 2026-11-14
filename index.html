@@ -5768,31 +5768,49 @@ function drawRestosJefes(){
 }
 
 // ---------- la caída desde el portal ----------
-const CAIDA_T = 2.1, CAIDA_SALE = 0.55;
+// Al castigo se llega cayendo por un portal blanco: la cámara empieza muy
+// cerca (se ve al personaje caer junto al portal), aterriza con un estallido
+// de luz, se queda un instante y luego se aleja hasta la vista de juego; solo
+// entonces se puede mover.
+const CAIDA_T = 2.1, CAIDA_SALE = 0.55, CAIDA_ZOOM = 2.1, CAIDA_POSA = 0.6;
 let infPortalT = -1, infCrater = null;
-function caidaAlto(){ return Math.min(460, VH*0.44); }
+function caidaAlto(){ return vil.caidaH || Math.min(460, VH*0.44); }
 function alturaCaida(){
   const k = clamp((vil.caidaT - CAIDA_SALE)/(CAIDA_T - CAIDA_SALE), 0, 1);
   return caidaAlto()*(1 - k*k);
 }
 function empiezaCaida(){
   if (vil.introY !== undefined) player.y = vil.introY;
-  vil.intro = 1; vil.caida = 1; vil.caidaT = 0; vil.introT = 0; vil.flying = false;
+  vil.intro = 1; vil.caida = 1; vil.caidaT = 0; vil.introT = 0; vil.flying = false; vil.caidaPosa = 0;
   player.vx = 0; player.vy = 0;
   infPortalT = 0; infCrater = null;
+  vil.zoomCaida = Online.activo ? 1 : CAIDA_ZOOM;                 // de cerca, desde el primer fotograma
+  ZOOM = zoomBase()*vil.zoomCaida; VW = CW/ZOOM; VH = CH/ZOOM;
+  vil.caidaH = Math.min(460, VH*0.5);
   sfx('portalSanto');
 }
 function updateCaida(dt){
   vil.caidaT += dt;
   player.vx = 0; player.vy = 0;
-  if (vil.caidaT >= CAIDA_T){
-    vil.caida = 0; vil.intro = 0; vil.introT = 0;
+  if (vil.caidaT >= CAIDA_T && !vil.caidaPosa){                  // el aterrizaje
+    vil.caidaPosa = 1;
     infCrater = { x: player.x, y: player.y, t: 0 };
     addParticles(player.x, player.y, '#ff8a2a', 30, 260);
+    addParticles(player.x, player.y, '#fff2c8', 22, 300);
     addParticles(player.x, player.y, '#5a4a44', 20, 200);
     for (let k = 0; k < 5; k++) addSmoke(player.x + rand(-30, 30), player.y + rand(-10, 10));
+    anilloImpacto(player.x, player.y + 10, 170, '#fff6dc', 0.55); anilloImpacto(player.x, player.y + 10, 100, '#ffd36a', 0.35);
+    if (typeof anilloPolvo === 'function') anilloPolvo(player.x, player.y + 16, 56, 20, '#6a5a52');
+    flashPant = Math.max(flashPant, 0.7); hitstop(0.08);
     shake(18, 0.5); sfx('caidaGolpe');
     muestraIntroMapa();
+  }
+  if (vil.caidaPosa){
+    if (vil.caidaT >= CAIDA_T + CAIDA_POSA) vil.zoomCaida = 1;   // y la cámara se aleja
+    const obj = zoomBase();
+    if (vil.zoomCaida === 1 && Math.abs(ZOOM/obj - 1) < 0.035){   // ya en la vista de juego: a moverse
+      vil.caida = 0; vil.intro = 0; vil.introT = 0; vil.caidaPosa = 0; vil.caidaH = 0;
+    }
   }
 }
 function updateInfierno(dt){
@@ -5801,8 +5819,25 @@ function updateInfierno(dt){
 }
 function drawCaidaJugador(){
   if (vil.caidaT < CAIDA_SALE) return;                // aún dentro del portal
-  const h = alturaCaida(), s = S(player.x, player.y), k = 1 - h/caidaAlto();
+  const h = alturaCaida(), s = S(player.x, player.y), k = 1 - h/caidaAlto(), t = vil.caidaT;
   sombra(s.x, s.y + 10, 16 + k*30, 6 + k*10, 0.3 + k*0.6);
+  if (h > 2){
+    // la estela de luz que deja al caer y las chispas que se desprenden
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    const top = s.y - caidaAlto(), py = s.y - h;
+    const lg = ctx.createLinearGradient(0, top, 0, py);
+    lg.addColorStop(0, 'rgba(255,246,220,0)'); lg.addColorStop(1, 'rgba(255,240,200,0.55)');
+    ctx.fillStyle = lg; ctx.beginPath(); ctx.moveTo(s.x - 4, top); ctx.lineTo(s.x + 4, top); ctx.lineTo(s.x + 15, py); ctx.lineTo(s.x - 15, py); ctx.closePath(); ctx.fill();
+    for (let i = 0; i < 12; i++){
+      const q = ((t*2.2 + i/12) % 1), x = s.x + Math.sin(i*2.7 + t*3)*(10 + q*20), y = py - 30 + q*-60*(i % 3 + 1)*0.5;
+      ctx.globalAlpha = (1 - q)*0.85; ctx.fillStyle = i % 2 ? '#fff6d8' : '#ffd36a';
+      ctx.fillRect(x - 1.2, y - 1.2, 2.4, 2.4);
+    }
+    const au = ctx.createRadialGradient(s.x, py - 14, 2, s.x, py - 14, 40);
+    au.addColorStop(0, 'rgba(255,250,235,0.45)'); au.addColorStop(1, 'rgba(255,240,200,0)');
+    ctx.globalAlpha = 1; ctx.fillStyle = au; ctx.fillRect(s.x - 40, py - 54, 80, 80);
+    ctx.restore();
+  }
   ctx.save(); ctx.translate(0, -h);
   vil.caida = 0; vil.intro = 0;
   try { drawPlayer(); } finally { vil.caida = 1; vil.intro = 1; }
@@ -5817,32 +5852,67 @@ function drawCraterInf(){
   for (let i = 0; i < 7; i++){ const an = i*0.9; ctx.beginPath(); ctx.moveTo(s.x + Math.cos(an)*20, s.y + 6 + Math.sin(an)*10); ctx.lineTo(s.x + Math.cos(an + 0.2)*60, s.y + 6 + Math.sin(an + 0.2)*30); ctx.stroke(); }
   ctx.globalAlpha = 1;
 }
-// El portal: un anillo blanco casi dorado que se abre en el cielo, deja caer
-// al invasor y se cierra.
+// El portal: se abre en el cielo un remolino blanco y dorado con tres anillos
+// de runas que giran (cada uno a su sentido), rayos de gloria, un haz de luz
+// hasta el suelo por el que caen motas y plumas de luz; deja caer al invasor
+// y se cierra.
 function drawPortalCelestial(){
   if (infPortalT < 0) return;
   const t = infPortalT, abre = suave(tramo(t, 0, 0.5)), cierra = 1 - suave(tramo(t, CAIDA_T + 0.2, CAIDA_T + 1.3));
   const k = abre*cierra;
   if (k <= 0.01) return;
-  const s = S(player.x, player.y - caidaAlto()), R = 70*k;
+  const s = S(player.x, player.y - caidaAlto()), R = 74*k, E = 0.4;
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
-  // haz de luz hasta el suelo mientras cae
+  // el resplandor
+  const gl = ctx.createRadialGradient(s.x, s.y, R*0.2, s.x, s.y, R*2.6);
+  gl.addColorStop(0, `rgba(255,248,225,${0.4*k})`); gl.addColorStop(0.45, `rgba(255,220,140,${0.18*k})`); gl.addColorStop(1, 'rgba(255,200,120,0)');
+  ctx.fillStyle = gl; ctx.fillRect(s.x - R*2.6, s.y - R*2.6, R*5.2, R*5.2);
+  // haz de luz hasta el suelo mientras cae, con motas que bajan por él
   const haz = suave(tramo(t, 0.3, 0.6))*(1 - suave(tramo(t, CAIDA_T - 0.1, CAIDA_T + 0.9)));
   if (haz > 0.01){
     const s2 = S(player.x, player.y), lg = ctx.createLinearGradient(0, s.y, 0, s2.y);
     lg.addColorStop(0, `rgba(255,240,190,${0.5*haz})`); lg.addColorStop(1, `rgba(255,200,120,${0.12*haz})`);
     ctx.fillStyle = lg; ctx.beginPath(); ctx.moveTo(s.x - R*0.7, s.y); ctx.lineTo(s.x + R*0.7, s.y); ctx.lineTo(s.x + R*1.1, s2.y); ctx.lineTo(s.x - R*1.1, s2.y); ctx.closePath(); ctx.fill();
+    const L = s2.y - s.y;
+    for (let i = 0; i < 22; i++){
+      const q = (t*0.55 + i*0.0455) % 1, w = R*(0.7 + q*0.4), x = s.x + Math.sin(i*2.3 + t*1.7)*w*0.8, y = s.y + q*L;
+      ctx.globalAlpha = haz*Math.sin(q*Math.PI)*0.9; ctx.fillStyle = i % 4 ? '#fff4d0' : '#ffd36a';
+      if (i % 5 === 0){ ctx.save(); ctx.translate(x, y); ctx.rotate(Math.sin(t*3 + i)*0.8); ctx.beginPath(); ctx.ellipse(0, 0, 4.5, 1.6, 0, 0, Math.PI*2); ctx.fill(); ctx.restore(); }   // pluma
+      else ctx.fillRect(x - 1, y - 1, 2, 2);
+    }
   }
-  // rayos que giran
-  for (let i = 0; i < 12; i++){
-    const a = i*Math.PI/6 + t*0.8;
-    ctx.globalAlpha = 0.22*k; ctx.strokeStyle = '#ffe6a0'; ctx.lineWidth = 5;
-    ctx.beginPath(); ctx.moveTo(s.x + Math.cos(a)*R*0.9, s.y + Math.sin(a)*R*0.38); ctx.lineTo(s.x + Math.cos(a)*R*1.9, s.y + Math.sin(a)*R*0.8); ctx.stroke();
+  // rayos de gloria que giran
+  ctx.globalAlpha = 0.2*k; ctx.strokeStyle = '#ffe6a0'; ctx.lineWidth = 5; ctx.beginPath();
+  for (let i = 0; i < 16; i++){
+    const a = i*Math.PI/8 + t*0.6, l = i % 2 ? 2.4 : 1.9;
+    ctx.moveTo(s.x + Math.cos(a)*R*1.05, s.y + Math.sin(a)*R*E*1.05); ctx.lineTo(s.x + Math.cos(a)*R*l, s.y + Math.sin(a)*R*E*l);
   }
-  ctx.globalAlpha = 0.45*k; ctx.fillStyle = '#ffe6a0'; ctx.beginPath(); ctx.ellipse(s.x, s.y, R*1.5, R*0.62, 0, 0, Math.PI*2); ctx.fill();
-  ctx.globalAlpha = 0.9*k; ctx.strokeStyle = '#ffd36a'; ctx.lineWidth = 7; ctx.beginPath(); ctx.ellipse(s.x, s.y, R, R*0.4, 0, 0, Math.PI*2); ctx.stroke();
-  ctx.globalAlpha = k; ctx.fillStyle = '#fffaf0'; ctx.beginPath(); ctx.ellipse(s.x, s.y, R*0.82, R*0.3, 0, 0, Math.PI*2); ctx.fill();
+  ctx.stroke();
+  // el disco y el remolino de luz
+  ctx.globalAlpha = 0.38*k; ctx.fillStyle = '#ffe6a0'; ctx.beginPath(); ctx.ellipse(s.x, s.y, R*1.35, R*1.35*E, 0, 0, Math.PI*2); ctx.fill();
+  ctx.globalAlpha = 0.85*k; ctx.strokeStyle = '#fff3cf'; ctx.lineWidth = 2.5;
+  for (let j = 0; j < 6; j++){
+    const a0 = j*Math.PI/3 - t*2.4; ctx.beginPath();
+    for (let q = 0; q <= 10; q++){ const u = q/10, a = a0 + u*2.2, rr = R*(0.18 + u*0.72); const x = s.x + Math.cos(a)*rr, y = s.y + Math.sin(a)*rr*E; q ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
+    ctx.stroke();
+  }
+  // tres anillos de runas, cada uno girando a su sentido
+  ctx.lineWidth = 3;
+  for (const [rr, v, col, dash] of [[1.0, 0.7, '#ffd36a', [10, 6]], [1.2, -0.45, '#fff0c0', [3, 7]], [1.45, 0.3, '#ffcf70', [18, 10]]]){
+    ctx.globalAlpha = 0.85*k; ctx.strokeStyle = col; ctx.setLineDash(dash); ctx.lineDashOffset = t*60*v;
+    ctx.beginPath(); ctx.ellipse(s.x, s.y, R*rr, R*rr*E, 0, 0, Math.PI*2); ctx.stroke();
+  }
+  ctx.setLineDash([]);
+  ctx.globalAlpha = 0.95*k; ctx.strokeStyle = '#ffd36a'; ctx.lineWidth = 6; ctx.beginPath(); ctx.ellipse(s.x, s.y, R*0.92, R*0.92*E, 0, 0, Math.PI*2); ctx.stroke();
+  ctx.globalAlpha = k; ctx.fillStyle = '#fffaf0'; ctx.beginPath(); ctx.ellipse(s.x, s.y, R*0.55, R*0.55*E, 0, 0, Math.PI*2); ctx.fill();
+  // destellos en el borde
+  for (let i = 0; i < 6; i++){
+    const a = i*1.047 + t*1.3, x = s.x + Math.cos(a)*R*0.95, y = s.y + Math.sin(a)*R*0.95*E, w = 6 + Math.sin(t*8 + i)*3;
+    ctx.globalAlpha = 0.9*k; ctx.fillStyle = '#ffffff';
+    ctx.beginPath(); ctx.moveTo(x - w, y); ctx.lineTo(x, y - 1.2); ctx.lineTo(x + w, y); ctx.lineTo(x, y + 1.2); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(x, y - w*0.6); ctx.lineTo(x + 1.2, y); ctx.lineTo(x, y + w*0.6); ctx.lineTo(x - 1.2, y); ctx.closePath(); ctx.fill();
+  }
   ctx.restore();
 }
 
@@ -5963,11 +6033,16 @@ let ctx = canvas.getContext('2d', { alpha:false });   // 'let': el búfer del su
 // La cámara se abre un poco al evolucionar: el COLOSO ocupa más y necesita ver más.
 const ZOOM_CRIA = 1.30, ZOOM_COLOSO = 1.12;
 let ZOOM = ZOOM_CRIA;
-function updateZoom(dt){
+function zoomBase(){
   let objetivo = (form >= 1 || isDra() || isMaq() || isMag()) ? ZOOM_COLOSO : ZOOM_CRIA;
   if (buffActivo('gigante')) objetivo *= 0.78;    // hace falta más campo
+  return objetivo;
+}
+function updateZoom(dt){
+  let objetivo = zoomBase();
+  if (vil.caida && vil.zoomCaida > 1) objetivo *= vil.zoomCaida;   // la caída al castigo, de cerca
   if (Math.abs(ZOOM - objetivo) < 0.0005){ ZOOM = objetivo; return; }
-  ZOOM += (objetivo - ZOOM) * Math.min(1, dt * 1.6);   // transición suave
+  ZOOM += (objetivo - ZOOM) * Math.min(1, dt * (vil.caida ? 2.6 : 1.6));   // transición suave (al alejarse tras la caída, algo más viva)
   VW = CW / ZOOM; VH = CH / ZOOM;
 }
 let CW = window.innerWidth, CH = window.innerHeight;   // píxeles del lienzo (entrada/UI)
@@ -6398,19 +6473,23 @@ function resetGame(){
     // (la cámara se queda en el sitio: luego baja en picado solo en el dibujo)
     if (!esInfierno()){ dra.sombraT = DRA_SOMBRA_T; dra.somRug = 0; dra.som0 = Math.random()*Math.PI*2; dra.somDir = Math.random() < 0.5 ? 1 : -1; }
     else player.y -= VIL_INTRO_ALTO;
+    vil.preT = conPreludio() ? DRA_PRE_T : 0; vil.preSon = 0;      // antes, el cielo: pasa muy cerca de la cámara
     vil.flying = true; vil.fx = 0; vil.fy = 1;
     vil.charge = 0; vil.holding = false;
   } else if (typeof isVil === 'function' && isVil()){
     // el viltrumita cae del cielo sobre su sitio: la cámara ya está ahí (antes,
     // se le ve volando de frente en el cielo; al infierno se llega cayendo)
     vil.intro = 1; vil.introY = player.y; vil.introT = 0;
-    vil.preT = (esInfierno() || Online.activo) ? 0 : VIL_PRE_T; vil.preSon = 0;
+    vil.preT = conPreludio() ? VIL_PRE_T : 0; vil.preSon = 0;
     vil.flying = false; vil.fx = 0; vil.fy = 1;
     vil.charge = 0; vil.holding = false;
   } else if (typeof vil === 'object'){
-    // máquina (portal rojo del suelo), mago (portal) y cría (humo verde)
+    // máquina (portal rojo del suelo), mago (portal) y cría (humo de su color;
+    // antes, sale de una alcantarilla)
     vil.intro = 1; vil.introY = player.y; vil.introT = 0; vil.flying = false;
+    if (hero === 'alien'){ vil.preT = conPreludio() ? CRIA_PRE_T : 0; vil.preSon = 0; }
   }
+  if (typeof vil === 'object'){ vil.preFade = 0; if (!(vil.intro && (hero === 'viltrum' || hero === 'alien' || hero === 'dragon'))) vil.preT = 0; _vilFr.fr = []; _vilFr.pal = null; }
   if (typeof vil === 'object'){ vil.caida = 0; if (esInfierno()) empiezaCaida(); }   // al infierno se llega cayendo
   avenidas = eligeAvenidas();
   for (let i=0;i<16;i++) spawnCar();
@@ -19281,6 +19360,17 @@ function draRayoAdorno(){
 }
 function updateDragon(dt){
   const volabaAntes = vil.flying;
+  if (vil.intro && vil.preT > 0){              // primero, el cielo: pasa muy cerca de la cámara
+    const t0 = DRA_PRE_T - vil.preT;
+    vil.preT -= dt;
+    const t1 = DRA_PRE_T - vil.preT;
+    if (Math.floor(t1*1.7) !== Math.floor(t0*1.7) && t1 < 2.4) sfx('aleteo');   // un aletazo por batida
+    if (t0 < 2.45 && t1 >= 2.45){ rugido('kaiyin', 0.9); shake(6, 0.4); }
+    if (t0 < DRA_PRE_T - 0.35 && t1 >= DRA_PRE_T - 0.35) sfx('whoosh');
+    player.vx = 0; player.vy = 0; vil.flying = true;
+    if (vil.preT <= 0) finPreludio(esAlien() ? '#f4e8ff' : '#ffffff');
+    return;
+  }
   vil.capa += dt;
   dra.escK = lerp(dra.escK || 1, buffActivo('tormenta') ? DRA_OVNI_ESC : 1, Math.min(1, dt*3));   // crece con el regalo del OVNI
   if (dra.bocaT > 0) dra.bocaT -= dt;
@@ -19619,7 +19709,7 @@ function dibujaDragon(g, x, y, esc, st){
   // sombra: en el suelo, aunque vuele; más larga de lado
   g.fillStyle = 'rgba(0,0,0,0.26)';
   const sl = Math.abs(V.fx);
-  g.beginPath(); g.ellipse(0, 28, (st.vol ? 30 : 38) + sl*6, (st.vol ? 8 : 10) - sl*1.5, 0, 0, Math.PI*2); g.fill();
+  if (!st.sinSombra){ g.beginPath(); g.ellipse(0, 28, (st.vol ? 30 : 38) + sl*6, (st.vol ? 8 : 10) - sl*1.5, 0, 0, Math.PI*2); g.fill(); }
   g.translate(0, -st.lift);
   if (st.incl) g.rotate(st.incl);                           // volando se inclina hacia su rumbo
   if (st.anda) g.translate(0, -Math.abs(Math.sin(st.paso))*1.6);   // el cuerpo sube y baja al andar
@@ -28364,7 +28454,7 @@ function drawEntradaMago(st){
 // La cría: una nube de humo verde brota del suelo y ella aparece dentro.
 const HUMO_ENTRADA = Array.from({ length:14 }, (_, i)=>({ a: i*2.39, r: 6 + (i*7) % 20, v: 0.7 + (i % 5)*0.12, t0: (i % 7)*0.06 }));
 function drawEntradaHumo(dibuja){
-  const t = vil.introT || 0, s = S(player.x, player.y);
+  const t = vil.introT || 0, s = S(player.x, player.y), SK = skin(), cols = [SK.c[0], SK.c[1], SK.c[2]];   // del color de su skin
   const aparece = suave(tramo(t, 0.35, 1.05));
   const puff = (delante)=>{
     for (let i = 0; i < HUMO_ENTRADA.length; i++){
@@ -28376,7 +28466,7 @@ function drawEntradaHumo(dibuja){
       const x = s.x + Math.cos(p.a + k*1.5)*(p.r + 22*k);
       const y = s.y + 14 - k*48*p.v + Math.sin(p.a)*6;
       const al = Math.sin(k*Math.PI)*(delante ? 0.5*(1 - aparece*0.6) : 0.55);
-      ctx.globalAlpha = al; ctx.fillStyle = i % 3 === 0 ? '#7bffa0' : i % 3 === 1 ? '#3fbf6a' : '#2a7a45';
+      ctx.globalAlpha = al; ctx.fillStyle = cols[i % 3];
       ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2); ctx.fill();
     }
     ctx.globalAlpha = 1;
@@ -33179,11 +33269,25 @@ function updatePlayerLibre(dt){
   if (isMaq()) return updateMaquina(dt);
   if (isMag()) return updateMago(dt);
   if (isBor()) return updateBoros(dt);
-  if (vil.intro){                              // la cría surge de una nube de humo verde
+  if (vil.intro && vil.preT > 0){              // primero, la alcantarilla
+    const t0 = CRIA_PRE_T - vil.preT;
+    vil.preT -= dt;
+    const t1 = CRIA_PRE_T - vil.preT, pasa = (x)=> t0 < x && t1 >= x;
+    if (pasa(0.25) || pasa(0.5) || pasa(0.72)) sfx('hit');                  // la tapa golpea al temblar
+    if (pasa(0.95)){ sfx('boom'); sfx('crack'); }                            // y sale despedida
+    if (pasa(1.1) || pasa(1.35)) sfx('grab');                                // los tentáculos se agarran
+    if (pasa(2.35)) sfx('whoosh');
+    if (pasa(2.75)) sfx('humoVerde');
+    player.vx = 0; player.vy = 0;
+    if (vil.introY) player.y = vil.introY;
+    if (vil.preT <= 0) finPreludio(skin().c[1]);
+    return;
+  }
+  if (vil.intro){                              // la cría surge de una nube de humo (de su color)
     player.tentaclePhase += dt*6;
-    if (Math.random() < 0.5) addParticles(player.x + rand(-24, 24), player.y + rand(-10, 20), '#5fce7f', 1, 50);
+    if (Math.random() < 0.5) addParticles(player.x + rand(-24, 24), player.y + rand(-10, 20), skin().c[1], 1, 50);
     if (avanzaEntrada(dt)){
-      addParticles(player.x, player.y, '#7bffa0', 20, 170);
+      addParticles(player.x, player.y, skin().c[0], 20, 170);
       for (let k = 0; k < 4; k++) addSmoke(player.x + rand(-20, 20), player.y + rand(-6, 6));
       shake(4, 0.12);
     }
@@ -33767,6 +33871,7 @@ function updateViltrum(dt){
       if (vil.preSon === 1 && vil.preT <= VIL_PRE_NUBE){ vil.preSon = 2; sfx('whoosh'); }   // la nube que tapa la cámara
       player.vx = 0; player.vy = 0;
       if (vil.introY) player.y = vil.introY;
+      if (vil.preT <= 0) finPreludio('');                   // sigue tapada por las nubes: sin fundido
       return;
     }
     // Entrada: baja de las nubes sobre su sitio (la cámara ya está ahí) y
@@ -33926,15 +34031,35 @@ function vilFrente(g, P, t){
   const viento = Math.sin(t*26)*1.6, viento2 = Math.cos(t*31)*1.4;
   g.lineJoin = 'round'; g.lineCap = 'round';
   const trazo = (w)=>{ g.strokeStyle = L; g.lineWidth = w; g.stroke(); };
+  const cl = shade(tr, 1.55), reg = !!P.regente;                 // el brillo, del color del traje (con cualquier skin)
+  // ---- el Regente: la capa ondea detrás, abierta por el viento ----
+  if (reg){
+    const cg = g.createLinearGradient(0, -30, 0, 110); cg.addColorStop(0, P.capaO); cg.addColorStop(0.4, P.capa); cg.addColorStop(1, P.capaO);
+    g.beginPath(); g.moveTo(-58, -26);
+    g.quadraticCurveTo(-128, 0 + viento*4, -112 + viento2*3, 96);
+    for (let k = 1; k <= 8; k++){ const x = -112 + k*28, y = 96 + (k % 2 ? 12 : 0) + Math.sin(t*14 + k*1.3)*5; g.lineTo(x, y); }
+    g.quadraticCurveTo(128, 0 + viento2*4, 58, -26); g.closePath();
+    g.fillStyle = cg; g.fill(); trazo(3);
+    g.strokeStyle = P.capaO; g.lineWidth = 2.5;
+    g.beginPath(); g.moveTo(-70, 0); g.quadraticCurveTo(-90, 50, -84, 98); g.moveTo(70, 0); g.quadraticCurveTo(90, 50, 84, 98); g.moveTo(-30, 40); g.lineTo(-40, 102); g.moveTo(30, 40); g.lineTo(40, 102); g.stroke();
+  }
   // ---- las piernas, muy atrás (escorzo): solo asoman las botas ----
   for (const sx of [-1, 1]){
     g.beginPath(); g.ellipse(sx*15, 64, 11, 8, sx*0.3, 0, Math.PI*2); g.fillStyle = P.bota || so; g.fill(); trazo(2);
+  }
+  if (reg){                                                     // el faldón de plata, por delante de las piernas
+    const fg2 = g.createLinearGradient(-30, 40, 30, 80); fg2.addColorStop(0, P.falda); fg2.addColorStop(1, P.faldaO);
+    g.beginPath(); g.moveTo(-30, 44); g.lineTo(30, 44); g.lineTo(36 + viento, 76); g.quadraticCurveTo(0, 82, -36 + viento2, 76); g.closePath();
+    g.fillStyle = fg2; g.fill(); trazo(2.5);
+    g.strokeStyle = P.faldaO; g.lineWidth = 2; g.beginPath();
+    for (const x of [-18, -6, 6, 18]){ g.moveTo(x*0.9, 48); g.lineTo(x*1.15 + viento*0.5, 78); }
+    g.stroke();
   }
   // ---- el torso, ancho de hombros y en escorzo ----
   g.beginPath();
   g.moveTo(-64, -18); g.quadraticCurveTo(-58, -30, -20, -30); g.lineTo(20, -30); g.quadraticCurveTo(58, -30, 64, -18);
   g.quadraticCurveTo(52, 22, 30, 54); g.quadraticCurveTo(0, 62, -30, 54); g.quadraticCurveTo(-52, 22, -64, -18); g.closePath();
-  const tg = g.createLinearGradient(-60, -30, 50, 60); tg.addColorStop(0, '#ffffff'); tg.addColorStop(0.35, tr); tg.addColorStop(1, so);
+  const tg = g.createLinearGradient(-60, -30, 50, 60); tg.addColorStop(0, cl); tg.addColorStop(0.35, tr); tg.addColorStop(1, so);
   g.fillStyle = tg; g.fill(); trazo(3);
   // pectorales, esternón y abdomen
   g.strokeStyle = os; g.lineWidth = 2;
@@ -33944,7 +34069,16 @@ function vilFrente(g, P, t){
   // costuras oscuras del traje y el cinturón
   g.strokeStyle = ba; g.lineWidth = 3;
   g.beginPath(); g.moveTo(-50, -16); g.quadraticCurveTo(-40, 20, -26, 50); g.moveTo(50, -16); g.quadraticCurveTo(40, 20, 26, 50); g.stroke();
-  g.beginPath(); g.moveTo(-30, 52); g.quadraticCurveTo(0, 60, 30, 52); g.lineWidth = 5; g.stroke();
+  g.beginPath(); g.moveTo(-30, 52); g.quadraticCurveTo(0, 60, 30, 52); g.lineWidth = 5; if (reg) g.strokeStyle = P.plata; g.stroke();
+  if (reg){                                                     // la placa del pecho con el emblema
+    g.beginPath(); g.moveTo(-40, -26); g.lineTo(40, -26); g.lineTo(38, 2); g.quadraticCurveTo(0, 20, -38, 2); g.closePath();
+    const pg = g.createLinearGradient(-40, -26, 40, 14); pg.addColorStop(0, P.plata); pg.addColorStop(0.5, P.placa); pg.addColorStop(1, P.plataO);
+    g.fillStyle = pg; g.fill(); trazo(2.5);
+    g.strokeStyle = P.plata; g.lineWidth = 1.6; g.beginPath(); g.moveTo(-34, -20); g.lineTo(34, -20); g.stroke();
+    g.beginPath(); g.arc(0, -4, 11, 0, Math.PI*2); g.fillStyle = L; g.fill();
+    g.beginPath(); g.arc(0, -4, 8.5, 0, Math.PI*2); g.fillStyle = tr; g.fill();
+    g.strokeStyle = P.piel2; g.lineWidth = 2.4; g.beginPath(); g.moveTo(-4, -8); g.lineTo(0, -0.5); g.lineTo(4, -8); g.stroke();
+  }
   // ---- los brazos, estirados hacia la cámara (cada vez más grandes) ----
   for (const sx of [-1, 1]){
     const w = sx < 0 ? viento : viento2;
@@ -33956,11 +34090,16 @@ function vilFrente(g, P, t){
           g.lineWidth = 2*(r0 + (r1 - r0)*(u + u2)/2) + d; g.beginPath(); g.moveTo(x0 + (x1 - x0)*u, y0 + (y1 - y0)*u); g.lineTo(x0 + (x1 - x0)*u2, y0 + (y1 - y0)*u2); g.stroke(); }
       }
     };
-    const ag = g.createLinearGradient(hx, hy - 20, mx, my + 20); ag.addColorStop(0, '#ffffff'); ag.addColorStop(0.5, tr); ag.addColorStop(1, so);
+    const ag = g.createLinearGradient(hx, hy - 20, mx, my + 20); ag.addColorStop(0, cl); ag.addColorStop(0.5, tr); ag.addColorStop(1, so);
     brazo(hx, hy, 14, ex, ey, 14, ag);                              // brazo
     brazo(ex, ey, 15, mx, my, 20, ag);                              // antebrazo, más cerca: más grueso
     g.strokeStyle = ba; g.lineWidth = 2.5; g.beginPath(); g.moveTo(hx + sx*2, hy + 10); g.lineTo(mx - sx*6, my - 4); g.stroke();   // la costura
-    const sg = g.createRadialGradient(hx - sx*5, hy - 8, 2, hx, hy, 17); sg.addColorStop(0, '#f6f2ea'); sg.addColorStop(0.6, tr); sg.addColorStop(1, so);
+    if (reg){                                                   // el brazalete de plata
+      const bx = ex + (mx - ex)*0.62, by = ey + (my - ey)*0.62;
+      g.beginPath(); g.ellipse(bx, by, 19, 11, sx*0.5 + Math.PI/2*0.2, 0, Math.PI*2); g.fillStyle = P.plata; g.fill(); trazo(2);
+      g.strokeStyle = P.plataO; g.lineWidth = 1.6; g.beginPath(); g.ellipse(bx, by, 13, 6, sx*0.5, 0, Math.PI*2); g.stroke();
+    }
+    const sg = g.createRadialGradient(hx - sx*5, hy - 8, 2, hx, hy, 17); sg.addColorStop(0, shade(tr, 1.45)); sg.addColorStop(0.6, tr); sg.addColorStop(1, so);
     g.beginPath(); g.ellipse(hx, hy, 17, 15, sx*0.5, 0, Math.PI*2); g.fillStyle = sg; g.fill(); trazo(3);   // el hombro
     g.strokeStyle = os; g.lineWidth = 1.6; g.beginPath(); g.arc(hx + sx*2, hy + 2, 10, sx < 0 ? 0.2 : Math.PI - 1.6, sx < 0 ? 1.6 : Math.PI - 0.2); g.stroke();
     // la mano abierta, con los dedos hacia delante
@@ -33979,6 +34118,17 @@ function vilFrente(g, P, t){
   g.beginPath(); g.rect(-11, -46, 22, 20); g.fillStyle = pio; g.fill(); trazo(2.5);
   g.beginPath(); g.ellipse(0, -28, 22, 8, 0, 0, Math.PI*2); g.fillStyle = tr; g.fill(); trazo(2.5);
   g.strokeStyle = ba; g.lineWidth = 2; g.beginPath(); g.ellipse(0, -28, 16, 5, 0, 0, Math.PI); g.stroke();
+  if (reg){                                                     // el cuello de piel blanca
+    for (let pas = 0; pas < 2; pas++){
+      g.fillStyle = pas ? P.piel2 : P.piel2O; g.beginPath();
+      for (let i = 0; i < 9; i++){ const u = i/8, x = -34 + u*68, y = -30 + Math.sin(u*Math.PI)*-5 + Math.sin(t*20 + i)*0.6, r = (i % 2 ? 9 : 7.5) + (pas ? 0 : 2);
+        g.moveTo(x + r, y); g.arc(x, y, r, 0, Math.PI*2); }
+      g.fill();
+    }
+    g.strokeStyle = P.piel2O; g.lineWidth = 1.4; g.beginPath();
+    for (let i = 0; i < 7; i++){ const x = -27 + i*9; g.moveTo(x, -33); g.lineTo(x + 2.5, -28); }
+    g.stroke();
+  }
   // ---- la cabeza: mandíbula cuadrada, cejas fruncidas, mirada fija ----
   g.beginPath();
   g.moveTo(-24, -82); g.quadraticCurveTo(-27, -62, -22, -50); g.lineTo(-12, -38); g.quadraticCurveTo(0, -32, 12, -38); g.lineTo(22, -50);
@@ -33998,58 +34148,362 @@ function vilFrente(g, P, t){
   g.strokeStyle = pio; g.lineWidth = 2.2; g.beginPath(); g.moveTo(1, -66); g.lineTo(-2, -55); g.lineTo(3, -53); g.stroke();
   g.strokeStyle = L; g.lineWidth = 2.4; g.beginPath(); g.moveTo(-8, -45); g.quadraticCurveTo(0, -47, 8, -45); g.stroke();
   g.strokeStyle = pio; g.lineWidth = 1.6; g.beginPath(); g.moveTo(-4, -41); g.lineTo(4, -41); g.stroke();
-  // el pelo negro, de punta y agitado por el viento hacia atrás
-  g.beginPath();
-  g.moveTo(-26, -66); g.lineTo(-30, -86 + viento2); g.lineTo(-24, -101 + viento); g.lineTo(-15, -95); g.lineTo(-10, -112 + viento2); g.lineTo(-2, -99);
-  g.lineTo(5, -114 + viento); g.lineTo(11, -100); g.lineTo(20, -109 + viento2); g.lineTo(22, -95); g.lineTo(30, -96 + viento); g.lineTo(27, -80); g.lineTo(26, -68);
-  g.lineTo(22, -79); g.quadraticCurveTo(12, -84, 4, -82); g.lineTo(0, -76); g.lineTo(-4, -82); g.quadraticCurveTo(-14, -84, -22, -79); g.closePath();
-  g.fillStyle = pe; g.fill(); trazo(2.5);
-  g.strokeStyle = 'rgba(120,130,150,0.6)'; g.lineWidth = 1.6;
-  g.beginPath(); g.moveTo(-18, -86); g.lineTo(-20, -97); g.moveTo(-4, -88); g.lineTo(-6, -103); g.moveTo(10, -88); g.lineTo(12, -101); g.stroke();
+  if (reg){
+    // el Regente: pelo engominado hacia atrás, con entradas, y el bigote
+    g.beginPath();
+    g.moveTo(-26, -66); g.quadraticCurveTo(-30, -84, -24, -94); g.quadraticCurveTo(-8, -106 + viento*0.5, 12, -102); g.quadraticCurveTo(28, -96, 27, -80); g.lineTo(26, -68);
+    g.lineTo(22, -80); g.quadraticCurveTo(16, -86, 8, -86); g.lineTo(0, -82); g.lineTo(-8, -86); g.quadraticCurveTo(-18, -86, -22, -80); g.closePath();
+    g.fillStyle = pe; g.fill(); trazo(2.5);
+    g.strokeStyle = 'rgba(120,130,150,0.55)'; g.lineWidth = 1.6;
+    g.beginPath(); g.moveTo(-14, -90); g.quadraticCurveTo(0, -100, 16, -96); g.moveTo(-18, -84); g.quadraticCurveTo(-2, -95, 20, -90); g.stroke();
+    g.beginPath(); g.moveTo(-12, -48); g.quadraticCurveTo(-8, -54, -1, -52); g.quadraticCurveTo(0, -53.5, 1, -52); g.quadraticCurveTo(8, -54, 12, -48);
+    g.quadraticCurveTo(6, -50, 0, -49.5); g.quadraticCurveTo(-6, -50, -12, -48); g.closePath(); g.fillStyle = pe; g.fill();
+  } else {
+    // el pelo negro, de punta y agitado por el viento hacia atrás
+    g.beginPath();
+    g.moveTo(-26, -66); g.lineTo(-30, -86 + viento2); g.lineTo(-24, -101 + viento); g.lineTo(-15, -95); g.lineTo(-10, -112 + viento2); g.lineTo(-2, -99);
+    g.lineTo(5, -114 + viento); g.lineTo(11, -100); g.lineTo(20, -109 + viento2); g.lineTo(22, -95); g.lineTo(30, -96 + viento); g.lineTo(27, -80); g.lineTo(26, -68);
+    g.lineTo(22, -79); g.quadraticCurveTo(12, -84, 4, -82); g.lineTo(0, -76); g.lineTo(-4, -82); g.quadraticCurveTo(-14, -84, -22, -79); g.closePath();
+    g.fillStyle = pe; g.fill(); trazo(2.5);
+    g.strokeStyle = 'rgba(120,130,150,0.6)'; g.lineWidth = 1.6;
+    g.beginPath(); g.moveTo(-18, -86); g.lineTo(-20, -97); g.moveTo(-4, -88); g.lineTo(-6, -103); g.moveTo(10, -88); g.lineTo(12, -101); g.stroke();
+  }
+}
+// ---- preludios de las entradas (viltrumita, cría y dragón) ----
+// Se pintan en pantalla, encima de todo y tapándola entera: mientras duran no
+// se dibuja la ciudad (draw() solo pinta esto). Al acabar, un fundido corto
+// del color de la última imagen da paso a la entrada de siempre.
+const CRIA_PRE_T = 3.4, DRA_PRE_T = 3.4, PRE_FUNDIDO_T = 0.5;
+// Solo en una invasión normal: ni en el castigo (allí se llega cayendo), ni en
+// línea, ni en los duelos (cada combate empezaría con él), ni en el tutorial.
+function conPreludio(){ return !esInfierno() && !Online.activo && gameMode === 'invasion' && !(typeof TUT === 'object' && TUT.activo); }
+function preludioActivo(){
+  return !!(vil.intro && vil.preT > 0 && !vil.caida && running && !esVisorVs() && (hero === 'viltrum' || hero === 'alien' || hero === 'dragon'));
+}
+function drawPreludio(){
+  const activo = preludioActivo();
+  if (!activo && !(vil.preFade > 0)) return;
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+  try {
+    if (!activo){                                            // el fundido hacia la entrada de siempre
+      ctx.globalAlpha = clamp(vil.preFade/PRE_FUNDIDO_T, 0, 1); ctx.fillStyle = vil.preFadeCol || '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    } else if (hero === 'viltrum') drawVilPreludio();
+    else if (hero === 'alien') drawCriaPreludio();
+    else drawDraPreludio();
+  } catch(e){ drawPreludio.err = e; } finally { ctx.restore(); }   // un fallo no deja la pantalla a medias (y queda anotado)
+}
+// Al acabar el preludio: libera lo que guardaba y deja el fundido.
+function finPreludio(col){
+  if (esAlien() && running) muestraIntroMapa();
+  vil.preT = 0; vil.preFade = col ? PRE_FUNDIDO_T : 0; vil.preFadeCol = col || '';
+  _vilFr.fr = []; _vilFr.pal = null; _criaFondo.k = ''; _criaFondo.c = null;
+}
+// El cielo de los preludios: azul con sol en la ciudad; malva, con estrellas y
+// un planeta anillado, en el planeta alien.
+function preCielo(W, H, D){
+  const al = esAlien(), cg = ctx.createLinearGradient(0, 0, 0, H);
+  if (al){ cg.addColorStop(0, '#16062e'); cg.addColorStop(0.5, '#4f2384'); cg.addColorStop(1, '#d677b4'); }
+  else { cg.addColorStop(0, '#2d74cc'); cg.addColorStop(0.55, '#5fa6ea'); cg.addColorStop(1, '#b4dcff'); }
+  ctx.fillStyle = cg; ctx.fillRect(0, 0, W, H);
+  if (al){
+    const R = mulberry32(91); ctx.fillStyle = '#f0e6ff';
+    for (let i = 0; i < 40; i++){ ctx.globalAlpha = 0.25 + R()*0.55; const r = (0.6 + R()*1.2)*D/700; ctx.fillRect(R()*W, R()*H*0.6, r*2, r*2); }
+    ctx.globalAlpha = 1;
+    const px = W*0.8, py = H*0.17, pr = D*0.085;
+    const hal = ctx.createRadialGradient(px, py, pr*0.8, px, py, pr*2.6); hal.addColorStop(0, 'rgba(140,240,255,0.35)'); hal.addColorStop(1, 'rgba(140,240,255,0)');
+    ctx.fillStyle = hal; ctx.fillRect(px - pr*3, py - pr*3, pr*6, pr*6);
+    ctx.strokeStyle = 'rgba(232,216,255,0.85)'; ctx.lineWidth = pr*0.12;
+    ctx.beginPath(); ctx.ellipse(px, py, pr*1.9, pr*0.42, -0.3, Math.PI, Math.PI*2); ctx.stroke();       // el anillo, por detrás
+    const pg = ctx.createRadialGradient(px - pr*0.35, py - pr*0.35, pr*0.1, px, py, pr);
+    pg.addColorStop(0, '#b8f6ff'); pg.addColorStop(0.55, '#4ab4d8'); pg.addColorStop(1, '#1d4a86');
+    ctx.fillStyle = pg; ctx.beginPath(); ctx.arc(px, py, pr, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(px, py, pr*1.9, pr*0.42, -0.3, 0, Math.PI); ctx.stroke();               // y por delante
+  } else {
+    const sol = ctx.createRadialGradient(W*0.15, H*0.08, 0, W*0.15, H*0.08, D*0.6);
+    sol.addColorStop(0, 'rgba(255,255,240,0.85)'); sol.addColorStop(0.25, 'rgba(255,250,225,0.3)'); sol.addColorStop(1, 'rgba(255,250,225,0)');
+    ctx.fillStyle = sol; ctx.fillRect(0, 0, W, H);
+  }
+}
+// La nube, teñida de lila en el planeta alien.
+let _nubeAlien = null;
+function preNube(){
+  if (!esAlien()) return vilNubeCv();
+  if (_nubeAlien) return _nubeAlien;
+  const b = vilNubeCv(), c = document.createElement('canvas'); c.width = b.width; c.height = b.height;
+  const g = c.getContext('2d'); g.drawImage(b, 0, 0);
+  g.globalCompositeOperation = 'source-atop'; g.fillStyle = 'rgba(196,140,255,0.4)'; g.fillRect(0, 0, c.width, c.height);
+  return (_nubeAlien = c);
+}
+// El viltrumita de frente se pinta una vez en unos pocos fotogramas (el
+// viento en el pelo y la capa) a la resolución que necesita y luego solo se
+// copian: los degradados y trazos ya no se calculan en cada fotograma.
+const VIL_FR_X = 170, VIL_FR_Y = 128, VIL_FR_W = 340, VIL_FR_H = 250, VIL_FR_N = 4;
+const _vilFr = { pal:null, S:0, fr:[] };
+function vilFrenteFrame(P, i, S){
+  if (_vilFr.pal !== P || _vilFr.S !== S){ _vilFr.pal = P; _vilFr.S = S; _vilFr.fr = []; }
+  let c = _vilFr.fr[i];
+  if (c) return c;
+  c = document.createElement('canvas'); c.width = Math.ceil(VIL_FR_W*S); c.height = Math.ceil(VIL_FR_H*S);
+  const g = c.getContext('2d');
+  g.setTransform(S, 0, 0, S, VIL_FR_X*S, VIL_FR_Y*S);
+  vilFrente(g, P, i*(Math.PI*2/26)/VIL_FR_N);
+  return (_vilFr.fr[i] = c);
 }
 function drawVilPreludio(){
-  if (!isVil() || !vil.intro || !(vil.preT > 0) || esVisorVs()) return;
   const W = canvas.width, H = canvas.height, T = VIL_PRE_T, t = T - vil.preT, D = Math.min(W, H);
-  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
-  // el cielo
-  const cg = ctx.createLinearGradient(0, 0, 0, H);
-  cg.addColorStop(0, '#2d74cc'); cg.addColorStop(0.55, '#5fa6ea'); cg.addColorStop(1, '#b4dcff');
-  ctx.fillStyle = cg; ctx.fillRect(0, 0, W, H);
-  const sol = ctx.createRadialGradient(W*0.15, H*0.08, 0, W*0.15, H*0.08, D*0.6);
-  sol.addColorStop(0, 'rgba(255,255,240,0.85)'); sol.addColorStop(0.25, 'rgba(255,250,225,0.3)'); sol.addColorStop(1, 'rgba(255,250,225,0)');
-  ctx.fillStyle = sol; ctx.fillRect(0, 0, W, H);
+  preCielo(W, H, D);
   // nubes que se quedan atrás: salen de los bordes y se alejan hacia el centro
-  const cx = W*0.5, cy = H*0.46, nb = vilNubeCv(), Rm = Math.hypot(W, H)*0.62;
+  const cx = W*0.5, cy = H*0.46, nb = preNube(), Rm = Math.hypot(W, H)*0.62;
   for (let i = 0; i < 9; i++){
     const q = (t*0.42 + i/9) % 1, a = i*2.39 + 0.6, r = (1 - q)*Rm, k = (0.18 + (1 - q)*1.5)*D/700;
     ctx.globalAlpha = Math.min(1, Math.sin(q*Math.PI)*1.4)*0.95;
     ctx.drawImage(nb, cx + Math.cos(a)*r - 160*k, cy + Math.sin(a)*r*0.8 - 85*k, 320*k, 170*k);
   }
-  // líneas de velocidad
+  // líneas de velocidad (un solo trazo por grosor)
   ctx.strokeStyle = '#ffffff'; ctx.lineCap = 'round';
-  for (let i = 0; i < 28; i++){
-    const q = (t*1.5 + i*0.137) % 1, a = i*2.11, r = (1 - q)*Rm, l = (1 - q)*D*0.22 + 8;
-    ctx.globalAlpha = 0.5*(1 - q); ctx.lineWidth = Math.max(1, D/700*(1.5 + (i % 3)));
-    ctx.beginPath(); ctx.moveTo(cx + Math.cos(a)*r, cy + Math.sin(a)*r); ctx.lineTo(cx + Math.cos(a)*(r + l), cy + Math.sin(a)*(r + l)); ctx.stroke();
+  for (let gr = 0; gr < 3; gr++){
+    ctx.lineWidth = Math.max(1, D/700*(1.5 + gr)); ctx.globalAlpha = 0.35; ctx.beginPath();
+    for (let i = gr; i < 28; i += 3){
+      const q = (t*1.5 + i*0.137) % 1, a = i*2.11, r = (1 - q)*Rm, l = (1 - q)*D*0.22 + 8;
+      ctx.moveTo(cx + Math.cos(a)*r, cy + Math.sin(a)*r); ctx.lineTo(cx + Math.cos(a)*(r + l), cy + Math.sin(a)*(r + l));
+    }
+    ctx.stroke();
   }
   ctx.globalAlpha = 1;
-  // él, cada vez más cerca, con el temblor del vuelo
+  // él, cada vez más cerca, con el temblor del vuelo (copiado de sus fotogramas)
   const ap = Math.min(1, t/0.35), esc = D/420*(0.78 + t/T*0.42), tb = Math.sin(t*40)*D/900;
+  const S = Math.min(3, Math.ceil(D/420*1.2*4)/4), fr = vilFrenteFrame(vilPaleta(), Math.floor(t*16) % VIL_FR_N, S);
   ctx.save(); ctx.globalAlpha = ap;
-  ctx.translate(cx + tb, cy + Math.sin(t*3)*D*0.012); ctx.scale(esc, esc); ctx.rotate(Math.sin(t*2.2)*0.04);
-  try { vilFrente(ctx, vilPaleta(), t); } catch(e){}
+  ctx.translate(cx + tb, cy + Math.sin(t*3)*D*0.012); ctx.rotate(Math.sin(t*2.2)*0.04); ctx.scale(esc/S, esc/S);
+  ctx.drawImage(fr, -VIL_FR_X*S, -VIL_FR_Y*S);
   ctx.restore();
   // la nube que tapa la cámara
   const kn = clamp((t - (T - VIL_PRE_NUBE))/VIL_PRE_NUBE, 0, 1);
   if (kn > 0){
     for (let i = 0; i < 7; i++){
-      const a = i*0.9 + 0.3, ini = (1 - kn)*Rm*1.1 + D*0.08, s = (1.4 + kn*3.2)*D/700;
+      const a = i*0.9 + 0.3, ini = (1 - kn)*Rm*1.1 + D*0.08, s2 = (1.4 + kn*3.2)*D/700;
       ctx.globalAlpha = Math.min(1, kn*1.6);
-      ctx.drawImage(nb, cx + Math.cos(a)*ini - 160*s, cy + Math.sin(a)*ini*0.8 - 85*s, 320*s, 170*s);
+      ctx.drawImage(nb, cx + Math.cos(a)*ini - 160*s2, cy + Math.sin(a)*ini*0.8 - 85*s2, 320*s2, 170*s2);
     }
-    ctx.globalAlpha = kn*kn; ctx.fillStyle = '#eef3fa'; ctx.fillRect(0, 0, W, H);
+    ctx.globalAlpha = kn*kn; ctx.fillStyle = esAlien() ? '#efe4fa' : '#eef3fa'; ctx.fillRect(0, 0, W, H);
   }
-  ctx.restore();
+  ctx.globalAlpha = 1;
+}
+
+// ---- Entrada de la cría, primera parte: la alcantarilla ----
+// A ras de calle, con la ciudad al fondo: la tapa de una alcantarilla tiembla
+// y deja escapar la luz de la cría; sale despedida girando, asoman los
+// tentáculos agarrándose al borde, la cría se aúpa fuera, mira a la ciudad y
+// salta hacia la cámara en una nube de su color. Luego, la entrada de siempre.
+// En el planeta alien: cielo malva, cúpulas y una tapa hexagonal con runas.
+const _criaFondo = { k:'', c:null };
+function criaPreFondo(W, H){
+  const al = esAlien(), k = W + 'x' + H + (al ? 'a' : 'c');
+  if (_criaFondo.k === k) return _criaFondo.c;
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const c0 = ctx; ctx = c.getContext('2d');
+  try {
+    const g = ctx, D = Math.min(W, H), hor = H*0.5, R = mulberry32(al ? 57 : 23);
+    preCielo(W, hor + 2, D);
+    if (!al){ const nb = vilNubeCv(); g.globalAlpha = 0.8; for (const [x, y, k2] of [[0.18, 0.12, 0.5], [0.62, 0.07, 0.38], [0.86, 0.2, 0.45]]) g.drawImage(nb, W*x - 160*k2*D/700, H*y, 320*k2*D/700, 170*k2*D/700); g.globalAlpha = 1; }
+    // dos filas de edificios: la de atrás, más pálida por la distancia
+    for (let fila = 0; fila < 2; fila++){
+      let x = -R()*W*0.05;
+      while (x < W){
+        const w = W*(0.05 + R()*0.07), h = H*(fila ? 0.12 + R()*0.2 : 0.18 + R()*0.24), y = hor - h;
+        const col = al ? (fila ? '#2a1d4e' : '#4a3a7a') : (fila ? '#5b6676' : '#8d9cb0');
+        g.fillStyle = col; g.fillRect(x, y, w, h + 1);
+        if (al){ g.beginPath(); g.ellipse(x + w/2, y, w/2, w*0.3, 0, Math.PI, 0); g.fill(); g.fillRect(x + w/2 - 1, y - w*0.3 - h*0.25*R(), 2, h*0.25); }
+        else if (R() < 0.3){ g.fillRect(x + w*0.2, y - h*0.06, w*0.25, h*0.06); }
+        const ww = Math.max(2, w*0.12), wh = Math.max(2, h*0.05);
+        for (let yy = y + wh*1.5; yy < hor - wh; yy += wh*2.2) for (let xx = x + ww; xx < x + w - ww*1.2; xx += ww*1.9){
+          const r = R(); if (r < 0.35) continue;
+          g.fillStyle = al ? (r < 0.7 ? '#7fe8ff' : '#e070ff') : (fila ? (r < 0.6 ? '#9fc4e8' : '#3c4656') : (r < 0.6 ? '#c8e2fb' : '#6a7686'));
+          g.globalAlpha = al ? 0.75 : 0.8; g.fillRect(xx, yy, ww, wh);
+        }
+        g.globalAlpha = 1;
+        x += w + W*0.004;
+      }
+      if (!fila){ g.fillStyle = al ? 'rgba(214,119,180,0.25)' : 'rgba(180,220,255,0.35)'; g.fillRect(0, hor - H*0.35, W, H*0.35); }   // bruma
+    }
+    // la acera y la calzada, con sus líneas hacia el horizonte
+    const ac = H*0.055;
+    g.fillStyle = al ? '#3a2a5e' : '#a9a8a2'; g.fillRect(0, hor, W, ac);
+    g.fillStyle = al ? '#7fe8ff' : '#6e6d68'; g.fillRect(0, hor + ac - 3, W, 3);
+    const rg = g.createLinearGradient(0, hor + ac, 0, H);
+    rg.addColorStop(0, al ? '#2a1d46' : '#4a4a4f'); rg.addColorStop(1, al ? '#0e0a1c' : '#232327');
+    g.fillStyle = rg; g.fillRect(0, hor + ac, W, H - hor - ac);
+    const vx = W/2, vy = hor + ac;
+    g.fillStyle = al ? 'rgba(127,232,255,0.7)' : 'rgba(240,200,80,0.85)';
+    for (const lado of [-1, 1]) for (let i = 0; i < 6; i++){
+      const u0 = Math.pow(i/6, 1.6), u1 = Math.pow((i + 0.55)/6, 1.6), off = lado*W*0.62;
+      const y0 = vy + (H - vy)*u0, y1 = vy + (H - vy)*u1, x0 = vx + off*u0, x1 = vx + off*u1, w0 = 1 + 10*u0*D/700, w1 = 1 + 10*u1*D/700;
+      g.beginPath(); g.moveTo(x0 - w0, y0); g.lineTo(x0 + w0, y0); g.lineTo(x1 + w1, y1); g.lineTo(x1 - w1, y1); g.closePath(); g.fill();
+    }
+    for (let i = 0; i < 70; i++){ g.fillStyle = 'rgba(0,0,0,' + (0.1 + R()*0.15) + ')'; const yy = vy + (H - vy)*R(); g.fillRect(R()*W, yy, 2 + R()*5*D/700, 1 + R()*2); }   // grano del asfalto
+  } finally { ctx = c0; }
+  _criaFondo.k = k; _criaFondo.c = c;
+  return c;
+}
+// El cuerpo de la cría (sin los tentáculos), grande y con su skin.
+function criaCuerpoGrande(g, x, y, r, t, mira){
+  const SK = skin();
+  const gr = g.createRadialGradient(x - r*0.3, y - r*0.3, r*0.15, x, y, r*1.05);
+  gr.addColorStop(0, SK.c[0]); gr.addColorStop(0.6, SK.c[1]); gr.addColorStop(1, SK.c[2]);
+  g.fillStyle = gr; g.beginPath(); g.arc(x, y, r, 0, Math.PI*2); g.fill();
+  const estampa = skinEstampa(SK, x, y, r, 0);
+  g.strokeStyle = 'rgba(8,30,12,0.7)'; g.lineWidth = Math.max(1, r*0.06);
+  g.beginPath(); g.arc(x, y, r, 0, Math.PI*2); g.stroke();
+  if (!(estampa && SK.cosmic)) criaBrillo(g, x, y, r);
+  criaOjos(g, x, y, r, t, mira);
+}
+function criaPreTent(g, x0, y0, ex, ey, r, ond, SK){
+  const mx = (x0 + ex)/2 + (ey - y0)*0.18*ond, my = (y0 + ey)/2 - Math.abs(ex - x0)*0.35 - r*0.2;
+  criaTentaculo(g, x0, y0, mx, my, ex, ey, r*0.5, r*0.2, civMezcla(SK.c[1], 0.22), SK.c[0], SK.tip, r*0.16);
+}
+function drawCriaPreludio(){
+  const W = canvas.width, H = canvas.height, T = CRIA_PRE_T, t = T - vil.preT, D = Math.min(W, H), al = esAlien(), SK = skin();
+  const sacude = t < 0.95 ? Math.max(0, Math.sin(t*60))*D*0.004*tramo(t, 0.15, 0.9) : t < 1.25 ? (Math.random() - 0.5)*D*0.02*(1.25 - t)/0.3 : 0;
+  ctx.drawImage(criaPreFondo(W, H), 0, sacude);
+  const cx = W*0.5, cy = H*0.74 + sacude, rx = D*0.25, ry = rx*0.3, r = D*0.14, luz = SK.tip || SK.c[0];
+  // el hueco (o la tapa encima): el aro de hierro y, dentro, la luz de la cría
+  const salta = 0.95;
+  ctx.fillStyle = al ? '#140c24' : '#141416'; ctx.beginPath(); ctx.ellipse(cx, cy, rx*1.12, ry*1.12, 0, 0, Math.PI*2); ctx.fill();
+  if (t >= salta){
+    const hg = ctx.createRadialGradient(cx, cy + ry*0.4, 1, cx, cy, rx);
+    hg.addColorStop(0, luz); hg.addColorStop(0.35, SK.c[2]); hg.addColorStop(1, '#030404');
+    ctx.fillStyle = hg; ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.beginPath(); ctx.ellipse(cx, cy - ry*0.25, rx*0.98, ry*0.7, 0, Math.PI, Math.PI*2); ctx.fill();   // la pared del fondo, en sombra
+    const haz = 1 - tramo(t, salta, 1.8);                                                               // el haz de luz al saltar la tapa
+    if (haz > 0){
+      ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.55*haz;
+      const lg = ctx.createLinearGradient(0, cy, 0, 0); lg.addColorStop(0, luz); lg.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = lg; ctx.beginPath(); ctx.moveTo(cx - rx, cy); ctx.lineTo(cx + rx, cy); ctx.lineTo(cx + rx*1.6, 0); ctx.lineTo(cx - rx*1.6, 0); ctx.closePath(); ctx.fill();
+      ctx.restore();
+    }
+  }
+  // la tapa: tiembla en su sitio y sale despedida girando
+  const tapa = (x, y, sx, sy, rot)=>{
+    ctx.save(); ctx.translate(x, y); ctx.rotate(rot); ctx.scale(sx, sy);
+    ctx.fillStyle = al ? '#3a2c5c' : '#3c3c3f'; ctx.beginPath(); ctx.ellipse(0, ry*0.18, rx, ry, 0, 0, Math.PI*2); ctx.fill();   // el canto
+    const tg = ctx.createLinearGradient(0, -ry, 0, ry); tg.addColorStop(0, al ? '#6a58a0' : '#6e6e70'); tg.addColorStop(1, al ? '#2c2048' : '#2e2e31');
+    ctx.fillStyle = tg; ctx.beginPath(); ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI*2); ctx.fill();
+    ctx.save(); ctx.beginPath(); ctx.ellipse(0, 0, rx*0.94, ry*0.94, 0, 0, Math.PI*2); ctx.clip();
+    if (al){                                                 // tapa hexagonal con runas encendidas
+      ctx.strokeStyle = '#7fe8ff'; ctx.lineWidth = Math.max(1, D*0.004); ctx.globalAlpha = 0.6 + Math.sin(t*9)*0.3;
+      ctx.beginPath(); for (let i = 0; i <= 6; i++){ const a = i*Math.PI/3 + Math.PI/6; const px = Math.cos(a)*rx*0.62, py = Math.sin(a)*ry*0.62; i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); } ctx.stroke();
+      ctx.beginPath(); for (let i = 0; i < 6; i++){ const a = i*Math.PI/3; ctx.moveTo(Math.cos(a)*rx*0.2, Math.sin(a)*ry*0.2); ctx.lineTo(Math.cos(a)*rx*0.55, Math.sin(a)*ry*0.55); } ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(0, 0, rx*0.16, ry*0.16, 0, 0, Math.PI*2); ctx.stroke(); ctx.globalAlpha = 1;
+    } else {                                                 // rejilla de hierro y el aro con letras
+      ctx.strokeStyle = 'rgba(20,20,22,0.7)'; ctx.lineWidth = Math.max(1, D*0.004); ctx.beginPath();
+      for (let i = -6; i <= 6; i++){ ctx.moveTo(i*rx*0.13 - rx, -ry); ctx.lineTo(i*rx*0.13 + rx, ry); ctx.moveTo(i*rx*0.13 + rx, -ry); ctx.lineTo(i*rx*0.13 - rx, ry); }
+      ctx.stroke();
+      ctx.strokeStyle = 'rgba(150,150,150,0.5)'; ctx.beginPath(); ctx.ellipse(0, 0, rx*0.72, ry*0.72, 0, 0, Math.PI*2); ctx.stroke();
+      ctx.fillStyle = 'rgba(20,20,22,0.8)'; ctx.beginPath(); ctx.ellipse(0, 0, rx*0.45, ry*0.4, 0, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = 'rgba(160,160,160,0.55)'; for (let i = 0; i < 10; i++){ const a = i/10*Math.PI*2; ctx.fillRect(Math.cos(a)*rx*0.82 - 2, Math.sin(a)*ry*0.82 - 1, 4, 2); }
+    }
+    ctx.restore();
+    ctx.strokeStyle = al ? '#1a1030' : '#1a1a1c'; ctx.lineWidth = Math.max(1.5, D*0.005); ctx.beginPath(); ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI*2); ctx.stroke();
+    ctx.restore();
+  };
+  if (t < salta){
+    const salto = Math.max(0, Math.sin(t*22))*tramo(t, 0.2, 0.9), rot = Math.sin(t*37)*0.03*tramo(t, 0.3, 0.9);
+    ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = (0.3 + 0.5*salto)*tramo(t, 0.1, 0.5);   // la luz por la rendija
+    ctx.strokeStyle = luz; ctx.lineWidth = D*0.012; ctx.beginPath(); ctx.ellipse(cx, cy, rx*1.02, ry*1.05, 0, 0, Math.PI*2); ctx.stroke(); ctx.restore();
+    tapa(cx, cy - salto*D*0.02, 1, 1, rot);
+  } else {
+    const q = (t - salta)/0.55;
+    if (q < 1) tapa(cx + q*rx*0.6, cy - q*H*1.1, 1, Math.cos(q*9), q*2.4);
+  }
+  // el humo que escapa
+  for (let i = 0; i < 10; i++){
+    const q = (t*0.9 + i*0.1) % 1, x = cx + (i - 4.5)*rx*0.2 + Math.sin(i*3 + t*2)*rx*0.1, y = cy - q*H*0.3;
+    ctx.globalAlpha = (1 - q)*0.35*tramo(t, 0.1, 0.6); ctx.fillStyle = i % 2 ? '#d8dcd8' : civMezcla(SK.c[0], 0.5);
+    ctx.beginPath(); ctx.arc(x, y, D*(0.02 + q*0.05), 0, Math.PI*2); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  // los tentáculos se agarran al borde y la cría se aúpa fuera
+  const sube = suave(tramo(t, 1.45, 2.35)), brinca = tramo(t, 2.35, 2.9);
+  if (t >= 1.05 && brinca < 1){
+    const agarres = [[-1.12, 0.1, 1.05], [1.1, 0.25, 1.15], [-0.6, 0.95, 1.3], [0.7, 0.85, 1.4]];
+    const by = cy + r*1.5 - sube*r*2.6;
+    ctx.save();                                                // lo que queda por debajo del borde de delante no se ve
+    ctx.beginPath(); ctx.rect(0, 0, W, cy); ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI*2); ctx.clip();
+    if (brinca <= 0) criaCuerpoGrande(ctx, cx, by, r, t, sube > 0.8 ? Math.PI*(t > 2.1 ? 0.15 : 0.85) : -Math.PI/2);
+    ctx.restore();
+    if (brinca <= 0) for (const [ax, ay, t0] of agarres){                     // los agarres: del hueco al asfalto
+      const k = suave(tramo(t, t0, t0 + 0.3)); if (k <= 0) continue;
+      const ex = cx + ax*rx, ey = cy + ay*ry + ry*0.2, sx0 = cx + ax*rx*0.3, sy0 = Math.min(cy, by + r*0.2);
+      criaPreTent(ctx, sx0, sy0, sx0 + (ex - sx0)*k, sy0 + (ey - sy0)*k - Math.sin(k*Math.PI)*r*0.6, r, ax < 0 ? -1 : 1, SK);
+    }
+  }
+  // el brinco hacia la cámara, con sus tentáculos sueltos
+  if (brinca > 0){
+    const e = brinca, x = cx + Math.sin(e*Math.PI)*W*0.04, y = cy - r*1.1 - Math.sin(e*Math.PI)*H*0.18 + e*H*0.12, rr = r*(1 + e*1.3);
+    const ph = t*6;
+    for (let i = 0; i < 5; i++){
+      const a = (i/5)*Math.PI*2 + ph*0.5, len = rr*1.4 + Math.sin(ph*2 + i)*rr*0.3;
+      const ex = x + Math.cos(a)*len, ey = y + Math.sin(a)*len;
+      const mx = x + Math.cos(a)*len*0.5 + Math.cos(a + 1.57)*Math.sin(ph*2 + i)*rr*0.3, my = y + Math.sin(a)*len*0.5 + Math.sin(a + 1.57)*Math.sin(ph*2 + i)*rr*0.3;
+      criaTentaculo(ctx, x, y, mx, my, ex, ey, rr*0.55, rr*0.22, civMezcla(SK.c[1], 0.22), SK.c[0], SK.tip, rr*0.17);
+    }
+    criaCuerpoGrande(ctx, x, y, rr, t, undefined);
+  }
+  // el borde de hierro de delante, por encima de la cría
+  if (t >= salta && brinca <= 0){ ctx.strokeStyle = al ? '#2a1d46' : '#2a2a2d'; ctx.lineWidth = D*0.012; ctx.beginPath(); ctx.ellipse(cx, cy, rx*1.04, ry*1.06, 0, 0.08, Math.PI - 0.08); ctx.stroke(); }
+  // la nube de su color que lo tapa todo
+  const nube = tramo(t, 2.75, T - 0.05);
+  if (nube > 0){
+    const cols = [SK.c[0], SK.c[1], SK.tip || SK.c[0], SK.c[2]];
+    for (let i = 0; i < 18; i++){                              // bocanadas blandas, cada una con su degradado
+      const a = i*2.39 + nube*1.5, d = nube*D*(0.15 + (i % 4)*0.12), rr = D*(0.1 + nube*0.55)*(0.7 + (i % 3)*0.2);
+      const x = cx + Math.cos(a)*d*1.4, y = H*0.55 + Math.sin(a)*d - nube*D*0.1*(i % 2);
+      const pg = ctx.createRadialGradient(x - rr*0.3, y - rr*0.3, rr*0.05, x, y, rr);
+      pg.addColorStop(0, civMezcla(cols[i % 4], 0.35)); pg.addColorStop(0.6, cols[i % 4]); pg.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.globalAlpha = Math.min(1, nube*1.8)*0.9; ctx.fillStyle = pg;
+      ctx.fillRect(x - rr, y - rr, rr*2, rr*2);
+    }
+    ctx.globalAlpha = nube*nube; ctx.fillStyle = SK.c[1]; ctx.fillRect(0, 0, W, H);
+  }
+  ctx.globalAlpha = 1;
+}
+
+// ---- Entrada del dragón, primera parte: el cielo ----
+// Sobrevuela muy cerca: la cámara sube por su cuerpo mientras bate las alas;
+// primero las patas con sus garras, luego las alas enormes y por fin una de
+// las cabezas, que ruge a la cámara. Un destello y sigue la entrada de siempre
+// (su sombra dando vueltas sobre la ciudad).
+function drawDraPreludio(){
+  const W = canvas.width, H = canvas.height, T = DRA_PRE_T, t = T - vil.preT, D = Math.min(W, H);
+  preCielo(W, H, D);
+  // nubes que bajan: la cámara sube
+  const nb = preNube();
+  for (let i = 0; i < 7; i++){
+    const k = (0.5 + (i % 3)*0.35)*D/700, y = ((t*H*0.5*(0.8 + (i % 3)*0.25) + i*H*0.33) % (H*1.5)) - H*0.3;
+    ctx.globalAlpha = 0.8; ctx.drawImage(nb, ((i*0.37) % 1)*W - 160*k, y - 85*k, 320*k, 170*k);
+  }
+  ctx.globalAlpha = 0.3; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = Math.max(1, D/500); ctx.beginPath();
+  for (let i = 0; i < 18; i++){ const x = ((i*0.618) % 1)*W, y = ((t*H*1.6 + i*H*0.21) % (H*1.3)) - H*0.15; ctx.moveTo(x, y); ctx.lineTo(x, y + D*0.12); }
+  ctx.stroke(); ctx.globalAlpha = 1;
+  // el plano: de las patas a las alas y a una cabeza
+  const k1 = suave(tramo(t, 0.85, 1.45)), k2 = suave(tramo(t, 1.95, 2.5)), ruge = t > 2.45;
+  const ru = dra.rumbo, ma = dra.mirA, rg = dra.rugeT, rv = dra.rugidoT, cp = vil.capa, mt = dra.mordT;
+  try {
+    dra.rumbo = Math.PI/2; dra.mirA = Math.PI/2 - 0.12; dra.rugeT = 0; dra.rugidoT = 0; vil.capa = t; dra.mordT = 0;
+    const cab = draCabeza(1, 0, Math.PI/2);
+    const fx = [0, 62, cab.x], fy = [20, -26, cab.y + 7], ee = [D/34, D/62, D/48];   // con el lado corto: en vertical también cabe
+    const mez = (v)=> (v[0] + (v[1] - v[0])*k1)*(1 - k2) + v[2]*k2;
+    const esc = Math.exp(mez(ee.map(Math.log))), bob = Math.sin(t*1.7*Math.PI*2)*D*0.012;
+    const x = W/2 - mez(fx)*esc, y = H*0.52 - mez(fy)*esc + bob;
+    const aleteo = DRA_ALE_T*(1 - ((t*1.7) % 1));
+    dibujaDragon(ctx, x, y, esc, { t, rumbo: Math.PI/2, vol:false, lift:0, aleteoT: ruge ? 0 : aleteo, colaFase:'', colaT:0, rayos:false,
+      mordT:0, mordCab:0, pal: draPaleta(), paso:0, incl: Math.sin(t*1.3)*0.03, ruge, alas:1, boca: ruge ? 1 : 0, anda:false, sinSombra:true });
+  } finally { dra.rumbo = ru; dra.mirA = ma; dra.rugeT = rg; dra.rugidoT = rv; vil.capa = cp; dra.mordT = mt; }
+  if (ruge){ const k = tramo(t, 2.45, 2.7); ctx.globalAlpha = 0.25*(1 - k); ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1; }
+  // el destello final
+  const fin = tramo(t, T - 0.35, T - 0.03);
+  if (fin > 0){ ctx.globalAlpha = fin; ctx.fillStyle = esAlien() ? '#f4e8ff' : '#ffffff'; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1; }
 }
 // Encima de todo: él cayendo (cada vez más grande y más cerca de su sitio) y
 // las nubes que atraviesa, que se abren y se desvanecen.
@@ -38426,6 +38880,7 @@ function dlPush(y, k, o){
 function dlCmp(a, b){ return a.y - b.y; }
 
 function draw(){
+  if (preludioActivo()){ drawPreludio(); return; }      // el preludio tapa la pantalla entera: no se pinta la ciudad
   ctx.setTransform(ZOOM*DPR, 0, 0, ZOOM*DPR, 0, 0);   // todo el mundo se dibuja escalado
   // lo que algún efecto dejara puesto no pasa al fotograma siguiente
   ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'; ctx.shadowBlur = 0;
@@ -38520,7 +38975,7 @@ function draw(){
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   drawLighting();                                  // en píxeles del lienzo
   drawSkinCiudadPantalla();                        // grano de película o marco de manga (solo con una skin de ciudad)
-  drawVilPreludio();                               // la entrada del viltrumita en el cielo, encima de todo
+  drawPreludio();                                  // los preludios de las entradas (y su fundido), encima de todo
   // los bocadillos, encima de la noche (si no, la oscuridad los apagaba)
   if (bocadillos.length){ const k = ZOOM*DPR; ctx.save(); ctx.setTransform(k, 0, 0, k, temblorX*k, temblorY*k); drawBocadillos(); ctx.restore(); }
   drawFlechasJefe();                               // encima de la oscuridad
@@ -40260,7 +40715,7 @@ function pasoBucle(t){
   }
   Online.dtDib = dtReal; dtRealUlt = dtReal;
   if (running && dt > 0){
-    updateZoom(dt); updateSonic(dt); updateFocos(dt); updateWind(dt); comboUpdate(dt);
+    updateZoom(dt); if (vil.preFade > 0) vil.preFade -= dt; updateSonic(dt); updateFocos(dt); updateWind(dt); comboUpdate(dt);
     updateFuegos(dt); updateHumos(dt); updateRelampagos(dt); updateVeneno(dt); updateEstados(dt); updateRayos(dt);
     updateClima(dt);
     updateViento(dt); updateReposo(dt); updateBuff(dt); updateOvniSpawn(dt); updateRayosOjos(dt); updateAura(dt);
@@ -40280,7 +40735,9 @@ function pasoBucle(t){
     if (shakeTime>0){ shakeTime-=dtReal; if (shakeTime<=0) shakeMag=0; }
 
     camX = clamp(player.x-VW/2, 0, Math.max(0,WORLD_W-VW));
-    camY = clamp(player.y-VH/2, 0, Math.max(0,WORLD_H-VH));
+    // cayendo al castigo, la cámara sube un poco: se ven el portal y el suelo
+    const subeCaida = vil.caida && vil.caidaH ? vil.caidaH*0.42*clamp((ZOOM/zoomBase() - 1)/(CAIDA_ZOOM - 1), 0, 1) : 0;
+    camY = clamp(player.y-VH/2 - subeCaida, 0, Math.max(0,WORLD_H-VH));
 
     pintaHUD();
     if (dobleAnf()){
@@ -42046,9 +42503,9 @@ function startGame(mode){
   document.getElementById('modeselect').classList.add('hidden');
   document.getElementById('namebox').classList.add('hidden');
   pendingScore = null;
-  if (esAlien()) muestraIntroMapa(); else ocultaIntroMapa();
+  if (esAlien() && !(vil.intro && vil.preT > 0)) muestraIntroMapa(); else ocultaIntroMapa();   // con preludio, el rótulo sale al acabar
   ocultaAyudaControles();
-  muestraAyudaControles.t0 = setTimeout(muestraAyudaControles, 700);   // tras la entrada en escena
+  muestraAyudaControles.t0 = setTimeout(muestraAyudaControles, 700 + (vil.intro && vil.preT > 0 ? vil.preT*1000 : 0) + (vil.caida ? 3200 : 0));   // tras la entrada en escena (y su preludio)
 }
 // ---- los controles, al empezar cada partida ----
 // Un recordatorio corto abajo, con las teclas que tenga asignadas y el
