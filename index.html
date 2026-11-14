@@ -15015,131 +15015,123 @@ function estudioPartituras(I){
         }
       } },
     // =================================================================
-    // PLANETA ROJO (Mundo Alienígena): electrónica de ciencia ficción a 128.
-    // Todo en la misma colección de notas (mi frigio = do mayor): las
-    // estrofas giran sobre mi (oscuro, con el fa de la segunda menor que suena
-    // a amenaza: Em F G Em) y el estribillo se abre a do (C G Am F), heroico.
-    // Secuencia de arpegio con eco que nunca para (la firma del mundo), bajo
-    // reese que rueda a contratiempo, un theremin con portamento que canta el
-    // motivo y lo va cambiando en cada vuelta (desarrollo continuo: el bucle
-    // no cansa), campanas FM, colchón de supersierras y coro. Intro → A1 → A2
-    // → estribillo → caída → estribillo final → A3 → vuelve a A1 sin costura.
+    // PLANETA ROJO (Mundo Alienígena): la pieza de bytebeat de antes, rehecha
+    // y más frenética. Como aquella, en mi mayor y con arpegios de chip a
+    // fusas que no paran, bombo duro con caída de tono, charles de ruido y la
+    // subida de tono a mitad de camino; ahora a 150, con batería de doble
+    // bombo y redobles, bajo galopante, un lead de chip que va cambiando el
+    // motivo en cada vuelta, estribillo heroico (IV V vi I) con supersierras y
+    // coro, una caída con el theremin y el estribillo final un tono arriba.
     // =================================================================
-    mundoAlien: { bpm: 128, compases: 48, bucle: 4, semilla: 151, master: { rms: 0.21, bombeo: 0.42, eco: { fb: 0.42 }, reverb: { tam: 0.88, amort: 0.32 } },
+    mundoAlien: { bpm: 150, compases: 48, bucle: 4, semilla: 151, master: { rms: 0.22, bombeo: 0.38, eco: { fb: 0.36 }, reverb: { tam: 0.82, amort: 0.38 } },
       compone(C){
-        const ESC = [4, 5, 7, 9, 11, 0, 2];
-        const PA = [[40, 'm'], [41, 'M'], [43, 'M'], [40, 'm']], PB = [[36, 'M'], [43, 'M'], [45, 'm'], [41, 'M']];
-        const ARP = [0, 1, 2, 1, 2, 0, 1, 2, 0, 2, 1, 2, 1, 0, 2, 1];
-        const pad = (c, r, tp, v, o)=> sinte(C, C.t(c), C.T(16), voz(r + 24, tp, 64), v, Object.assign({ onda: 'saw', voces: 4, des: 16, a: 0.5, d: 0.6, s: 0.8, r: 0.7, corte: 1300, q: 0.7, gan: 0.2, rev: 0.5, bombea: true }, o));
-        const arp = (c, r, tp, corte, v, oct)=>{
-          const nn = voz(r + 36 + (oct || 0), tp, 72);
-          for (let s = 0; s < 16; s++) sinte(C, C.t(c, s), C.T(0.8), nn[ARP[s]] + (s >= 12 && c % 2 ? 12 : 0), v*(s % 4 === 0 ? 1 : 0.75),
-            { onda: 'sq', voces: 1, a: 0.002, d: 0.09, s: 0.2, r: 0.05, corte, q: 1.4, gan: 0.14, eco: 0.3, rev: 0.15, pan: s % 2 ? 0.35 : -0.35, bombea: true });
+        const ESC = [4, 6, 8, 9, 11, 1, 3];
+        const PA = [[40, 'M'], [38, 'M'], [45, 'M'], [40, 'M']], PB = [[45, 'M'], [47, 'M'], [49, 'm'], [40, 'M']];
+        const ARP32 = [0, 1, 2, 3, 2, 1, 0, 1, 2, 3, 4, 3, 2, 1, 2, 3];
+        const notasArp = (r, tp)=>{ const v = voz(r + 36, tp, 70); return [v[0], v[1], v[2], v[0] + 12, v[1] + 12]; };
+        const chip = (c, r, tp, v, corte, oct, pan)=>{                 // arpegio de chip a fusas (como el del bytebeat)
+          const nn = notasArp(r, tp);
+          for (let s = 0; s < 32; s++) sinte(C, C.t(c, s/2), C.T(0.45), nn[ARP32[s % 16]] + (oct || 0) + (s >= 24 && c % 2 ? 12 : 0), v*(s % 8 === 0 ? 1 : 0.72),
+            { onda: 'sq', voces: 1, a: 0.001, d: 0.05, s: 0.35, r: 0.03, corte: corte || 5200, q: 1, dist: 2.4, gan: 0.11, eco: 0.18, rev: 0.1, pan: pan == null ? (s % 2 ? 0.3 : -0.3) : pan, bombea: true });
         };
+        const pad = (c, r, tp, v, o)=> sinte(C, C.t(c), C.T(16), voz(r + 24, tp, 64), v, Object.assign({ onda: 'saw', voces: 4, des: 16, a: 0.25, d: 0.5, s: 0.8, r: 0.5, corte: 1600, q: 0.7, gan: 0.17, rev: 0.45, bombea: true }, o));
+        const golpe = (t, v)=> bombo(C, t, v, { dec: 0.22, f0: 210, f1: 48, dist: 2.4, gan: 0.85 });   // duro, con caída de tono
         const tambor = (c, nivel, fill)=>{
-          rit(C, c, 'x...x...x...x...', (t, v)=> bombo(C, t, v, { dec: 0.34, f0: 160, f1: 44, dist: 1.7, gan: 0.85 }));
-          if (nivel >= 1){
-            rit(C, c, fill ? '....x.......x.xx' : '....x.......x...', (t, v)=> caja(C, t, v, { tono: 235, dec: 0.2, gan: 0.5, rev: 0.3 }));
-            rit(C, c, '..x...x...x...x.', (t, v)=> charles(C, t, 0.8, { abierto: true, gan: 0.13 }));
-          }
-          if (nivel >= 2) rit(C, c, 'xoxoxoxoxoxoxoxo', (t, v, s)=> charles(C, t, s % 4 === 2 ? 0.35 : v*0.6, { gan: 0.13 }));
-          if (nivel >= 3) rit(C, c, 'x..x..x...x..x..', (t, v, s)=> timbal(C, t, 47 + (s % 3)*3, 0.35, { dec: 0.25, gan: 0.3 }));
-          if (fill) rit(C, c, '........x.x.xxxx', (t, v, s)=> timbal(C, t, 57 - (s - 8), 0.55, { dec: 0.3, gan: 0.42 }));
+          rit(C, c, nivel >= 3 ? 'x...x.x.x...x.xx' : nivel >= 2 ? 'x...x...x...x..x' : 'x...x...x...x...', (t, v)=> golpe(t, v));
+          if (nivel >= 1) rit(C, c, fill ? '....x..o.o..xxxx' : '....x..o.o..x..o', (t, v)=> caja(C, t, v, { tono: 225, dec: 0.17, gan: 0.55, rev: 0.22 }));
+          rit(C, c, 'xxxxxxxxxxxxxxxx', (t, v, s)=> charles(C, t, s % 4 === 0 ? 0.85 : s % 2 ? 0.5 : 0.65, { gan: 0.14 }));
+          if (nivel >= 1) rit(C, c, '..x...x...x...x.', (t)=> charles(C, t, 0.7, { abierto: true, gan: 0.11 }));
+          if (nivel >= 2) rit(C, c, 'x...x...x...x...', (t)=> ride(C, t, 0.6, { gan: 0.08 }));
+          if (fill) rit(C, c, '........xxxxxxxx', (t, v, s)=> timbal(C, t, 60 - (s - 8)*1.5, 0.5 + (s - 8)*0.04, { dec: 0.28, gan: 0.4 }));
         };
-        const bajoA = (c, r)=>{
+        const galope = (c, r)=>{                                         // bajo a galope: x.xx en cada tiempo, saltando de octava
           for (let s = 0; s < 16; s++){
-            if (s % 4 === 0) bajo(C, C.t(c, s), C.T(3.6), r - 12, 1, { tipo: 'sub', gan: 0.36 });
-            else bajo(C, C.t(c, s), C.T(0.9), r + (s % 8 === 6 ? 12 : 0), s % 2 ? 0.85 : 0.7, { tipo: 'reese', corte: 650, env: 1300, dec: 0.08, q: 1.3, dist: 1.6, gan: 0.25 });
+            if (s % 4 === 1) continue;
+            const o = s % 4 === 3 ? 12 : 0;
+            bajo(C, C.t(c, s), C.T(0.9), r - 12 + o, s % 4 === 0 ? 1 : 0.8, { tipo: 'pulso', corte: 600, env: 2000, dec: 0.07, q: 1.2, dist: 2, gan: 0.4 });
           }
+          for (let s = 0; s < 16; s += 4) bajo(C, C.t(c, s), C.T(3.4), r - 24, 0.85, { tipo: 'sub', gan: 0.3 });
         };
-        const bajoB = (c, r)=>{
-          for (let s = 0; s < 16; s += 2) bajo(C, C.t(c, s), C.T(1.8), r - 12 + (s % 4 === 2 ? 12 : 0), s % 4 ? 0.8 : 1, { tipo: 'pulso', corte: 560, env: 1900, dec: 0.1, q: 1.1, dist: 1.8, gan: 0.4 });
-        for (let s = 0; s < 16; s += 4) bajo(C, C.t(c, s), C.T(3.6), r - 12, 0.9, { tipo: 'sub', gan: 0.3 });
+        const leadChip = (t, d, m, v, pan)=>{
+          sinte(C, t, d*0.92, m, v || 1, { onda: 'sq', voces: 2, des: 7, a: 0.003, d: 0.12, s: 0.75, r: 0.08, corte: 4200, envF: 1800, decF: 0.12, vib: 0.012, vibT: 0.14, dist: 1.6, gan: 0.3, rev: 0.22, eco: 0.2, glide: 0.03, pan: pan || 0 });
         };
-        const theremin = (t, d, m, v, o)=>{
-          sinte(C, t, d*0.97, m, v || 1, Object.assign({ onda: 'sin', voces: 1, a: 0.06, d: 0.2, s: 0.92, r: 0.3, glide: 0.13, vib: 0.016, vibT: 0.12, corte: 6000, gan: 0.44, rev: 0.42, eco: 0.26 }, o));
-          sinte(C, t, d*0.97, m + 12, (v || 1)*0.4, { onda: 'tri', voces: 1, a: 0.08, s: 0.85, r: 0.3, glide: 0.13, vib: 0.016, vibT: 0.12, corte: 4000, gan: 0.1, rev: 0.4 });
-        };
-        const campana = (t, m, v, o)=> fm(C, t, C.T(2), m, v || 0.8, Object.assign({ razon: 3.5, indice: 2.4, kd: 3, dec: 0.7, gan: 0.15, rev: 0.4, eco: 0.32, pan: 0.25 }, o));
         const gancho = (t, d, m, v)=>{
-          sinte(C, t, d*0.95, m, v || 1, { onda: 'saw', voces: 3, des: 14, a: 0.01, d: 0.25, s: 0.8, r: 0.2, corte: 3300, envF: 2000, decF: 0.2, vib: 0.008, vibT: 0.2, gan: 0.42, rev: 0.3, eco: 0.18, glide: 0.05 });
-          fm(C, t, Math.min(d, C.T(3)), m + 12, (v || 1)*0.55, { razon: 2, indice: 1.6, kd: 4, dec: 0.4, pluck: true, gan: 0.12, rev: 0.3, pan: -0.25 });
+          sinte(C, t, d*0.95, m, v || 1, { onda: 'saw', voces: 3, des: 14, a: 0.008, d: 0.22, s: 0.8, r: 0.16, corte: 3600, envF: 2200, decF: 0.18, vib: 0.008, vibT: 0.18, gan: 0.4, rev: 0.28, eco: 0.16, glide: 0.04 });
+          leadChip(t, Math.min(d, C.T(4)), m + 12, (v || 1)*0.45, -0.3);
         };
-        const radar = (c, s, v)=> fm(C, C.t(c, s), C.T(1), 88, v, { razon: 3.5, indice: 3, kd: 6, dec: 0.25, pluck: true, gan: 0.14, eco: 0.65, rev: 0.4, pan: 0.4 });
-        // ---- los motivos: el de las estrofas, en cuatro versiones; el del estribillo, en dos ----
-        const MA = ['E5:3 F5:1 E5:2 B4:2 D5:4 C5:2 B4:2', 'E5:3 F5:1 G5:2 A5:2 B5:6 A5:2', 'C6:4 B5:2 A5:2 G5:3 A5:1 F5:4', 'E5:6 F5:2 E5:8'];
-        const MA2 = ['E5:3 F5:1 E5:2 B4:2 D5:4 F5:2 E5:2', 'G5:3 A5:1 B5:2 C6:2 B5:4 A5:2 G5:2', 'A5:3 B5:1 C6:2 E6:2 D6:4 C6:2 B5:2', 'B5:4 A5:2 F5:2 E5:8'];
-        const MB = ['G5:4 E5:2 C5:2 E5:4 G5:4', 'D6:6 B5:2 G5:4 D5:4', 'C6:4 B5:2 A5:2 E5:4 A5:4', 'F5:2 G5:2 A5:2 C6:2 B5:8'];
-        const MB2 = ['G5:4 E5:2 C5:2 E5:4 G5:4', 'B5:6 C6:2 D6:4 G5:4', 'E6:6 D6:2 C6:4 A5:4', 'F6:4 E6:2 D6:2 E6:8'];
-        // ---- intro (0-3): colchón que se abre, radar, el theremin asoma ----
+        const theremin = (t, d, m, v)=> sinte(C, t, d*0.97, m, v || 1, { onda: 'sin', voces: 1, a: 0.05, d: 0.2, s: 0.92, r: 0.3, glide: 0.12, vib: 0.016, vibT: 0.12, corte: 6000, gan: 0.42, rev: 0.42, eco: 0.3 });
+        const radar = (c, s, v)=> fm(C, C.t(c, s), C.T(1), 88, v, { razon: 3.5, indice: 3, kd: 6, dec: 0.25, pluck: true, gan: 0.13, eco: 0.6, rev: 0.4, pan: 0.4 });
+        const MA = ['E5:2 G#5:2 B5:2 E6:2 D#6:2 B5:2 G#5:2 B5:2', 'D6:3 C#6:1 B5:2 A5:2 F#5:4 A5:4', 'C#6:2 B5:2 A5:2 C#6:2 E6:4 C#6:4', 'B5:2 G#5:2 E5:2 G#5:2 B5:8'];
+        const MA2 = ['E6:2 B5:2 G#5:2 B5:2 E6:2 F#6:2 G#6:4', 'F#6:3 E6:1 D6:2 C#6:2 A5:4 D6:4', 'E6:2 C#6:2 A5:2 C#6:2 F#6:4 E6:4', 'D#6:2 B5:2 F#5:2 B5:2 E6:8'];
+        const MB = ['A5:4 C#6:2 E6:2 A6:6 G#6:2', 'F#6:4 D#6:2 B5:2 F#6:4 D#6:4', 'E6:4 C#6:2 G#5:2 C#6:4 E6:4', 'G#6:2 F#6:2 E6:2 B5:2 E6:8'];
+        const MB2 = ['A5:4 C#6:2 E6:2 A6:4 G#6:4', 'F#6:4 E6:2 D#6:2 B5:4 D#6:4', 'G#6:6 E6:2 C#6:4 E6:4', 'F#6:2 G#6:2 A6:2 G#6:2 E6:8'];
+        // ---- intro (0-3): el arpegio de chip se abre, entra el bombo y redobla ----
         for (let c = 0; c < 4; c++){
-          pad(c, PA[c][0], PA[c][1], 0.6 + c*0.12, { corte: 500 + c*400, bombea: false });
-          radar(c, 0, 0.9); radar(c, 10, 0.5);
-          if (c >= 2) arp(c, PA[c][0], PA[c][1], 600 + (c - 2)*500, 0.6);
-          if (c >= 2) for (let s = 0; s < 16; s += 4) bajo(C, C.t(c, s), C.T(3.6), PA[c][0] - 12, 0.8, { tipo: 'sub', gan: 0.38 });
+          const [r, tp] = PA[c];
+          chip(c, r, tp, 0.5 + c*0.15, 900 + c*1300);
+          pad(c, r, tp, 0.45 + c*0.1, { corte: 600 + c*350, bombea: false });
+          radar(c, 0, 0.8);
+          if (c >= 1) rit(C, c, 'x...x...x...x...', (t, v)=> golpe(t, 0.85));
+          if (c >= 2) rit(C, c, 'xxxxxxxxxxxxxxxx', (t, v, s)=> charles(C, t, s % 4 === 0 ? 0.7 : 0.4, { gan: 0.12 }));
+          if (c >= 2) for (let s = 0; s < 16; s += 4) bajo(C, C.t(c, s), C.T(3.4), r - 24, 0.8, { tipo: 'sub', gan: 0.32 });
         }
-        mel(C, 1, 'E5:8 F5:8', (t, d, m)=> theremin(t, d, m, 0.7));
-        mel(C, 2, 'B4:12 -:4', (t, d, m)=> theremin(t, d, m, 0.75));
-        rit(C, 3, '........x.x.xxxx', (t, v, s)=> caja(C, t, 0.35 + (s - 8)*0.07, { tono: 235, dec: 0.14, gan: 0.45 }));
-        barrido(C, C.t(2), C.T(32), 0.9, { f0: 250, f1: 8000, gan: 0.28 });
-        // ---- A1 (4-11) y A2 (12-19): el groove, el arpegio y el motivo que cambia ----
+        rit(C, 3, '....x...x.x.xxxx', (t, v, s)=> caja(C, t, 0.35 + s*0.04, { tono: 230, dec: 0.13, gan: 0.5 }));
+        barrido(C, C.t(2), C.T(32), 1, { f0: 250, f1: 9000, gan: 0.3 });
+        // ---- A1 (4-11) y A2 (12-19) ----
         for (let c = 4; c < 20; c++){
           const k = (c - 4) % 4, [r, tp] = PA[k], A2 = c >= 12;
           tambor(c, A2 ? 2 : 1, c % 4 === 3);
-          bajoA(c, r);
-          arp(c, r, tp, A2 ? 2200 : 1300 + (c - 4)*90, 0.8);
-          pad(c, r, tp, 0.5, { corte: A2 ? 1700 : 1200 });
-          if (k === 0) platillo(C, C.t(c, 0), c === 4 ? 1.1 : 0.6);
-          const m = A2 ? MA2 : MA, frase = m[k];
-          mel(C, c, frase, (t, d, n)=>{ theremin(t, d, n, 1); if (A2) campana(t, n, 0.7); });
-          if (A2 && k % 2 === 1) mel(C, c, 'B4:4 C5:4 D5:4 B4:4', (t, d, n)=> sinte(C, t, d*0.9, n - 12, 0.55, { onda: 'tri', voces: 2, des: 8, a: 0.03, s: 0.7, r: 0.2, corte: 1800, gan: 0.16, rev: 0.3, pan: -0.4 }));   // contramelodía
-          if (!A2) radar(c, 14, 0.4);
+          galope(c, r);
+          chip(c, r, tp, 0.85, A2 ? 6200 : 4200);
+          if (A2) chip(c, r, tp, 0.45, 7000, 12, k % 2 ? 0.6 : -0.6);
+          pad(c, r, tp, 0.45, { corte: A2 ? 2000 : 1500 });
+          if (k === 0) platillo(C, C.t(c, 0), c === 4 ? 1.1 : 0.65);
+          mel(C, c, (A2 ? MA2 : MA)[k], (t, d, n)=>{ leadChip(t, d, n, 1); if (A2) leadChip(t, d, tercera(n, k === 1 ? [4, 6, 8, 9, 11, 1, 2] : ESC), 0.45, 0.4); });   // sobre re, con el re natural
         }
-        impacto(C, C.t(4), 0.8, { gan: 0.4 });
-        barrido(C, C.t(19), C.T(16), 1, { f0: 300, f1: 9500, gan: 0.3 });
-        // ---- estribillo (20-27): se abre a do mayor ----
-        const estribillo = (c0, fuerte)=>{
+        impacto(C, C.t(4), 0.8, { gan: 0.42 });
+        barrido(C, C.t(19), C.T(16), 1, { f0: 300, f1: 10000, gan: 0.32 });
+        // ---- estribillo (20-27, y 32-39 un tono arriba) ----
+        const estribillo = (c0, tr, fuerte)=>{
           for (let c = c0; c < c0 + 8; c++){
-            const k = (c - c0) % 4, [r, tp] = PB[k], seg = c - c0 >= 4;
-            tambor(c, fuerte ? 3 : 2, c === c0 + 7);
-            if (c % 2 === 0) platillo(C, C.t(c, 0), 0.9);
-            rit(C, c, 'x...x...x...x...', (t, v)=> ride(C, t, 0.7, { gan: 0.1 }));
-            bajoB(c, r);
-            arp(c, r, tp, fuerte ? 3200 : 2600, 0.85, 12);
-            pad(c, r, tp, 0.65, { corte: 2200, voces: 5 });
-            coro(C, C.t(c), C.T(16), voz(r + 24, tp, 62), fuerte ? 1 : 0.8, { vocal: 'a', gan: 0.5, bombea: true });
-            const frase = (seg ? MB2 : MB)[k];
-            mel(C, c, frase, (t, d, n)=>{ gancho(t, d, n + (fuerte ? 12 : 0), 1); if (fuerte) sinte(C, t, d*0.95, tercera(n + 12, ESC), 0.55, { onda: 'saw', voces: 2, des: 12, corte: 2600, gan: 0.2, pan: 0.35, rev: 0.3 }); });
+            const k = (c - c0) % 4, [r0, tp] = PB[k], r = r0 + tr, seg = c - c0 >= 4;
+            tambor(c, 3, c === c0 + 7);
+            if (c % 2 === 0) platillo(C, C.t(c, 0), 0.95);
+            galope(c, r > 46 ? r - 12 : r);
+            chip(c, r, tp, 0.8, 6500, 12);
+            pad(c, r, tp, 0.6, { corte: 2400, voces: 5 });
+            coro(C, C.t(c), C.T(16), voz(r + 24, tp, 62), fuerte ? 1 : 0.8, { vocal: 'a', gan: 0.48, bombea: true });
+            mel(C, c, (seg ? MB2 : MB)[k], (t, d, n)=>{ gancho(t, d, n + tr, 1); if (fuerte) sinte(C, t, d*0.95, tercera(n + tr, ESC.map(x => (x + tr) % 12)), 0.55, { onda: 'saw', voces: 2, des: 12, corte: 2700, gan: 0.2, pan: 0.35, rev: 0.3 }); });
           }
           impacto(C, C.t(c0), 0.9, { gan: 0.45 });
         };
-        estribillo(20, false);
-        // ---- caída (28-31): sin batería; el theremin y el coro, y todo vuelve a subir ----
+        estribillo(20, 0, false);
+        // ---- caída (28-31): el theremin sobre el arpegio, y el redoble que sube de tono ----
         for (let c = 28; c < 32; c++){
           const [r, tp] = PA[c - 28];
-          pad(c, r, tp, 0.7, { corte: 900 + (c - 28)*350, a: 0.8, bombea: false });
-          coro(C, C.t(c), C.T(16), voz(r + 24, tp, 60), 0.6, { vocal: 'o', gan: 0.4 });
-          arp(c, r, tp, 500 + (c - 28)*600, 0.55);
-          bombo(C, C.t(c, 0), 0.7, { dec: 0.5, f0: 120, f1: 40, gan: 0.6 });
-          radar(c, 0, 0.7); radar(c, 8, 0.4);
+          chip(c, r, tp, 0.6, 1400 + (c - 28)*1300);
+          pad(c, r, tp, 0.6, { corte: 900 + (c - 28)*400, a: 0.6, bombea: false });
+          coro(C, C.t(c), C.T(16), voz(r + 24, tp, 60), 0.55, { vocal: 'o', gan: 0.38 });
+          rit(C, c, c < 30 ? 'x.......x.......' : 'x...x...x...x...', (t, v)=> golpe(t, 0.8));
+          rit(C, c, 'xxxxxxxxxxxxxxxx', (t, v, s)=> charles(C, t, s % 4 === 0 ? 0.55 : 0.3, { gan: 0.11 }));
+          radar(c, 8, 0.5);
         }
-        mel(C, 28, 'E5:6 F5:2 G5:8 A5:6 B5:2 C6:4 B5:4 E6:16 D6:8 B5:8', (t, d, m)=> theremin(t, d, m, 0.9, { eco: 0.35 }));
-        rit(C, 31, 'x...x...x.x.xxxx', (t, v, s)=> caja(C, t, 0.3 + s*0.045, { tono: 240, dec: 0.13, gan: 0.5 }));
-        barrido(C, C.t(30), C.T(32), 1, { f0: 200, f1: 11000, gan: 0.36 });
-        // ---- estribillo final (32-39): una octava arriba, a dos voces ----
-        estribillo(32, true);
-        // ---- A3 (40-47): el motivo en campanas y theremin juntos, y el remate que vuelve a A1 ----
+        mel(C, 28, 'E5:6 F#5:2 G#5:8 A5:6 B5:2 C#6:4 B5:4 E6:16 D#6:8 F#6:8', (t, d, m)=> theremin(t, d, m, 0.9));
+        rit(C, 31, 'x.x.x.x.xxxxxxxx', (t, v, s)=> caja(C, t, 0.3 + s*0.045, { tono: 235, dec: 0.12, gan: 0.52 }));
+        barrido(C, C.t(30), C.T(32), 1, { f0: 200, f1: 12000, gan: 0.38 });
+        // ---- estribillo final, un tono arriba (32-39) ----
+        estribillo(32, 2, true);
+        // ---- A3 (40-47): de vuelta a mi, a tope, y el remate que vuelve a A1 ----
         for (let c = 40; c < 48; c++){
           const k = (c - 40) % 4, [r, tp] = PA[k];
-          tambor(c, c >= 44 ? 3 : 2, c === 47);
-          bajoA(c, r);
-          arp(c, r, tp, 2400, 0.85, c >= 44 ? 12 : 0);
-          pad(c, r, tp, 0.55, { corte: 1800 });
-          if (k === 0) platillo(C, C.t(c, 0), 0.8);
-          const frase = (c >= 44 ? MA2 : MA)[k];
-          mel(C, c, frase, (t, d, n)=>{ theremin(t, d, n + 12, 0.85); campana(t, n, 0.75, { pan: -0.25 }); });
+          tambor(c, 3, c === 47 || c === 43);
+          galope(c, r);
+          chip(c, r, tp, 0.85, 6500);
+          chip(c, r, tp, 0.45, 7200, 12, k % 2 ? 0.6 : -0.6);
+          pad(c, r, tp, 0.5, { corte: 2000 });
+          if (k === 0) platillo(C, C.t(c, 0), 0.9);
+          mel(C, c, (c >= 44 ? MA2 : MA)[k], (t, d, n)=>{ leadChip(t, d, n + 12, 0.85); gancho(t, d, n, 0.6); });
         }
-        barrido(C, C.t(47), C.T(16), 1, { f0: 300, f1: 9000, gan: 0.3 });
+        barrido(C, C.t(47), C.T(16), 1, { f0: 300, f1: 9500, gan: 0.32 });
       } },
   };
 }
@@ -16243,7 +16235,7 @@ const OST_TEMAS = [
   // Los temas de los otros mapas: se desbloquean jugando una partida en ellos.
   { id:'mapa_alien',    icon:'\u{1FA90}', name:'PLANETA ROJO', pista: ()=> ALIEN_TRACK,
     bloqueo:'Juega una partida en el MUNDO ALIENÍGENA para desbloquearlo. Toca el icono para ver otro tema.',
-    desc:'El tema del Mundo Alienígena: electrónica de ciencia ficción a 128 en mi frigio. Un arpegio con eco que nunca para, bajo reese a contratiempo, un theremin que canta el motivo y lo cambia en cada vuelta, campanas FM y un estribillo que se abre a do mayor con supersierras y coro; una caída sin batería y el estribillo final una octava arriba.' },
+    desc:'El tema del Mundo Alienígena: la pieza de bytebeat de siempre, rehecha y más frenética. En mi mayor a 150, con arpegios de chip a fusas que no paran, doble bombo y redobles, bajo galopante, un lead de chip que cambia el motivo en cada vuelta, un estribillo heroico con supersierras y coro, una caída con theremin y el estribillo final un tono arriba.' },
   { id:'mapa_infierno', icon:'\u{1F525}', name:'LAMENTO ETERNO', pista: ()=> INFIERNO_TRACK,
     bloqueo:'Juega una partida en CASTIGO DIVINO para desbloquearlo. Toca el icono para ver otro tema.',
     desc:'El tema de Castigo Divino. Un órgano de tubos que nunca resuelve, el Dies irae cantado por un coro y doblado por campanas, un latido lento de timbal, un zumbido grave y el viento que aúlla.' },
