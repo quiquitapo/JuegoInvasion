@@ -271,6 +271,7 @@
   .dexname { color:#7bffa0; font-size:0.85rem; letter-spacing:2px; font-weight:900; }
   .dexcard.locked .dexname { color:#5a6a60; }
   .dexdesc { color:#8fbfa2; font-size:0.66rem; line-height:1.5; margin-top:3px; }
+  .dexdesc b { color:#ffd27a; font-weight:800; }   /* el consejo para vencerlo */
   .dexstats { display:flex; gap:14px; margin-top:5px; font-size:0.62rem; letter-spacing:1px; }
   .dexstats .hpv { color:#ff9d3b; }
   .dexstats .dmv { color:#ffe066; }
@@ -1456,19 +1457,17 @@
   #fpsMedidor.bajo { color:#ff6a5a; }
   #fpsMedidor small { margin-left:6px; font-size:9px; font-weight:700; color:#b8c8d0; letter-spacing:0.5px; }
   /* aviso de enemigo nuevo: pequeño, translúcido, con su imagen */
-  #avisoEnemigo { position:fixed; left:50%; top:calc(env(safe-area-inset-top, 0px) + 58px); transform:translate(-50%, -8px); z-index:30;
-                  display:flex; align-items:center; gap:9px; padding:5px 14px 5px 6px; border-radius:12px; pointer-events:none;
+  /* aviso de enemigo nuevo: pequeño y translúcido, justo debajo del panel de salud (se coloca al mostrarse) */
+  #avisoEnemigo { position:fixed; left:10px; top:96px; transform:translateX(-10px); z-index:30;
+                  display:flex; align-items:center; gap:9px; padding:5px 12px 5px 6px; border-radius:12px; pointer-events:none;
                   background:rgba(6,12,10,0.5); border:1px solid rgba(255,255,255,0.16); box-shadow:0 4px 14px rgba(0,0,0,0.35);
                   -webkit-backdrop-filter:blur(3px); backdrop-filter:blur(3px); opacity:0; transition:opacity .35s ease, transform .35s ease;
-                  font-family:"Courier New", monospace; max-width:86vw; }
-  #avisoEnemigo.ver { opacity:1; transform:translate(-50%, 0); }
-  #avisoEnemigo img { width:46px; height:46px; object-fit:contain; flex:none; filter:drop-shadow(0 2px 2px rgba(0,0,0,0.5)); }
+                  font-family:"Courier New", monospace; max-width:min(320px, calc(100vw - 140px)); }
+  #avisoEnemigo.ver { opacity:1; transform:translateX(0); }
+  #avisoEnemigo img { width:42px; height:42px; object-fit:contain; flex:none; filter:drop-shadow(0 2px 2px rgba(0,0,0,0.5)); }
   #avisoEnemigo .ae1 { display:block; font-size:9px; letter-spacing:2px; color:#ffd27a; font-weight:900; opacity:0.9; }
-  #avisoEnemigo .ae2 { display:block; font-size:13px; letter-spacing:1.5px; color:#ffffff; font-weight:900; text-shadow:0 1px 0 #000; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  @media (max-width:600px){                 /* en el teléfono, a la izquierda, bajo la barra de vida (a la derecha va el marcador) */
-    #avisoEnemigo { left:8px; top:calc(env(safe-area-inset-top, 0px) + 100px); transform:translate(0, -8px); max-width:calc(100vw - 132px); padding-right:10px; }
-    #avisoEnemigo.ver { transform:translate(0, 0); }
-    #avisoEnemigo img { width:36px; height:36px; } #avisoEnemigo .ae2 { font-size:11px; } }
+  #avisoEnemigo .ae2 { display:block; font-size:12px; letter-spacing:1.5px; color:#ffffff; font-weight:900; text-shadow:0 1px 0 #000; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  @media (max-width:600px){ #avisoEnemigo img { width:34px; height:34px; } #avisoEnemigo .ae2 { font-size:11px; } }
   #toast { position:relative; max-width:92vw;
            color:#7bffa0; font-size:clamp(1.2rem,4vw,2.2rem); font-weight:900; letter-spacing:4px;
            text-shadow:0 0 18px #23ff6b, 2px 2px 0 #052b12; opacity:0; transition:opacity .4s ease; text-align:center; }
@@ -7071,12 +7070,23 @@ function siguienteAvisoEnemigo(){
   img.style.display = u ? '' : 'none'; if (u) img.src = u;
   el.querySelector('.ae1').textContent = esAlien() ? 'SE ACERCAN' : esInfierno() ? 'EMERGEN' : 'LLEGAN REFUERZOS';
   el.querySelector('.ae2').textContent = nombreEnemigo(e.type);
+  colocaAvisoEnemigo();
   el.classList.add('ver');
   sfx('ui');
   clearTimeout(siguienteAvisoEnemigo.t1); clearTimeout(siguienteAvisoEnemigo.t2);
   siguienteAvisoEnemigo.t1 = setTimeout(()=> el.classList.remove('ver'), 2600);
   siguienteAvisoEnemigo.t2 = setTimeout(siguienteAvisoEnemigo, 3050);
 }
+// Debajo del panel de salud y estamina, alineado con él (en vertical y en horizontal).
+function colocaAvisoEnemigo(){
+  const el = document.getElementById('avisoEnemigo'), hp = document.querySelector('#hud .hp-wrap');
+  if (!el || !hp) return;
+  const r = hp.getBoundingClientRect();
+  if (!r.width) return;
+  el.style.left = Math.round(r.left) + 'px';
+  el.style.top = Math.round(r.bottom + 8) + 'px';
+}
+window.addEventListener('resize', ()=>{ try { if (avisoEnemigoOcupado) colocaAvisoEnemigo(); } catch(e){} });
 function limpiaAvisosEnemigo(){
   enemigosVistos.clear(); avisosEnemigo.length = 0; avisoEnemigoOcupado = false;
   clearTimeout(siguienteAvisoEnemigo.t1); clearTimeout(siguienteAvisoEnemigo.t2);
@@ -16122,142 +16132,142 @@ function stopMusic(){
 // ================= REGISTRO (bestiario) =================
 const BESTIARY = [
   { id:'ovni', name:'OVNI', hp:60, dmg:'—', sprite:'ovni', verb:'DERRIBADOS',
-    desc:'Visitante despistado. Cruza la ciudad en línea recta sin atacar a nadie y se marcha por donde salga; el ejército ni siquiera le dispara. Aparece muy de vez en cuando, así que si lo ves conviene dejar lo que estés haciendo. Derribarlo deja un regalo que dura poco: la cría se vuelve colosal y arranca edificios enteros para usarlos de maza o de escudo, y el viltrumita estrena visión calórica.',
+    desc:'Cruza la ciudad de paso, sin atacar, y muy de vez en cuando. <b>Derríbalo:</b> su regalo vuelve colosal a la cría y da visión calórica al viltrumita durante un rato.',
     states:[['ovni','De paso']] },
   { id:'civ', name:'CIVIL', hp:15, dmg:'—', sprite:'civ',
     states:[['civ','De paseo'],['civHuye','Huyendo'],['civAgarra','Atrapado'],['civLanza','Lanzado']],
-    desc:'Habitante corriente. Huye en cuanto te acerca. Inofensivo, pero es tu principal fuente de alimento al inicio.' },
+    desc:'Huye en cuanto te acercas. Inofensivo, y tu primer alimento.' },
   { id:'police', name:'POLICÍA', hp:35, dmg:'5 por disparo', sprite:'police',
     states:[['police','En patrulla'],['grabPol','Atrapado'],['heldPol','Lanzado'],['stunPol','Aturdido']],
-    desc:'Primera respuesta de la ciudad. Mantiene distancia y dispara en ráfagas lentas. Puedes agarrarlo, rematarlo, o aturdirlo lanzándole un cuerpo o cualquier mobiliario urbano.' },
+    desc:'La primera respuesta: dispara ráfagas lentas desde lejos. <b>Agárralo</b> o tumba a varios lanzándoles un cuerpo o mobiliario.' },
   { id:'military', name:'MILITAR', hp:70, dmg:'9 por disparo', sprite:'soldier',
     states:[['soldier','En combate'],['grabMil','Atrapado'],['heldMil','Lanzado'],['stunMil','Aturdido']],
-    desc:'Infantería entrenada. Más resistente, dispara más rápido y desde más lejos que la policía. También se puede agarrar y usar como proyectil.' },
+    desc:'Infantería entrenada: aguanta más y dispara más rápido y más lejos que la policía. También sirve de proyectil.' },
   { id:'tank', name:'TANQUE', hp:220, dmg:'22 (proyectil explosivo)', sprite:'tank',
-    desc:'Blindado pesado. Su proyectil explota al impactar. Solo el COLOSO puede levantarlo; al lanzarlo detona con fuerza.' },
+    desc:'Blindado pesado con proyectiles explosivos. Solo el COLOSO lo levanta, y lanzado detona con fuerza.' },
   { id:'heli', name:'HELICÓPTERO', hp:120, dmg:'7 x3 en ráfaga', sprite:'heli',
-    desc:'Vuela sobre los edificios, así que ninguna pared te protege. Lanzado, gira sobre sí mismo antes de estallar.' },
+    desc:'Vuela sobre los edificios, así que las paredes no te cubren. Lanzado, gira antes de estallar.' },
   { id:'gunship', name:'HELICÓPTERO ARTILLADO', hp:260, dmg:'26 por misil + área', sprite:'gunship',
-    desc:'Cabeza de la oleada final. Dispara misiles que te persiguen unos segundos antes de seguir en línea recta: rompe el guiado poniéndote a cubierto o interponiendo un escudo.' },
+    desc:'Encabeza la oleada final con misiles que te persiguen unos segundos. <b>Rompe el guiado</b> poniéndote a cubierto o tras un escudo.' },
   { id:'siege', name:'CAÑÓN DE ASEDIO', hp:650, dmg:'62 en área (radio enorme)', sprite:'siege',
-    desc:'Fortaleza sobre orugas. Dispara muy lento pero memoriza tu posición y el obús cae exactamente ahí, sin importar a dónde vayas. Un círculo rojo marca el impacto: muévete antes de que llegue.' },
+    desc:'Fortaleza lenta: memoriza dónde estás y el obús cae justo ahí. <b>Muévete</b> en cuanto veas el círculo rojo.' },
   { id:'minigun', name:'MINIGUNERO', hp:70, dmg:'6 por bala, cadencia altísima', sprite:'minigun',
     states:[['minigun','En combate'],['grabMg','Atrapado'],['heldMg','Lanzado'],['stunMg','Aturdido']],
-    desc:'Relevo de la policía a partir de los 9.000 puntos. Aguanta lo mismo que un militar, pero su ráfaga es casi continua: no te quedes a descubierto. Se puede agarrar, rematar y lanzar como cualquier infante.' },
+    desc:'Sustituye a la policía desde los 9.000 puntos. Su ráfaga es casi continua: <b>no te quedes a descubierto</b>.' },
   { id:'car', name:'AUTOMÓVIL', hp:40, dmg:'70 al lanzarlo', sprite:'car', verb:'DESTRUIDOS',
     states:[['car','Intacto'],['carDmg','Destrozado'],['taxi','Taxi'],['taxiDmg','Taxi destrozado'],
             ['autoDep','Deportivo'],['autoAmb','Ambulancia'],['autoRep','Camión de reparto'],['autoBus','Autobús']],
     hint:'Circula por las calles. Destruye uno para registrarlo.',
-    desc:'El proyectil más común. Al lanzarlo explota, y si lo arrastras arrasa mobiliario y muros. Los conductores dan media vuelta al verte de cerca.' },
+    desc:'El proyectil más común: explota al lanzarlo y, arrastrado, arrasa muros y mobiliario.' },
   { id:'tree', name:'ÁRBOL', hp:25, dmg:'45 al lanzarlo', sprite:'tree', verb:'ARRANCADOS',
     states:[['tree','En pie'],['planter','Arrancado']],
     hint:'Crece en las veredas. Arranca uno para registrarlo.',
-    desc:'Adorna las veredas y deja una jardinera al arrancarlo. Sirve de escudo para dos disparos y, lanzado, revienta otro mobiliario.' },
+    desc:'Escudo para dos disparos; lanzado, revienta el mobiliario que alcanza.' },
   { id:'lamp', name:'FAROLA', hp:30, dmg:'60 al lanzarla', sprite:'lamp', verb:'DERRIBADAS',
     hint:'Ilumina las esquinas. Derriba una para registrarla.',
-    desc:'De noche es la única luz de la calle: al arrancarla, esa zona queda a oscuras. El poste de acero aguanta tres disparos como escudo.' },
+    desc:'De noche es la única luz de la esquina: al arrancarla, la zona queda a oscuras. Como escudo aguanta tres disparos.' },
   { id:'trash', name:'BASURERO', hp:20, dmg:'33 al lanzarlo', sprite:'trash', verb:'REVENTADOS',
     hint:'Aparece en algunas veredas. Revienta uno para registrarlo.',
-    desc:'Pega poco pero derriba: al impactar deja aturdida a la infantería un segundo. Como escudo aguanta dos disparos.' },
+    desc:'Pega poco, pero deja aturdida a la infantería un segundo. Escudo para dos disparos.' },
   { id:'bench', name:'BANCA', hp:28, dmg:'33 al lanzarla', sprite:'benchH', verb:'DESTRUIDAS',
     hint:'Descansa en las veredas. Destruye una para registrarla.',
-    desc:'Igual que el basurero: poco daño pero deja aturdido a quien alcanza. Aparece tumbada o de canto según el lado de la manzana.' },
+    desc:'Como el basurero: poco daño, pero aturde a quien alcanza.' },
   { id:'building', name:'EDIFICIO', hp:'100 a 380', dmg:'—', sprite:'edR', verb:'DEMOLIDOS',
     states:[['edR','Ladrillo'],['edDmg','Dañado: se ve el interior'],['edRub','Escombros'],['edG','Hormigón'],['edO','Torre de cristal'],
             ['edA','Casas adosadas'],['edF','Fábrica'],['edK','Cine'],['edP','Pizzería'],['edE','Comisaría'],['edB','Banco'],
             ['edC','Cafetería'],['edT','Tienda']],
     hint:'Domina la ciudad. Demuele uno para registrarlo.',
-    desc:'Pasa por tres etapas: intacto, agrietado y escombros transitables. Solo el COLOSO puede derribarlos, y cada demolición da puntos y algo de vida.' },
+    desc:'Intacto, agrietado y escombros. Solo el COLOSO los derriba, y cada uno da puntos y algo de vida.' },
   { id:'mbt', name:'MBT-MB92', hp:150, dmg:'26 + quemadura', sprite:'mbt', verb:'DESTRUIDOS',
-    desc:'Tanque ligero con cañón de inducción. Se detiene a tiro, marca con una línea de puntos por dónde va a disparar y carga un par de segundos; el rayo alcanza casi toda la pantalla y deja ardiendo lo que toca. La línea se corrige muy despacio, así que se esquiva saliéndose de ella. Arrasa también a sus propias tropas si se cruzan.',
+    desc:'Se detiene, marca su disparo con una línea de puntos y suelta un rayo que cruza la pantalla y quema. <b>Sal de la línea:</b> apenas se corrige.',
     states:[['mbt','Apuntando']] },
   { id:'mbtFrio', name:'MBT-MB92 FRÍO', hp:150, dmg:'26 + congelación', sprite:'mbtFrio', verb:'DESTRUIDOS',
-    desc:'La misma pieza con el cañón recalibrado en azul. Apunta y carga igual, pero su rayo no quema: congela. Un impacto te deja clavado un segundo y medio, tiempo de sobra para que el resto del ejército se acerque. Es la variante menos frecuente de las dos.',
+    desc:'La variante azul del MBT: su rayo no quema, congela, y te deja clavado un segundo y medio.',
     states:[['mbtFrio','Apuntando']] },
   { id:'superx', name:'SUPER X2', hp:1450, dmg:'11 + veneno', sprite:'superx', verb:'DERROTADOS',
-    desc:'Plataforma flotante diseñada por el ejército específicamente contra el invasor. No pelea de cerca: si te acercas retrocede, y si la acorralas o la hieres se impulsa lejos de un salto para volver a distancia. Sus disparos son lentos como los de un soldado pero dejan veneno: encadenar impactos alarga el envenenamiento y te desgasta sin parar. Cada tanto levanta un escudo reflector que anula golpes y tentacazos, convierte en vida propia todo el daño que recibe con él puesto, y devuelve por donde vino cualquier cosa que le arrojes. No usa faros: se mueve a oscuras.',
+    desc:'Guarda la distancia y te envenena con cada impacto. Su escudo reflector devuelve lo que le lanzas y lo cura: <b>golpéalo cuando lo baje</b>.',
     states:[['superx','En vuelo']] },
   { id:'artillero', name:'EL ARTILLERO', hp:1800, dmg:'misiles, minigun y embestida', sprite:'artOk',
     verb:'DERROTADOS',
-    desc:'La pieza de artillería más pesada del ejército, con un viejo cañonero encima. No quiere tenerte cerca: si te acercas retrocede sin dejar de hostigarte con la minigun. Cada pocos segundos marca varias zonas en el suelo y deja caer misiles que las dejan ardiendo un rato. Si te tiene a tiro calcula tu posición, señala un pasillo y lo recorre a toda velocidad arrasando cuanto pilla, tropas propias incluidas. Termina lejos y se detiene a repararse con los ojos cerrados: un solo golpe le corta la reparación.',
+    desc:'Huye ametrallándote, llena el suelo de zonas en llamas y arrasa un pasillo a toda velocidad. <b>Golpéalo mientras se repara</b> con los ojos cerrados: un golpe le corta la reparación.',
     states:[['artOk','En guardia'],['artRun','Arrasando'],['artHeal','Reparándose']] },
   { id:'flametank', name:'TANQUE DE FUEGO', hp:1350, dmg:'46/s + quemadura', sprite:'flametank',
-    desc:'Mini jefe que puede presentarse en cualquier momento pasados los 6.850 puntos, y detiene la llegada de refuerzos mientras vive. Vale tanto como diez tanques. Tras derrotarlo la ciudad respira un rato antes de que vuelva a acecharte. Calcula tu posición durante 3 segundos con el cono siguiéndote, lo fija 1 segundo y suelta la llamarada. El fuego quema por igual a sus propias tropas. Pegarse a él es la forma de esquivar la llamarada, pero aguanta mucho: bombardéalo con objetos.' },
+    desc:'Mini jefe desde los 6.850 puntos: frena los refuerzos mientras vive. Te sigue con un cono 3 segundos, lo fija y suelta la llamarada. <b>Pégate a él</b> o bombardéalo con objetos.' },
   { id:'plane', name:'CAZA', hp:90, dmg:'28 por misil (recto)', sprite:'plane',
-    desc:'Vuela tan rápido como un taxi a toda marcha: se te viene encima, te sobrevuela y sigue de largo sin frenar. Al alejarse da media vuelta y suelta un misil recto, sin guiado, que puedes esquivar o bloquear. Es frágil y agarrable si aciertas el instante en que pasa.' },
+    desc:'Pasa como un rayo, da la vuelta y suelta un misil recto. Frágil y agarrable si calculas el momento.' },
   { id:'omni', name:'OMNIDROIDE', hp:1600, dmg:'52/s el rayo', sprite:null,
-    desc:'Esfera acorazada negra con seis patas segmentadas y un sensor rojo en lo alto. Calcula dónde estás y rueda en línea recta hasta ese punto, arrollando lo que pille; al llegar se detiene y camina. Andando agarra con una pata el mobiliario de la calle, te lo arroja y carga un rayo desde su sensor: primero marca la línea, luego dispara y barre muy despacio, así que se esquiva moviéndose de lado. El rayo también achicharra a sus propias tropas.' },
+    desc:'Rueda hasta donde estás arrollándolo todo, camina, te lanza mobiliario y barre con un rayo marcado. <b>Esquiva el rayo hacia un lado.</b>' },
   { id:'tripode', name:'TRÍPODE MARCIANO', hp:TRI_HP, dmg:'72 + quemadura (rayo)', sprite:null, verb:'DERRIBADOS',
-    desc:'Al parecer no eres el único que quiere el planeta. Llegan de dos en dos (de tres en tres pasado el asedio) y, mientras quede uno en pie, el ejército humano no se atreve a salir. Caminan por encima de los edificios y con sus tentáculos atrapan autos, farolas y soldados para lanzártelos; si están heridos, se comen a los humanos para recuperar algo de vida. A ratos se cubren con un escudo pequeño que lo para todo hasta que se rompe a golpes (se le ven las grietas), y marcan en blanco un área del suelo donde descargan un rayo que arrasa y deja quemadura: sal de ella antes de que dispare.' },
+    desc:'Llegan en grupo, caminan sobre los edificios y te lanzan lo que atrapan con sus tentáculos. Se cubren con un escudo que se rompe a golpes y disparan un rayo a la zona blanca: <b>sal de ella</b>.' },
   { id:'criaColosal', name:'LAS CRÍAS', hp:'620 / 1700', dmg:'11-24 el azote + lo que lanzan', sprite:null, verb:'DERROTADAS',
-    desc:'Otra camada de tu especie ha llegado a la ciudad: tres crías y una colosal, idénticas a ti. Caminan hacia ti y con su tentáculo agarran farolas, papeleras, soldados y civiles (la colosal, también autos y blindados) para lanzártelos; si están heridas, se comen a los humanos. Si te acercas te azotan, y la colosal aplasta lo que pisa y derriba los edificios que se le cruzan. Atacan a todo y, mientras quede alguna, el ejército prefiere no salir. Aparecen en la ciudad y en el Castigo Divino.' },
+    desc:'Otra camada de tu especie: tres crías y una colosal que agarran y lanzan de todo. La colosal aplasta y derriba edificios. <b>Acaba con las pequeñas primero.</b>' },
   { id:'heroe', name:'HÉROE MÁGICO', hp:1350, dmg:'invoca, escuda y cura', sprite:'heroeF', verb:'DERROTADOS',
-    desc:'Un rey guerrero que volvió de entre los muertos con su ejército. No pelea: se aleja despacio y rodea al invasor mientras, con su cetro, invoca almas de arqueros, caballeros a caballo y gólems de piedra. Cada pocos segundos lanza escudos dorados que dejan pasar solo un tercio del daño y cura a todos sus aliados cercanos. Mientras él siga en pie, su ejército no deja de crecer: ve a por él. Al caer, sus almas se desvanecen.' },
+    desc:'Rey no muerto que no pelea: invoca almas, las protege con escudos dorados y las cura. <b>Ve a por él:</b> al caer, su ejército desaparece.' },
   { id:'arquero', name:'ARQUERO FANTASMA', hp:55, dmg:'8 por flecha', sprite:'arqueroF', verb:'DISIPADOS',
-    desc:'Alma de arquero al servicio del Héroe Mágico. Guarda la distancia, tensa el arco medio segundo y dispara. Como todas las almas, atraviesa los edificios, pero sus flechas no.' },
+    desc:'Alma al servicio del Héroe Mágico: tensa el arco y dispara de lejos. Atraviesa los edificios; sus flechas, no.' },
   { id:'caballero', name:'CABALLERO FANTASMA', hp:140, dmg:'22 en la carga', sprite:'caballeroF', verb:'DISIPADOS',
-    desc:'Jinete espectral con lanza. Trota a tu alrededor, se detiene un instante para apuntar y carga en línea recta a toda velocidad: apártate de su trayectoria.' },
+    desc:'Jinete espectral que se detiene, apunta y carga en línea recta. <b>Apártate de su trayectoria.</b>' },
   { id:'golem', name:'GÓLEM FANTASMA', hp:320, dmg:'28 en área', sprite:'golemF', verb:'DISIPADOS',
-    desc:'Mole de roca animada por runas. Lento y duro; al tenerte cerca alza los puños y golpea el suelo alrededor. Solo el COLOSO puede levantarlo.' },
+    desc:'Mole de roca lenta y dura que golpea el suelo a su alrededor. Solo el COLOSO la levanta.' },
   { id:'kaiyin', name:'KAIYIN', hp:2700, dmg:'rayos, aletazo, embestida y mordisco', sprite:'kaiyinF', verb:'DERROTADOS',
-    desc:'El dragón de tres cabezas en tamaño colosal. Primero solo se ve su sombra gigantesca, que da vueltas sobre ti mientras ruge; luego baja en picado, aterriza a tu lado alzando las tres cabezas al cielo y desata una tormenta: los rayos caen donde se marca el suelo. Camina aplastando edificios y alterna ataques: aletazo que lo barre todo alrededor, embestida marcada que arrasa lo que hay en la línea, vuelo en picado con mordisco antes de aterrizar y, sobre todo, sus tres rayos. De esos rayos solo te salva un escudo: ponte detrás de un edificio, interpón un auto o lo que lleves agarrado, o usa la burbuja o los objetos del mago. Siendo el dragón puedes responderle con tus tres rayos: chocan a medio camino y, si llegas a sus bocas antes de quedarte sin estamina, se lleva el golpe.' },
+    desc:'El dragón de tres cabezas colosal: aletazos, embestidas, picados y tormentas de rayos marcados. <b>Solo un escudo para sus tres rayos:</b> un edificio, un auto o la burbuja del mago. Siendo el dragón, respóndele con los tuyos.' },
   { id:'centinela', name:'CENTINELA', hp:60, dmg:'8 por disparo', sprite:'centinelaF',
-    desc:'Soldado de la guardia marciana, con máscara de visores y una mochila de energía a la espalda. Guarda la distancia y dispara ráfagas de su rifle de pulsos. Los ojos escáner los llaman de tres en tres. Se pueden agarrar como cualquier soldado.' },
+    desc:'Guardia marciano que dispara ráfagas de pulsos desde lejos. Los ojos escáner los llaman de tres en tres.' },
   { id:'centElite', name:'CENTINELA DE ÉLITE', hp:80, dmg:'9 por disparo', sprite:'centEliteF',
     hint:'La guardia marciana guarda a sus mejores para cuando la cosa se pone seria.',
-    desc:'Lo mejor de la guardia marciana: armadura blanca acolchada, casco cerrado con un único ojo rojo, botas negras y un brazalete rojo. Es casi como el centinela, pero aguanta algo más, dispara desde un poco más lejos y no se deja alcanzar: si te le echas encima, retrocede sin dejar de disparar. Cuando pasas de 8000 puntos en el planeta marciano, sustituye a los centinelas normales (también los que llaman los escáneres).' },
+    desc:'La élite de la guardia: más vida y alcance, y retrocede disparando. Sustituye a los centinelas desde los 8.000 puntos.' },
   { id:'droide', name:'DROIDE DE BATALLA', hp:30, dmg:'7 + quemadura', sprite:'droideF',
-    desc:'Robot flaco fabricado en serie. Sus láseres queman: cada impacto te deja ardiendo un momento. Es frágil, pero dispara desde más lejos que nadie y se queda atrás, a más de cuatrocientos metros, para no darte el gusto de alcanzarlo.' },
+    desc:'Frágil, pero dispara desde más lejos que nadie y sus láseres te dejan ardiendo. <b>Lánzale algo</b>: no se deja alcanzar.' },
   { id:'cabezon', name:'CABEZÓN VERDE', hp:45, dmg:'38 (rayo desintegrador)', sprite:'cabezonF',
-    desc:'Marcianito de cabeza enorme con una pistola de rayos. Se planta, la carga con un zumbido y dispara un rayo desintegrador que hace mucho daño y pulveriza a cualquiera que esté en la línea. Medio segundo antes de disparar deja de seguirte: es tu momento para apartarte o cubrirte.' },
+    desc:'Carga un rayo desintegrador que pulveriza lo que haya en la línea. Medio segundo antes deja de seguirte: <b>apártate entonces</b>.' },
   { id:'escaner', name:'OJO ESCÁNER', hp:28, dmg:'—', sprite:'escanerF',
-    desc:'Ojo volador que da vueltas a tu alrededor sin atacar. Si no lo derribas a tiempo, emite una alarma y llegan tres centinelas; luego vuelve a contar. Es frágil y se puede agarrar al vuelo.' },
+    desc:'Ojo volador que no ataca, pero da la alarma y llama a tres centinelas. <b>Derríbalo a tiempo.</b>' },
   { id:'arana', name:'TANQUE ARAÑA', hp:190, dmg:'16 + área (obús de plasma)', sprite:'aranaF', verb:'DESTRUIDOS',
-    desc:'Blindado sobre seis patas, muy rápido. Nunca se queda cerca: si te acercas huye corriendo de lado mientras te dispara obuses de plasma, que estallan con fuerza al impactar y, si te dan, te frenan un momento. Solo el COLOSO puede levantarlo.' },
+    desc:'Blindado de seis patas que huye de lado disparando obuses de plasma que frenan. Solo el COLOSO lo levanta.' },
   { id:'murcielago', name:'MURCIÉLAGO ÁCIDO', hp:22, dmg:'ácido y charco corrosivo', sprite:'murcielagoF',
-    desc:'Criatura voladora del planeta con aspecto de xenomorfo: cabeza larga y lisa, fauces con una segunda mandíbula, tubos en el lomo, alas de hueso y cola acabada en punta. Revolotea en círculos y escupe bolas de ácido que dejan un charco en el suelo durante unos segundos: no te quedes encima. Se agarra fácilmente.' },
+    desc:'Revolotea en círculos y escupe ácido que deja charcos un rato. <b>No te quedes encima.</b> Se agarra con facilidad.' },
   { id:'caza40k', name:'DRON KAMIKAZE', hp:80, dmg:'26 por misil, 34 al estrellarse', sprite:'caza40kF', verb:'DERRIBADOS',
-    desc:'Dron de aspecto gótico y blindado, hecho para morir matando. De lejos suelta dos misiles autodirigidos, como el helicóptero artillado; luego pasa disparando, da media vuelta y, cuando te encara, se lanza en picado para estrellarse contra ti. Si esquivas el picado, se estrella igual y explota donde cae.' },
+    desc:'Suelta misiles guiados, pasa disparando y se lanza en picado contra ti. <b>Esquiva el picado</b>: se estrella igual.' },
   { id:'medico', name:'MÉDICO MARCIANO', hp:70, dmg:'— (cura a los suyos)', sprite:'medicoF',
     hint:'Dicen que los refuerzos marcianos, a veces, traen a alguien que no dispara.',
-    desc:'Robot negro con ribetes rojos que carga a la espalda un gran tanque de cristal lleno de líquido rojo. No ataca: busca al aliado más herido y lo riega con el chorro de su pistola de cura, y cada pocos segundos suelta un pulso verde que cura un poco a todos los que tenga alrededor (a los jefes, mucho menos). Huye si te acercas. Llega pocas veces, solo con los REFUERZOS marcianos: cuando lo veas, acaba con él primero.' },
+    desc:'No ataca: cura al aliado más herido y a todos los de alrededor. Llega con los refuerzos: <b>acaba con él primero</b>.' },
   { id:'voltio', name:'DUENDE VOLTAICO', hp:55, dmg:'12 + descarga (te inmoviliza)', sprite:'voltioF',
-    desc:'Bichito morado de cabeza verde, con una cresta y un lomo de púas amarillas y un bláster verde casi tan grande como él. Es rapidísimo: corretea en círculos a tu alrededor y cambia de sentido sin avisar. Cuando su bláster chisporrotea, dispara una potente bola eléctrica que, si te da, te deja sin poder moverte un momento. Llega con los REFUERZOS marcianos.' },
+    desc:'Rapidísimo y caótico; cuando su bláster chisporrotea, dispara una bola eléctrica que te paraliza un instante.' },
   { id:'machacador', name:'MACHACADOR', hp:200, dmg:'34 (tajo de espada de energía en área)', sprite:'machacadorF', verb:'APLASTADOS',
-    desc:'Bruto de piel roja armado con una espada de energía de doble hoja. Avanza tras un escudo de energía que lo para todo hasta que lo rompes a golpes (vuelve a encenderse al rato). Cuando te tiene cerca alza la espada y marca en rojo el área de su tajo: sal de ella, porque corta lo que pille y tumba a quien esté dentro. Solo el COLOSO puede levantarlo. Llega con los REFUERZOS marcianos.' },
+    desc:'Avanza tras un escudo que hay que romper a golpes y marca en rojo su tajo. <b>Sal del área roja.</b> Solo el COLOSO lo levanta.' },
   { id:'ave', name:'AVE DE PRESA', hp:120, dmg:'7 por láser (ráfagas)', sprite:'aveF', verb:'DERRIBADAS',
-    desc:'Caza marciano de casco gris con forma de ave: cabina morada, púas en el lomo y dos grandes pinzas segmentadas hacia delante. Vuela en pasadas, cruzándose contigo, y cuando te tiene delante suelta ráfagas de láser desde la punta de sus pinzas. Es ligero y se agarra al vuelo. Llega con los REFUERZOS marcianos.' },
+    desc:'Caza marciano que se cruza contigo en pasadas y dispara láseres desde sus pinzas. Ligero y agarrable al vuelo.' },
   { id:'gravitron', name:'NAVE GRAVITATORIA', hp:650, dmg:'bombardeos (22 en área) y pozos de gravedad', sprite:'gravitronF', verb:'DERRIBADAS',
-    desc:'La nave insignia de los refuerzos: un casco morado lleno de púas con dos largas puntas hacia delante. Orbita despacio a media distancia y alterna dos ataques: un bombardeo de obuses que caen donde marca el suelo, y un pozo de gravedad, un círculo morado donde todo pesa: dentro te mueves mucho más lento, no puedes volar y te vas aplastando poco a poco. Es la última en llegar. Es demasiado grande para agarrarla: solo con el regalo del OVNI se puede levantar; si no, hay que derribarla a golpes.' },
+    desc:'La nave insignia: bombardea zonas marcadas y abre pozos de gravedad que te frenan y te aplastan. <b>Sal del círculo morado.</b>' },
   { id:'helicaza', name:'HELICÓPTERO CAZADOR', hp:260, dmg:'4 por bala (ráfagas largas)', sprite:'helicazaF', verb:'DERRIBADOS',
-    desc:'Helicóptero de caza de los refuerzos: casco anguloso de blindaje azul oscuro, cabina de cristal negro, una ala corta con su tren de aterrizaje, la cola acabada en un ventilador entubado y un cañón largo bajo la barbilla. Ronda a media distancia cabeceando y, cuando te tiene a tiro, el cañón se ilumina un momento antes de soltar una ráfaga larga de balas rápidas que se abren un poco: apártate de lado o ponte a cubierto. Vuela por encima de los edificios.' },
+    desc:'Ronda a media distancia y, cuando su cañón se ilumina, suelta una ráfaga larga. <b>Apártate de lado o cúbrete.</b>' },
   { id:'acorazado', name:'ACORAZADO DE ASALTO', hp:420, dmg:'22 por disparo (dos seguidos) y lluvia de misiles (12 cada uno)', sprite:'acorazadoF', verb:'DESTRUIDOS',
-    desc:'Un guerrero metido en una armadura de exterminio de placas negras remachadas, con franjas amarillas de peligro, un casco con forma de calavera y ojos rojos, un puño de combate y un cañón doble en el brazo. Sobre los hombros carga dos lanzadores de misiles. Camina despacio balanceando los brazos y alterna: apunta (verás la línea) y suelta dos disparos pesados, o marca una zona naranja en el suelo y la cubre con una lluvia de misiles pequeños. Aguanta mucho: solo el COLOSO puede levantarlo.' },
+    desc:'Armadura de exterminio: dos disparos pesados con línea de aviso y lluvias de misiles en la zona naranja. Solo el COLOSO lo levanta.' },
   { id:'desgarrador', name:'EL DESGARRADOR', hp:2600, dmg:'embestidas, motosierras, rayo y coletazo', sprite:'desgarradorF', verb:'DERROTADOS',
     hint:'El otro guardián del Mundo Alienígena. Aún no lo has derrotado.',
-    desc:'Kaiju cíborg del planeta marciano: garfios y motosierras por brazos, un núcleo rojo en el pecho, aletas rojas, cola de púas acabada en cuchilla, un cuerno y un visor rojo. Cada ataque se anuncia con su postura: alza las motosierras antes del tajo, levanta la cola como un escorpión antes del coletazo, se agacha abriendo las aletas antes de despegar y el visor se enciende antes del rayo. Embiste volando a gran velocidad cortando con sus dos cuchillas, dispara desde el visor un rayo que te persigue (escóndete tras un edificio o un escudo), lanza tajos con las motosierras si te tiene cerca, embiste por el suelo con las motosierras por delante y barre todo alrededor con la cola. Además se regenera poco a poco. En Castigo Divino vuelve deformado y despellejado: se le ven las costillas, la quijada y los huesos.' },
+    desc:'Kaiju cíborg de motosierras que avisa cada ataque con su postura: embestidas, coletazos y un rayo que te persigue. <b>Escóndete del rayo tras un edificio.</b> Se regenera poco a poco.' },
   { id:'centurion', name:'EL CENTURIÓN', hp:2200, dmg:'embestida con agarre, puñetazos, bombas, misiles, minigun, corte láser (ondas sónicas contra el viltrumita), rayo congelante, doble láser, ráfaga giratoria, lluvia de árboles y autos y edificios lanzados', sprite:'centurionF', verb:'DERROTADOS',
     hint:'El guardián del Mundo Alienígena. Aún no lo has derrotado.',
-    desc:'La armadura robótica que protege el planeta marciano: primero una armadura esbelta, blanca y cian; a mitad de vida despliega su armadura de asalto, un coloso de acero con luces rojas que se va llenando de marcas de daño. Vuela a tu alrededor y alterna sus armas: embestida por una línea que marca en el suelo, bombas pegajosas que se te quedan encima (o en lo que lleves agarrado: lánzalo lejos), salvas de misiles guiados, ráfagas de su minigun láser, un rayo congelante de muy largo alcance que te deja helado (marca su línea antes de disparar: sal de ella o ponte detrás de un edificio) un gran corte láser que barre un abanico enorme marcado en rojo (contra el viltrumita, en su lugar, ondas sónicas que se abren en arco: duelen, empujan y aturden; cúbrete tras un edificio), levanta la mano y alza árboles y autos para lanzártelos uno a uno, un puñetazo si te pegas a él (marca el área antes de soltarlo), un doble láser que marca una franja en el suelo, dispara y marca otra donde estés, y una ráfaga giratoria de balas que se abren con la distancia (esquívalas por los huecos o cúbrete tras edificios, árboles o autos). Los tentacazos de la cría chocan con su campo de fuerza y hacen menos daño: mejor lánzale cosas. Por debajo de la mitad de vida se transforma y se vuelve más rápido: si su embestida te alcanza te agarra y vuela contigo por delante atravesando edificios hasta mandarte lejos de un puñetazo (haz clic para soltarte), y se aleja para arrancar edificios y tirártelos justo donde estás (cada caída se marca en el suelo); y al 30% entra en furia y apenas para entre ataques. Habla, y no precisamente con humildad.' },
+    desc:'El guardián del planeta: vuela y alterna embestidas, bombas pegajosas, misiles, láseres y un rayo congelante, todo marcado antes. A media vida se transforma, te agarra al embestir y te lanza edificios. <b>Lánzale cosas:</b> su campo de fuerza frena los golpes cuerpo a cuerpo.' },
   { id:'muerteVeloz', name:'MUERTE VELOZ', hp:2400, dmg:'tajos supersónicos, embestidas, giro de sierras y tornado', sprite:'muerteVelozF', verb:'DERROTADAS',
     hint:'Algo en el Mundo Alienígena se mueve más rápido que el sonido.',
-    desc:'Una criatura de un mundo lejano que el imperio encontró y modificó genéticamente para aprovechar su velocidad innata. Cuerpo negro con rayas turquesa, casco con visor verde, cola anillada, ruedas por pies y dos sierras de plasma girando en las manos. Marca en el suelo un área y la recorre a velocidad extrema en tajos de lado a lado, rompiendo la barrera del sonido: corta todo lo que pilla, también a los suyos, y los árboles se mecen a su paso. También embiste en línea recta por la línea que marca y gira sobre sí misma hasta volverse un tornado de sierras que te persigue. Tras cada carga derrapa un momento: es cuando más fácil es alcanzarla. Por debajo de la mitad de vida acelera todavía más.' },
+    desc:'Recorre zonas marcadas a velocidad supersónica cortándolo todo, embiste y se vuelve un tornado de sierras. <b>Golpéala cuando derrapa</b> tras cada carga.' },
   { id:'aracnido', name:'LA TEJEDORA', hp:2700, dmg:'telaraña y mordiscos, lluvia de telas, embestida, salto, pisotón y láseres', sprite:'aracnidoF', verb:'DERROTADOS',
     hint:'Otro guardián del Mundo Alienígena. Aún no lo has derrotado.',
-    desc:'Araña robot gigante, guardiana del planeta marciano: acero negro por placas con costuras y luces rojas que laten al ritmo de la música, una cara con una columna de ojos rojos, quelíceros afilados, un abdomen en forma de domo blindado y ocho patas acorazadas con juntas rojas y garras. Marca en el suelo con una línea blanca por dónde lanzará su tela: si te alcanza, te atrae hacia sus colmillos y te muerde hasta que te liberes haciendo clic (o tocando la pantalla) varias veces. Un escudo, un edificio o lo que lleves agarrado paran la tela, y la que falla se queda pegada en el suelo un rato y frena a quien la pise. Te rodea deprisa, embiste a toda velocidad por una franja roja que marca hacia ti (si choca contra un edificio se queda aturdida) y lanza una lluvia de telas: marca varios círculos blancos (uno donde estás) y en cada uno cae una red que te frena mientras la pises. También salta sobre la zona que marca en rojo, pisotea todo a su alrededor si te pegas a ella y barre con los láseres de sus ojos. Por debajo de la mitad de vida enloquece y se vuelve más rápida.' },
+    desc:'Te atrapa con su tela (marcada en blanco) y te muerde hasta que te liberas a clics. Embiste, salta y siembra redes. <b>Un escudo o un edificio paran la tela.</b>' },
   { id:'bicho', name:'BICHO GUERRERO', hp:240, dmg:'12 por mordisco', sprite:'bichoF', verb:'APLASTADOS',
-    desc:'En su cruzada de la civilización por el espacio, los marcianos derrotaron a estas criaturas y las modificaron genéticamente para crear sus propios soldados, tomando como base a los bichos guerreros de élite. Caparazón negro azulado con aletas rojas, cabeza larga de fauces abiertas, dos garras alzadas acabadas en hoces rojas y cuatro patas de cuchillas dentadas. Es rápido, da buenos mordiscos y es resistente como un tanque. Llega en enjambre y a la carga; solo el COLOSO puede levantarlo.' },
+    desc:'Soldado creado por los marcianos: rápido, muerde fuerte y aguanta como un tanque. Llega en enjambre; solo el COLOSO lo levanta.' },
   { id:'amalgama', name:'AMALGAMA DE ALMAS', hp:'420+', dmg:'autos lanzados, embestida y manotazos', sprite:'amalgamaF', verb:'DISPERSADAS',
     hint:'Algo grande se arrastra entre las almas de Castigo Divino.',
-    desc:'Un alma distinta a las demás: busca a las almas en pena y se las traga, y con cada una crece y gana vida. Le han salido brazos y piernas, y su cabeza es un amasijo de caras que gritan. Arranca los autos calcinados para lanzártelos y embiste en línea recta tras marcarla en el suelo. Mátala antes de que engorde.' },
+    desc:'Se traga a las almas en pena y crece con cada una; lanza autos calcinados y embiste en línea. <b>Mátala antes de que engorde.</b>' },
   { id:'desesperacion', name:'DESESPERACIÓN', hp:2600, dmg:'zarpazos, objetos lanzados, salto y embestida desenfrenada', sprite:'desesperacionF', verb:'DERROTADAS',
     hint:'En Castigo Divino algo corre hacia ti sin cansarse nunca.',
-    desc:'El jefe propio de Castigo Divino: un ser humanoide altísimo y escuálido, de piel gris tirante sobre las costillas, brazos larguísimos con garras, cuencas vacías con un punto de luz y una mandíbula descolgada llena de agujas. Empieza corriendo a cuatro patas: agarra lo que pilla por el camino (autos, farolas, soldados) y te lo lanza, y de cerca da zarpazos. Atraviesa los edificios como si no estuvieran y sus pisadas aplastan a la tropa menuda. Con el daño se le cae la piel y, al final, se le caen los dos brazos: entonces corre a dos patas y ataca a mordiscos, saltos y embestidas. A mitad de vida escupe un gran chorro de sangre que daña todo lo que toca. Cuando necesita curarse se abalanza al suelo a devorar a los suyos, apartándose un poco de ti, y además se regenera poco a poco. Si aparece el OVNI salta a por él: si lo destroza, se cura por completo. Algo pesado lanzado o el puño cargado del viltrumita lo mandan lejos, pero vuelve corriendo. Sus especiales: un salto sobre la zona que marca y una embestida desenfrenada de tres tramos.' },
+    desc:'El jefe del Castigo Divino: corre a cuatro patas atravesando edificios y te lanza lo que pilla; herido, pierde los brazos y ataca a mordiscos. Se cura devorando a los suyos. <b>Algo pesado lanzado lo manda lejos.</b>' },
   { id:'vengativo', name:'VENGATIVO', hp:12, dmg:'se te aferra y muerde', sprite:'vengativoF', verb:'DEVUELTOS AL SUELO',
     hint:'Algo se mueve bajo el suelo de Castigo Divino.',
-    desc:'Lo que queda de los que mataste, retorcido por el castigo. Salen del suelo del infierno en grupo, corren en zigzag muy rápido y se te echan encima: los que te alcanzan se aferran a ti y te muerden hasta que se sueltan (corriendo te los quitas antes). Uno solo no aguanta nada; el peligro es que lleguen muchos. En Castigo Divino también te esperan el resto de las unidades de la ciudad y del planeta marciano, deformadas: más vida, más rápidas y más daño, pero valen más puntos. Hasta los jefes vuelven así.' },
+    desc:'Salen del suelo en grupo, corren en zigzag y se te aferran mordiendo. <b>Corre para quitártelos.</b> En el Castigo Divino todo el ejército vuelve deformado: más fuerte y con más puntos.' },
   { id:'truck', name:'CAMIÓN CISTERNA', hp:60, dmg:'200 en área al detonar', sprite:'truck',
-    desc:'Aparición rara en el tráfico. No te ataca, pero lanzarlo provoca la mayor explosión del juego y encadena con otras cisternas.' }
+    desc:'No ataca, pero lanzado provoca la mayor explosión del juego y encadena con otras cisternas.' }
 ];
 
 let dex = {};
