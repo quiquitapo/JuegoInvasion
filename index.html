@@ -18760,7 +18760,7 @@ window.addEventListener('keydown', e=>{
         const v = DIRV[dir];
         vil.fx = v[0]; vil.fy = v[1];
         if (isDra()) draDespega();
-        else sonicBoom(player.x, player.y, Math.atan2(vil.fy, vil.fx));
+        else vilDespega();
       }
       vil.tapKey = dir; vil.tapT = ahora;
     }
@@ -19371,7 +19371,7 @@ function drawSonic(){
     const s2 = S(r.x, r.y);
     const a = clamp(r.life / r.max, 0, 1);
     ctx.globalAlpha = a * 0.75;
-    ctx.strokeStyle = '#dff0ff';
+    ctx.strokeStyle = r.rojo ? (a > 0.55 ? '#ff5a46' : '#ffc8c0') : '#dff0ff';
     ctx.lineWidth = 2 + a*3;
     ctx.beginPath();
     ctx.ellipse(s2.x, s2.y, r.r*0.55, r.r, r.ang, -Math.PI*0.62, Math.PI*0.62);
@@ -19380,6 +19380,110 @@ function drawSonic(){
   }
 }
 
+// ---- el vuelo del viltrumita: despegue y ruptura de la barrera del sonido ----
+// Despegue: un golpe de aire bajo los pies y polvo. Al romper la barrera: el
+// estampido, anillos de choque que se abren por delante, un destello y el
+// cono de vapor (singularidad de Prandtl-Glauert) que lo envuelve, teñido de
+// rojo al formarse y luego blanco. Todo se pinta con dos imágenes ya hechas
+// (el cono blanco y el rojo): girarlas y copiarlas cuesta casi nada.
+function vilDespega(){
+  sfx('whoosh');
+  anilloImpacto(player.x, player.y + 16, 46, '#dfe9f4', 0.3);
+  addParticles(player.x, player.y + 12, '#c9d2da', 8, 130);
+  shake(3, 0.1);
+}
+function vilRompeBarrera(){
+  vil.supersonico = true; vil.machT = VIL_MACH_FX; vil.velVuelo = Math.max(vil.velVuelo, VIL_FLY*0.85);
+  const a = Math.atan2(vil.fy, vil.fx);
+  sonicRings.push({ x: player.x, y: player.y, ang: a, r: 14, life: 0.5, max: 0.5, rojo: 1 });
+  for (let i = 0; i < 3; i++) sonicRings.push({ x: player.x, y: player.y, ang: a, r: 6 + i*12, life: 0.55 - i*0.07, max: 0.55 });
+  anilloImpacto(player.x, player.y, 120, '#ffd8d0', 0.35);
+  shake(11, 0.25); hitstop(0.035);
+  sfx('sonicboom');
+  addParticles(player.x, player.y, '#ff6a5a', 10, 260);
+  addParticles(player.x, player.y, '#eef6ff', 14, 300);
+}
+const _conoVapor = {};
+function conoVapor(rojo){
+  const k = rojo ? 'r' : 'b';
+  if (_conoVapor[k]) return _conoVapor[k];
+  const W = 220, H = 150, ax = 186, ay = H/2, c = document.createElement('canvas'); c.width = W; c.height = H;
+  const g = c.getContext('2d');
+  const col = rojo ? [255, 70, 52] : [236, 244, 255];
+  // la campana de vapor: estrecha en la punta (delante) y abierta hacia atrás
+  const forma = (ens)=>{ g.beginPath(); g.moveTo(ax + 6, ay);
+    for (let x = ax; x >= 0; x -= 6){ const d = ax - x, h = (10 + Math.pow(d, 0.72)*3.1)*ens; g.lineTo(x, ay - h); }
+    for (let x = 0; x <= ax; x += 6){ const d = ax - x, h = (10 + Math.pow(d, 0.72)*3.1)*ens; g.lineTo(x, ay + h); }
+    g.closePath(); };
+  const lg = g.createLinearGradient(ax + 6, 0, 0, 0);
+  lg.addColorStop(0, `rgba(${col},0.95)`); lg.addColorStop(0.18, `rgba(${col},0.7)`); lg.addColorStop(0.55, `rgba(${col},0.22)`); lg.addColorStop(1, `rgba(${col},0)`);
+  g.filter = 'blur(3px)'; forma(1); g.fillStyle = lg; g.fill();
+  // el borde de la onda de choque, más brillante, y el hueco interior (se ve el cuerpo)
+  g.filter = 'blur(1.5px)'; g.globalCompositeOperation = 'destination-out';
+  forma(0.55); const lg2 = g.createLinearGradient(ax, 0, 0, 0); lg2.addColorStop(0, 'rgba(0,0,0,0)'); lg2.addColorStop(0.3, 'rgba(0,0,0,0.45)'); lg2.addColorStop(1, 'rgba(0,0,0,0.2)'); g.fillStyle = lg2; g.fill();
+  g.globalCompositeOperation = 'source-over'; g.filter = 'none';
+  // los dos bordes del cono, nítidos (la onda de choque) y el morro
+  g.filter = 'blur(0.8px)'; g.strokeStyle = `rgba(${col},0.85)`; g.lineWidth = 3;
+  for (const sg of [-1, 1]){ g.beginPath(); for (let x = ax; x >= ax*0.35; x -= 6){ const d = ax - x, h = 10 + Math.pow(d, 0.72)*3.1; x === ax ? g.moveTo(x, ay + sg*h) : g.lineTo(x, ay + sg*h); } g.stroke(); }
+  g.beginPath(); g.ellipse(ax, ay, 6, 10, 0, -Math.PI/2, Math.PI/2); g.stroke();
+  g.filter = 'none';
+  // jirones de condensación
+  const R = mulberry32(rojo ? 7 : 3);
+  for (let i = 0; i < 26; i++){ const x = ax - R()*ax*0.8, d = ax - x, h = (10 + Math.pow(d, 0.72)*3.1), y = ay + (R()*2 - 1)*h*0.95;
+    g.fillStyle = `rgba(${col},${0.08 + R()*0.18})`; g.beginPath(); g.ellipse(x, y, 6 + R()*10, 2 + R()*3, 0, 0, Math.PI*2); g.fill(); }
+  c._ax = ax; c._ay = ay;
+  return (_conoVapor[k] = c);
+}
+// El cono y la estela del vuelo, centrados en él. delante: el frente de choque por encima del cuerpo.
+function drawVueloSonico(s, delante){
+  if (!vil.flying && !(vil.machT > 0)) return;
+  const a = Math.atan2(vil.fy, vil.fx), cx = s.x + vil.fx*6, cy = s.y - 6 + vil.fy*6;
+  const pre = !vil.supersonico ? clamp((vil.vueloT - VIL_BARRERA_T*0.45)/(VIL_BARRERA_T*0.55), 0, 1) : 0;   // la compresión antes de romperla
+  const m = vil.machT > 0 ? vil.machT/VIL_MACH_FX : 0;                       // 1 al romperla, se va apagando
+  ctx.save(); ctx.translate(cx, cy); ctx.rotate(a);
+  if (!delante){
+    // la estela: líneas de velocidad hacia atrás
+    const n = vil.supersonico ? 6 : 3, L = vil.supersonico ? 46 : 26;
+    ctx.strokeStyle = vil.supersonico ? 'rgba(235,245,255,0.6)' : 'rgba(200,225,255,0.5)'; ctx.lineCap = 'round';
+    for (let i = 0; i < n; i++){
+      const y = (i - (n - 1)/2)*7, ph = (gameTime*9 + i*0.37) % 1, x0 = -18 - ph*30;
+      ctx.globalAlpha = (1 - ph)*0.7; ctx.lineWidth = i % 2 ? 1.5 : 2.5;
+      ctx.beginPath(); ctx.moveTo(x0, y*0.8); ctx.lineTo(x0 - L*(0.6 + (i % 3)*0.2), y*1.3); ctx.stroke();
+    }
+    // el cono de vapor: aparece al romper la barrera (rojo un instante) y, a
+    // toda velocidad, queda un cono de Mach tenue que tiembla
+    const cb = conoVapor(false), cr = conoVapor(true), E = 0.5, sx = (0.8 + (1 - m)*0.45)*E;
+    const dib = (cv, al, esc)=>{ if (al <= 0.01) return; ctx.globalAlpha = al; ctx.drawImage(cv, -cv._ax*esc + 26, -cv._ay*esc, cv.width*esc, cv.height*esc); };
+    if (m > 0){
+      const rojo = clamp((m - 0.55)/0.45, 0, 1);                          // el primer instante, rojo
+      dib(cr, rojo*0.95, sx);
+      dib(cb, (1 - rojo)*Math.min(1, m*1.6)*0.9, sx);
+    } else if (vil.supersonico){
+      dib(cb, 0.22 + Math.sin(gameTime*30)*0.05, E*0.95);
+      ctx.globalAlpha = 0.3; ctx.strokeStyle = '#eaf4ff'; ctx.lineWidth = 1.5;      // el cono de Mach
+      ctx.beginPath(); ctx.moveTo(30, 0); ctx.lineTo(-70, -40); ctx.moveTo(30, 0); ctx.lineTo(-70, 40); ctx.stroke();
+    }
+    if (pre > 0){                                                          // el aire que se comprime delante
+      ctx.globalAlpha = pre*0.55; ctx.strokeStyle = '#dfeeff'; ctx.lineWidth = 1.5 + pre*1.5;
+      ctx.beginPath(); ctx.ellipse(26 - pre*4, 0, 5 + pre*3, 12 + pre*10, 0, -Math.PI/2, Math.PI/2); ctx.stroke();
+    }
+  } else if (m > 0 || vil.supersonico){
+    // el morro del frente de choque, delante del cuerpo
+    const al = m > 0 ? Math.min(1, m*1.4) : 0.4, rojo = clamp((m - 0.55)/0.45, 0, 1);
+    ctx.globalAlpha = al*0.85; ctx.strokeStyle = rojo > 0.3 ? '#ff5a46' : '#f4f9ff'; ctx.lineWidth = 2.2;
+    ctx.beginPath(); ctx.ellipse(30, 0, 4.5, 9 + (1 - m)*3, 0, -Math.PI/2, Math.PI/2); ctx.stroke();
+    if (m > 0.5){                                                        // el fogonazo en la punta, y rayos que se abren
+      const q = (m - 0.5)/0.5;
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.globalAlpha = q*0.9; ctx.fillStyle = rojo > 0.3 ? '#ff7a64' : '#ffffff';
+      ctx.beginPath(); ctx.arc(30, 0, 5 + (1 - q)*7, 0, Math.PI*2); ctx.fill();
+      ctx.strokeStyle = rojo > 0.3 ? '#ffb0a0' : '#ffffff'; ctx.lineWidth = 1.5; ctx.beginPath();
+      for (let i = 0; i < 8; i++){ const b = (i/8)*Math.PI*2, r0 = 8 + (1 - q)*14, r1 = r0 + 10 + (1 - q)*10; ctx.moveTo(30 + Math.cos(b)*r0, Math.sin(b)*r0*0.8); ctx.lineTo(30 + Math.cos(b)*r1, Math.sin(b)*r1*0.8); }
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
+}
 const vil = { stam:100, maxStam:100, flying:false, flyDir:'', fx:0, fy:0,
               punchCd:0, punchT:0, tapKey:'', tapT:0, capa:0,
               holdT:0, holding:false, charge:0, joyFly:false,
@@ -19406,8 +19510,15 @@ const VIL_SUPER_REACH = 168;
 const VIL_ONDA_R      = 210;    // alcance de la onda de viento
 const VIL_ONDA_DMG    = 95;
 const VIL_SPEED   = 210;    // a pie
-const VIL_FLY     = 620;    // en vuelo sónico
+const VIL_FLY     = 640;    // en vuelo sónico (ya roto la barrera del sonido)
 const VIL_STAM_USE= 26;     // estamina por segundo volando
+// El vuelo tiene dos tiempos: despega más despacio y gastando menos, acelera
+// y, al rato, rompe la barrera del sonido (estampido, cono de vapor teñido un
+// instante de rojo) y sale disparado a toda velocidad.
+const VIL_FLY_LENTO = 330, VIL_FLY_LENTO2 = 450;   // velocidad al despegar y justo antes de romperla
+const VIL_STAM_LENTO = 11;                          // estamina por segundo en esa primera parte
+const VIL_BARRERA_T = 0.85;                         // segundos de vuelo hasta romperla
+const VIL_MACH_FX = 0.62;                           // lo que dura el estallido de la barrera
 const DRA_STAM_VUELO = 20;  // el dragón, algo menos: planea con sus alas
 const VIL_STAM_REG= 18;     // recuperación por segundo en tierra
 // Rugido del dragón (R): se planta, ruge con las tres cabezas y recupera estamina.
@@ -34298,7 +34409,7 @@ function updateViltrum(dt){
       vil.flying = true; vil.flyDir = '';        // lo gobierna el joystick
       vil.joyFly = true;
       vil.fx = moveJoy.dx/m; vil.fy = moveJoy.dy/m;
-      sonicBoom(player.x, player.y, Math.atan2(vil.fy, vil.fx));
+      vilDespega();
     } else if (vil.flying && vil.joyFly && m < VIL_JOY_OFF){
       vil.flying = false; vil.joyFly = false;
     }
@@ -34308,15 +34419,21 @@ function updateViltrum(dt){
   // Con teclado, el vuelo se mantiene mientras siga pulsada esa dirección.
   if (vil.flying && vil.flyDir && !pressed(vil.flyDir)) vil.flying = false;
   if (vil.flying){
-    vil.stam -= VIL_STAM_USE*dt;
-    // se puede curvar un poco el rumbo mientras vuela
+    if (!vil._volaba){ vil.vueloT = 0; vil.supersonico = false; vil.velVuelo = VIL_FLY_LENTO; }   // acaba de despegar
+    vil.vueloT += dt;
+    if (!vil.supersonico && vil.vueloT >= VIL_BARRERA_T) vilRompeBarrera();
+    const sup = vil.supersonico;
+    vil.stam -= (sup ? VIL_STAM_USE : VIL_STAM_LENTO)*dt;
+    // se puede curvar un poco el rumbo mientras vuela (algo más despacio, más ágil)
     if (dx || dy){
-      const l = Math.sqrt(dx*dx+dy*dy)||1;
-      vil.fx = lerp(vil.fx, dx/l, 0.07); vil.fy = lerp(vil.fy, dy/l, 0.07);
+      const l = Math.sqrt(dx*dx+dy*dy)||1, giro = sup ? 0.07 : 0.11;
+      vil.fx = lerp(vil.fx, dx/l, giro); vil.fy = lerp(vil.fy, dy/l, giro);
       const n = Math.sqrt(vil.fx*vil.fx+vil.fy*vil.fy)||1; vil.fx/=n; vil.fy/=n;
     }
-    player.vx = vil.fx*VIL_FLY; player.vy = vil.fy*VIL_FLY;
-    if (Math.random() < 0.6) addParticles(player.x, player.y, '#9fd6ff', 2, 120);
+    const obj = sup ? VIL_FLY : VIL_FLY_LENTO + (VIL_FLY_LENTO2 - VIL_FLY_LENTO)*Math.min(1, vil.vueloT/VIL_BARRERA_T);
+    vil.velVuelo += (obj - vil.velVuelo)*Math.min(1, dt*(sup ? 9 : 6));
+    player.vx = vil.fx*vil.velVuelo; player.vy = vil.fy*vil.velVuelo;
+    if (Math.random() < (sup ? 0.6 : 0.3)) addParticles(player.x - vil.fx*20, player.y - vil.fy*20, sup ? '#e8f4ff' : '#9fd6ff', sup ? 2 : 1, 120);
     if (vil.stam <= 0){ vil.stam = 0; vil.flying = false; }
   } else {
     const len = Math.sqrt(dx*dx+dy*dy) || 1;
@@ -34324,6 +34441,9 @@ function updateViltrum(dt){
     player.vy = lerp(player.vy, (dy/len)*VIL_SPEED*mag, 0.18);
     vil.stam = Math.min(vil.maxStam, vil.stam + VIL_STAM_REG*dt);
   }
+  if (!vil.flying){ vil.supersonico = false; vil.vueloT = 0; }
+  vil._volaba = vil.flying;
+  if (vil.machT > 0) vil.machT -= dt;
   if (player.vx) player.facing = player.vx > 0 ? 1 : -1;
   const x0 = player.x, y0 = player.y;
   player.x = clamp(player.x + player.vx*dt, 30, WORLD_W-30);
@@ -35520,6 +35640,7 @@ function drawViltrum(){
   // sombra en el suelo: siempre separada, porque flota
   ctx.fillStyle = 'rgba(0,0,0,0.22)';
   ctx.beginPath(); ctx.ellipse(s.x, s.y + 25, 11, 3.6, 0, 0, Math.PI*2); ctx.fill();
+  drawVueloSonico(s, false);                          // la estela y el cono de vapor, detrás
   ctx.save();
   ctx.translate(s.x, s.y + (vol ? 0 : flot));
   let pose;
@@ -35572,18 +35693,8 @@ function drawViltrum(){
     }
     ctx.globalAlpha = 1;
   }
-  // estela sónica
-  if (vol){
-    ctx.strokeStyle='rgba(200,225,255,0.55)'; ctx.lineWidth=3; ctx.lineCap='round';
-    for (let i=1;i<=3;i++){
-      ctx.globalAlpha = 0.5/i;
-      ctx.beginPath();
-      ctx.moveTo(s.x - vil.fx*16*i, s.y - vil.fy*16*i);
-      ctx.lineTo(s.x - vil.fx*(16*i+14), s.y - vil.fy*(16*i+14));
-      ctx.stroke();
-    }
-    ctx.globalAlpha = 1;
-  }
+  drawVueloSonico(s, true);                           // el frente de choque, delante
+  ctx.globalAlpha = 1;
 }
 
 // Dónde sujeta lo que lleva. Al volar va por delante; a pie lo orienta con el
@@ -35617,6 +35728,7 @@ function vilApuntaGolpe(){
 // Embestida en vuelo: derriba edificios y machaca lo que lleva por delante.
 function vilSmash(dt){
   const px2 = player.x + vil.fx*44, py2 = player.y + vil.fy*44;
+  dt *= vil.supersonico || !isVil() ? 1 : 0.7;          // antes de romper la barrera, pega algo menos
   for (let __i249 = 0, __a249 = buildings; __i249 < __a249.length; __i249++){ const b = __a249[__i249];
     if (b.stage >= 2) continue;
     if (px2 + 26 < b.x || px2 - 26 > b.x + b.w || py2 + 26 < b.y || py2 - 26 > b.y + b.h) continue;
