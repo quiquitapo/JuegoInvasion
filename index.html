@@ -10708,13 +10708,30 @@ function autoAbatido(c){
   explode(c.x, c.y, bl.r, bl.dmg, bl.big);
 }
 
+// Lo que salta al golpear depende de qué es: un tanque, un helicóptero o un
+// robot no sangran (antes todo soltaba la misma salpicadura roja, y al
+// atravesar un blindado volando salía un chorro rojo sin sentido): echan
+// chispas y esquirlas de metal. Las almas, un destello pálido; los bichos
+// marcianos, papilla verde; la gente, sangre (verde en el planeta alien).
+const IMPACTO_METAL = { tank:1, heli:1, gunship:1, siege:1, flametank:1, plane:1, omni:1, artillero:1, superx:1, mbt:1, mbtFrio:1, ovni:1, tripode:1,
+                        droide:1, escaner:1, caza40k:1, centurion:1, gravitron:1, helicaza:1, acorazado:1, aracnido:1, muerteVeloz:1 };
+const IMPACTO_ALMA = { arquero:1, caballero:1, golem:1, vengativo:1, amalgama:1 };
+const IMPACTO_VERDE = { bicho:1, arana:1, criaJefe:1, criaColosal:1 };
+function chispasImpacto(e, fx, fy, dmg){
+  const n = dmg < 20 ? 3 : 8;                         // el daño continuo (embestir, fuego) suelta menos
+  const t = e.type;
+  if (IMPACTO_METAL[t]){ addParticles(fx, fy, '#ffd27a', n, 140); addParticles(fx, fy, '#9aa6ad', Math.ceil(n/2), 90); return; }
+  if (IMPACTO_ALMA[t]){ addParticles(fx, fy, '#cfe6ff', n, 90); return; }
+  if (IMPACTO_VERDE[t] || (esAlien() && (e.person || e.kind === 'civ'))){ addParticles(fx, fy, '#5fc24a', n, 90); return; }
+  addParticles(fx, fy, '#ff3b3b', n, 90);
+}
 function damageEnemy(e, dmg, fx, fy){
   // El OVNI es cosa tuya: ni el ejército, ni el fuego, ni una explosión ajena
   // lo tocan. Solo lo que haces tú (golpes, lanzamientos, tus explosiones).
   if (e.type === 'ovni' && culpaJug <= 0) return;
   if (dobleInv() && culpaJug > 0){                      // lo decide el anfitrión
     const r = refDe(e); if (r) enviaAccion({ t:'dano', r, dmg, fx, fy });
-    addParticles(fx, fy, '#ff3b3b', 8, 90);
+    chispasImpacto(e, fx, fy, dmg);
     return;
   }
   if (e.dead) return;
@@ -10760,7 +10777,7 @@ function damageEnemy(e, dmg, fx, fy){
   const hp0 = e.hp;
   e.hp -= dmg;
   numeroDano(e, Math.min(dmg, Math.max(0, hp0)));      // el número, lo que de verdad le quitas
-  addParticles(fx, fy, '#ff3b3b', 8, 90);
+  chispasImpacto(e, fx, fy, dmg);
   if (e.hp > 0) return;
   e.dead = true;
   if (e.locaGig) locaGiganteCae(e);               // oleada loca: cada gigante derribado da monedas
