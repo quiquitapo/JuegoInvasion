@@ -2535,6 +2535,10 @@
         <button type="button" class="togglebtn off" id="tgFps">OFF</button>
       </div>
       <div class="bindrow">
+        <span class="bindname">Límite de 60 FPS <small style="opacity:.7">(pantallas de 120 Hz o más)</small></span>
+        <button type="button" class="togglebtn" id="tgLim60">ON</button>
+      </div>
+      <div class="bindrow">
         <span class="bindname">Tamaño de los mandos <b id="uiSizeWho" style="color:#8fd7ff"></b></span>
         <span style="display:flex; gap:6px; align-items:center">
           <button type="button" class="togglebtn" id="tgUiAuto">AUTO</button>
@@ -6085,16 +6089,27 @@ function dprUltra(dprPant){
   // si se agota, el navegador descarta los lienzos (la pantalla se va a negro)
   const tactil = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
   const flojo = (navigator.hardwareConcurrency || 4) <= 2 || (navigator.deviceMemory > 0 && navigator.deviceMemory <= 2);   // (como equipoFlojo, que se declara más abajo)
-  const px = CW*CH*d*d, tope = flojo ? 3e6 : tactil ? 5e6 : 8.3e6;
+  // Topes de nitidez: en el móvil 2,25x (a 3x no se distingue y pinta casi el
+  // doble); en pantallas grandes de PC (1080p reales o más) 1,25 veces la
+  // pantalla en vez de 1,5 (un 31 % menos de píxeles, apenas se nota).
+  d = Math.min(d, dprTopeVista(tactil, dprPant, true));
+  const px = CW*CH*d*d, tope = flojo ? 3e6 : tactil ? 3.5e6 : 8.3e6;
   if (px > tope) d = Math.sqrt(tope/(CW*CH));
   return Math.max(1, d);
+}
+function dprTopeVista(tactil, dprPant, ultra){
+  if (tactil === undefined) tactil = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
+  const dp = Math.max(1, dprPant || 1);
+  if (tactil) return 2.25;
+  if (CW*CH*dp*dp >= 1.9e6) return ultra ? 1.25*dp : 1.25;     // 1080p de verdad o más
+  return 3;
 }
 let _congelado = false;            // partida parada y ya pintada (ver mundoCongelado)
 function resize(){
   _congelado = false;                            // el tamaño cambió: hay que repintar
   CW = window.innerWidth; CH = window.innerHeight;
   const dprPant = window.devicePixelRatio || 1;
-  DPR = ultraOn ? dprUltra(dprPant) : Math.min(dprTope, Math.max(1, dprPant));    // por debajo de 1 solo si el juego va lento (ver vigilaRendimiento)
+  DPR = ultraOn ? dprUltra(dprPant) : Math.min(dprTope, dprTopeVista(undefined, dprPant, false), Math.max(1, dprPant));    // por debajo de 1 solo si el juego va lento (ver vigilaRendimiento)
   ESC_MAX_PX = 5e6*Math.max(1, DPR*DPR/2.25);       // las copias escaladas crecen con la resolución
   canvas.width = Math.round(CW*DPR); canvas.height = Math.round(CH*DPR);
   ctx.imageSmoothingQuality = 'low';                 // al cambiar el tamaño se pierde
@@ -6138,6 +6153,46 @@ function mulberry32(a){
 const WORLD_W = 3400, WORLD_H = 2400;
 let camX = 0, camY = 0;
 const roads = [], buildings = [], treeSpots = [], lampSpots = [], trashSpots = [], benchSpots = [];
+// ============ REJILLA ESPACIAL DE EDIFICIOS ============
+// El mapa se parte en celdas de 256 px y cada celda guarda qué edificios la
+// tocan. Para chocar, solo se miran los de las celdas cercanas (1-4) en vez
+// de los ~110 del mapa, decenas de veces por fotograma. Los edificios no se
+// mueven: la rejilla se hace al empezar y se rehace si cambia la lista.
+const REJ_C = 256;
+const _rejE = { arr:null, n:-1, cols:0, filas:0, celdas:null, sello:null, marca:0 };
+function rejillaEdif(){
+  const R = _rejE;
+  if (R.arr === buildings && R.n === buildings.length) return R;
+  R.arr = buildings; R.n = buildings.length;
+  let mx = 1, my = 1;
+  for (const b of buildings){ if (b.x + b.w > mx) mx = b.x + b.w; if (b.y + b.h > my) my = b.y + b.h; }
+  R.cols = Math.ceil(mx/REJ_C) + 1; R.filas = Math.ceil(my/REJ_C) + 1;
+  R.celdas = new Array(R.cols*R.filas);
+  for (let i = 0; i < R.celdas.length; i++) R.celdas[i] = [];
+  R.sello = new Int32Array(buildings.length); R.marca = 0;
+  for (let i = 0; i < buildings.length; i++){ const b = buildings[i];
+    const c0 = Math.max(0, Math.floor(b.x/REJ_C)), c1 = Math.min(R.cols - 1, Math.floor((b.x + b.w)/REJ_C));
+    const f0 = Math.max(0, Math.floor(b.y/REJ_C)), f1 = Math.min(R.filas - 1, Math.floor((b.y + b.h)/REJ_C));
+    for (let f = f0; f <= f1; f++) for (let c = c0; c <= c1; c++) R.celdas[f*R.cols + c].push(i);
+  }
+  return R;
+}
+function _ordenNum(a, b){ return a - b; }
+// Índices (en orden) de los edificios cuyas celdas toca la caja dada.
+function edifCerca(x0, y0, x1, y1){
+  const R = rejillaEdif();
+  const c0 = Math.max(0, Math.floor(x0/REJ_C)), c1 = Math.min(R.cols - 1, Math.floor(x1/REJ_C));
+  const f0 = Math.max(0, Math.floor(y0/REJ_C)), f1 = Math.min(R.filas - 1, Math.floor(y1/REJ_C));
+  if (c0 === c1 && f0 === f1) return R.celdas[f0*R.cols + c0];     // lo normal: una sola celda, ya en orden
+  const out = [];                                                   // nuevo: puede haber llamadas anidadas
+  if (++R.marca > 2e9){ R.marca = 1; R.sello.fill(0); }
+  for (let f = f0; f <= f1; f++) for (let c = c0; c <= c1; c++){
+    const L = R.celdas[f*R.cols + c];
+    for (let j = 0; j < L.length; j++){ const i = L[j]; if (R.sello[i] !== R.marca){ R.sello[i] = R.marca; out.push(i); } }
+  }
+  if (out.length > 1) out.sort(_ordenNum);
+  return out;
+}
 const parques = [];            // manzanas sin edificio: césped, caminos y fuente
 // El banco: raro al generar la ciudad, algo más probable al reconstruirla.
 // Debe declararse ANTES de generar la ciudad, que lo consulta al repartir estilos.
@@ -6337,8 +6392,10 @@ function damageBuilding(b, dmg){
 }
 
 function collideBuildings(ent, r, dt, breaker, libreDentro){
-  for (let __i56 = 0, __a56 = buildings; __i56 < __a56.length; __i56++){ const b = __a56[__i56];
-    if (b.stage >= 2) continue;
+  if (!(ent.x === ent.x && ent.y === ent.y)) return;                 // posición inválida: nada que chocar
+  const m = 2*r + 4, cerca = edifCerca(ent.x - m, ent.y - m, ent.x + m, ent.y + m);
+  for (let __i56 = 0, B = buildings; __i56 < cerca.length; __i56++){ const b = B[cerca[__i56]];
+    if (!b || b.stage >= 2) continue;
     // Con libreDentro, el edificio en el que ya se está no expulsa: se puede
     // quedar dentro y salir andando; los demás siguen siendo muros.
     if (libreDentro && ent.x > b.x && ent.x < b.x + b.w && ent.y > b.y && ent.y < b.y + b.h) continue;
@@ -6436,6 +6493,7 @@ let bossRest = 0, bossRoll = 0;
 function finalWave(){ return form >= 1 && (gameTime > 140 || score >= 1500); }
 
 function resetGame(){
+  try { propPreVacia(); } catch(e){}               // las copias del decorado de la partida anterior
   player = { x: WORLD_W/2, y: WORLD_H/2, vx:0, vy:0, tentaclePhase:0 };
   civilians=[]; enemies=[]; cars=[]; trees=[]; planters=[]; trash=[]; benches=[]; bullets=[]; booms=[]; heldObject=null;
   partN = 0; polvos.length = 0; avesVuelo.length = 0; avesSuelo.length = 0; plumas.length = 0; avesMuertas.length = 0; for (const q of parques){ q.avesSuelo = undefined; q.avesN = 0; q.avesT = 0; }                      // el depósito de chispas se reutiliza, no se tira
@@ -6846,8 +6904,8 @@ function spawnCar(){
 
 // ¿Cae este punto dentro de un edificio en pie?
 function dentroDeEdificio(x, y, margen){
-  const m = margen || 0;
-  for (let __i80 = 0, __a80 = buildings; __i80 < __a80.length; __i80++){ const b = __a80[__i80];
+  const m = margen || 0, cerca = edifCerca(x - m - 1, y - m - 1, x + m + 1, y + m + 1);
+  for (let __i80 = 0; __i80 < cerca.length; __i80++){ const b = buildings[cerca[__i80]];
     if (b.stage >= 2) continue;
     if (x > b.x - m && x < b.x + b.w + m && y > b.y - m && y < b.y + b.h + m) return true;
   }
@@ -7672,7 +7730,7 @@ function triDescarga(e){
     const cx = clamp(x, b.x, b.x+b.w), cy = clamp(y, b.y, b.y+b.h);
     if (dist(x, y, cx, cy) < R) damageBuilding(b, TRI_RAYO_DMG*1.2);
   }
-  booms.push({ x, y, r:R*0.3, max:R*1.3, life:0.3, maxlife:0.3, flash:true });
+  boomNuevo(x, y, R*0.3, R*1.3, 0.3, 0.3, undefined, true);
   addParticles(x, y, '#ffffff', 22, 230);
   addParticles(x, y, '#ffb35a', 12, 160);
   shake(10, 0.25);
@@ -8387,18 +8445,18 @@ function explodeAqui(x, y, radius, dmg, big, hurtPlayer, anidada){
   }
   // la luz: la de la explosión principal (y la de otra cisterna en cadena), no la de cada auto
   const conLuz = !anidada || big;
-  booms.push({x,y,r:6,max:radius,life:0.42,maxlife:0.42, luz:conLuz});
+  boomNuevo(x, y, 6, radius, 0.42, 0.42, undefined, undefined, conLuz);
   // dos bolas más pequeñas, algo desplazadas y más lentas: el fuego no es una esfera perfecta
   for (let i = 0, nb = anidada ? 1 : big ? 3 : 2; i < nb; i++)
-    booms.push({ x: x + rand(-radius*0.32, radius*0.32), y: y + rand(-radius*0.22, radius*0.12), r: 4, max: radius*rand(0.38, 0.55), life: rand(0.5, 0.7), maxlife: 0.7, luz:false });
+    boomNuevo(x + rand(-radius*0.32, radius*0.32), y + rand(-radius*0.22, radius*0.12), 4, radius*rand(0.38, 0.55), rand(0.5, 0.7), 0.7, undefined, undefined, false);
   if (chainDepth < 2){
     lanzaChatarra(x, y, anidada ? 4 : big ? 12 : 7, big ? 1.15 : 0.9);
     quemadura(x, y, radius*(big ? 0.62 : 0.52));
   }
   // Onda de choque: anillo fino que se abre más allá de la bola de fuego.
-  booms.push({x, y, r:radius*0.25, max:radius*1.7, life:0.42, maxlife:0.42, ring:true});
+  boomNuevo(x, y, radius*0.25, radius*1.7, 0.42, 0.42, true);
   // Fogonazo inicial, muy breve (el de la grande ya cubre a las anidadas)
-  if (conLuz) booms.push({x, y, r:radius*0.2, max:radius*0.55, life:0.11, maxlife:0.11, flash:true, luz:true});
+  if (conLuz) boomNuevo(x, y, radius*0.2, radius*0.55, 0.11, 0.11, undefined, true, true);
   // La onda llega mucho más lejos que las astillas: los árboles que arden
   // (hasta 0.8 del radio) desaparecen, y los de alrededor se doblan. Antes la
   // sacudida apenas rebasaba la zona de destrucción y no se veía a nadie
@@ -8529,7 +8587,7 @@ function aeronaveCae(e){
                     R: e.type === 'gunship' ? 130 : avion ? 115 : 100, dmg: e.type === 'gunship' ? 45 : 35 });
   sfxEn('caeAero', e.x, e.y);
   addParticles(e.x, e.y - (e.alt || 50), '#ffca4d', 14, 200);
-  booms.push({ x: e.x, y: e.y - (e.alt || 50), r: 4, max: 34, life: 0.3, maxlife: 0.3 });
+  boomNuevo(e.x, e.y - (e.alt || 50), 4, 34, 0.3, 0.3);
 }
 // Mancha de quemado: una estampa (radial, con bordes irregulares) hecha una vez.
 let _quemaSpr = null;
@@ -12686,6 +12744,12 @@ const SFX_GAP = { alarmaAuto:0.55, aves:0.25, cuervo:0.4, gota:0.06, boomD:0.07,
 const sfxLast = {};
 let sfxVoices = 0;
 const SFX_MAX_VOICES = 14;
+// Copias a la vez de un mismo efecto: en una oleada grande se pedían decenas
+// de explosiones o disparos iguales encima unos de otros (no se distinguen y
+// cada uno crea sus nodos de audio). Con 3 (4 los golpes y disparos) suena igual de lleno.
+const SFX_POR_TIPO = 3, SFX_POR_TIPO_X = { hit:4, shoot:4, kill:4 };
+const sfxActivos = {};
+let _sfxDur = -1;                                 // lo que dura el efecto que se está creando (lo anota voiceStart)
 
 function sfx(name){ sfxEn(name); }
 // Con posición (x, y del mundo): lo lejano suena más flojo y lo de los lados,
@@ -12697,6 +12761,7 @@ function sfxEn(name, x, y, vol){
   const gap = SFX_GAP[name] != null ? SFX_GAP[name] : 0.04;
   if (sfxLast[name] != null && now - sfxLast[name] < gap) return;
   if (sfxVoices >= SFX_MAX_VOICES) return;
+  if ((sfxActivos[name] | 0) >= (SFX_POR_TIPO_X[name] || SFX_POR_TIPO)) return;
   let k = vol == null ? 1 : vol, pan = 0;
   if (x !== undefined && isFinite(x) && isFinite(y)){
     const cx = camX + VW/2, cy = camY + VH/2, dx = x - cx, d = Math.hypot(dx, y - cy);
@@ -12707,12 +12772,18 @@ function sfxEn(name, x, y, vol){
   sfxLast[name] = now;
   const rev = SFX_REV[name] || 0;
   _sfxTono = SFX_TONO[name] ? 1 + (Math.random()*2 - 1)*0.05 : 1;
-  if (k > 0.995 && Math.abs(pan) < 0.02 && !rev){ try { SFX[name](); } finally { _sfxTono = 1; } return; }
-  const c = audio.ctx, g = c.createGain(); g.gain.value = k;
-  if (Math.abs(pan) >= 0.02 && c.createStereoPanner){ const pn = c.createStereoPanner(); pn.pan.value = pan; g.connect(pn); pn.connect(audio.sfxGain); }
-  else g.connect(audio.sfxGain);
-  _sfxDest = g; _sfxRev = rev;
-  try { SFX[name](); } finally { _sfxDest = null; _sfxRev = 0; _sfxTono = 1; }
+  const durAnt = _sfxDur; _sfxDur = 0;
+  try {
+    if (k > 0.995 && Math.abs(pan) < 0.02 && !rev){ try { SFX[name](); } finally { _sfxTono = 1; } return; }
+    const c = audio.ctx, g = c.createGain(); g.gain.value = k;
+    if (Math.abs(pan) >= 0.02 && c.createStereoPanner){ const pn = c.createStereoPanner(); pn.pan.value = pan; g.connect(pn); pn.connect(audio.sfxGain); }
+    else g.connect(audio.sfxGain);
+    _sfxDest = g; _sfxRev = rev;
+    try { SFX[name](); } finally { _sfxDest = null; _sfxRev = 0; _sfxTono = 1; }
+  } finally {
+    const d = _sfxDur; _sfxDur = durAnt >= 0 ? Math.max(durAnt, _sfxDur) : -1;
+    if (d > 0){ sfxActivos[name] = (sfxActivos[name] | 0) + 1; setTimeout(()=>{ sfxActivos[name] = Math.max(0, (sfxActivos[name] | 0) - 1); }, Math.min(8, d + 0.05)*1000); }
+  }
 }
 // Sonido sostenido de la telequinesis: un zumbido brillante con trémolo que
 // sube con lo que se sostiene. Se crea al empezar y se apaga al soltar.
@@ -12790,6 +12861,7 @@ function menteCalla(){
   mente.nodos = null; mente.g = null; mente.o = null;
 }
 function voiceStart(dur){
+  if (_sfxDur >= 0 && dur > _sfxDur) _sfxDur = dur;
   sfxVoices++;
   setTimeout(()=>{ sfxVoices = Math.max(0, sfxVoices-1); }, (dur+0.05)*1000);
 }
@@ -22761,7 +22833,7 @@ function machGolpe(e){
   for (let __i153 = 0, __a153 = zombis; __i153 < __a153.length; __i153++){ const z = __a153[__i153]; if (z.sube <= 0 && dist(z.x, z.y, x, y) < R) z.hp -= 80; }
   for (let __i154 = 0, __a154 = buildings; __i154 < __a154.length; __i154++){ const b = __a154[__i154]; if (b.stage < 2){ const cx = clamp(x, b.x, b.x + b.w), cy = clamp(y, b.y, b.y + b.h); if (dist(cx, cy, x, y) < R) damageBuilding(b, 60); } }
   addParticles(x, y, '#bfd0ff', 20, 220); addParticles(x, y, '#ffffff', 8, 160);
-  booms.push({ x, y, r:10, max:R*1.3, life:0.45, maxlife:0.45, ring:true, color:'#bfd0ff' });
+  boomNuevo(x, y, 10, R*1.3, 0.45, 0.45, true, undefined, undefined, '#bfd0ff');
   shake(10, 0.25); sfx('hachazo'); sfx('laserE');
 }
 // El ave de presa vuela en pasadas cruzándose contigo y, cuando te tiene
@@ -23551,7 +23623,7 @@ function aracGolpeSuelo(e, x, y, R, dmg){
   for (let __i158 = 0, __a158 = zombis; __i158 < __a158.length; __i158++){ const z = __a158[__i158]; if (z.sube <= 0 && dist(z.x, z.y, x, y) < R) z.hp -= 120; }
   for (let __i159 = 0, __a159 = buildings; __i159 < __a159.length; __i159++){ const b = __a159[__i159]; if (b.stage < 2){ const cx = clamp(x, b.x, b.x + b.w), cy = clamp(y, b.y, b.y + b.h); if (dist(cx, cy, x, y) < R) damageBuilding(b, 140); } }
   addParticles(x, y, '#b8b0a0', 26, 260); addParticles(x, y, '#e8f0f8', 10, 180);
-  booms.push({ x, y, r:10, max:R*1.35, life:0.5, maxlife:0.5, ring:true });
+  boomNuevo(x, y, 10, R*1.35, 0.5, 0.5, true);
   shake(18, 0.45); sfx('caidaGolpe'); sfx('boomD');
 }
 // Atrapado: te arrastra hacia sus colmillos y te muerde. Solo los clics (o
@@ -24722,7 +24794,7 @@ function centEdifCae(v){
   }
   addParticles(x, y - 20, '#9aa6ad', 30, 240); addParticles(x, y - 10, '#c8b8a0', 18, 180);
   anilloPolvo(x, y + 10, 120, 18, '#8a8278');
-  booms.push({ x, y, r: 10, max: R*1.4, life: 0.5, maxlife: 0.5, ring: true });
+  boomNuevo(x, y, 10, R*1.4, 0.5, 0.5, true);
   sfxEn('demolish', x, y); sfxEn('colapso', x, y, 0.8); shake(16, 0.4);
 }
 // Arranca un edificio entero (igual que el poder del gigante, pero sin ser obra tuya).
@@ -24816,7 +24888,7 @@ function updateAgarreCent(dt){
     centLanzaJugador(an, 1150);
     e.fase = 'golpe'; e.ft = 0.3; e.pA = an; e.golpeCd = CENT_GOLPE_CD;
     addParticles(player.x, player.y - 14, '#ffd0c0', 18, 220);
-    booms.push({ x: player.x, y: player.y, r: 10, max: 90, life: 0.35, maxlife: 0.35, ring: true });
+    boomNuevo(player.x, player.y, 10, 90, 0.35, 0.35, true);
     shake(18, 0.4); sfx('hurt'); sfx('bigboom'); centDice(e, 'golpe');
   }
 }
@@ -24837,7 +24909,7 @@ function centGolpea(e){
   const fx = e.x + Math.cos(a)*L*0.8, fy = e.y + Math.sin(a)*L*0.8;
   for (let i = 0; i < buildings.length; i++){ const b = buildings[i]; if (b.stage < 2 && dist(clamp(fx, b.x, b.x + b.w), clamp(fy, b.y, b.y + b.h), fx, fy) < 30) damageBuilding(b, 120); }
   addParticles(fx, fy, '#d8d0c4', 14, 180);
-  booms.push({ x: fx, y: fy, r: 8, max: 70, life: 0.3, maxlife: 0.3, ring: true });
+  boomNuevo(fx, fy, 8, 70, 0.3, 0.3, true);
   sfx('caidaGolpe');
 }
 function updateCenturion(e, dt, a, ang){
@@ -24869,7 +24941,7 @@ function updateCenturion(e, dt, a, ang){
       if (!e.roto && e.ft <= CENT_TRANSF_T*0.18){
         e.roto = true;
         addParticles(e.x, e.y - (e.alt || 0) - 70, '#ffffff', 30, 300); addParticles(e.x, e.y - (e.alt || 0) - 70, '#ff4a2a', 26, 260);
-        booms.push({ x: e.x, y: e.y, r: 20, max: 240, life: 0.55, maxlife: 0.55, ring: true });
+        boomNuevo(e.x, e.y, 20, 240, 0.55, 0.55, true);
         shake(18, 0.5); sfx('bigboom');
         if (a < 200 && !vil.intro){                         // el estallido te aparta
           const an = Math.atan2(player.y - e.y, player.x - e.x);
@@ -25251,7 +25323,7 @@ function centEligeAtaque(e, a, ang){
     toast('¡CORTE LÁSER! PONTE A CUBIERTO'); sfx('cargaM');
   }
 }
-function edifEn(x, y){ for (const b of buildings) if (b.stage < 2 && x > b.x && x < b.x + b.w && y > b.y && y < b.y + b.h) return b; return null; }
+function edifEn(x, y){ const c = edifCerca(x, y, x, y); for (let i = 0; i < c.length; i++){ const b = buildings[c[i]]; if (b.stage < 2 && x > b.x && x < b.x + b.w && y > b.y && y < b.y + b.h) return b; } return null; }
 // El corte sale del reactor del pecho; la minigun, de la punta del cañón.
 function centBoca(e){
   const p = centPts(e).pecho;
@@ -26664,7 +26736,7 @@ function gigGolpe(z){
   for (let __i191 = 0, __a191 = civilians; __i191 < __a191.length; __i191++){ const c = __a191[__i191]; if (!c.dead && !c.held && dist(c.x, c.y, x, y) < GIG_R) porJugador(()=> damageEnemy(c, 999, c.x, c.y)); }
   for (let __i192 = 0, __a192 = buildings; __i192 < __a192.length; __i192++){ const b = __a192[__i192]; if (b.stage < 2){ const cx = clamp(x, b.x, b.x + b.w), cy = clamp(y, b.y, b.y + b.h); if (dist(cx, cy, x, y) < GIG_R*0.7) damageBuilding(b, 90); } }
   addParticles(x, y, '#ff7a1a', 22, 240); addParticles(x, y, '#ffd23a', 10, 180); addParticles(x, y, '#3a2a22', 12, 160);
-  booms.push({ x, y, r:10, max:GIG_R*1.4, life:0.5, maxlife:0.5, ring:true, color:'#ff8a2a' });
+  boomNuevo(x, y, 10, GIG_R*1.4, 0.5, 0.5, true, undefined, undefined, '#ff8a2a');
   shake(9, 0.25); sfx('caidaGolpe'); sfx('incinera');
 }
 function drawGiganteAliado(z){
@@ -26982,7 +27054,7 @@ function estallidoArana(b){
   explode(b.x, b.y, 95, 0, true);
   addParticles(b.x, b.y, '#c88aff', 22, 230);
   addParticles(b.x, b.y, '#f0d0ff', 10, 160);
-  booms.push({ x: b.x, y: b.y, r: 10, max: 140, life: 0.5, maxlife: 0.5, ring: true });
+  boomNuevo(b.x, b.y, 10, 140, 0.5, 0.5, true);
 }
 
 // ---------- pezuñas y ojo humano en el infierno ----------
@@ -27589,7 +27661,7 @@ function impactoMisil(m){
     for (const pool of [civilians, enemies]) for (let __i319 = 0, __a319 = pool; __i319 < __a319.length; __i319++){ const t = __a319[__i319]; if (!t.dead && !t.held && dist(t.x, t.y, m.x, m.y) < R) congelaUnidad(t, 4); }
     for (let __i203 = 0, __a203 = cars; __i203 < __a203.length; __i203++){ const c = __a203[__i203]; if (!c.dead && !c.held && dist(c.x, c.y, m.x, m.y) < R){ c.hieloT = 4; c.vx *= 0; c.vy *= 0; } }
     addParticles(m.x, m.y, '#bff4ff', 40, 300); addParticles(m.x, m.y, '#ffffff', 20, 200);
-    booms.push({ x:m.x, y:m.y, r:10, max:R*1.2, life:0.6, maxlife:0.6, ring:true });
+    boomNuevo(m.x, m.y, 10, R*1.2, 0.6, 0.6, true);
     shake(16, 0.4); sfx('hielo');
     return;
   }
@@ -27606,8 +27678,8 @@ function impactoMisil(m){
     fuegos.push({ x: m.x, y: m.y, r: R*0.7, t: 9, max: 9 });
     cenizas.push({ x: m.x, y: m.y, r: R, t: 30 });
     if (cenizas.length > 6) cenizas.shift();
-    booms.push({ x:m.x, y:m.y, r:R*0.3, max:R*2.2, life:0.25, maxlife:0.25, flash:true });
-    booms.push({ x:m.x, y:m.y, r:10, max:R*2.4, life:0.8, maxlife:0.8, ring:true });
+    boomNuevo(m.x, m.y, R*0.3, R*2.2, 0.25, 0.25, undefined, true);
+    boomNuevo(m.x, m.y, 10, R*2.4, 0.8, 0.8, true);
     for (let k = 0; k < 14; k++) addSmoke(m.x + rand(-60, 60), m.y + rand(-50, 40));
     addParticles(m.x, m.y, '#fff07a', 50, 380); addParticles(m.x, m.y, '#ff8a2a', 40, 320);
     shake(32, 1.0); sfx('bigboom');
@@ -27906,7 +27978,8 @@ function proyJAuto(p, R){
   return null;
 }
 function proyJMuro(p){
-  for (let __i208 = 0, __a208 = buildings; __i208 < __a208.length; __i208++){ const b = __a208[__i208];
+  const c = edifCerca(p.x, p.y, p.x, p.y);
+  for (let __i208 = 0; __i208 < c.length; __i208++){ const b = buildings[c[__i208]];
     if (b.stage >= 2) continue;
     if (p.x > b.x && p.x < b.x + b.w && p.y > b.y && p.y < b.y + b.h) return b;
   }
@@ -34024,7 +34097,8 @@ function desatascar(r){
 // edificio cambia de etapa: el resto de fotogramas cuesta lo mismo que antes.
 const AGUJ_MAX = 10;
 function edifEn(x, y){
-  for (let __i246 = 0, __a246 = buildings; __i246 < __a246.length; __i246++){ const b = __a246[__i246]; if (b.stage < 2 && x > b.x && x < b.x + b.w && y > b.y && y < b.y + b.h) return b; }
+  const c = edifCerca(x, y, x, y);
+  for (let i = 0; i < c.length; i++){ const b = buildings[c[i]]; if (b.stage < 2 && x > b.x && x < b.x + b.w && y > b.y && y < b.y + b.h) return b; }
   return null;
 }
 // El punto del muro por donde se cruza: el del borde más cercano.
@@ -34533,6 +34607,10 @@ function finPreludio(col){
   if (esAlien() && running) muestraIntroMapa();
   vil.preT = 0; vil.preFade = col ? PRE_FUNDIDO_T : 0; vil.preFadeCol = col || '';
   _vilFr.fr = []; _vilFr.pal = null; _criaFondo.k = ''; _criaFondo.c = null;
+  // el espacio (las estrellas son un lienzo del tamaño de la pantalla), el
+  // planeta, el satélite y la nube lila: solo hacían falta para la entrada
+  for (const k in _espacio) delete _espacio[k];
+  _nubeAlien = null;
 }
 // El cielo de los preludios: azul con sol en la ciudad; malva, con estrellas y
 // un planeta anillado, en el planeta alien.
@@ -35742,7 +35820,20 @@ function vilPunch(carga, modo){
   else if (dir) rafagaViento(ang);      // dirigida: solo hacia donde apunta
 }
 
-function updateCivilians(dt){
+// ============ IA A MEDIO RITMO FUERA DE PANTALLA ============
+// Lo que está lejos y fuera de la vista (vecinos y tropa básica) se piensa
+// un fotograma sí y otro no, con el tiempo de los dos juntos: recorre lo
+// mismo, pero cuesta la mitad. Al entrar en pantalla vuelve a cada fotograma.
+// En línea y en el duelo no se usa (el otro jugador puede estar mirándolo).
+function iaMediaVale(){ return !Online.jugando && gameMode !== 'vs' && !esVisorVs(); }
+function medioRitmo(o, dt, margen){
+  const lejos = iaMediaVale() && (o.x < camX - margen || o.x > camX + VW + margen || o.y < camY - margen || o.y > camY + VH + margen);
+  if (!lejos){ if (o._iaDt){ dt += o._iaDt; o._iaDt = 0; } return dt; }
+  if (!o._iaDt){ o._iaDt = dt; return 0; }
+  dt += o._iaDt; o._iaDt = 0; return dt;
+}
+const IA_MEDIA = { police:1, military:1, tank:1, minigun:1, heli:1, gunship:1, centinela:1, centElite:1, droide:1 };
+function updateCivilians(dtG){
   const tip = tentacleTip();
   for (let __i64 = 0, __a64 = civilians; __i64 < __a64.length; __i64++){ const c = __a64[__i64];
     if (c.dead) continue;
@@ -35750,6 +35841,8 @@ function updateCivilians(dt){
     if (c.thrown) continue;
     if (enPresa(c)) continue;                    // en el tentáculo de un trípode
     if (c.hieloT > 0) continue;                  // congelado por el mago
+    const dt = medioRitmo(c, dtG, 300);
+    if (!dt) continue;
     const dP = dist(c.x,c.y,player.x,player.y);
     if (c.panicoT > 0) c.panicoT -= dt;
     const huye = dP < 280 || c.panicoT > 0;
@@ -36231,12 +36324,15 @@ function buscaCobertura(e, dJug, dt){
 function updateEnemies(dtG){
   const tip = tentacleTip();
   for (let __i63 = 0, __a63 = enemies; __i63 < __a63.length; __i63++){ const e = __a63[__i63];
-    const dt = e.leyDt ? dtG*e.leyDt : dtG;      // el modificador del VS Legendario: jefes más rápidos o más lentos
+    let dt = e.leyDt ? dtG*e.leyDt : dtG;        // el modificador del VS Legendario: jefes más rápidos o más lentos
     if (e.dead) continue;
     if (e.escMag > 0) e.escMag -= dt;            // escudo que pone el Héroe Mágico
     if (e.held){ { const pt = puntoAgarre(e, tip); e.x = pt.x; e.y = pt.y; } continue; }
     if (e.thrown) continue;
     if (enPresa(e)) continue;                    // en el tentáculo de un trípode
+    // tropa básica lejos y fuera de la vista (fuera del alcance de sus armas): a medio ritmo
+    if (IA_MEDIA[e.type] && !(e.stunT > 0) && !e.deforme && dist(e.x, e.y, player.x, player.y) > 900){ dt = medioRitmo(e, dt, 250); if (!dt) continue; }
+    else if (e._iaDt){ dt += e._iaDt; e._iaDt = 0; }
 
     if (e.stunT > 0){          // aturdido: derribado, sin disparar
       e.stunT -= dt;
@@ -36528,7 +36624,7 @@ function updateBalas(dt){
     if (!b.artillery && zombis.length && balaEnZombi(b)){ b.life = 0; continue; }
     // standing buildings stop bullets too
     let blocked = false;
-    if (!b.artillery && !b.pierce) for (let __i35 = 0, __a35 = buildings; __i35 < __a35.length; __i35++){ const bl = __a35[__i35];
+    if (!b.artillery && !b.pierce) for (let __i35 = 0, __c35 = edifCerca(b.x, b.y, b.x, b.y); __i35 < __c35.length; __i35++){ const bl = buildings[__c35[__i35]];
       if (bl.stage >= 2 || bl === b.ignEdif) continue;     // el del que sale (el Centurión dispara desde lo alto)
       if (b.x>bl.x && b.x<bl.x+bl.w && b.y>bl.y && b.y<bl.y+bl.h){
         damageBuilding(bl, b.dmg*0.4);
@@ -36585,7 +36681,10 @@ function updateFX(dt){
     }
   }
   for (let __i44 = 0, __a44 = booms; __i44 < __a44.length; __i44++){ const b = __a44[__i44]; b.life -= dt; b.r = b.max * (1 - b.life/b.maxlife); }
-  if (booms.some(b=>!(b.life>0))) booms = booms.filter(b=>b.life>0);   // sin bajas, la misma lista: nada que copiar
+  // los que se apagan vuelven a la reserva (sin crear una lista nueva)
+  let vivos = 0;
+  for (let i = 0; i < booms.length; i++){ const b = booms[i]; if (b.life > 0) booms[vivos++] = b; else if (_boomPool.length < 200) _boomPool.push(b); }
+  booms.length = vivos;
   updateRestosFx(dt);
   for (let __i45 = 0, __a45 = buildings; __i45 < __a45.length; __i45++){ const b = __a45[__i45]; if (b.hitFlash>0) b.hitFlash -= dt; }
   if (toastTimer > 0){
@@ -37189,8 +37288,7 @@ function drawLamps(){
     if (l.dead || l.held || l.thrown || l.presa) continue;     // en mano o volando se dibuja aparte
     if (l.x<camX-60 || l.x>camX+VW+60 || l.y<camY-60 || l.y>camY+VH+60) continue;
     const s2 = S(l.x, l.y);
-    sombra(s2.x, s2.y, l.w*0.78, l.h*0.15, 0.85);
-    if (!(esAlien() || esInfierno() ? drawSpriteTint('lamp', 1, esInfierno() ? TINTE_INF_LAMP : TINTE_AL_LAMP, s2.x, s2.y - l.h*0.44, l.w, l.h, 1, 0) : drawSprite('lamp', s2.x, s2.y - l.h*0.44, l.w, l.h, 1, 0))){
+    if (!propPre(l, s2.x, s2.y, cajaProp(l.w, l.h, 0.44, 0, l.w*0.78, l.h*0.15), pintaFarola)){
       ctx.fillStyle='#2c4448'; ctx.fillRect(s2.x-3, s2.y-56, 6, 56);
     }
   }
@@ -37659,6 +37757,62 @@ function overlayFase(){
   return cv;
 }
 
+// La graduación y la viñeta, ya ampliadas a la medida del búfer de luz (con
+// la columna y la fila de más repitiendo el borde). Se rehacen solo cuando
+// cambia la superposición o el tamaño: antes eran 4 copias escaladas por
+// fotograma de noche; ahora, una copia 1:1.
+const _ovLuz = { cv:null, src:null, key:'', w:0, h:0 };
+function overlayLuz(){
+  const ov = overlayFase(), O = _ovLuz;
+  if (O.cv && O.src === ov && O.key === _ovKey && O.w === lightW && O.h === lightH) return O.cv;
+  if (!O.cv) O.cv = document.createElement('canvas');
+  O.cv.width = lightW + 1; O.cv.height = lightH + 1;
+  const g = O.cv.getContext('2d');
+  g.drawImage(ov, 0, 0, lightW, lightH);
+  g.drawImage(ov, ov.width - 1, 0, 1, ov.height, lightW, 0, 1, lightH);
+  g.drawImage(ov, 0, ov.height - 1, ov.width, 1, 0, lightH, lightW, 1);
+  g.drawImage(ov, ov.width - 1, ov.height - 1, 1, 1, lightW, lightH, 1, 1);
+  O.src = ov; O.key = _ovKey; O.w = lightW; O.h = lightH;
+  return O.cv;
+}
+// Capa de farolas: las farolas no se mueven, así que sus claros (y su tinte)
+// se pintan UNA vez en dos lienzos del tamaño del mapa a la escala del búfer
+// de luz (unos 1100x800 px) y cada fotograma se copia el trozo visible: dos
+// copias en vez de dos por farola visible (unas 60). Se rehace si se rompe una
+// farola, cambia el mapa o el zoom; mientras el zoom se está moviendo se pinta
+// farola a farola como antes (rehacerla en cada paso costaría más).
+function farolaFija(l){ return !l.dead && !l.held && !l.thrown && !l.presa; }
+const _capaF = { hueco:null, tinte:null, ox:0, oy:0, firma:'', kAnt:0, kQuieto:0 };
+function capaFarolas(k, r){
+  const C = _capaF;
+  if (k !== C.kAnt){ C.kAnt = k; C.kQuieto = 0; } else if (C.kQuieto < 9) C.kQuieto++;
+  // firma de las farolas quietas: cuántas y dónde (si una se coge, se lanza
+  // o se rompe, cambia y la capa se rehace; las que se mueven van aparte)
+  let n = 0, suma = 0;
+  for (let i = 0; i < lamps.length; i++){ const l = lamps[i]; if (farolaFija(l)){ n++; suma += l.x*3 + l.y*7 + i; } }
+  const alien = esAlien();
+  const firma = k + '|' + r + '|' + n + '|' + suma + '|' + (alien ? 1 : 0);
+  if (firma === C.firma && C.hueco) return C;
+  if (C.kQuieto < 2 || !lamps.length) return null;        // el zoom aún se mueve
+  let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+  for (const l of lamps){ if (l.x < x0) x0 = l.x; if (l.x > x1) x1 = l.x; if (l.y < y0) y0 = l.y; if (l.y > y1) y1 = l.y; }
+  const ox = Math.floor(x0*k - r) - 2, oy = Math.floor((y0 + 20)*k - r) - 2;
+  const w = Math.ceil(x1*k + r) - ox + 4, h = Math.ceil((y1 + 20)*k + r) - oy + 4;
+  if (w*h > 4e6) return null;                              // mapa enorme: mejor una a una
+  if (!C.hueco){ C.hueco = document.createElement('canvas'); C.tinte = document.createElement('canvas'); }
+  C.hueco.width = C.tinte.width = w; C.hueco.height = C.tinte.height = h;
+  const gh = C.hueco.getContext('2d'), gt = C.tinte.getContext('2d');
+  gt.globalCompositeOperation = 'lighter';
+  const sh = spEsc(holeSprite, r*2), st = spEsc(alien ? cianSprite : warmSprite, r*2);
+  for (const l of lamps){
+    if (!farolaFija(l)) continue;
+    const px = Math.round(l.x*k - r) - ox, py = Math.round((l.y + 20)*k - r) - oy;
+    gh.drawImage(sh, px, py); gt.drawImage(st, px, py);
+  }
+  C.ox = ox; C.oy = oy; C.firma = firma;
+  return C;
+}
+
 function drawLighting(){
   const p = phase();
   const oscuro = oscuridadAhora();
@@ -37671,11 +37825,12 @@ function drawLighting(){
     const cx0 = camX, cy0 = camY, fxL = camX*k - Math.floor(camX*k), fyL = camY*k - Math.floor(camY*k);
     camX = Math.floor(camX*k)/k; camY = Math.floor(camY*k)/k;
     L.setTransform(1,0,0,1,0,0);
-    L.globalCompositeOperation = 'source-over';
-    L.clearRect(0,0,lightW + 1,lightH + 1);
-    // la noche de la ciudad, de un azul algo más hondo (misma oscuridad)
+    // la noche de la ciudad, de un azul algo más hondo (misma oscuridad);
+    // con 'copy' el relleno sustituye lo anterior: no hace falta borrar antes
+    L.globalCompositeOperation = 'copy';
     L.fillStyle = esAlien() ? `rgba(16,8,34,${oscuro})` : esInfierno() ? `rgba(30,4,4,${oscuro})` : `rgba(5,10,32,${oscuro})`;
     L.fillRect(0,0,lightW + 1,lightH + 1);
+    L.globalCompositeOperation = 'source-over';
 
     if (lucesEncendidas()){
       const r = LAMP_R*k, pr = PLAYER_R*k, infOscuro = esInfierno();
@@ -37683,8 +37838,11 @@ function drawLighting(){
       const my = camY - LAMP_R, My = camY + VH + LAMP_R;
       // 1) abrir claros en la oscuridad
       L.globalCompositeOperation = 'destination-out';
+      const capa = infOscuro ? null : capaFarolas(k, r);     // todas las farolas ya pintadas: una copia en vez de una por farola
+      if (capa) L.drawImage(capa.hueco, Math.round(capa.ox - camX*k), Math.round(capa.oy - camY*k));
       for (let __i28 = 0, __a28 = lamps; __i28 < __a28.length; __i28++){ const l = __a28[__i28];
         if (l.dead || infOscuro) continue;          // farola destruida = calle a oscuras (en el infierno, todas)
+        if (capa && farolaFija(l)) continue;        // ya va en la capa
         if (l.x < mx || l.x > Mx || l.y < my || l.y > My) continue;
         const sx = (l.x - camX)*k, sy = (l.y + 20 - camY)*k;
         L.drawImage(spEsc(holeSprite, r*2), Math.round(sx - r), Math.round(sy - r));
@@ -37714,8 +37872,10 @@ function drawLighting(){
       // 2) tinte dentro de los claros
       const fr2 = FOCO_R*k;
       L.globalCompositeOperation = 'lighter';
+      if (capa) L.drawImage(capa.tinte, Math.round(capa.ox - camX*k), Math.round(capa.oy - camY*k));
       for (let __i31 = 0, __a31 = lamps; __i31 < __a31.length; __i31++){ const l = __a31[__i31];
         if (l.dead || infOscuro) continue;
+        if (capa && farolaFija(l)) continue;
         if (l.x < mx || l.x > Mx || l.y < my || l.y > My) continue;
         const sx = (l.x - camX)*k, sy = (l.y + 20 - camY)*k;
         L.drawImage(spEsc(esAlien() ? cianSprite : warmSprite, r*2), Math.round(sx - r), Math.round(sy - r));
@@ -37745,11 +37905,7 @@ function drawLighting(){
     // la graduación y la viñeta van dentro del mismo búfer (misma resolución):
     // un volcado a pantalla completa menos cada fotograma de noche
     L.globalCompositeOperation = 'source-over';
-    const ov = overlayFase();
-    L.drawImage(ov, 0, 0, lightW, lightH);
-    // la columna y la fila de más repiten el borde
-    L.drawImage(ov, lightW - 1, 0, 1, lightH, lightW, 0, 1, lightH); L.drawImage(ov, 0, lightH - 1, lightW, 1, 0, lightH, lightW, 1);
-    L.drawImage(ov, lightW - 1, lightH - 1, 1, 1, lightW, lightH, 1, 1);
+    L.drawImage(overlayLuz(), 0, 0);               // ya a la medida del búfer: copia 1:1
     camX = cx0; camY = cy0;
     vuelcaLuz(fxL, fyL);                           // un solo volcado a pantalla
     drawVentanasNoche(oscuro);
@@ -37944,6 +38100,90 @@ function actualizaSol(){
   solFuerza = (p.id === 'noche') ? 0.55 : 1 - bajo*0.22;
   // con el cielo cubierto casi no hay sombras marcadas
   solFuerza *= 1 - nubeK*0.55 - lluviaK*0.15;
+}
+
+// ============ DECORADO PRERRENDERIZADO ============
+// Árboles, farolas, bancas y papeleras quietos se pintan cada uno UNA vez,
+// con su sombra, en una imagen pequeña a la escala del lienzo, y cada
+// fotograma se copia esa imagen 1:1 (una copia en vez de dos dibujos
+// escalados por objeto). La sombra sigue al sol: la copia se rehace cuando el
+// sol se mueve un poco (unas pocas por fotograma, sin tirones). Si el objeto
+// se coge, se lanza o se dobla con el viento, se dibuja como siempre.
+// (Pintar las sombras en el búfer del suelo obligaría a rehacerlo entero, unos
+// 20 ms, cada vez que el sol se mueve: así cuesta casi nada.)
+const _pre = { usados: new Set(), nuevos: 0, base: '', clave: '', barrido: 0 };
+const PRE_NUEVOS = 8;                          // imágenes nuevas por fotograma como mucho
+function propPreFotograma(){
+  _pre.nuevos = 0;
+  _pre.base = escK ? escK + '|' + (esAlien() ? 'a' : esInfierno() ? 'i' : 'c') + '|' + (skinCiudad() || '') : '';
+  _pre.clave = _pre.base + '|' + Math.round(solX*100) + ',' + Math.round(solY*100) + ',' + Math.round(solLargo*50) + ',' + Math.round(solFuerza*50);
+  if (++_pre.barrido >= 120){                  // cada 2 s: se sueltan las que llevan 4 s sin verse
+    _pre.barrido = 0;
+    for (const o of _pre.usados) if (!o._pc || _escF - o._pc.usado > 240){ o._pc = null; _pre.usados.delete(o); }
+    liberaInterioresLejos();
+  }
+}
+// Los interiores de los edificios enteros que quedan lejos (y fuera de la
+// vista) se sueltan: se vuelven a pintar, poco a poco, al acercarse.
+function liberaInterioresLejos(){
+  if (!running) return;
+  const m = 700;
+  for (let i = 0; i < buildings.length; i++){ const b = buildings[i];
+    if (!b._int || b.stage !== 0 || b._aguj && b._aguj.length) continue;
+    const cx = b.x + b.w/2, cy = b.y + b.h/2;
+    if (Math.hypot(cx - player.x, cy - player.y) < 1800) continue;
+    if (b.x + b.w > camX - m && b.x < camX + VW + m && b.y + b.h > camY - m && b.y < camY + VH + m) continue;
+    b._int = null;
+  }
+}
+function propPreVacia(){ for (const o of _pre.usados) o._pc = null; _pre.usados.clear(); }
+// Caja (en unidades del mundo, alrededor del punto donde pisa) que cubre el
+// dibujo (centrado cyK*h por encima, girado rot) y su sombra (huella sw x sh)
+// con el sol de ahora (la copia se rehace cuando el sol se mueve): lo más
+// ajustada posible, porque copiar píxeles vacíos también cuesta.
+const _caja = [0, 0, 0, 0];
+function cajaProp(w, h, cyK, rot, sw, sh){
+  const hx = rot ? Math.hypot(w, h)/2 : w/2, hy = rot ? Math.hypot(w, h)/2 : h/2;
+  const ww = sw*solLargo/2, scx = sw*solX, scy = sh*solY;
+  _caja[0] = Math.min(-hx, scx - ww) - 1;
+  _caja[2] = Math.max(hx, scx + ww) + 1;
+  _caja[1] = Math.min(-cyK*h - hy, scy - sh/2) - 1;
+  _caja[3] = Math.max(hy - cyK*h, scy + sh/2) + 1;
+  return _caja;
+}
+// pinta(o, x, y): dibuja el objeto apoyado en (x, y) y dice si usó su imagen.
+function propPre(o, sx, sy, caja, pinta){
+  const k = escK;
+  if (!k || pintaDeforme || !_pre.base) return pinta(o, sx, sy);
+  const m = ctx.getTransform();
+  if (m.b || m.c || Math.abs(m.a - k) > 1e-6 || Math.abs(m.d - k) > 1e-6) return pinta(o, sx, sy);
+  let c = o._pc;
+  const forma = c && c.rot === o.rot && c.w === o.w && c.h === o.h;      // si se tuerce o cambia de tamaño, se rehace
+  if (!c || c.clave !== _pre.clave || !forma){
+    const vale = forma && c.base === _pre.base;  // misma escala y mapa: solo el sol algo atrasado
+    if (_pre.nuevos >= PRE_NUEVOS){ if (!vale) return pinta(o, sx, sy); }
+    else {
+      _pre.nuevos++;
+      const ox = Math.ceil(-caja[0]*k) + 1, oy = Math.ceil(-caja[1]*k) + 1;
+      const W = ox + Math.ceil(caja[2]*k) + 1, H = oy + Math.ceil(caja[3]*k) + 1;
+      if (W*H > 300000) return pinta(o, sx, sy);
+      const cv = c ? c.cv : document.createElement('canvas');
+      cv.width = W; cv.height = H;
+      const g = cv.getContext('2d'), c0 = ctx;
+      g.setTransform(k, 0, 0, k, ox, oy);
+      let ok = false;
+      ctx = g;
+      try { ok = pinta(o, 0, 0); } catch(e){ ok = false; } finally { ctx = c0; }
+      if (!ok){ o._pc = null; _pre.usados.delete(o); return pinta(o, sx, sy); }   // aún cargando: sin guardar
+      c = o._pc = { cv, ox, oy, base: _pre.base, clave: _pre.clave, usado: _escF, rot: o.rot, w: o.w, h: o.h };
+      _pre.usados.add(o);
+    }
+  }
+  c.usado = _escF;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.drawImage(c.cv, Math.round(m.a*sx + m.e) - c.ox, Math.round(m.d*sy + m.f) - c.oy);
+  ctx.setTransform(m.a, m.b, m.c, m.d, m.e, m.f);
+  return true;
 }
 
 // Dibuja la sombra de un objeto. (sx,sy) es donde pisa; w y h, su huella.
@@ -38622,7 +38862,27 @@ function getWalkPats(){
   }
 }
 
+function pintaPapelera(t, x, y){
+  sombra(x, y, t.w*0.80, t.h*0.28, 0.9);
+  const cy = y - t.h*0.38;
+  return !!(esAlien() || esInfierno() ? drawSpriteTint('trash', 1, esInfierno() ? TINTE_INF_METAL : TINTE_AL_METAL, x, cy, t.w, t.h, 1, t.rot) : drawSpriteTint('trash', t.tinte|0, TRASH_TINTES, x, cy, t.w, t.h, 1, t.rot));
+}
+function pintaBanca(b, x, y){
+  sombra(x, y, b.w*0.84, b.h*0.30, 0.9);
+  return !!drawSpriteTint(b.horiz ? 'benchH' : 'benchV', esAlien() || esInfierno() ? 1 : 0, esInfierno() ? TINTE_INF_METAL : TINTE_AL_METAL, x, y - b.h*0.36, b.w, b.h, 1, b.rot);
+}
+function pintaFarola(l, x, y){
+  sombra(x, y, l.w*0.78, l.h*0.15, 0.85);
+  return !!(esAlien() || esInfierno() ? drawSpriteTint('lamp', 1, esInfierno() ? TINTE_INF_LAMP : TINTE_AL_LAMP, x, y - l.h*0.44, l.w, l.h, 1, 0) : drawSprite('lamp', x, y - l.h*0.44, l.w, l.h, 1, 0));
+}
 function drawTrash(t){
+  if (!t.held && !t.thrown && t.kind !== 'edificio'){
+    const s2 = S(t.x, t.y);
+    if (!propPre(t, s2.x, s2.y, cajaProp(t.w, t.h, 0.38, t.rot, t.w*0.80, t.h*0.28), pintaPapelera)){
+      ctx.fillStyle='#6a6f75'; ctx.fillRect(s2.x-t.w/2, s2.y-t.h*0.38-t.h/2, t.w, t.h);
+    }
+    return;
+  }
   if (t.kind === 'edificio'){
     const s3 = S(t.x, t.y);
     const cy2 = (t.held || t.thrown) ? s3.y : s3.y - t.h*0.3;
@@ -38647,6 +38907,10 @@ function drawTrash(t){
 
 function drawBench(b){
   const s2 = S(b.x, b.y);
+  if (!b.held && !b.thrown){
+    if (!propPre(b, s2.x, s2.y, cajaProp(b.w, b.h, 0.36, b.rot, b.w*0.84, b.h*0.30), pintaBanca)){ ctx.fillStyle='#7a5433'; ctx.fillRect(s2.x-b.w/2, s2.y-b.h*0.36-b.h/2, b.w, b.h); }
+    return;
+  }
   sombra(s2.x, s2.y, b.w*0.84, b.h*0.30, 0.9);
   const cy = (b.held || b.thrown) ? s2.y : s2.y - b.h*0.36;
   if (!drawSpriteTint(b.horiz ? 'benchH' : 'benchV', esAlien() || esInfierno() ? 1 : 0, esInfierno() ? TINTE_INF_METAL : TINTE_AL_METAL, s2.x, cy, b.w, b.h, 1, b.rot)){
@@ -38713,11 +38977,24 @@ function drawPlanters(){
   }
 }
 
+// La sombra y el árbol quieto, en la misma imagen (ver propPre)
+function pintaArbol(t, x, y){
+  sombra(x, y, t.w*0.72, t.h*0.24, 1);
+  const cy = y - t.h*0.42;
+  return !!(esAlien() ? dibujaCristal(x, cy, t.w, t.h, t.rot) : esInfierno() ? dibujaArbolMuerto(x, cy, t.w, t.h, t.rot) : drawSprite('tree', x, cy, t.w, t.h, 1, t.rot));
+}
 function drawTree(t){
   const s2 = S(t.x, t.y);
   // El punto válido es la BASE del tronco: el sprite crece hacia arriba desde ahí,
   // así el árbol se apoya en la vereda en vez de quedar 21px más abajo.
   const cy = (t.held || t.thrown) ? s2.y : s2.y - t.h*0.42;
+  if (!t.held && !t.thrown && !t.viento){         // quieto: una sola copia, ya con su sombra
+    if (!propPre(t, s2.x, s2.y, cajaProp(t.w, t.h, 0.42, t.rot, t.w*0.72, t.h*0.24), pintaArbol)){
+      ctx.fillStyle='#5c8a3a'; ctx.beginPath(); ctx.arc(s2.x, cy, t.w*0.42, 0, Math.PI*2); ctx.fill();
+    }
+    if (running && avesDe(t)) drawAvesPosadas(t, s2.x, cy);
+    return;
+  }
   sombra(s2.x, s2.y, t.w*0.72, t.h*0.24, 1);
   // Doblado por la ráfaga del vuelo: gira sobre su base, no sobre el centro.
   if (t.viento){
@@ -39402,6 +39679,7 @@ function draw(){
   { const k = ZOOM*DPR; camX = Math.round(camX*k)/k; camY = Math.round(camY*k)/k; }   // la cámara, en la rejilla de píxeles del lienzo
   const conBufer = sbActualiza();
   escK = conBufer ? ZOOM*DPR : 0; _escNuevos = 0; _escF++;      // volcado 1:1 de imágenes (solo con la escala quieta)
+  propPreFotograma();
   if (conBufer){ sbVuelca(); if (esAlien()) drawRoadsAlien('lineas'); }
   else { preparaHuecosSuelo(); drawBackground(); drawRoads(); }
   if (esInfierno()){ drawRestosJefes(); drawCraterInf(); drawCharcosLava(false); } else drawCharcosAgua(false);
@@ -41171,7 +41449,17 @@ function anilloPolvo(x, y, r, n, col){
   }
 }
 // Onda de choque fina (la misma que la de las explosiones), de cualquier color.
-function anilloImpacto(x, y, R, col, dur){ booms.push({ x, y, r:6, max:R, life:dur || 0.35, maxlife:dur || 0.35, ring:true, color:col }); }
+// Explosiones y ondas: objetos reutilizados de una reserva, en vez de uno
+// nuevo por cada golpe (menos trabajo para el recolector de basura).
+const _boomPool = [];
+function boomNuevo(x, y, r, max, life, maxlife, ring, flash, luz, color){
+  const b = _boomPool.length ? _boomPool.pop() : {};
+  b.x = x; b.y = y; b.r = r; b.max = max; b.life = life; b.maxlife = maxlife;
+  b.ring = ring; b.flash = flash; b.luz = luz; b.color = color;
+  booms.push(b);
+  return b;
+}
+function anilloImpacto(x, y, R, col, dur){ boomNuevo(x, y, 6, R, dur || 0.35, dur || 0.35, true, undefined, undefined, col); }
 // Si algo falla en un fotograma, el juego no se queda congelado ni con el
 // lienzo a medio pintar: se anota el error (una vez), se reinicia el estado
 // del lienzo y se sigue con el siguiente fotograma.
@@ -41191,7 +41479,28 @@ function reparaLienzo(){
 // enseña ese fotograma vacío (negro) y, mientras el siguiente rehace todo a la
 // nueva resolución, la pantalla se quedaba en negro un momento.
 let _obraUlt = 0;
+// Límite de 60 fps: en pantallas de 120/144 Hz el navegador pide el doble de
+// fotogramas y el juego hacía el doble de trabajo sin que se note. Se mide el
+// refresco real (el intervalo más corto de cada segundo) y se dibuja uno de
+// cada N avisos (120 Hz: 1 de 2 = 60; 144 Hz: 1 de 2 = 72; 240 Hz: 1 de 4).
+let lim60On = true;
+const lim60 = { prev:0, min:1e9, t:0, ref:16.7, i:0 };
+function lim60Salta(t){
+  const L = lim60, d = t - L.prev; L.prev = t;
+  if (d > 3 && d < 50){ if (d < L.min) L.min = d; L.t += d; }
+  if (L.t >= 1000){ L.ref = L.min; L.min = 1e9; L.t = 0; }
+  if (!lim60On || L.ref >= 12.5) { L.i = 0; return false; }
+  const n = Math.max(1, Math.round(16.67/L.ref));
+  return (L.i = (L.i + 1) % n) !== 0;
+}
+async function loadLim60(){ lim60On = (await storeGet('invasion_lim60')) !== 'off'; refreshLim60UI(); }
+function refreshLim60UI(){
+  const b = document.getElementById('tgLim60'); if (!b) return;
+  b.textContent = lim60On ? 'ON' : 'OFF'; b.classList.toggle('off', !lim60On);
+}
+function cambiaLim60(){ lim60On = !lim60On; storeSet('invasion_lim60', lim60On ? 'on' : 'off'); refreshLim60UI(); }
 function loop(t){
+  if (lim60Salta(t)){ requestAnimationFrame(loop); return; }
   try { ultraVigila(t - lastT, _obraUlt); } catch(e){}
   fpsCuenta(t - lastT);
   const t0 = performance.now();
@@ -43320,7 +43629,7 @@ document.getElementById('importFile').addEventListener('change', e=>{
       SaveIO.data = obj;
       SaveIO.flush();
       await loadDex(); await loadBinds(); await loadShop(); await loadAudioPrefs();
-      await loadTouchPref(); await loadBindsP2(); await loadMenuAnim(); await loadHpBars(); await loadNumeros(); await loadTemblor(); await loadFps(); await loadCalidad(); await loadMapa();
+      await loadTouchPref(); await loadBindsP2(); await loadMenuAnim(); await loadHpBars(); await loadNumeros(); await loadTemblor(); await loadFps(); await loadLim60(); await loadCalidad(); await loadMapa();
       sanitizeBinds(); renderBinds(); renderBindsP2();
       refreshCoinLabels(); refreshAudioUI(); refreshTouchUI(); refreshAnimUI(); refreshHpUI(); refreshNumUI();
       applyAudioVolumes(); await renderScoreList();
@@ -43970,6 +44279,7 @@ if (_edB) _edB.addEventListener('click', ()=>{ hide('uieditor'); show('controles
 document.getElementById('tgUltra').addEventListener('click', ()=>{ cambiaUltra(); sfx('ui'); });
 document.getElementById('tgTemblor').addEventListener('click', ()=>{ temblorOn = !temblorOn; saveTemblor(); refreshTemblorUI(); sfx('ui'); });
 document.getElementById('tgFps').addEventListener('click', ()=>{ cambiaFps(); sfx('ui'); });
+document.getElementById('tgLim60').addEventListener('click', ()=>{ cambiaLim60(); sfx('ui'); });
 document.getElementById('tgHp').addEventListener('click', ()=>{
   showHpBars = !showHpBars;
   saveHpBars(); refreshHpUI(); sfx('ui');
@@ -45970,7 +46280,7 @@ document.getElementById('btnMenu').addEventListener('click', async ()=>{
     ['Cargando controles',        async ()=>{ await loadBinds(); await loadBindsP2(); }],
     ['Cargando monedas y tienda', async ()=>{ await loadShop(); await loadImgSkins(); }],
     ['Cargando preferencias',     async ()=>{ await loadAudioPrefs(); await loadTouchPref();
-                                              await loadMenuAnim(); await loadHpBars(); await loadNumeros(); await loadTemblor(); await loadFps(); await loadCalidad(); await loadHero(); await loadMapa(); await loadLeyenda();
+                                              await loadMenuAnim(); await loadHpBars(); await loadNumeros(); await loadTemblor(); await loadFps(); await loadLim60(); await loadCalidad(); await loadHero(); await loadMapa(); await loadLeyenda();
                                               await loadOvniVs(); refreshOvniVsUI();
                                               await loadOnlinePrefs(); refreshOnlineUI();
                                               await loadUICfg(); }],
