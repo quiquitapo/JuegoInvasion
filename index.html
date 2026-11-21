@@ -2826,7 +2826,7 @@ const TRASH_TINTES = [
 // Una imagen que se repinta en el sitio debe subir su img._ver.
 let ESC_MAX_PX = 5e6;                                  // memoria de las copias (unos 20 MB)
 const _esc = new Map();
-let _escPx = 0, _escNuevos = 0, _escId = 0, _escF = 0;
+let _escPx = 0, _escNuevos = 0, _escId = 0, _escF = 0, _escCreadas = 0;
 let escK = 0;                                          // escala del mundo si este fotograma vale el volcado 1:1 (0 = no)
 function escVacia(){ for (const v of _esc.values()) v.muerta = true; _esc.clear(); _escPx = 0; }
 function dibujaImg(img, a, b, c, d, e, f, g, h){
@@ -2845,8 +2845,8 @@ function dibujaImg(img, a, b, c, d, e, f, g, h){
           if (!img._escId) img._escId = ++_escId;
           const key = img._escId + '|' + sx + '|' + sy + '|' + sw + '|' + sh + '|' + DW + '|' + DH + (flip ? '|f' : '') + '|' + ver + (img._contorno ? '|o' : '');
           q = _esc.get(key);
-          if (!q && _escNuevos < 10){
-            _escNuevos++;
+          if (!q && _escNuevos < (_calentando ? 3 : 10)){
+            _escNuevos += _calentando ? 1 + ((DW*DH/60000) | 0) : 1;     // preparando la ciudad: las grandes cuentan más
             const pad = img._contorno ? 1 : 0;           // con contorno: un píxel de margen alrededor
             const cv = document.createElement('canvas'); cv.width = DW + 2*pad; cv.height = DH + 2*pad;
             const gg = cv.getContext('2d');
@@ -2854,12 +2854,13 @@ function dibujaImg(img, a, b, c, d, e, f, g, h){
             gg.drawImage(img, sx, sy, sw, sh, pad, pad, DW, DH);
             if (pad) contornea(cv, 1, img._contorno);
             q = { cv, f: _escF, DW, DH, sx, sy, sw, sh, flip, ver, muerta: false, pad };
-            _esc.set(key, q); _escPx += DW*DH;
+            _esc.set(key, q); _escPx += DW*DH; _escCreadas++;
             if (_escPx > ESC_MAX_PX) escRecorta();
           }
           if (q) img._escQ = q;
         }
       }
+      if (!q && _calentando) return;                 // preparando la ciudad: lo que no se guarda no hace falta pintarlo
       if (q){
         q.f = _escF;
         const X = flip ? m.a*(dx + dw) + m.e : m.a*dx + m.e, Y = m.d*dy + m.f;
@@ -4469,6 +4470,7 @@ let edifNuevosT = -1, edifNuevos = 0;
 // Como mucho 2 lienzos grandes por fotograma. Los escombros cuestan el doble
 // (hasta 10 ms): van solos, así una cisterna que tumba dos edificios a la vez
 // los reparte en fotogramas seguidos en vez de dar un tirón.
+let edifCreados = 0;                       // fachadas pintadas (para saber si la ciudad ya está preparada)
 function edifPresupuesto(peso){
   let ahora = 0; try { ahora = gameTime; } catch(e){}
   if (edifNuevosT !== ahora){ edifNuevosT = ahora; edifNuevos = 0; }
@@ -4483,6 +4485,7 @@ function edifCanvas(b, etapa, forzar){
   if (etapa === 0 && esInfierno()) etapa = 1;                 // en el infierno todo está en ruinas
   if (b._cv[etapa]) return b._cv[etapa];
   if (!forzar && !edifPresupuesto(etapa === 2 ? 2 : 1)) return null;
+  edifCreados++;
   const R = mulberry32(((b.seed || 1)*1000) | 0);
   const c = document.createElement('canvas'); c.width = b.w; c.height = b.h;
   const g = c.getContext('2d');
@@ -6559,6 +6562,7 @@ function resetGame(){
     // se le ve volando de frente en el cielo; al infierno se llega cayendo)
     vil.intro = 1; vil.introY = player.y; vil.introT = 0;
     vil.preT = conPreludio() ? VIL_PRE_T : 0; vil.preSon = 0;
+    if (vil.preT > 0) preparaEntradaVil(esAlien());    // lo que falte, ya pintado antes del primer fotograma
     vil.flying = false; vil.fx = 0; vil.fy = 1;
     vil.charge = 0; vil.holding = false;
   } else if (typeof vil === 'object'){
@@ -6568,7 +6572,7 @@ function resetGame(){
     if (hero === 'alien'){ vil.preT = conPreludio() ? CRIA_PRE_T : 0; vil.preSon = 0; }
   }
   try { limpiaAvisosEnemigo(); } catch(e){}
-  if (typeof vil === 'object'){ vil.preFade = 0; if (!(vil.intro && (hero === 'viltrum' || hero === 'alien' || hero === 'dragon'))) vil.preT = 0; _vilFr.fr = []; _vilFr.pal = null; }
+  if (typeof vil === 'object'){ vil.preFade = 0; if (!(vil.intro && (hero === 'viltrum' || hero === 'alien' || hero === 'dragon'))) vil.preT = 0; }
   if (typeof vil === 'object'){ vil.caida = 0; if (esInfierno()) empiezaCaida(); }   // al infierno se llega cayendo
   avenidas = eligeAvenidas();
   for (let i=0;i<16;i++) spawnCar();
@@ -6954,6 +6958,7 @@ const ENEMY_TYPES = { police:1, military:1, minigun:1, tank:1, heli:1, gunship:1
                       rivalBoros:1, rivalVil:1, criaJefe:1, criaColosal:1 };
 function spawnEnemy(type, atX, atY){
   if (!ENEMY_TYPES[type]) return;      // ignora tipos retirados o mal escritos
+  if (_spawnTropa && !JEFES[type] && type !== 'ovni' && tropaViva() >= tropaMax()) return;   // tropa al completo: espera a que caiga alguno
   // Lo que vuela puede aparecer sobre un tejado; el resto, no.
   const vuela = (type === 'heli' || type === 'gunship' || type === 'plane' ||
                  type === 'ovni' || type === 'superx' || type === 'tripode' ||   // el trípode pasa por encima
@@ -34589,9 +34594,84 @@ function conPreludio(){ return !esInfierno() && !Online.activo && gameMode === '
 function preludioActivo(){
   return !!(vil.intro && vil.preT > 0 && !vil.caida && running && !esVisorVs() && (hero === 'viltrum' || hero === 'alien' || hero === 'dragon'));
 }
+// ---- La ciudad, preparada durante la entrada ----
+// Mientras dura la entrada la ciudad no se pinta, así que al terminar el
+// primer fotograma de la ciudad lo creaba todo de golpe (fachadas, suelo,
+// copias a escala, decorado...): un tirón. La cámara y el zoom no cambian
+// durante la entrada, así que cada pocos fotogramas se pinta la ciudad en un
+// lienzo aparte (cada pasada crea solo unas pocas cosas nuevas) y se fuerza su
+// pintado; cuando una pasada ya no crea nada, está lista.
+let _calCv = null, _calentando = false;
+const _cal = { cuenta: 0, listo: false, pasadas: 0, franja: undefined };
+// El lienzo aparte es de 2x2 píxeles: lo que se dibuja fuera no cuesta, pero
+// cada imagen que se copia en él sí queda pintada de verdad.
+function calientaCiudad(){
+  if (_cal.listo || vil.preT < 0.45) return;
+  if (++_cal.cuenta % 2) return;                       // uno de cada dos fotogramas
+  if (!_calCv){ _calCv = document.createElement('canvas'); _calCv.width = _calCv.height = 2; }
+  const c0 = ctx, g = _calCv.getContext('2d', { alpha:false, willReadFrequently:true });
+  g.imageSmoothingQuality = 'low';
+  const e0 = _escCreadas, s0 = sb.ok, p0 = _preNuevosTotal, b0 = edifCreados;
+  { const k = ZOOM*DPR, cx = Math.round(camX*k), cy = Math.round(camY*k);   // primero el suelo, en cuatro franjas (es lo más pesado)
+    if (_cal.franja !== undefined || !sb.ok || sb.k !== k || sb.mapa !== mapa || !sb.a || sb.w !== canvas.width + 2*SB_M || sb.h !== canvas.height + 2*SB_M ||
+        cx < sb.ox || cy < sb.oy || cx + canvas.width > sb.ox + sb.w || cy + canvas.height > sb.oy + sb.h){ sb.ok = false; calientaSuelo(g); return; } }
+  // luego las fachadas a la vista, de una en una, ya pintadas de verdad
+  for (let i = 0; i < buildings.length; i++){ const b = buildings[i];
+    if (b.x + b.w < camX || b.x > camX + VW || b.y + b.h < camY || b.y > camY + VH) continue;
+    const et = b.stage === 0 && esInfierno() ? 1 : b.stage;
+    if (b._cv && b._cvK === edifClave(b) && b._cv[et]) continue;
+    try { const c = edifCanvas(b, b.stage, true); if (c) fuerzaPintado(c); } catch(e){ anotaError('calientaEdif', e); }
+    return;
+  }
+  // los pájaros posados de los árboles a la vista, de dos en dos árboles
+  { let n = 0;
+    for (let i = 0; i < trees.length && n < 2; i++){ const t = trees[i];
+      if (t.dead || t.held || t.thrown || t.x < camX - 90 || t.x > camX + VW + 90 || t.y < camY - 140 || t.y > camY + VH + 140) continue;
+      try { if (!avesDe(t) || (t._avG && t._avGn === t.aves && t._avGt === aveTipo())) continue; fuerzaPintado(avesGrupoCv(t)); n++; } catch(e){ n = 9; }
+    }
+    if (n) return;
+  }
+  // la luz (búferes, farolas, graduación), en su propia pasada
+  if (!_cal.luz){
+    _cal.luz = true;
+    const c1 = ctx; ctx = g; _calentando = true;
+    try { ctx.setTransform(DPR, 0, 0, DPR, 0, 0); drawLighting(); g.getImageData(0, 0, 1, 1); } catch(e){ anotaError('calientaLuz', e); }
+    finally { _calentando = false; ctx = c1; }
+    return;
+  }
+  ctx = g; _calentando = true;
+  try { draw(); g.getImageData(0, 0, 1, 1); }
+  catch(e){ anotaError('calientaCiudad', e); _cal.listo = true; }
+  finally { _calentando = false; ctx = c0; try { ctx.setTransform(DPR, 0, 0, DPR, 0, 0); } catch(e){} }
+  _cal.pasadas++;
+  // nada nuevo en esta pasada (ni copias, ni suelo, ni decorado, ni fachadas): lista
+  if ((_escCreadas === e0 && s0 && sb.ok && _preNuevosTotal === p0 && edifCreados === b0) || _cal.pasadas >= 40) _cal.listo = true;
+}
+// El búfer del suelo, tal como lo dejaría sbActualiza, pero pintado de cuarto en cuarto.
+function calientaSuelo(g){
+  try {
+    const k = ZOOM*DPR, W = canvas.width + 2*SB_M, H = canvas.height + 2*SB_M;
+    if (_cal.franja === undefined || sb.k !== k || !sb.a || sb.w !== W || sb.h !== H){
+      if (!sb.a || sb.w !== W || sb.h !== H){
+        sb.a = document.createElement('canvas'); sb.b = document.createElement('canvas');
+        sb.a.width = sb.b.width = W; sb.a.height = sb.b.height = H; sb.w = W; sb.h = H;
+      }
+      camX = Math.round(camX*k)/k; camY = Math.round(camY*k)/k;
+      sb.ultK = k; sb.k = k; sb.mapa = mapa; sb.ox = Math.round(camX*k) - SB_M; sb.oy = Math.round(camY*k) - SB_M;
+      _cal.franja = 0;
+    }
+    const i = _cal.franja, h0 = Math.floor(H*i/4), h1 = Math.floor(H*(i + 1)/4), ga = sb.a.getContext('2d');
+    sbPinta(ga, 0, h0, W, h1 - h0);
+    g.drawImage(sb.a, 0, 0, 2, 2); g.getImageData(0, 0, 1, 1);
+    if (++_cal.franja >= 4){ sb.ok = true; _cal.franja = undefined; }
+  } catch(e){ anotaError('calientaSuelo', e); _cal.listo = true; }
+}
+function calientaFin(){ _cal.luz = false; _cal.cuenta = 0; _cal.listo = false; _cal.pasadas = 0; _cal.franja = undefined; if (_calCv){ _calCv.width = _calCv.height = 0; _calCv = null; } }
 function drawPreludio(){
+  if (_calentando) return;
   const activo = preludioActivo();
   if (!activo && !(vil.preFade > 0)) return;
+  if (activo) calientaCiudad();
   ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
   try {
     if (!activo){                                            // el fundido hacia la entrada de siempre
@@ -34606,10 +34686,11 @@ function drawPreludio(){
 function finPreludio(col){
   if (esAlien() && running) muestraIntroMapa();
   vil.preT = 0; vil.preFade = col ? PRE_FUNDIDO_T : 0; vil.preFadeCol = col || '';
+  calientaFin();
   _vilFr.fr = []; _vilFr.pal = null; _criaFondo.k = ''; _criaFondo.c = null;
-  // el espacio (las estrellas son un lienzo del tamaño de la pantalla), el
-  // planeta, el satélite y la nube lila: solo hacían falta para la entrada
-  for (const k in _espacio) delete _espacio[k];
+  // el espacio (las estrellas son un lienzo del tamaño de la pantalla) y la
+  // nube lila: solo hacían falta para la entrada
+  _espacio.est = null; _espacio.estK = '';         // (el planeta y el satélite, pequeños, se quedan para la próxima)
   _nubeAlien = null;
 }
 // El cielo de los preludios: azul con sol en la ciudad; malva, con estrellas y
@@ -34664,6 +34745,40 @@ function vilEspaldaFrame(P, i, S, SK){
   vilEspalda(g, P, i*(Math.PI*2/26)/VIL_FR_N, SK);
   return (_vilFr.fr[i] = c);
 }
+// ---- la entrada del viltrumita, preparada de antemano ----
+// El navegador no pinta de verdad un lienzo hasta que se usa: el primer
+// fotograma de la entrada pagaba todo de golpe (un tirón). Se prepara en los
+// ratos libres del menú y, lo que falte, al empezar la partida, y se fuerza el
+// pintado copiándolo a un lienzo de 1x1 y leyéndolo.
+const _pintaCv = document.createElement('canvas'); _pintaCv.width = _pintaCv.height = 1;
+function fuerzaPintado(c){ try { const g = _pintaCv.getContext('2d', { willReadFrequently:true }); g.drawImage(c, 0, 0, 1, 1); g.getImageData(0, 0, 1, 1); } catch(e){} }
+function preparaEntradaVil(al){
+  if (hero !== 'viltrum') return;
+  try {
+    const W = canvas.width, H = canvas.height, D = Math.min(W, H), S = Math.min(3, Math.ceil(D/560*1.2*4)/4);
+    fuerzaPintado(espacioEstrellas(W, H, al)); fuerzaPintado(espacioPlaneta(al)); fuerzaPintado(espacioSatelite(al));
+    const P = vilPaleta(), sk = skin();
+    for (let i = 0; i < VIL_FR_N; i++) fuerzaPintado(vilEspaldaFrame(P, i, S, sk));
+    fuerzaPintado(vilNubeCv());
+  } catch(e){ anotaError('preparaEntradaVil', e); }
+}
+// En el menú, con el viltrumita elegido: se prepara cuando el navegador está libre.
+function preparaEnMenu(){
+  const otra = ()=> setTimeout(preparaEnMenu, 1500);
+  try {
+    if (!running && hero === 'viltrum' && mapaElegido !== 'infierno' && !document.hidden){
+      const al = mapaElegido === 'alien';
+      const hecho = _espacio[al ? 'pa' : 'pc'] && _espacio.est && _espacio.estK === canvas.width + 'x' + canvas.height + (al ? 'a' : 'c');
+      if (!hecho){
+        if (typeof requestIdleCallback === 'function') requestIdleCallback(()=>{ try { if (!running) preparaEntradaVil(al); } catch(e){} otra(); }, { timeout: 3000 });
+        else { preparaEntradaVil(al); otra(); }
+        return;
+      }
+    }
+  } catch(e){}
+  otra();
+}
+setTimeout(preparaEnMenu, 2000);
 // ---- el espacio: estrellas, el planeta y el satélite (todo pintado una vez) ----
 const _espacio = {};
 function espacioEstrellas(W, H, al){
@@ -34700,13 +34815,17 @@ function espacioPlaneta(al){
     g.closePath(); g.fill();
   }
   if (al){ for (let i = 0; i < 40; i++){ g.fillStyle = 'rgba(127,232,255,0.8)'; g.fillRect(R()*N, R()*N, 3, 3); } }       // luces de las ciudades marcianas
-  // nubes: bandas y manchas blandas, difuminadas
-  g.filter = 'blur(5px)';
-  g.fillStyle = al ? 'rgba(255,190,240,0.32)' : 'rgba(255,255,255,0.38)';
-  for (let i = 0; i < 150; i++){ const cx = R()*N, cy = R()*N; g.beginPath(); g.ellipse(cx, cy, 10 + R()*36, 4 + R()*10, (R() - 0.5)*0.6, 0, Math.PI*2); g.fill(); }
-  g.filter = 'blur(2px)';
-  for (let i = 0; i < 18; i++){ const cx = R()*N, cy = R()*N, rr = 14 + R()*22; g.fillStyle = al ? 'rgba(255,200,245,0.4)' : 'rgba(255,255,255,0.5)';
-    for (let k = 0; k < 7; k++){ const a = k*0.9 + R(); g.beginPath(); g.ellipse(cx + Math.cos(a)*rr*k*0.18, cy + Math.sin(a)*rr*k*0.18, rr*(1 - k*0.1), rr*0.35, a, 0, Math.PI*2); g.fill(); } }   // remolinos de tormenta
+  // nubes: bandas y manchas blandas, difuminadas. Se pintan todas en una capa
+  // y se desenfoca la capa UNA vez: con el desenfoque puesto en cada mancha
+  // eran ~280 desenfoques y el primer fotograma de la entrada tardaba un segundo.
+  const capa = document.createElement('canvas'); capa.width = capa.height = N; const q = capa.getContext('2d');
+  q.fillStyle = al ? 'rgba(255,190,240,0.32)' : 'rgba(255,255,255,0.38)';
+  for (let i = 0; i < 150; i++){ const cx = R()*N, cy = R()*N; q.beginPath(); q.ellipse(cx, cy, 10 + R()*36, 4 + R()*10, (R() - 0.5)*0.6, 0, Math.PI*2); q.fill(); }
+  g.filter = 'blur(5px)'; g.drawImage(capa, 0, 0);
+  q.clearRect(0, 0, N, N);
+  for (let i = 0; i < 18; i++){ const cx = R()*N, cy = R()*N, rr = 14 + R()*22; q.fillStyle = al ? 'rgba(255,200,245,0.4)' : 'rgba(255,255,255,0.5)';
+    for (let k = 0; k < 7; k++){ const a = k*0.9 + R(); q.beginPath(); q.ellipse(cx + Math.cos(a)*rr*k*0.18, cy + Math.sin(a)*rr*k*0.18, rr*(1 - k*0.1), rr*0.35, a, 0, Math.PI*2); q.fill(); } }   // remolinos de tormenta
+  g.filter = 'blur(2px)'; g.drawImage(capa, 0, 0);
   g.filter = 'none';
   // la noche: sombra hacia abajo a la derecha
   const sm = g.createRadialGradient(r*0.55, r*0.5, r*0.3, r*0.7, r*0.7, r*1.25);
@@ -36777,6 +36896,57 @@ function jefeEnPartida(){
   for (let __i256 = 0, __a256 = enemies; __i256 < __a256.length; __i256++){ const e = __a256[__i256]; if (!e.dead && JEFES[e.type] && !e.normal) return true; }
   return false;
 }
+// ============ TOPE DE TROPA Y REZAGADOS ============
+// Como mucho TROPA_MAX enemigos normales a la vez (los jefes no cuentan ni se
+// frenan): con más, la pantalla se llenaba de gente que en buena parte estaba
+// lejos, sin pelear, y costaba rendimiento. Las oleadas esperan a que caiga
+// alguno. Y el que lleva unos segundos lejos y fuera de la vista (se quedó
+// atascado, perdido o rezagado) se teletransporta justo fuera de la pantalla,
+// cerca del jugador, para volver a la pelea.
+const TROPA_MAX = 22, TROPA_MAX_MOVIL = 16, REZAGO_T = 6;
+let _spawnTropa = false;
+const _tactil = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
+function tropaMax(){ return _tactil || equipoFlojo ? TROPA_MAX_MOVIL : TROPA_MAX; }
+function tropaViva(){
+  let n = 0;
+  for (let i = 0; i < enemies.length; i++){ const e = enemies[i]; if (!e.dead && !JEFES[e.type] && e.type !== 'ovni') n++; }
+  return n;
+}
+function conTope(f){ _spawnTropa = true; try { f(); } finally { _spawnTropa = false; } }
+// Un punto justo fuera de la vista (60 px más allá del borde), en una
+// dirección al azar; en el suelo, que no caiga dentro de un edificio.
+function puntoJuntoVista(vuela){
+  const cx = camX + VW/2, cy = camY + VH/2, M = 60;
+  for (let i = 0; i < 16; i++){
+    const a = rand(0, Math.PI*2), ca = Math.abs(Math.cos(a)), sa = Math.abs(Math.sin(a));
+    const d = Math.min(ca > 1e-3 ? (VW/2)/ca : 1e9, sa > 1e-3 ? (VH/2)/sa : 1e9) + 60 + rand(0, 60);
+    const x = cx + Math.cos(a)*d, y = cy + Math.sin(a)*d;
+    if (x < M || x > WORLD_W - M || y < M || y > WORLD_H - M) continue;
+    if (!vuela && dentroDeEdificio(x, y, 24)) continue;
+    return { x, y };
+  }
+  return null;
+}
+const REZAGO_NO = { plane:1, ovni:1, siege:1 };          // el caza pasa de largo, el ovni pasea y el obús dispara de lejos
+function acercaRezagados(dt){
+  if (!running || Online.jugando || esVisorVs() || gameMode !== 'invasion' || TUT.activo || vil.intro) return;
+  const m = 150;                                          // fuera de la vista y algo más
+  for (let i = 0; i < enemies.length; i++){ const e = enemies[i];
+    if (e.dead || JEFES[e.type] || REZAGO_NO[e.type] || e.held || e.thrown || enPresa(e) || e.stunT > 0 || e.llega > 0){ e._rezT = 0; continue; }
+    const fuera = e.x < camX - m || e.x > camX + VW + m || e.y < camY - m || e.y > camY + VH + m;
+    if (!fuera){ e._rezT = 0; continue; }
+    e._rezT = (e._rezT || 0) + dt;
+    if (e._rezT < REZAGO_T) continue;
+    e._rezT = 0;
+    const vuela = !!(AL_VUELA[e.type] || FANT_TIPOS[e.type] || e.type === 'heli' || e.type === 'gunship');
+    const p = puntoJuntoVista(vuela);
+    if (!p) continue;
+    addParticles(e.x, e.y, '#9fd8ff', 6, 120);             // (fuera de la vista: por si alguien lo ve irse)
+    e.x = p.x; e.y = p.y; e._iaDt = 0; e.cubierto = false;
+    addParticles(p.x, p.y - (e.alt || 0), '#9fd8ff', 12, 160);
+    sfxEn('teleporte', p.x, p.y, 0.6);
+  }
+}
 function updateSpawns(dt){
   if (TUT.activo) return;                       // en el tutorial, solo lo que pone cada paso
   gameTime += dt;
@@ -36797,6 +36967,7 @@ function updateSpawns(dt){
     updateMiniOleada(dt);
     return;
   }
+  acercaRezagados(dt);
   if (finalWave() && !finalAnnounced){
     finalAnnounced = true;
     toast('OLEADA FINAL');
@@ -36880,19 +37051,21 @@ function updateSpawns(dt){
   // Con los marcianos en la ciudad el ejército humano no sale, ni siquiera
   // en pleno asedio.
   if (esAlien()){                                     // el planeta tiene su propio ejército
-    if (!(bossAlive && !enAsedio())) updateSpawnsAlien(dtE, count);
+    if (!(bossAlive && !enAsedio())) conTope(()=> updateSpawnsAlien(dtE, count));
     return;
   }
   if (esInfierno()){                                  // el castigo: vengativos y deformados
     if (criasActivas()) return;                       // las crías espantan hasta a los condenados
-    if (!(bossAlive && !enAsedio())) updateSpawnsInf(dtE, count);
-    else if (spawnTimers.ven !== undefined && (spawnTimers.ven -= dtE) <= 0){ hordaVengativa(4); spawnTimers.ven = rand(12, 16); }
+    if (!(bossAlive && !enAsedio())) conTope(()=> updateSpawnsInf(dtE, count));
+    else if (spawnTimers.ven !== undefined && (spawnTimers.ven -= dtE) <= 0){ conTope(()=> hordaVengativa(4)); spawnTimers.ven = rand(12, 16); }
     return;
   }
   if (marcianosActivos() || criasActivas()) return;      // con trípodes o crías en la ciudad, el ejército no sale
   // Con el asedio en marcha las tropas siguen llegando aunque haya un jefe.
   if (bossAlive && !enAsedio()) return;
-
+  conTope(()=> spawnsCiudad(dtE, count));
+}
+function spawnsCiudad(dtE, count){
   if (stage>=2){
     spawnTimers.pol -= dtE;
     if (spawnTimers.pol<=0){
@@ -38111,6 +38284,7 @@ function actualizaSol(){
 // se coge, se lanza o se dobla con el viento, se dibuja como siempre.
 // (Pintar las sombras en el búfer del suelo obligaría a rehacerlo entero, unos
 // 20 ms, cada vez que el sol se mueve: así cuesta casi nada.)
+let _preNuevosTotal = 0;
 const _pre = { usados: new Set(), nuevos: 0, base: '', clave: '', barrido: 0 };
 const PRE_NUEVOS = 8;                          // imágenes nuevas por fotograma como mucho
 function propPreFotograma(){
@@ -38161,9 +38335,9 @@ function propPre(o, sx, sy, caja, pinta){
   const forma = c && c.rot === o.rot && c.w === o.w && c.h === o.h;      // si se tuerce o cambia de tamaño, se rehace
   if (!c || c.clave !== _pre.clave || !forma){
     const vale = forma && c.base === _pre.base;  // misma escala y mapa: solo el sol algo atrasado
-    if (_pre.nuevos >= PRE_NUEVOS){ if (!vale) return pinta(o, sx, sy); }
+    if (_pre.nuevos >= (_calentando ? 4 : PRE_NUEVOS)){ if (!vale) return _calentando ? true : pinta(o, sx, sy); }
     else {
-      _pre.nuevos++;
+      _pre.nuevos++; _preNuevosTotal++;
       const ox = Math.ceil(-caja[0]*k) + 1, oy = Math.ceil(-caja[1]*k) + 1;
       const W = ox + Math.ceil(caja[2]*k) + 1, H = oy + Math.ceil(caja[3]*k) + 1;
       if (W*H > 300000) return pinta(o, sx, sy);
@@ -39667,7 +39841,7 @@ function dlPush(y, k, o){
 function dlCmp(a, b){ return a.y - b.y; }
 
 function draw(){
-  if (preludioActivo()){ drawPreludio(); return; }      // el preludio tapa la pantalla entera: no se pinta la ciudad
+  if (preludioActivo() && !_calentando){ drawPreludio(); return; }      // el preludio tapa la pantalla entera: no se pinta la ciudad
   ctx.setTransform(ZOOM*DPR, 0, 0, ZOOM*DPR, 0, 0);   // todo el mundo se dibuja escalado
   // lo que algún efecto dejara puesto no pasa al fotograma siguiente
   ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'; ctx.shadowBlur = 0;
