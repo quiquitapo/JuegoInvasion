@@ -39837,6 +39837,14 @@ function pintaBalasLowres(L){
 const _balasG = [];
 // Estampa de la bola de fuego, generada una vez.
 let _boomSp = null;
+let _boomLR = null;
+function boomSpriteLowres(){
+  if (_boomLR) return _boomLR;
+  const c = document.createElement('canvas'); c.width = c.height = 24;
+  const g = c.getContext('2d'); g.imageSmoothingQuality = 'high';
+  g.drawImage(boomSprite(), 0, 0, 24, 24);
+  return (_boomLR = c);
+}
 function boomSprite(){
   if (_boomSp) return _boomSp;
   const S2 = 128, c = document.createElement('canvas');
@@ -39899,7 +39907,9 @@ function drawAura(){
 function drawFX(){
   // Bola de fuego: antes se construía un degradado radial nuevo por estallido
   // y por fotograma, que es de lo más caro que hay. Ahora es una estampa.
-  const bs = boomSprite();
+  // (a la mínima resolución: una estampa de 24 px ampliada sin suavizar, a juego con las partículas)
+  const bs = boomSpriteLowres(), suave = ctx.imageSmoothingEnabled;
+  ctx.imageSmoothingEnabled = false;
   for (let __i265 = 0, __a265 = booms; __i265 < __a265.length; __i265++){ const b = __a265[__i265];
     const a = clamp(b.life/b.maxlife,0,1);
     const r = Math.max(b.r,1);
@@ -39924,8 +39934,51 @@ function drawFX(){
     dibujaRedondaViva(bs, bx, by, r*0.45);
     ctx.globalAlpha = 1;
   }
-  // Las chispas se agrupan por color y por franja de transparencia, de modo
-  // que un estallido entero se pinta en dos o tres llamadas en vez de treinta.
+  ctx.imageSmoothingEnabled = suave;
+  pintaParticulasLowres();
+}
+// ---- Partículas a la mínima resolución ----
+// Chispas, polvo, la estela del vuelo del viltrumita, sangre, esquirlas...
+// Se pintan como bloques de píxel en una rejilla de una unidad del mundo
+// (2-3 píxeles del lienzo), alineados a píxeles enteros: sin suavizado ni
+// arcos que teselar. Las pequeñas son un bloque cuadrado; las grandes, una
+// cruz de dos bloques (un círculo pixelado). Se agrupan por color y franja de
+// transparencia: un estallido entero son dos o tres rellenos.
+function pintaParticulasLowres(){
+  if (!partN) return;
+  const m = ctx.getTransform();
+  if (m.b || m.c || !(m.a > 0) || !(m.d > 0)){ pintaParticulasVector(); return; }
+  const k = m.a, g = Math.max(1, Math.round(k)), ox = m.e - camX*k, oy = m.f - camY*k;
+  const W = canvas.width + g*8, H = canvas.height + g*8;
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
+  let col = '', alfa = -1, abierto = false;
+  for (let i = 0; i < partN; i++){
+    const p = particles[i];
+    const a = Math.round(clamp(p.life/p.maxlife, 0, 1) * 4) / 4;   // 4 franjas
+    if (a <= 0) continue;
+    const cx = p.x*k + ox, cy = p.y*k + oy;
+    if (cx < -g*8 || cy < -g*8 || cx > W || cy > H) continue;      // fuera de la pantalla
+    if (p.color !== col || a !== alfa){
+      if (abierto) ctx.fill();
+      ctx.globalAlpha = a; ctx.fillStyle = p.color;
+      ctx.beginPath(); abierto = true;
+      col = p.color; alfa = a;
+    }
+    const X = Math.round(cx/g)*g, Y = Math.round(cy/g)*g;
+    if (p.r < 4){                                                  // un bloque (misma área que el círculo)
+      const L = Math.max(g, Math.round(p.r*1.772*k/g)*g), h = Math.round(L/(2*g))*g;
+      ctx.rect(X - h, Y - h, L, L);
+    } else {                                                       // cruz de dos bloques: círculo pixelado
+      const R = Math.max(g, Math.round(p.r*k/g)*g), c = Math.max(g, Math.round(p.r*0.62*k/g)*g);
+      ctx.rect(X - R, Y - c, 2*R, 2*c); ctx.rect(X - c, Y - R, 2*c, 2*R);
+    }
+  }
+  if (abierto) ctx.fill();
+  ctx.restore();
+  ctx.globalAlpha = 1;
+}
+// (la versión de antes, para una transformación girada o espejada)
+function pintaParticulasVector(){
   let col = '', alfa = -1, abierto = false;
   for (let i = 0; i < partN; i++){
     const p = particles[i];
