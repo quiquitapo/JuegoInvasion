@@ -6103,21 +6103,21 @@ let VW = CW / ZOOM, VH = CH / ZOOM;                    // mundo visible (unidade
 // aguanta el ritmo, vigilaRendimiento() lo devuelve a 1× para que no haya lag.
 let DPR = 1, dprTope = 1.5;                  // en pantallas muy densas basta 1,5x: no se nota y pinta casi la mitad
 // Alta resolución (ULTRA; Ajustes > Pantalla y sonido): lo único que cambia
-// es la resolución, 1,5 veces la de la pantalla (hasta 3x y unos 8
-// megapíxeles). Tres modos: ENCENDIDO y APAGADO no cambian nunca solos; AUTO
+// es la resolución, 1,25 veces la de la pantalla (antes 1,5: un 31 % menos
+// de píxeles, casi igual de nítido; hasta 3x y unos 8 megapíxeles). Tres modos: ENCENDIDO y APAGADO no cambian nunca solos; AUTO
 // (el de fábrica) empieza siempre con ella puesta, la apaga si con ella el
 // juego no va fluido y solo la vuelve a probar si después va sobrado (ver
 // ultraVigila).
 let ultraOn = false, ultraModo = 'auto';
 function dprUltra(dprPant){
-  let d = Math.min(3, Math.max(1, dprPant)*1.5);
+  let d = Math.min(3, Math.max(1, dprPant)*1.25);
   // en el móvil, menos píxeles: la memoria de la tarjeta gráfica es justa y,
   // si se agota, el navegador descarta los lienzos (la pantalla se va a negro)
   const tactil = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
   const flojo = (navigator.hardwareConcurrency || 4) <= 2 || (navigator.deviceMemory > 0 && navigator.deviceMemory <= 2);   // (como equipoFlojo, que se declara más abajo)
   // Topes de nitidez: en el móvil 2,25x (a 3x no se distingue y pinta casi el
-  // doble); en pantallas grandes de PC (1080p reales o más) 1,25 veces la
-  // pantalla en vez de 1,5 (un 31 % menos de píxeles, apenas se nota).
+  // doble); en pantallas grandes de PC (1080p reales o más), también 1,25
+  // veces la pantalla.
   d = Math.min(d, dprTopeVista(tactil, dprPant, true));
   const px = CW*CH*d*d, tope = flojo ? 3e6 : tactil ? 3.5e6 : 8.3e6;
   if (px > tope) d = Math.sqrt(tope/(CW*CH));
